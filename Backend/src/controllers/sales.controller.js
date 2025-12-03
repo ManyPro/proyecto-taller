@@ -1233,19 +1233,22 @@ export const closeSale = async (req, res) => {
         }
       }
 
-      // Procesar slots abiertos completados: verificar si ya están en items antes de agregarlos
-      // CRÍTICO: El item ya fue agregado cuando se completó el slot en completeOpenSlot
-      // Necesitamos verificar si hay suficientes items para todos los slots completados
+      // Procesar slots abiertos completados: verificar que los items existan y actualizar precios
+      // CRÍTICO: Los items YA fueron agregados cuando se completó el slot en completeOpenSlot
+      // NO agregar items aquí, solo verificar que existan y actualizar precios si es necesario
       if (sale.openSlots && sale.openSlots.length > 0) {
         // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
         const itemCompanyFilter = await getItemQueryCompanyFilter(req);
         
-        // Primero: contar cuántos items de cada slot ya existen en sale.items
-        // Usar un Set para rastrear qué items ya fueron "asignados" a slots
-        const assignedItems = new Set();
+        // Usar un Set para rastrear qué items ya fueron procesados (evitar procesar el mismo item dos veces)
+        const processedSlots = new Set();
         
         for (const slot of sale.openSlots) {
           if (!slot.completed || !slot.completedItemId) continue;
+          
+          const slotKey = `${slot.comboPriceId}_${slot.slotIndex}_${slot.completedItemId}`;
+          if (processedSlots.has(slotKey)) continue; // Ya procesamos este slot
+          processedSlots.add(slotKey);
           
           const item = await Item.findOne({ _id: slot.completedItemId, companyId: itemCompanyFilter }).session(session);
           if (!item) throw new Error(`Item del inventario no encontrado para slot: ${slot.slotName}`);
@@ -1253,153 +1256,52 @@ export const closeSale = async (req, res) => {
           const slotItemRefId = String(slot.completedItemId);
           const slotItemSku = item.sku ? String(item.sku).toUpperCase() : '';
           const slotQty = slot.qty || 1;
-          // CRÍTICO: No usar slotPrice para comparar porque puede haber discrepancias
-          // El precio puede ser 0 en estimatedPrice pero diferente en item.salePrice
-          // Solo comparar por refId y cantidad para identificar el item del slot
           
-          // Buscar el combo para limitar la búsqueda al contexto del combo
-          const comboItemForSlot = sale.items.find(it => 
-            it.source === 'price' && 
-            it.refId && 
-            String(it.refId) === String(slot.comboPriceId)
-          );
-          const comboIndex = comboItemForSlot ? sale.items.indexOf(comboItemForSlot) : -1;
-          
-          // Buscar si hay un item no asignado aún que coincida con este slot
-          // CRÍTICO: Buscar por refId principalmente, pero también considerar variaciones de SKU
-          // El item puede tener SKU con prefijo CP- o sin él, dependiendo de cómo se agregó
-          let foundUnassignedItem = null;
-          
-          if (comboIndex >= 0) {
-            // Buscar desde el combo hacia adelante
-            for (let i = comboIndex + 1; i < sale.items.length; i++) {
-              const it = sale.items[i];
-              const itRefId = it.refId ? String(it.refId) : '';
-              const itSku = it.sku ? String(it.sku).toUpperCase() : '';
-              
-              // Si encontramos otro combo, parar la búsqueda
-              if (it.source === 'price' && it.refId && String(it.refId) !== String(slot.comboPriceId)) {
-                break;
-              }
-              
-              // Verificar si este item coincide con el slot por refId (más confiable)
-              // También verificar que la cantidad coincida (el precio puede variar si se editó)
-              if (itRefId === slotItemRefId && it.qty === slotQty) {
-                // Usar un key estable basado en refId y cantidad, no en el índice
-                const itemKey = `slot_${slot.comboPriceId}_${slot.slotIndex}_${itRefId}_${it.qty}`;
-                if (!assignedItems.has(itemKey)) {
-                  foundUnassignedItem = it;
-                  assignedItems.add(itemKey);
-                  break;
-                }
-              }
-              
-              // También verificar por SKU normalizado (sin prefijo CP-) si ambos tienen SKU
-              if (slotItemSku && itSku) {
-                const itSkuNoPrefix = itSku.replace(/^CP-/i, '');
-                const slotSkuNoPrefix = slotItemSku.replace(/^CP-/i, '');
-                if (itSkuNoPrefix && slotSkuNoPrefix && itSkuNoPrefix === slotSkuNoPrefix && it.qty === slotQty) {
-                  // Verificar también que el refId coincida para asegurar que es el mismo item
-                  if (itRefId === slotItemRefId) {
-                    const itemKey = `slot_${slot.comboPriceId}_${slot.slotIndex}_${itRefId}_${it.qty}`;
-                    if (!assignedItems.has(itemKey)) {
-                      foundUnassignedItem = it;
-                      assignedItems.add(itemKey);
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          
-          // Fallback: buscar en toda la venta si no encontramos en el contexto del combo
-          if (!foundUnassignedItem) {
-            for (let i = 0; i < sale.items.length; i++) {
-              const it = sale.items[i];
-              const itRefId = it.refId ? String(it.refId) : '';
-              const itSku = it.sku ? String(it.sku).toUpperCase() : '';
-              
-              // Verificar por refId (más confiable) - solo cantidad, no precio (puede haber sido editado)
-              if (itRefId === slotItemRefId && it.qty === slotQty) {
-                // Usar un key estable basado en refId y cantidad, no en el índice
-                const itemKey = `slot_${slot.comboPriceId}_${slot.slotIndex}_${itRefId}_${it.qty}`;
-                if (!assignedItems.has(itemKey)) {
-                  foundUnassignedItem = it;
-                  assignedItems.add(itemKey);
-                  break;
-                }
-              }
-              
-              // También verificar por SKU normalizado si ambos tienen SKU
-              if (slotItemSku && itSku) {
-                const itSkuNoPrefix = itSku.replace(/^CP-/i, '');
-                const slotSkuNoPrefix = slotItemSku.replace(/^CP-/i, '');
-                if (itSkuNoPrefix && slotSkuNoPrefix && itSkuNoPrefix === slotSkuNoPrefix && it.qty === slotQty) {
-                  // Verificar también que el refId coincida para asegurar que es el mismo item
-                  if (itRefId === slotItemRefId) {
-                    const itemKey = `slot_${slot.comboPriceId}_${slot.slotIndex}_${itRefId}_${it.qty}`;
-                    if (!assignedItems.has(itemKey)) {
-                      foundUnassignedItem = it;
-                      assignedItems.add(itemKey);
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          
-          // Si encontramos el item, actualizar el precio si es necesario (puede haber sido 0 cuando se agregó)
-          if (foundUnassignedItem) {
-            // Usar el precio correcto (estimatedPrice tiene prioridad, pero si es 0, usar salePrice)
-            const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
-              ? slot.estimatedPrice 
-              : (item.salePrice || 0);
+          // Buscar TODOS los items en sale.items que coincidan con este slot
+          // Buscar por refId (más confiable) y también por SKU normalizado (sin prefijo CP-)
+          // Un slot puede tener múltiples items si se agregó varias veces (no debería pasar, pero por seguridad)
+          const matchingItems = sale.items.filter(it => {
+            const itRefId = it.refId ? String(it.refId) : '';
+            const itSku = it.sku ? String(it.sku).toUpperCase() : '';
             
-            // Si el precio es diferente y el precio actual es 0, actualizar
-            if (foundUnassignedItem.unitPrice === 0 && realPrice > 0) {
-              foundUnassignedItem.unitPrice = realPrice;
-              foundUnassignedItem.total = Math.round((foundUnassignedItem.qty || 1) * realPrice);
+            // Coincidencia por refId y cantidad (más confiable)
+            if (itRefId === slotItemRefId && it.qty === slotQty) {
+              return true;
             }
             
-            // Asegurar que el SKU tenga el prefijo CP- si es parte de un combo
-            if (foundUnassignedItem.sku && !foundUnassignedItem.sku.toUpperCase().startsWith('CP-')) {
-              const comboItem = sale.items.find(it => 
-                it.source === 'price' && 
-                it.refId && 
-                String(it.refId) === String(slot.comboPriceId)
-              );
-              if (comboItem) {
-                const hasCPPrefix = sale.items.some(it => 
-                  it.source === 'inventory' && 
-                  it.sku && 
-                  String(it.sku).toUpperCase().startsWith('CP-') &&
-                  it.refId && 
-                  String(it.refId) !== slotItemRefId
-                );
-                if (hasCPPrefix) {
-                  foundUnassignedItem.sku = `CP-${foundUnassignedItem.sku}`;
+            // También verificar por SKU normalizado (sin prefijo CP-) si ambos tienen SKU
+            if (slotItemSku && itSku) {
+              const itSkuNoPrefix = itSku.replace(/^CP-/i, '');
+              const slotSkuNoPrefix = slotItemSku.replace(/^CP-/i, '');
+              if (itSkuNoPrefix && slotSkuNoPrefix && itSkuNoPrefix === slotSkuNoPrefix && it.qty === slotQty) {
+                // Verificar también que el refId coincida para asegurar que es el mismo item
+                if (itRefId === slotItemRefId) {
+                  return true;
                 }
               }
             }
-          } else {
-            // Solo agregar si no encontramos un item no asignado (el item ya fue agregado cuando se completó el slot)
-            // Usar el precio correcto: estimatedPrice si es > 0, sino usar salePrice del item
+            
+            return false;
+          });
+          
+          if (matchingItems.length === 0) {
+            // El item no existe, pero debería existir porque fue agregado en completeOpenSlot
+            // Esto puede pasar si hubo un error o si el item fue eliminado manualmente
+            // En este caso, agregarlo para evitar errores, pero registrar un warning
+            console.warn(`[closeSale] Item del slot ${slot.slotName} no encontrado en sale.items, agregándolo`);
+            
             const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
               ? slot.estimatedPrice 
               : (item.salePrice || 0);
             
             // Determinar el SKU correcto (con prefijo CP- si es parte de un combo)
             let finalSku = item.sku || `SLOT-${String(slot.completedItemId).slice(-6)}`;
-            // Si el combo usa prefijo CP-, mantenerlo consistente
             const comboItem = sale.items.find(it => 
               it.source === 'price' && 
               it.refId && 
               String(it.refId) === String(slot.comboPriceId)
             );
             if (comboItem) {
-              // Verificar si otros items del combo usan prefijo CP-
               const hasCPPrefix = sale.items.some(it => 
                 it.source === 'inventory' && 
                 it.sku && 
@@ -1412,7 +1314,6 @@ export const closeSale = async (req, res) => {
               }
             }
             
-            // Agregar el item solo si no existe (evita duplicación)
             sale.items.push({
               source: 'inventory',
               refId: item._id,
@@ -1422,6 +1323,41 @@ export const closeSale = async (req, res) => {
               unitPrice: realPrice,
               total: Math.round((slot.qty || 1) * realPrice)
             });
+          } else {
+            // El item existe, actualizar precio si es necesario
+            const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
+              ? slot.estimatedPrice 
+              : (item.salePrice || 0);
+            
+            // Actualizar el precio del primer item encontrado si es 0
+            // Si hay múltiples items (no debería pasar), actualizar todos
+            for (const foundItem of matchingItems) {
+              if (foundItem.unitPrice === 0 && realPrice > 0) {
+                foundItem.unitPrice = realPrice;
+                foundItem.total = Math.round((foundItem.qty || 1) * realPrice);
+              }
+              
+              // Asegurar que el SKU tenga el prefijo CP- si es parte de un combo
+              if (foundItem.sku && !foundItem.sku.toUpperCase().startsWith('CP-')) {
+                const comboItem = sale.items.find(it => 
+                  it.source === 'price' && 
+                  it.refId && 
+                  String(it.refId) === String(slot.comboPriceId)
+                );
+                if (comboItem) {
+                  const hasCPPrefix = sale.items.some(it => 
+                    it.source === 'inventory' && 
+                    it.sku && 
+                    String(it.sku).toUpperCase().startsWith('CP-') &&
+                    it.refId && 
+                    String(it.refId) !== slotItemRefId
+                  );
+                  if (hasCPPrefix) {
+                    foundItem.sku = `CP-${foundItem.sku}`;
+                  }
+                }
+              }
+            }
           }
         }
       }
