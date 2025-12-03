@@ -79,13 +79,59 @@ function findDuplicateItems(items) {
 }
 
 /**
+ * Corrige precios de items basándose en openSlots
+ * Si un slot tiene estimatedPrice = 0, el item correspondiente debe tener precio 0
+ */
+function fixSlotItemPrices(sale) {
+  if (!sale.openSlots || sale.openSlots.length === 0) {
+    return { fixed: false, fixedCount: 0 };
+  }
+  
+  let fixedCount = 0;
+  
+  // Crear un mapa de completedItemId -> estimatedPrice para búsqueda rápida
+  const slotPriceMap = new Map();
+  sale.openSlots.forEach(slot => {
+    if (slot.completed && slot.completedItemId) {
+      const itemIdStr = String(slot.completedItemId);
+      // Si estimatedPrice está definido (incluso si es 0), usarlo
+      if (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) {
+        slotPriceMap.set(itemIdStr, slot.estimatedPrice);
+      }
+    }
+  });
+  
+  // Actualizar precios de items que vienen de slots
+  sale.items.forEach(item => {
+    if (item.source === 'inventory' && item.refId) {
+      const itemIdStr = String(item.refId);
+      const expectedPrice = slotPriceMap.get(itemIdStr);
+      
+      if (expectedPrice !== undefined) {
+        // El item viene de un slot, usar el precio del slot
+        const currentPrice = Number(item.unitPrice) || 0;
+        if (currentPrice !== expectedPrice) {
+          item.unitPrice = expectedPrice;
+          item.total = Math.round((item.qty || 1) * expectedPrice);
+          fixedCount++;
+        }
+      }
+    }
+  });
+  
+  return { fixed: fixedCount > 0, fixedCount };
+}
+
+/**
  * Limpia items duplicados de una venta
- * Mantiene el item con precio correcto (mayor que 0) o el primero si todos tienen precio 0
+ * Mantiene el item con precio correcto según openSlots o el que tiene precio > 0
  */
 function cleanDuplicateItems(sale) {
   if (!sale.items || sale.items.length === 0) {
     return { cleaned: false, removed: 0 };
   }
+  
+  // NOTA: No llamar fixSlotItemPrices aquí porque se llama antes en el flujo principal
   
   const duplicates = findDuplicateItems(sale.items);
   
@@ -93,15 +139,31 @@ function cleanDuplicateItems(sale) {
     return { cleaned: false, removed: 0 };
   }
   
+  // Crear un mapa de refId -> estimatedPrice para verificar precios correctos
+  const slotPriceMap = new Map();
+  if (sale.openSlots && sale.openSlots.length > 0) {
+    sale.openSlots.forEach(slot => {
+      if (slot.completed && slot.completedItemId) {
+        const itemIdStr = String(slot.completedItemId);
+        if (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) {
+          slotPriceMap.set(itemIdStr, slot.estimatedPrice);
+        }
+      }
+    });
+  }
+  
   // Crear un Set de índices a eliminar
   const indicesToRemove = new Set();
   let totalRemoved = 0;
   
   duplicates.forEach(dup => {
-    const { indices, items } = dup;
+    const { indices, items, refId } = dup;
+    
+    // Verificar si este item viene de un slot con precio específico
+    const slotPrice = slotPriceMap.get(refId);
     
     // Encontrar el mejor item a mantener
-    // Prioridad: 1) precio > 0, 2) SKU con prefijo CP- (si es parte de combo), 3) el primero
+    // Prioridad: 1) precio que coincide con slot.estimatedPrice, 2) precio > 0, 3) SKU con CP-, 4) el primero
     let bestIndex = indices[0];
     let bestItem = items[0];
     
@@ -109,6 +171,18 @@ function cleanDuplicateItems(sale) {
       const item = items[i];
       const currentBestPrice = Number(bestItem.unitPrice) || 0;
       const itemPrice = Number(item.unitPrice) || 0;
+      
+      // Si hay un precio de slot definido, priorizar el item que coincide
+      if (slotPrice !== undefined) {
+        if (itemPrice === slotPrice && currentBestPrice !== slotPrice) {
+          bestIndex = indices[i];
+          bestItem = item;
+          continue;
+        }
+        if (currentBestPrice === slotPrice && itemPrice !== slotPrice) {
+          continue; // Ya tenemos el correcto
+        }
+      }
       
       // Si este item tiene precio y el mejor no, usar este
       if (itemPrice > 0 && currentBestPrice === 0) {
@@ -145,12 +219,20 @@ function cleanDuplicateItems(sale) {
       }
     });
     
-    // Si el mejor item tiene precio 0, intentar actualizarlo con el precio de otro
-    if (Number(bestItem.unitPrice) === 0) {
-      const itemWithPrice = items.find(it => Number(it.unitPrice) > 0);
-      if (itemWithPrice) {
-        bestItem.unitPrice = itemWithPrice.unitPrice;
-        bestItem.total = Math.round((bestItem.qty || 1) * bestItem.unitPrice);
+    // Si hay un precio de slot definido, asegurar que el item lo tenga
+    if (slotPrice !== undefined) {
+      if (Number(bestItem.unitPrice) !== slotPrice) {
+        bestItem.unitPrice = slotPrice;
+        bestItem.total = Math.round((bestItem.qty || 1) * slotPrice);
+      }
+    } else {
+      // Si no hay precio de slot, solo actualizar si el precio es 0 y hay otro con precio
+      if (Number(bestItem.unitPrice) === 0) {
+        const itemWithPrice = items.find(it => Number(it.unitPrice) > 0);
+        if (itemWithPrice) {
+          bestItem.unitPrice = itemWithPrice.unitPrice;
+          bestItem.total = Math.round((bestItem.qty || 1) * bestItem.unitPrice);
+        }
       }
     }
     
@@ -226,37 +308,44 @@ async function main() {
     // Procesar cada venta
     let totalCleaned = 0;
     let totalRemoved = 0;
-    const salesWithDuplicates = [];
+    let totalPricesFixed = 0;
+    const salesToProcess = [];
     
-    console.log('🔍 Analizando ventas en busca de items duplicados...\n');
+    console.log('🔍 Analizando ventas en busca de items duplicados y precios incorrectos...\n');
     
     for (const sale of sales) {
       const duplicates = findDuplicateItems(sale.items || []);
+      const priceFix = fixSlotItemPrices(sale);
       
-      if (duplicates.length > 0) {
-        salesWithDuplicates.push({
+      if (duplicates.length > 0 || priceFix.fixed) {
+        salesToProcess.push({
           saleId: sale._id,
           saleNumber: sale.number,
           saleName: sale.name,
           duplicates: duplicates.length,
-          totalItems: sale.items.length
+          totalItems: sale.items.length,
+          needsPriceFix: priceFix.fixed,
+          priceFixCount: priceFix.fixedCount
         });
       }
     }
     
     console.log(`📊 Resumen de análisis:`);
-    console.log(`   - Ventas con duplicados: ${salesWithDuplicates.length}`);
+    console.log(`   - Ventas que necesitan corrección: ${salesToProcess.length}`);
     console.log(`   - Total de ventas: ${sales.length}\n`);
     
-    if (salesWithDuplicates.length === 0) {
-      console.log('✅ No se encontraron items duplicados');
+    if (salesToProcess.length === 0) {
+      console.log('✅ No se encontraron problemas');
       process.exit(0);
     }
     
     // Mostrar detalles
-    console.log('📋 Ventas con duplicados:');
-    salesWithDuplicates.forEach(({ saleId, saleNumber, saleName, duplicates, totalItems }) => {
-      console.log(`   - Venta #${saleNumber || 'N/A'}: ${saleName || saleId} (${duplicates} grupos de duplicados, ${totalItems} items total)`);
+    console.log('📋 Ventas a procesar:');
+    salesToProcess.forEach(({ saleId, saleNumber, saleName, duplicates, totalItems, needsPriceFix, priceFixCount }) => {
+      const issues = [];
+      if (duplicates > 0) issues.push(`${duplicates} grupos de duplicados`);
+      if (needsPriceFix) issues.push(`${priceFixCount} precios a corregir`);
+      console.log(`   - Venta #${saleNumber || 'N/A'}: ${saleName || saleId} (${issues.join(', ')}, ${totalItems} items total)`);
     });
     console.log('');
     
@@ -272,8 +361,8 @@ async function main() {
       console.log('\n⚠️  MODO EJECUCIÓN - Se realizarán cambios en la base de datos\n');
     }
     
-    // Procesar ventas con duplicados
-    for (const saleInfo of salesWithDuplicates) {
+    // Procesar ventas
+    for (const saleInfo of salesToProcess) {
       const sale = await Sale.findById(saleInfo.saleId);
       
       if (!sale) {
@@ -283,19 +372,47 @@ async function main() {
       
       const beforeItems = sale.items.length;
       const beforeTotal = sale.total;
+      const beforeItemsData = sale.items.map(it => ({
+        refId: String(it.refId || ''),
+        price: it.unitPrice,
+        sku: it.sku
+      }));
       
+      // Corregir precios primero
+      const priceFix = fixSlotItemPrices(sale);
+      if (priceFix.fixed) {
+        totalPricesFixed += priceFix.fixedCount;
+      }
+      
+      // Luego limpiar duplicados
       const result = cleanDuplicateItems(sale);
       
-      if (result.cleaned) {
+      if (result.cleaned || priceFix.fixed) {
         totalCleaned++;
         totalRemoved += result.removed;
         
         console.log(`✅ Venta #${sale.number || 'N/A'} (${sale._id}):`);
-        console.log(`   - Items antes: ${beforeItems}`);
-        console.log(`   - Items después: ${sale.items.length}`);
-        console.log(`   - Items eliminados: ${result.removed}`);
+        if (priceFix.fixed) {
+          console.log(`   - Precios corregidos: ${priceFix.fixedCount}`);
+        }
+        if (result.cleaned) {
+          console.log(`   - Items antes: ${beforeItems}`);
+          console.log(`   - Items después: ${sale.items.length}`);
+          console.log(`   - Items eliminados: ${result.removed}`);
+        }
         console.log(`   - Total antes: $${beforeTotal?.toLocaleString() || 0}`);
         console.log(`   - Total después: $${sale.total?.toLocaleString() || 0}`);
+        
+        // Mostrar cambios de precios
+        if (priceFix.fixed) {
+          console.log(`   - Cambios de precio:`);
+          sale.items.forEach((it, idx) => {
+            const beforeItem = beforeItemsData.find(b => b.refId === String(it.refId || ''));
+            if (beforeItem && beforeItem.price !== it.unitPrice) {
+              console.log(`     • ${it.name || it.sku}: $${beforeItem.price} → $${it.unitPrice}`);
+            }
+          });
+        }
         
         if (!dryRun) {
           await sale.save();
@@ -308,8 +425,9 @@ async function main() {
     }
     
     console.log('\n📊 Resumen final:');
-    console.log(`   - Ventas limpiadas: ${totalCleaned}`);
+    console.log(`   - Ventas procesadas: ${totalCleaned}`);
     console.log(`   - Items duplicados eliminados: ${totalRemoved}`);
+    console.log(`   - Precios corregidos: ${totalPricesFixed}`);
     
     if (dryRun) {
       console.log('\n⚠️  Este fue un DRY RUN. Para aplicar los cambios, ejecuta:');
