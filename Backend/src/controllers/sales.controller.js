@@ -1258,27 +1258,16 @@ export const closeSale = async (req, res) => {
           const slotQty = slot.qty || 1;
           
           // Buscar TODOS los items en sale.items que coincidan con este slot
-          // Buscar por refId (más confiable) y también por SKU normalizado (sin prefijo CP-)
+          // CRÍTICO: Buscar SOLO por refId (más confiable) - el SKU puede variar (con o sin CP-)
+          // La cantidad puede variar si se editó manualmente, así que no la usamos para la búsqueda
           // Un slot puede tener múltiples items si se agregó varias veces (no debería pasar, pero por seguridad)
           const matchingItems = sale.items.filter(it => {
             const itRefId = it.refId ? String(it.refId) : '';
-            const itSku = it.sku ? String(it.sku).toUpperCase() : '';
             
-            // Coincidencia por refId y cantidad (más confiable)
-            if (itRefId === slotItemRefId && it.qty === slotQty) {
+            // Coincidencia SOLO por refId - esto es lo más confiable
+            // No comparar cantidad ni SKU porque pueden variar
+            if (itRefId === slotItemRefId) {
               return true;
-            }
-            
-            // También verificar por SKU normalizado (sin prefijo CP-) si ambos tienen SKU
-            if (slotItemSku && itSku) {
-              const itSkuNoPrefix = itSku.replace(/^CP-/i, '');
-              const slotSkuNoPrefix = slotItemSku.replace(/^CP-/i, '');
-              if (itSkuNoPrefix && slotSkuNoPrefix && itSkuNoPrefix === slotSkuNoPrefix && it.qty === slotQty) {
-                // Verificar también que el refId coincida para asegurar que es el mismo item
-                if (itRefId === slotItemRefId) {
-                  return true;
-                }
-              }
             }
             
             return false;
@@ -1286,43 +1275,11 @@ export const closeSale = async (req, res) => {
           
           if (matchingItems.length === 0) {
             // El item no existe, pero debería existir porque fue agregado en completeOpenSlot
-            // Esto puede pasar si hubo un error o si el item fue eliminado manualmente
-            // En este caso, agregarlo para evitar errores, pero registrar un warning
-            console.warn(`[closeSale] Item del slot ${slot.slotName} no encontrado en sale.items, agregándolo`);
-            
-            const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
-              ? slot.estimatedPrice 
-              : (item.salePrice || 0);
-            
-            // Determinar el SKU correcto (con prefijo CP- si es parte de un combo)
-            let finalSku = item.sku || `SLOT-${String(slot.completedItemId).slice(-6)}`;
-            const comboItem = sale.items.find(it => 
-              it.source === 'price' && 
-              it.refId && 
-              String(it.refId) === String(slot.comboPriceId)
-            );
-            if (comboItem) {
-              const hasCPPrefix = sale.items.some(it => 
-                it.source === 'inventory' && 
-                it.sku && 
-                String(it.sku).toUpperCase().startsWith('CP-') &&
-                it.refId && 
-                String(it.refId) !== slotItemRefId
-              );
-              if (hasCPPrefix && finalSku && !finalSku.toUpperCase().startsWith('CP-')) {
-                finalSku = `CP-${finalSku}`;
-              }
-            }
-            
-            sale.items.push({
-              source: 'inventory',
-              refId: item._id,
-              sku: finalSku,
-              name: item.name || slot.slotName,
-              qty: slot.qty || 1,
-              unitPrice: realPrice,
-              total: Math.round((slot.qty || 1) * realPrice)
-            });
+            // Esto es un error crítico - el item debería estar en sale.items
+            // NO agregarlo aquí para evitar duplicación
+            // Si realmente falta, es un error de datos que debe ser investigado
+            console.error(`[closeSale] ERROR CRÍTICO: Item del slot ${slot.slotName} (refId: ${slotItemRefId}) no encontrado en sale.items. El slot está marcado como completado pero el item no está en la venta. Esto puede indicar un problema de sincronización.`);
+            // Continuar sin agregar el item - no queremos duplicar
           } else {
             // El item existe, actualizar precio si es necesario
             const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
@@ -2438,11 +2395,46 @@ export const completeOpenSlot = async (req, res) => {
     ? slot.estimatedPrice 
     : (item.salePrice || 0);
   
-  // CRÍTICO: Cada slot debe tener su propia línea, incluso si múltiples slots usan el mismo item
-  // IMPORTANTE: No buscamos items existentes aquí porque queremos que cada slot tenga su propia línea
-  // La verificación `if (slot.completed)` arriba previene que se complete el mismo slot dos veces
-  // Si el slot ya fue completado, simplemente agregamos el item (cada slot tiene su propia línea)
+  // CRÍTICO: Verificar que el item NO esté ya en sale.items para este slot específico
+  // Esto previene duplicación si completeOpenSlot se llama dos veces por error
+  const existingItemForSlot = sale.items.find(it => {
+    const itRefId = it.refId ? String(it.refId) : '';
+    return itRefId === String(item._id) && it.qty === (slot.qty || 1);
+  });
   
+  if (existingItemForSlot) {
+    // El item ya existe para este slot, solo actualizar el precio si es necesario
+    const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
+      ? slot.estimatedPrice 
+      : (item.salePrice || 0);
+    
+    if (existingItemForSlot.unitPrice === 0 && realPrice > 0) {
+      existingItemForSlot.unitPrice = realPrice;
+      existingItemForSlot.total = Math.round((existingItemForSlot.qty || 1) * realPrice);
+    }
+    
+    // Recalcular totales
+    computeTotals(sale);
+    await sale.save();
+    
+    return res.json({ 
+      ok: true, 
+      sale: sale.toObject(),
+      slot: {
+        slotIndex,
+        slotName: slot.slotName,
+        completed: true,
+        item: {
+          _id: item._id,
+          sku: item.sku,
+          name: item.name,
+          salePrice: item.salePrice
+        }
+      }
+    });
+  }
+  
+  // CRÍTICO: Cada slot debe tener su propia línea, incluso si múltiples slots usan el mismo item
   // IMPORTANTE: Agregar el item inmediatamente a sale.items para que aparezca en la venta
   // Buscar el combo principal en los items para agregar el producto después de él
   const comboItem = sale.items.find(it => 
