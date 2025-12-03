@@ -18,7 +18,26 @@ import { getAllSharedCompanyIds as getAllSharedCompanyIdsHelper } from '../lib/s
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
 function computeTotals(sale) {
-  const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
+  // CRÍTICO: No sumar items que son parte de un combo (SKU empieza con "CP-")
+  // Estos items ya están incluidos en el precio del combo
+  // Solo sumar:
+  // 1. Items que NO tienen SKU con prefijo "CP-"
+  // 2. Items que son combos (SKU empieza con "COMBO-")
+  // 3. Servicios y productos independientes
+  const subtotal = (sale.items || []).reduce((a, it) => {
+    const sku = String(it.sku || '').toUpperCase();
+    const total = asNum(it.total);
+    
+    // Si el SKU empieza con "CP-", es un item anidado de un combo - NO sumarlo
+    // El precio del combo ya incluye estos items
+    if (sku.startsWith('CP-')) {
+      return a; // No sumar items anidados de combos
+    }
+    
+    // Sumar todos los demás items (combos, servicios, productos independientes)
+    return a + total;
+  }, 0);
+  
   sale.subtotal = Math.round(subtotal);
   sale.tax = 0; // ajustar si aplicas IVA
   sale.total = Math.round(sale.subtotal + sale.tax);

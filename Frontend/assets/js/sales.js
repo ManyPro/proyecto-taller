@@ -2427,21 +2427,48 @@ function fillCloseModal(){
         syncCurrentIntoOpenList();
         // Asegurar que el total esté calculado correctamente
         if (!current.total && current.items && current.items.length > 0) {
-          const calculatedSubtotal = current.items.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+          // CRÍTICO: No sumar items que son parte de un combo (SKU empieza con "CP-")
+          // Estos items ya están incluidos en el precio del combo
+          const calculatedSubtotal = current.items.reduce((sum, it) => {
+            const sku = String(it.sku || '').toUpperCase();
+            const total = Number(it.total) || 0;
+            // Si el SKU empieza con "CP-", es un item anidado de un combo - NO sumarlo
+            if (sku.startsWith('CP-')) {
+              return sum;
+            }
+            return sum + total;
+          }, 0);
           current.total = Math.round(calculatedSubtotal);
         }
         console.log('[closeSale] Venta refrescada antes de cerrar:', {
           saleId: current._id,
           total: current.total,
           itemsCount: current.items?.length || 0,
-          calculatedTotal: current.items?.reduce((sum, it) => sum + (Number(it.total) || 0), 0) || 0
+          calculatedTotal: current.items?.reduce((sum, it) => {
+            const sku = String(it.sku || '').toUpperCase();
+            const total = Number(it.total) || 0;
+            // Si el SKU empieza con "CP-", es un item anidado de un combo - NO sumarlo
+            if (sku.startsWith('CP-')) {
+              return sum;
+            }
+            return sum + total;
+          }, 0) || 0
         });
       }
     } catch (err) {
       console.warn('[closeSale] Error al refrescar venta, usando total actual:', err);
       // Si no se puede refrescar, calcular el total desde los items
       if (current && current.items && current.items.length > 0) {
-        const calculatedSubtotal = current.items.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+        // CRÍTICO: No sumar items que son parte de un combo (SKU empieza con "CP-")
+        const calculatedSubtotal = current.items.reduce((sum, it) => {
+          const sku = String(it.sku || '').toUpperCase();
+          const total = Number(it.total) || 0;
+          // Si el SKU empieza con "CP-", es un item anidado de un combo - NO sumarlo
+          if (sku.startsWith('CP-')) {
+            return sum;
+          }
+          return sum + total;
+        }, 0);
         current.total = Math.round(calculatedSubtotal);
         console.log('[closeSale] Total calculado desde items:', current.total);
       }

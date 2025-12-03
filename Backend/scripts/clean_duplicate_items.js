@@ -7,9 +7,24 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://giovannymanriquelol_db
 
 /**
  * Función para calcular totales de una venta
+ * CRÍTICO: No sumar items que son parte de un combo (SKU empieza con "CP-")
+ * Estos items ya están incluidos en el precio del combo
  */
 function computeTotals(sale) {
-  const subtotal = (sale.items || []).reduce((a, it) => a + (Number(it.total) || 0), 0);
+  const subtotal = (sale.items || []).reduce((a, it) => {
+    const sku = String(it.sku || '').toUpperCase();
+    const total = Number(it.total) || 0;
+    
+    // Si el SKU empieza con "CP-", es un item anidado de un combo - NO sumarlo
+    // El precio del combo ya incluye estos items
+    if (sku.startsWith('CP-')) {
+      return a; // No sumar items anidados de combos
+    }
+    
+    // Sumar todos los demás items (combos, servicios, productos independientes)
+    return a + total;
+  }, 0);
+  
   sale.subtotal = Math.round(subtotal);
   sale.tax = 0; // ajustar si aplicas IVA
   sale.total = Math.round(sale.subtotal + sale.tax);
