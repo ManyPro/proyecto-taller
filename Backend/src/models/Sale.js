@@ -94,9 +94,24 @@ const SaleSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Asegurar consistencia de subtotal antes de guardar si falta
+// CRÍTICO: No sumar items que son parte de un combo (SKU empieza con "CP-")
+// Estos items ya están incluidos en el precio del combo
 SaleSchema.pre('save', function(next){
   if(this.isModified('items') || this.isModified('total') || this.isModified('tax') || this.subtotal === 0){
-    const itemsSum = (this.items||[]).reduce((acc,it)=> acc + (Number(it.total)|| (Number(it.qty||0)*Number(it.unitPrice||0))), 0);
+    // Calcular suma excluyendo items con SKU que empieza con "CP-" (items anidados de combos)
+    const itemsSum = (this.items||[]).reduce((acc,it)=> {
+      const sku = String(it.sku || '').toUpperCase();
+      const total = Number(it.total) || (Number(it.qty||0)*Number(it.unitPrice||0));
+      
+      // Si el SKU empieza con "CP-", es un item anidado de un combo - NO sumarlo
+      // El precio del combo ya incluye estos items
+      if(sku.startsWith('CP-')){
+        return acc; // No sumar items anidados de combos
+      }
+      
+      return acc + total;
+    }, 0);
+    
     if(!this.subtotal || this.subtotal === 0){
       // Si hay tax y total definidos, intentar inferir
       if(this.total && this.tax){
