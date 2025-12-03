@@ -1234,20 +1234,27 @@ export const closeSale = async (req, res) => {
       }
 
       // Procesar slots abiertos completados: verificar si ya están en items antes de agregarlos
+      // CRÍTICO: El item ya fue agregado cuando se completó el slot en completeOpenSlot
+      // Necesitamos verificar si hay suficientes items para todos los slots completados
       if (sale.openSlots && sale.openSlots.length > 0) {
         // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
         const itemCompanyFilter = await getItemQueryCompanyFilter(req);
+        
+        // Primero: contar cuántos items de cada slot ya existen en sale.items
+        // Usar un Set para rastrear qué items ya fueron "asignados" a slots
+        const assignedItems = new Set();
+        
         for (const slot of sale.openSlots) {
           if (!slot.completed || !slot.completedItemId) continue;
           
           const item = await Item.findOne({ _id: slot.completedItemId, companyId: itemCompanyFilter }).session(session);
           if (!item) throw new Error(`Item del inventario no encontrado para slot: ${slot.slotName}`);
           
-          // CRÍTICO: Verificar si el item de este slot ya existe en sale.items
-          // El item ya fue agregado cuando se completó el slot en completeOpenSlot
-          // Solo agregarlo si no existe para evitar duplicación
           const slotItemRefId = String(slot.completedItemId);
-          const slotItemSku = item.sku ? String(item.sku).toUpperCase() : '';
+          const slotQty = slot.qty || 1;
+          const slotPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
+            ? slot.estimatedPrice 
+            : (item.salePrice || 0);
           
           // Buscar el combo para limitar la búsqueda al contexto del combo
           const comboItemForSlot = sale.items.find(it => 
@@ -1257,72 +1264,51 @@ export const closeSale = async (req, res) => {
           );
           const comboIndex = comboItemForSlot ? sale.items.indexOf(comboItemForSlot) : -1;
           
-          // Buscar si el item de este slot ya existe en sale.items
-          // Buscar primero en el contexto del combo, luego en toda la venta como fallback
-          let existingItem = null;
+          // Buscar si hay un item no asignado aún que coincida con este slot
+          let foundUnassignedItem = null;
           
           if (comboIndex >= 0) {
             // Buscar desde el combo hacia adelante
             for (let i = comboIndex + 1; i < sale.items.length; i++) {
               const it = sale.items[i];
               const itRefId = it.refId ? String(it.refId) : '';
-              const itSku = it.sku ? String(it.sku).toUpperCase() : '';
               
               // Si encontramos otro combo, parar la búsqueda
               if (it.source === 'price' && it.refId && String(it.refId) !== String(slot.comboPriceId)) {
                 break;
               }
               
-              // Verificar por refId (más confiable)
-              if (itRefId === slotItemRefId) {
-                // Verificar que la cantidad y precio coincidan con el slot para asegurar que es el mismo
-                const slotQty = slot.qty || 1;
-                const slotPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
-                  ? slot.estimatedPrice 
-                  : (item.salePrice || 0);
-                if (it.qty === slotQty && it.unitPrice === slotPrice) {
-                  existingItem = it;
+              // Verificar si este item coincide con el slot y no ha sido asignado aún
+              if (itRefId === slotItemRefId && it.qty === slotQty && it.unitPrice === slotPrice) {
+                const itemKey = `${i}_${itRefId}_${it.qty}_${it.unitPrice}`;
+                if (!assignedItems.has(itemKey)) {
+                  foundUnassignedItem = it;
+                  assignedItems.add(itemKey);
                   break;
-                }
-              }
-              
-              // Verificar por SKU si ambos tienen valores
-              if (slotItemSku && itSku) {
-                const itSkuNoPrefix = itSku.replace(/^CP-/i, '');
-                const slotSkuNoPrefix = slotItemSku.replace(/^CP-/i, '');
-                if (itSkuNoPrefix && slotSkuNoPrefix && itSkuNoPrefix === slotSkuNoPrefix) {
-                  // Verificar cantidad y precio para asegurar que es el mismo slot
-                  const slotQty = slot.qty || 1;
-                  const slotPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
-                    ? slot.estimatedPrice 
-                    : (item.salePrice || 0);
-                  if (it.qty === slotQty && it.unitPrice === slotPrice) {
-                    existingItem = it;
-                    break;
-                  }
                 }
               }
             }
           }
           
           // Fallback: buscar en toda la venta si no encontramos en el contexto del combo
-          if (!existingItem) {
-            existingItem = sale.items.find(it => {
+          if (!foundUnassignedItem) {
+            for (let i = 0; i < sale.items.length; i++) {
+              const it = sale.items[i];
               const itRefId = it.refId ? String(it.refId) : '';
-              if (itRefId === slotItemRefId) {
-                // Verificar cantidad y precio para asegurar que es el mismo slot
-                const slotQty = slot.qty || 1;
-                const slotPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
-                  ? slot.estimatedPrice 
-                  : (item.salePrice || 0);
-                return it.qty === slotQty && it.unitPrice === slotPrice;
+              
+              if (itRefId === slotItemRefId && it.qty === slotQty && it.unitPrice === slotPrice) {
+                const itemKey = `${i}_${itRefId}_${it.qty}_${it.unitPrice}`;
+                if (!assignedItems.has(itemKey)) {
+                  foundUnassignedItem = it;
+                  assignedItems.add(itemKey);
+                  break;
+                }
               }
-              return false;
-            });
+            }
           }
           
-          // Solo agregar si el item no existe (ya fue agregado cuando se completó el slot)
-          if (!existingItem) {
+          // Solo agregar si no encontramos un item no asignado (el item ya fue agregado cuando se completó el slot)
+          if (!foundUnassignedItem) {
             // Usar el precio que ya se estableció al completar el slot (estimatedPrice tiene prioridad)
             const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
               ? slot.estimatedPrice 
