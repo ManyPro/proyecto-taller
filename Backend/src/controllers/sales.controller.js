@@ -1282,16 +1282,30 @@ export const closeSale = async (req, res) => {
             // Continuar sin agregar el item - no queremos duplicar
           } else {
             // El item existe, actualizar precio si es necesario
-            const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
+            // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
+            // Solo si estimatedPrice no está definido, usar item.salePrice
+            const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
               ? slot.estimatedPrice 
               : (item.salePrice || 0);
             
-            // Actualizar el precio del primer item encontrado si es 0
-            // Si hay múltiples items (no debería pasar), actualizar todos
+            // Actualizar el precio del item encontrado SOLO si:
+            // 1. El precio actual es 0 Y el realPrice es > 0 (para corregir precios que deberían tener valor)
+            // 2. O si el precio actual no coincide con el realPrice Y el realPrice viene del slot (estimatedPrice)
+            // NO actualizar si estimatedPrice es 0 - debe mantenerse en 0
             for (const foundItem of matchingItems) {
-              if (foundItem.unitPrice === 0 && realPrice > 0) {
-                foundItem.unitPrice = realPrice;
-                foundItem.total = Math.round((foundItem.qty || 1) * realPrice);
+              // Si el slot tiene estimatedPrice definido (incluso si es 0), usar ese valor
+              if (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) {
+                // Si el precio actual no coincide con estimatedPrice, actualizarlo
+                if (foundItem.unitPrice !== slot.estimatedPrice) {
+                  foundItem.unitPrice = slot.estimatedPrice;
+                  foundItem.total = Math.round((foundItem.qty || 1) * slot.estimatedPrice);
+                }
+              } else {
+                // Si estimatedPrice no está definido, solo actualizar si el precio actual es 0 y hay un salePrice
+                if (foundItem.unitPrice === 0 && realPrice > 0) {
+                  foundItem.unitPrice = realPrice;
+                  foundItem.total = Math.round((foundItem.qty || 1) * realPrice);
+                }
               }
               
               // Asegurar que el SKU tenga el prefijo CP- si es parte de un combo
@@ -2388,10 +2402,10 @@ export const completeOpenSlot = async (req, res) => {
   slot.completed = true;
   slot.completedItemId = item._id;
   
-  // IMPORTANTE: Usar el precio del slot (estimatedPrice) si está definido y es mayor que 0
-  // Si estimatedPrice es 0 o no está definido, usar el precio del item (salePrice)
-  // Esto asegura que siempre tengamos un precio válido
-  const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
+  // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
+  // Solo si estimatedPrice no está definido, usar el precio del item (salePrice)
+  // Esto respeta el precio del slot, incluso si es 0 (el item del combo puede venir sin precio)
+  const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
     ? slot.estimatedPrice 
     : (item.salePrice || 0);
   
@@ -2404,14 +2418,22 @@ export const completeOpenSlot = async (req, res) => {
   });
   
   if (existingItemForSlot) {
-    // El item ya existe para este slot, solo actualizar el precio si es necesario
-    const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null && slot.estimatedPrice > 0) 
-      ? slot.estimatedPrice 
-      : (item.salePrice || 0);
-    
-    if (existingItemForSlot.unitPrice === 0 && realPrice > 0) {
-      existingItemForSlot.unitPrice = realPrice;
-      existingItemForSlot.total = Math.round((existingItemForSlot.qty || 1) * realPrice);
+    // El item ya existe para este slot, actualizar el precio según el slot
+    // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
+    // Solo si estimatedPrice no está definido, usar el precio del item (salePrice)
+    if (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) {
+      // Si el precio actual no coincide con estimatedPrice, actualizarlo
+      if (existingItemForSlot.unitPrice !== slot.estimatedPrice) {
+        existingItemForSlot.unitPrice = slot.estimatedPrice;
+        existingItemForSlot.total = Math.round((existingItemForSlot.qty || 1) * slot.estimatedPrice);
+      }
+    } else {
+      // Si estimatedPrice no está definido, solo actualizar si el precio actual es 0 y hay un salePrice
+      const realPrice = item.salePrice || 0;
+      if (existingItemForSlot.unitPrice === 0 && realPrice > 0) {
+        existingItemForSlot.unitPrice = realPrice;
+        existingItemForSlot.total = Math.round((existingItemForSlot.qty || 1) * realPrice);
+      }
     }
     
     // Recalcular totales
