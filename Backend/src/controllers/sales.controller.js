@@ -2397,9 +2397,10 @@ export const completeOpenSlot = async (req, res) => {
   
   // CRÍTICO: Verificar que el item NO esté ya en sale.items para este slot específico
   // Esto previene duplicación si completeOpenSlot se llama dos veces por error
+  // Buscar SOLO por refId - no comparar cantidad ni SKU porque pueden variar
   const existingItemForSlot = sale.items.find(it => {
     const itRefId = it.refId ? String(it.refId) : '';
-    return itRefId === String(item._id) && it.qty === (slot.qty || 1);
+    return itRefId === String(item._id);
   });
   
   if (existingItemForSlot) {
