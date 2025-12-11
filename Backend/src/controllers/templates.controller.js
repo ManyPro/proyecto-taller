@@ -15,9 +15,13 @@ import QRCode from 'qrcode';
 //  - type: tipo de plantilla (invoice, workOrder, quote, sticker, order)
 //  - sampleType (opcional): fuerza el tipo de documento para el contexto (si distinto al type de la plantilla)
 //  - sampleId (opcional): id especÃ­fico del documento
-async function buildContext({ companyId, type, sampleType, sampleId }) {
+//  - originalCompanyId (opcional): ID original de la empresa (para obtener info de empresa cuando hay BD compartida)
+async function buildContext({ companyId, type, sampleType, sampleId, originalCompanyId }) {
   const ctx = { company: {}, now: new Date(), meta: { requestedType: type, sampleType: sampleType || null } };
-  const company = await Company.findOne({ _id: companyId });
+  // Usar originalCompanyId para obtener información de la empresa (nombre, logo, etc.)
+  // porque cuando hay BD compartida, queremos la info de la empresa real, no de la principal
+  const companyIdForInfo = originalCompanyId || companyId;
+  const company = await Company.findOne({ _id: companyIdForInfo });
   if (company) {
     ctx.company = {
       name: company.name || company.email || '',
@@ -1623,7 +1627,15 @@ export async function previewTemplate(req, res) {
     console.warn('[previewTemplate] ⚠️ NO se encontraron tablas <tbody> en el HTML DESPUÉS de sanitize!');
   }
   
-  const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
+  // Usar originalCompanyId para obtener información de la empresa (nombre, logo)
+  // pero companyId para buscar datos (items, ventas, etc.) cuando hay BD compartida
+  const ctx = await buildContext({ 
+    companyId: req.companyId, 
+    originalCompanyId: req.originalCompanyId || req.companyId,
+    type, 
+    sampleId, 
+    sampleType 
+  });
   
   console.log('[previewTemplate] Context después de buildContext:');
   console.log('[previewTemplate] - Has sale:', !!ctx.sale);
