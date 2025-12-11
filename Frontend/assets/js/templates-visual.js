@@ -3100,9 +3100,6 @@
             el.style.top = `${top}px`;
             el.style.right = 'auto';
             el.style.bottom = 'auto';
-            if (computed.transform && computed.transform !== 'none') {
-              el.style.transform = 'none';
-            }
             if (el.style.margin) {
               el.style.margin = '0';
             }
