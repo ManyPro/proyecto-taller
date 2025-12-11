@@ -2855,6 +2855,11 @@
       visualEditor.elements = [];
       visualEditor.nextId = 1;
       
+      // CRÍTICO: Resetear completamente el canvas antes de cargar
+      // Eliminar todos los estilos que puedan causar desplazamiento
+      canvas.style.cssText = '';
+      canvas.removeAttribute('style');
+      
       // Asegurar que el canvas esté en su posición correcta ANTES de aplicar dimensiones
       canvas.style.position = 'relative';
       canvas.style.margin = '0 auto';
@@ -2864,8 +2869,6 @@
       canvas.style.bottom = 'auto';
       canvas.style.transform = 'none';
       canvas.style.float = 'none';
-      
-      // Ensure canvas is visible and properly sized
       canvas.style.display = 'block';
       canvas.style.visibility = 'visible';
       canvas.style.background = '#ffffff';
@@ -2876,6 +2879,13 @@
       
       // Asegurar que el canvas mantenga su posición después de aplicar dimensiones
       canvas.style.position = 'relative';
+      canvas.style.margin = '0 auto';
+      canvas.style.left = 'auto';
+      canvas.style.right = 'auto';
+      canvas.style.top = 'auto';
+      canvas.style.bottom = 'auto';
+      canvas.style.transform = 'none';
+      canvas.style.float = 'none';
       canvas.style.margin = '0 auto';
       canvas.style.left = 'auto';
       canvas.style.right = 'auto';
@@ -3112,6 +3122,7 @@
         }
         
         // Asegurar que el canvas mantenga su posición después de cargar contenido
+        // CRÍTICO: Resetear completamente para evitar desplazamientos
         canvas.style.position = 'relative';
         canvas.style.margin = '0 auto';
         canvas.style.left = 'auto';
@@ -3120,6 +3131,11 @@
         canvas.style.bottom = 'auto';
         canvas.style.transform = 'none';
         canvas.style.float = 'none';
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'visible';
+        
+        // Forzar reflow para asegurar que los estilos se apliquen
+        canvas.offsetHeight;
         
         // Ajustar altura del canvas al contenido (solo si no es sticker)
         if (!isSticker) {

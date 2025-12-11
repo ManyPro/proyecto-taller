@@ -724,8 +724,17 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       try {
         const qrValue = ctx.item.sku || String(ctx.item._id || '');
         if (qrValue) {
-          // MÃ¡rgenes mÃ­nimos para mejor densidad en stickers pequeÃ±os
-          ctx.item.qr = await QRCode.toDataURL(qrValue, { margin: 0, scale: 4, color: { dark: '#000000', light: '#FFFFFF' } });
+          // Generar QR con tamaño adecuado para stickers (5cm x 3cm)
+          // Usar width específico en píxeles para asegurar tamaño correcto
+          // Para un sticker de 5x3cm, el QR debe ocupar aproximadamente 1.5-2cm
+          // A 300 DPI (resolución de impresión), 1.5cm = ~177px, 2cm = ~236px
+          // Usamos 200px como tamaño base para buena legibilidad
+          const qrSizePx = 200;
+          ctx.item.qr = await QRCode.toDataURL(qrValue, { 
+            margin: 1, // Margen mínimo para mejor escaneo
+            width: qrSizePx, // Tamaño fijo en píxeles
+            color: { dark: '#000000', light: '#FFFFFF' }
+          });
           ctx.item.qrText = qrValue;
         }
       } catch (e) {

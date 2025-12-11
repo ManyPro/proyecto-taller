@@ -1569,8 +1569,8 @@ if (__ON_INV_PAGE__) {
                 
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
-                // Capturar usando escala 1 para que jsPDF no vuelva a escalar la imagen
-                const scale = 1;
+                // Capturar usando escala alta (3x) para mejor resolución en el PDF
+                const scale = 3; // Aumentado de 1 a 3 para mejor resolución
                 const canvas = await html2canvas(box, { 
                   scale,
                   backgroundColor: '#ffffff', 
@@ -1581,6 +1581,7 @@ if (__ON_INV_PAGE__) {
                   height: heightPx,
                   windowWidth: widthPx,
                   windowHeight: heightPx,
+                  logging: false,
                   onclone: (clonedDoc) => {
                     // Asegurar que el clon también tenga las dimensiones correctas
                     const clonedBox = clonedDoc.querySelector('.sticker-capture');
@@ -1654,7 +1655,8 @@ if (__ON_INV_PAGE__) {
             images.forEach((src, idx) => {
               if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
               // Insertar la imagen con las dimensiones físicas exactas del sticker
-              doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+              // Usar 'SLOW' en lugar de 'FAST' para mejor calidad de compresión
+              doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'SLOW');
             });
             
             console.log(`📄 PDF generado con dimensiones exactas: ${pdfWidthMm}mm x ${pdfHeightMm}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
@@ -2873,8 +2875,9 @@ function openMarketplaceHelper(item){
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
               
-              // Capturar usando escala 1 para que jsPDF no vuelva a escalar la imagen
-              const scale = 1;
+              // Capturar usando escala alta (3x) para mejor resolución en el PDF
+              // Esto genera una imagen de alta calidad que se inserta en el PDF sin escalado adicional
+              const scale = 3; // Aumentado de 1 a 3 para mejor resolución
               const canvas = await html2canvas(box, { 
                 scale,
                 backgroundColor: '#ffffff', 
@@ -2952,9 +2955,10 @@ function openMarketplaceHelper(item){
           
           images.forEach((src, idx) => {
             if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
-            // CRÍTICO: Insertar imagen con dimensiones exactas, sin escalado
-            // Las dimensiones de la imagen deben coincidir exactamente con las del PDF
-            doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+            // CRÍTICO: Insertar imagen con dimensiones exactas
+            // Usar 'SLOW' en lugar de 'FAST' para mejor calidad de compresión
+            // La imagen ya tiene alta resolución (scale 3), así que se inserta sin escalado adicional
+            doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'SLOW');
           });
           
           console.log(`📄 PDF generado con dimensiones exactas: ${pdfWidthMm}mm x ${pdfHeightMm}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
