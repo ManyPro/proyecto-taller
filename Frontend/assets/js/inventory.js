@@ -1568,10 +1568,10 @@ if (__ON_INV_PAGE__) {
                 box.offsetHeight;
 
                 // Asegurar un tamaño mínimo para imágenes cuadradas en data URL (típicamente el QR)
-                // Si son muy pequeñas (<35% del ancho), forzar tamaño mínimo proporcional
-                (function ensureMinQrSize(rootEl, stickerWidthPx) {
-                  const MIN_RATIO = 0.35; // 35% del ancho del sticker
-                  const minPx = Math.max(40, Math.round(stickerWidthPx * MIN_RATIO));
+                // Si son muy pequeñas (<50% del ancho), forzar tamaño mínimo proporcional
+                (function ensureMinQrSize(rootEl, stickerWidthPx, stickerHeightPx) {
+                  const TARGET_RATIO = 0.5; // 50% del ancho del sticker
+                  const minPx = Math.max(60, Math.round(stickerWidthPx * TARGET_RATIO));
                   const imgs = Array.from(rootEl.querySelectorAll('img'));
                   imgs.forEach((img) => {
                     const src = img.getAttribute('src') || '';
@@ -1580,16 +1580,20 @@ if (__ON_INV_PAGE__) {
                     const natH = img.naturalHeight || 0;
                     const isSquare = natW && natH && Math.abs(natW - natH) <= Math.max(natW, natH) * 0.1;
                     if (isData && isSquare) {
+                      const wrapper = img.closest('.sticker-wrapper');
+                      const baseWidth = wrapper ? wrapper.offsetWidth || stickerWidthPx : stickerWidthPx;
+                      const targetPx = Math.max(minPx, Math.round(baseWidth * TARGET_RATIO));
                       const currentW = img.width || parseFloat(img.style.width) || 0;
-                      if (!currentW || currentW < minPx) {
-                        img.style.width = `${minPx}px`;
-                        img.style.height = `${minPx}px`;
-                        img.style.maxWidth = `${minPx}px`;
-                        img.style.maxHeight = `${minPx}px`;
+                      if (!currentW || currentW < targetPx) {
+                        img.style.width = `${targetPx}px`;
+                        img.style.height = `${targetPx}px`;
+                        img.style.maxWidth = `${targetPx}px`;
+                        img.style.maxHeight = `${targetPx}px`;
+                        img.style.objectFit = 'contain';
                       }
                     }
                   });
-                })(box, widthPx);
+                })(box, widthPx, heightPx);
                 
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
@@ -2897,10 +2901,10 @@ function openMarketplaceHelper(item){
               });
 
               // Asegurar un tamaño mínimo para imágenes cuadradas en data URL (típicamente el QR)
-              // Si son muy pequeñas (<35% del ancho), forzar tamaño mínimo proporcional
-              (function ensureMinQrSize(rootEl, stickerWidthPx) {
-                const MIN_RATIO = 0.35; // 35% del ancho del sticker
-                const minPx = Math.max(40, Math.round(stickerWidthPx * MIN_RATIO));
+              // Si son muy pequeñas (<50% del ancho), forzar tamaño mínimo proporcional
+              (function ensureMinQrSize(rootEl, stickerWidthPx, stickerHeightPx) {
+                const TARGET_RATIO = 0.5; // 50% del ancho del sticker
+                const minPx = Math.max(60, Math.round(stickerWidthPx * TARGET_RATIO));
                 const imgs = Array.from(rootEl.querySelectorAll('img'));
                 imgs.forEach((img) => {
                   const src = img.getAttribute('src') || '';
@@ -2909,16 +2913,20 @@ function openMarketplaceHelper(item){
                   const natH = img.naturalHeight || 0;
                   const isSquare = natW && natH && Math.abs(natW - natH) <= Math.max(natW, natH) * 0.1;
                   if (isData && isSquare) {
+                    const wrapper = img.closest('.sticker-wrapper');
+                    const baseWidth = wrapper ? wrapper.offsetWidth || stickerWidthPx : stickerWidthPx;
+                    const targetPx = Math.max(minPx, Math.round(baseWidth * TARGET_RATIO));
                     const currentW = img.width || parseFloat(img.style.width) || 0;
-                    if (!currentW || currentW < minPx) {
-                      img.style.width = `${minPx}px`;
-                      img.style.height = `${minPx}px`;
-                      img.style.maxWidth = `${minPx}px`;
-                      img.style.maxHeight = `${minPx}px`;
+                    if (!currentW || currentW < targetPx) {
+                      img.style.width = `${targetPx}px`;
+                      img.style.height = `${targetPx}px`;
+                      img.style.maxWidth = `${targetPx}px`;
+                      img.style.maxHeight = `${targetPx}px`;
+                      img.style.objectFit = 'contain';
                     }
                   }
                 });
-              })(box, widthPx);
+              })(box, widthPx, heightPx);
               
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
