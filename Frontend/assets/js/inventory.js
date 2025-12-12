@@ -1566,6 +1566,30 @@ if (__ON_INV_PAGE__) {
                 
                 // Forzar reflow para asegurar que el contenido se renderice
                 box.offsetHeight;
+
+                // Asegurar un tamaño mínimo para imágenes cuadradas en data URL (típicamente el QR)
+                // Si son muy pequeñas (<35% del ancho), forzar tamaño mínimo proporcional
+                (function ensureMinQrSize(rootEl, stickerWidthPx) {
+                  const MIN_RATIO = 0.35; // 35% del ancho del sticker
+                  const minPx = Math.max(40, Math.round(stickerWidthPx * MIN_RATIO));
+                  const imgs = Array.from(rootEl.querySelectorAll('img'));
+                  imgs.forEach((img) => {
+                    const src = img.getAttribute('src') || '';
+                    const isData = src.startsWith('data:image');
+                    const natW = img.naturalWidth || 0;
+                    const natH = img.naturalHeight || 0;
+                    const isSquare = natW && natH && Math.abs(natW - natH) <= Math.max(natW, natH) * 0.1;
+                    if (isData && isSquare) {
+                      const currentW = img.width || parseFloat(img.style.width) || 0;
+                      if (!currentW || currentW < minPx) {
+                        img.style.width = `${minPx}px`;
+                        img.style.height = `${minPx}px`;
+                        img.style.maxWidth = `${minPx}px`;
+                        img.style.maxHeight = `${minPx}px`;
+                      }
+                    }
+                  });
+                })(box, widthPx);
                 
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
@@ -2871,6 +2895,30 @@ function openMarketplaceHelper(item){
                 expectedWidth: widthPx,
                 expectedHeight: heightPx
               });
+
+              // Asegurar un tamaño mínimo para imágenes cuadradas en data URL (típicamente el QR)
+              // Si son muy pequeñas (<35% del ancho), forzar tamaño mínimo proporcional
+              (function ensureMinQrSize(rootEl, stickerWidthPx) {
+                const MIN_RATIO = 0.35; // 35% del ancho del sticker
+                const minPx = Math.max(40, Math.round(stickerWidthPx * MIN_RATIO));
+                const imgs = Array.from(rootEl.querySelectorAll('img'));
+                imgs.forEach((img) => {
+                  const src = img.getAttribute('src') || '';
+                  const isData = src.startsWith('data:image');
+                  const natW = img.naturalWidth || 0;
+                  const natH = img.naturalHeight || 0;
+                  const isSquare = natW && natH && Math.abs(natW - natH) <= Math.max(natW, natH) * 0.1;
+                  if (isData && isSquare) {
+                    const currentW = img.width || parseFloat(img.style.width) || 0;
+                    if (!currentW || currentW < minPx) {
+                      img.style.width = `${minPx}px`;
+                      img.style.height = `${minPx}px`;
+                      img.style.maxWidth = `${minPx}px`;
+                      img.style.maxHeight = `${minPx}px`;
+                    }
+                  }
+                });
+              })(box, widthPx);
               
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
