@@ -11,6 +11,8 @@ import Handlebars from 'handlebars';
 import QRCode from 'qrcode';
 
 const TEMPLATE_DEBUG = process.env.DEBUG_TEMPLATES === 'true';
+const debugLog = (...args) => { if (TEMPLATE_DEBUG) console.log(...args); };
+const debugWarn = (...args) => { if (TEMPLATE_DEBUG) console.warn(...args); };
 
 // Helpers para armar contexto base multi-documento
 // Params:
@@ -41,8 +43,8 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
     let sale = null;
     if (sampleId) {
       sale = await Sale.findOne({ _id: sampleId, companyId });
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[buildContext Sale] Buscando venta:', {
+      if (TEMPLATE_DEBUG) {
+        debugLog('[buildContext Sale] Buscando venta:', {
           sampleId,
           companyId,
           found: !!sale,
@@ -63,8 +65,8 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       }
       
       // Log antes de procesar items
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[buildContext Sale] Items antes de procesar:', {
+      if (TEMPLATE_DEBUG) {
+        debugLog('[buildContext Sale] Items antes de procesar:', {
           itemsCount: saleObj.items.length,
           items: saleObj.items
         });
@@ -312,8 +314,8 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       }));
       
       // Log después de procesar items
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[buildContext Sale] Items agrupados:', {
+      if (TEMPLATE_DEBUG) {
+        debugLog('[buildContext Sale] Items agrupados:', {
           productsCount: products.length,
           servicesCount: services.length,
           combosCount: combos.length,
@@ -321,7 +323,7 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
           services: services.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
           combos: combos.map(c => ({ name: c.name, itemsCount: c.items.length, items: c.items.map(i => ({ name: i.name, unitPrice: i.unitPrice })) }))
         });
-        console.log('[buildContext Sale] sale.itemsGrouped creado:', {
+        debugLog('[buildContext Sale] sale.itemsGrouped creado:', {
           hasProducts: saleObj.itemsGrouped.hasProducts,
           hasServices: saleObj.itemsGrouped.hasServices,
           hasCombos: saleObj.itemsGrouped.hasCombos,
@@ -1101,7 +1103,7 @@ function normalizeTemplateHtml(html='') {
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de remisión de estructura vieja a nueva (sale.itemsGrouped)');
+          debugLog('[normalizeTemplateHtml] ✅ Convertido tbody de remisión de estructura vieja a nueva (sale.itemsGrouped)');
         }
         // Si tiene {{name}} pero NO tiene {{#each sale.items}} ni sale.itemsGrouped, agregar estructura básica
         else if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
@@ -1163,7 +1165,7 @@ function normalizeTemplateHtml(html='') {
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Agregado tbody de remisión con estructura nueva (sale.itemsGrouped)');
+          debugLog('[normalizeTemplateHtml] ✅ Agregado tbody de remisión con estructura nueva (sale.itemsGrouped)');
         }
       });
     }
@@ -1185,7 +1187,7 @@ function normalizeTemplateHtml(html='') {
           // Insertar tfoot antes del cierre de </table>
           const newTableMatch = tableMatch.replace('</table>', tfootHtml + '\n      </table>');
           output = output.replace(tableMatch, newTableMatch);
-          console.log('[normalizeTemplateHtml] ✅ Agregado tfoot con total a tabla de remisión');
+          debugLog('[normalizeTemplateHtml] ✅ Agregado tfoot con total a tabla de remisión');
         }
       });
     }
@@ -1256,7 +1258,7 @@ function normalizeTemplateHtml(html='') {
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de cotización de estructura vieja a nueva (quote.itemsGrouped)');
+          debugLog('[normalizeTemplateHtml] ✅ Convertido tbody de cotización de estructura vieja a nueva (quote.itemsGrouped)');
         } else if (match.includes('{{description}}') && !match.includes('{{#each quote.items}}') && !match.includes('quote.itemsGrouped')) {
           const newTbody = `<tbody>
           {{#if quote.itemsGrouped.hasCombos}}
@@ -1316,7 +1318,7 @@ function normalizeTemplateHtml(html='') {
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Agregado tbody de cotización con estructura nueva (quote.itemsGrouped)');
+          debugLog('[normalizeTemplateHtml] ✅ Agregado tbody de cotización con estructura nueva (quote.itemsGrouped)');
         }
       });
     }
@@ -1339,7 +1341,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
         </tfoot>` + afterTbodyEnd;
             output = output.replace(tableHtml, newTableHtml);
-            console.log('[normalizeTemplateHtml] ✅ Agregado tfoot con total a tabla de cotización');
+            debugLog('[normalizeTemplateHtml] ✅ Agregado tfoot con total a tabla de cotización');
           }
         }
       });
@@ -1398,7 +1400,7 @@ function normalizeTemplateHtml(html='') {
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de orden de trabajo a estructura agrupada (2 columnas, sin items de combos)');
+          debugLog('[normalizeTemplateHtml] ✅ Convertido tbody de orden de trabajo a estructura agrupada (2 columnas, sin items de combos)');
         } else if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           // Template sin estructura, agregar estructura agrupada
           const newTbody = `<tbody>
@@ -1445,7 +1447,7 @@ function normalizeTemplateHtml(html='') {
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Agregado estructura agrupada a orden de trabajo (2 columnas, sin items de combos)');
+          debugLog('[normalizeTemplateHtml] ✅ Agregado estructura agrupada a orden de trabajo (2 columnas, sin items de combos)');
         }
       });
     }
@@ -1512,7 +1514,7 @@ function normalizeTemplateHtml(html='') {
           output = output.replace(tableHtml, processedTable);
         });
         
-        console.log('[normalizeTemplateHtml] ✅ Orden de trabajo configurado a 2 columnas (sin precios, sin items de combos)');
+        debugLog('[normalizeTemplateHtml] ✅ Orden de trabajo configurado a 2 columnas (sin precios, sin items de combos)');
       }
     }
   }
