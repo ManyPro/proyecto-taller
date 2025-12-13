@@ -10,6 +10,8 @@ import PayrollPeriod from '../models/PayrollPeriod.js';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode';
 
+const TEMPLATE_DEBUG = process.env.DEBUG_TEMPLATES === 'true';
+
 // Helpers para armar contexto base multi-documento
 // Params:
 //  - type: tipo de plantilla (invoice, workOrder, quote, sticker, order)
@@ -871,96 +873,101 @@ function ensureHB() {
 
 function renderHB(tpl, context) {
   ensureHB();
+  const debug = TEMPLATE_DEBUG;
   try {
     if (!tpl || !tpl.trim()) {
-      if (process.env.NODE_ENV !== 'production') {
+      if (debug) {
         console.warn('[renderHB] Template vacío o solo espacios');
       }
       return '';
     }
-    
-    // Log detallado ANTES de compilar
-    console.log('[renderHB] ===== INICIO RENDERIZADO =====');
-    console.log('[renderHB] Template length:', tpl.length);
-    console.log('[renderHB] Context keys:', Object.keys(context || {}));
-    console.log('[renderHB] Has sale:', !!context?.sale);
-    console.log('[renderHB] Has quote:', !!context?.quote);
-    
-    if (context?.sale) {
-      console.log('[renderHB] Sale items count:', context.sale.items?.length || 0);
-      console.log('[renderHB] Sale items:', JSON.stringify(context.sale.items || [], null, 2));
-      console.log('[renderHB] Sale number:', context.sale.number);
-      console.log('[renderHB] Sale formattedNumber:', context.sale.formattedNumber);
-      console.log('[renderHB] Sale tiene itemsGrouped:', !!context.sale.itemsGrouped);
-      if (context.sale.itemsGrouped) {
-        console.log('[renderHB] Sale itemsGrouped:', {
-          hasProducts: context.sale.itemsGrouped.hasProducts,
-          hasServices: context.sale.itemsGrouped.hasServices,
-          hasCombos: context.sale.itemsGrouped.hasCombos,
-          productsCount: context.sale.itemsGrouped.products?.length || 0,
-          servicesCount: context.sale.itemsGrouped.services?.length || 0,
-          combosCount: context.sale.itemsGrouped.combos?.length || 0
+
+    if (debug) {
+      // Log detallado ANTES de compilar
+      console.log('[renderHB] ===== INICIO RENDERIZADO =====');
+      console.log('[renderHB] Template length:', tpl.length);
+      console.log('[renderHB] Context keys:', Object.keys(context || {}));
+      console.log('[renderHB] Has sale:', !!context?.sale);
+      console.log('[renderHB] Has quote:', !!context?.quote);
+
+      if (context?.sale) {
+        console.log('[renderHB] Sale items count:', context.sale.items?.length || 0);
+        console.log('[renderHB] Sale items:', JSON.stringify(context.sale.items || [], null, 2));
+        console.log('[renderHB] Sale number:', context.sale.number);
+        console.log('[renderHB] Sale formattedNumber:', context.sale.formattedNumber);
+        console.log('[renderHB] Sale tiene itemsGrouped:', !!context.sale.itemsGrouped);
+        if (context.sale.itemsGrouped) {
+          console.log('[renderHB] Sale itemsGrouped:', {
+            hasProducts: context.sale.itemsGrouped.hasProducts,
+            hasServices: context.sale.itemsGrouped.hasServices,
+            hasCombos: context.sale.itemsGrouped.hasCombos,
+            productsCount: context.sale.itemsGrouped.products?.length || 0,
+            servicesCount: context.sale.itemsGrouped.services?.length || 0,
+            combosCount: context.sale.itemsGrouped.combos?.length || 0
+          });
+        }
+      }
+
+      if (context?.quote) {
+        console.log('[renderHB] Quote items count:', context.quote.items?.length || 0);
+        console.log('[renderHB] Quote items:', JSON.stringify(context.quote.items || [], null, 2));
+        console.log('[renderHB] Quote number:', context.quote.number);
+      }
+
+      // Verificar si el template tiene las variables correctas
+      const hasSaleEach = tpl.includes('{{#each sale.items}}');
+      const hasQuoteEach = tpl.includes('{{#each quote.items}}');
+      const hasSaleUnless = tpl.includes('{{#unless sale.items}}');
+      const hasQuoteUnless = tpl.includes('{{#unless quote.items}}');
+
+      console.log('[renderHB] Template tiene {{#each sale.items}}:', hasSaleEach);
+      console.log('[renderHB] Template tiene {{#each quote.items}}:', hasQuoteEach);
+      console.log('[renderHB] Template tiene {{#unless sale.items}}:', hasSaleUnless);
+      console.log('[renderHB] Template tiene {{#unless quote.items}}:', hasQuoteUnless);
+
+      // Extraer fragmento del template que contiene las tablas
+      const tableMatch = tpl.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+      if (tableMatch) {
+        console.log('[renderHB] Tablas encontradas en template:', tableMatch.length);
+        tableMatch.forEach((match, idx) => {
+          console.log(`[renderHB] Tabla ${idx + 1} (COMPLETA):`, match);
+          console.log(`[renderHB] Tabla ${idx + 1} tiene {{#each sale.items}}:`, match.includes('{{#each sale.items}}'));
+          console.log(`[renderHB] Tabla ${idx + 1} tiene {{#each quote.items}}:`, match.includes('{{#each quote.items}}'));
+          console.log(`[renderHB] Tabla ${idx + 1} tiene {{#unless sale.items}}:`, match.includes('{{#unless sale.items}}'));
+          console.log(`[renderHB] Tabla ${idx + 1} tiene {{#unless quote.items}}:`, match.includes('{{#unless quote.items}}'));
+          // Verificar si tiene variables escapadas
+          console.log(`[renderHB] Tabla ${idx + 1} tiene variables escapadas (&#123;):`, match.includes('&#123;'));
         });
       }
     }
-    
-    if (context?.quote) {
-      console.log('[renderHB] Quote items count:', context.quote.items?.length || 0);
-      console.log('[renderHB] Quote items:', JSON.stringify(context.quote.items || [], null, 2));
-      console.log('[renderHB] Quote number:', context.quote.number);
-    }
-    
-    // Verificar si el template tiene las variables correctas
-    const hasSaleEach = tpl.includes('{{#each sale.items}}');
-    const hasQuoteEach = tpl.includes('{{#each quote.items}}');
-    const hasSaleUnless = tpl.includes('{{#unless sale.items}}');
-    const hasQuoteUnless = tpl.includes('{{#unless quote.items}}');
-    
-    console.log('[renderHB] Template tiene {{#each sale.items}}:', hasSaleEach);
-    console.log('[renderHB] Template tiene {{#each quote.items}}:', hasQuoteEach);
-    console.log('[renderHB] Template tiene {{#unless sale.items}}:', hasSaleUnless);
-    console.log('[renderHB] Template tiene {{#unless quote.items}}:', hasQuoteUnless);
-    
-    // Extraer fragmento del template que contiene las tablas
-    const tableMatch = tpl.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
-    if (tableMatch) {
-      console.log('[renderHB] Tablas encontradas en template:', tableMatch.length);
-      tableMatch.forEach((match, idx) => {
-        console.log(`[renderHB] Tabla ${idx + 1} (COMPLETA):`, match);
-        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#each sale.items}}:`, match.includes('{{#each sale.items}}'));
-        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#each quote.items}}:`, match.includes('{{#each quote.items}}'));
-        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#unless sale.items}}:`, match.includes('{{#unless sale.items}}'));
-        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#unless quote.items}}:`, match.includes('{{#unless quote.items}}'));
-        // Verificar si tiene variables escapadas
-        console.log(`[renderHB] Tabla ${idx + 1} tiene variables escapadas (&#123;):`, match.includes('&#123;'));
-      });
-    }
-    
+
     const compiled = Handlebars.compile(tpl || '');
     const rendered = compiled(context || {});
-    
-    // Log DESPUÉS de renderizar
-    console.log('[renderHB] Rendered length:', rendered.length);
-    
-    // Verificar si el HTML renderizado tiene filas de tabla
-    const renderedRows = (rendered.match(/<tr>/g) || []).length;
-    console.log('[renderHB] Filas <tr> en HTML renderizado:', renderedRows);
-    
-    // Extraer fragmento renderizado de las tablas
-    const renderedTableMatch = rendered.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
-    if (renderedTableMatch) {
-      console.log('[renderHB] Tablas renderizadas encontradas:', renderedTableMatch.length);
-      renderedTableMatch.forEach((match, idx) => {
-        console.log(`[renderHB] Tabla renderizada ${idx + 1} (COMPLETA):`, match);
-        const rowCount = (match.match(/<tr>/g) || []).length;
-        console.log(`[renderHB] Tabla renderizada ${idx + 1} tiene ${rowCount} filas <tr>`);
-      });
-    } else {
-      console.warn('[renderHB] ⚠️ NO se encontraron tablas renderizadas en el HTML resultante!');
+
+    if (debug) {
+      // Log DESPUÉS de renderizar
+      console.log('[renderHB] Rendered length:', rendered.length);
+
+      // Verificar si el HTML renderizado tiene filas de tabla
+      const renderedRows = (rendered.match(/<tr>/g) || []).length;
+      console.log('[renderHB] Filas <tr> en HTML renderizado:', renderedRows);
+
+      // Extraer fragmento renderizado de las tablas
+      const renderedTableMatch = rendered.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+      if (renderedTableMatch) {
+        console.log('[renderHB] Tablas renderizadas encontradas:', renderedTableMatch.length);
+        renderedTableMatch.forEach((match, idx) => {
+          console.log(`[renderHB] Tabla renderizada ${idx + 1} (COMPLETA):`, match);
+          const rowCount = (match.match(/<tr>/g) || []).length;
+          console.log(`[renderHB] Tabla renderizada ${idx + 1} tiene ${rowCount} filas <tr>`);
+        });
+      } else {
+        console.warn('[renderHB] ⚠️ NO se encontraron tablas renderizadas en el HTML resultante!');
+      }
+
+      console.log('[renderHB] ===== FIN RENDERIZADO =====');
     }
-    
-    console.log('[renderHB] ===== FIN RENDERIZADO =====');
-    
+
     return rendered;
   } catch (e) {
     console.error('[renderHB] Error renderizando:', e);
@@ -1584,27 +1591,32 @@ export async function previewTemplate(req, res) {
   const { type, sampleId, sampleType, quoteData } = req.body || {};
   let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
+  const debug = TEMPLATE_DEBUG;
   
-  console.log('[previewTemplate] ===== INICIO PREVIEW =====');
-  console.log('[previewTemplate] Type:', type);
-  console.log('[previewTemplate] SampleId:', sampleId);
-  console.log('[previewTemplate] SampleType:', sampleType);
-  console.log('[previewTemplate] Has quoteData:', !!quoteData);
-  console.log('[previewTemplate] ContentHtml length:', contentHtml?.length || 0);
-  
+  if (debug) {
+    console.log('[previewTemplate] ===== INICIO PREVIEW =====');
+    console.log('[previewTemplate] Type:', type);
+    console.log('[previewTemplate] SampleId:', sampleId);
+    console.log('[previewTemplate] SampleType:', sampleType);
+    console.log('[previewTemplate] Has quoteData:', !!quoteData);
+    console.log('[previewTemplate] ContentHtml length:', contentHtml?.length || 0);
+  }
+
   // Verificar variables en el HTML ANTES de sanitize
   const hasSaleEachBefore = contentHtml?.includes('{{#each sale.items}}');
   const hasQuoteEachBefore = contentHtml?.includes('{{#each quote.items}}');
-  console.log('[previewTemplate] HTML tiene {{#each sale.items}} ANTES sanitize:', hasSaleEachBefore);
-  console.log('[previewTemplate] HTML tiene {{#each quote.items}} ANTES sanitize:', hasQuoteEachBefore);
-  
-  // Extraer fragmento de tabla del HTML ANTES de sanitize
-  const tableMatchBefore = contentHtml.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
-  if (tableMatchBefore) {
-    console.log('[previewTemplate] Tablas encontradas ANTES sanitize:', tableMatchBefore.length);
-    tableMatchBefore.forEach((match, idx) => {
-      console.log(`[previewTemplate] Tabla ${idx + 1} ANTES (primeros 200 chars):`, match.substring(0, 200));
-    });
+  if (debug) {
+    console.log('[previewTemplate] HTML tiene {{#each sale.items}} ANTES sanitize:', hasSaleEachBefore);
+    console.log('[previewTemplate] HTML tiene {{#each quote.items}} ANTES sanitize:', hasQuoteEachBefore);
+
+    // Extraer fragmento de tabla del HTML ANTES de sanitize
+    const tableMatchBefore = contentHtml.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (tableMatchBefore) {
+      console.log('[previewTemplate] Tablas encontradas ANTES sanitize:', tableMatchBefore.length);
+      tableMatchBefore.forEach((match, idx) => {
+        console.log(`[previewTemplate] Tabla ${idx + 1} ANTES (primeros 200 chars):`, match.substring(0, 200));
+      });
+    }
   }
   
   const originalHtmlLength = contentHtml?.length || 0;
@@ -1614,26 +1626,28 @@ export async function previewTemplate(req, res) {
   // Verificar variables DESPUÉS de sanitize
   const hasSaleEachAfter = contentHtml?.includes('{{#each sale.items}}');
   const hasQuoteEachAfter = contentHtml?.includes('{{#each quote.items}}');
-  console.log('[previewTemplate] HTML tiene {{#each sale.items}} DESPUÉS sanitize:', hasSaleEachAfter);
-  console.log('[previewTemplate] HTML tiene {{#each quote.items}} DESPUÉS sanitize:', hasQuoteEachAfter);
-  
-  if (originalHtmlLength !== sanitizedHtmlLength) {
-    console.warn('[previewTemplate] ⚠️ Sanitize cambió la longitud del HTML:', {
-      original: originalHtmlLength,
-      sanitized: sanitizedHtmlLength,
-      difference: originalHtmlLength - sanitizedHtmlLength
-    });
-  }
-  
-  // Extraer fragmento de tabla del HTML DESPUÉS de sanitize
-  const tableMatchAfter = contentHtml.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
-  if (tableMatchAfter) {
-    console.log('[previewTemplate] Tablas encontradas DESPUÉS sanitize:', tableMatchAfter.length);
-    tableMatchAfter.forEach((match, idx) => {
-      console.log(`[previewTemplate] Tabla ${idx + 1} DESPUÉS (primeros 200 chars):`, match.substring(0, 200));
-    });
-  } else {
-    console.warn('[previewTemplate] ⚠️ NO se encontraron tablas <tbody> en el HTML DESPUÉS de sanitize!');
+  if (debug) {
+    console.log('[previewTemplate] HTML tiene {{#each sale.items}} DESPUÉS sanitize:', hasSaleEachAfter);
+    console.log('[previewTemplate] HTML tiene {{#each quote.items}} DESPUÉS sanitize:', hasQuoteEachAfter);
+
+    if (originalHtmlLength !== sanitizedHtmlLength) {
+      console.warn('[previewTemplate] ⚠️ Sanitize cambió la longitud del HTML:', {
+        original: originalHtmlLength,
+        sanitized: sanitizedHtmlLength,
+        difference: originalHtmlLength - sanitizedHtmlLength
+      });
+    }
+
+    // Extraer fragmento de tabla del HTML DESPUÉS de sanitize
+    const tableMatchAfter = contentHtml.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (tableMatchAfter) {
+      console.log('[previewTemplate] Tablas encontradas DESPUÉS sanitize:', tableMatchAfter.length);
+      tableMatchAfter.forEach((match, idx) => {
+        console.log(`[previewTemplate] Tabla ${idx + 1} DESPUÉS (primeros 200 chars):`, match.substring(0, 200));
+      });
+    } else {
+      console.warn('[previewTemplate] ⚠️ NO se encontraron tablas <tbody> en el HTML DESPUÉS de sanitize!');
+    }
   }
   
   // Usar originalCompanyId para obtener información de la empresa (nombre, logo)
@@ -1646,18 +1660,20 @@ export async function previewTemplate(req, res) {
     sampleType 
   });
   
-  console.log('[previewTemplate] Context después de buildContext:');
-  console.log('[previewTemplate] - Has sale:', !!ctx.sale);
-  console.log('[previewTemplate] - Has quote:', !!ctx.quote);
-  if (ctx.sale) {
-    console.log('[previewTemplate] - Sale items count:', ctx.sale.items?.length || 0);
-    console.log('[previewTemplate] - Sale items:', JSON.stringify(ctx.sale.items || [], null, 2));
-    console.log('[previewTemplate] - Sale number:', ctx.sale.number);
-  }
-  if (ctx.quote) {
-    console.log('[previewTemplate] - Quote items count:', ctx.quote.items?.length || 0);
-    console.log('[previewTemplate] - Quote items:', JSON.stringify(ctx.quote.items || [], null, 2));
-    console.log('[previewTemplate] - Quote number:', ctx.quote.number);
+  if (debug) {
+    console.log('[previewTemplate] Context después de buildContext:');
+    console.log('[previewTemplate] - Has sale:', !!ctx.sale);
+    console.log('[previewTemplate] - Has quote:', !!ctx.quote);
+    if (ctx.sale) {
+      console.log('[previewTemplate] - Sale items count:', ctx.sale.items?.length || 0);
+      console.log('[previewTemplate] - Sale items:', JSON.stringify(ctx.sale.items || [], null, 2));
+      console.log('[previewTemplate] - Sale number:', ctx.sale.number);
+    }
+    if (ctx.quote) {
+      console.log('[previewTemplate] - Quote items count:', ctx.quote.items?.length || 0);
+      console.log('[previewTemplate] - Quote items:', JSON.stringify(ctx.quote.items || [], null, 2));
+      console.log('[previewTemplate] - Quote number:', ctx.quote.number);
+    }
   }
   
   // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
@@ -1666,15 +1682,17 @@ export async function previewTemplate(req, res) {
     const hasItemsInData = (quoteData.items || []).length > 0;
     const hasItemsInContext = (ctx.quote?.items || []).length > 0;
     
-    console.log('[previewTemplate] QuoteData check:', {
-      hasItemsInData,
-      hasItemsInContext,
-      quoteDataItemsCount: (quoteData.items || []).length
-    });
+    if (debug) {
+      console.log('[previewTemplate] QuoteData check:', {
+        hasItemsInData,
+        hasItemsInContext,
+        quoteDataItemsCount: (quoteData.items || []).length
+      });
+    }
     
     // Usar quoteData si no hay sampleId o si los items del contexto están vacíos pero quoteData tiene items
     if (!sampleId || (!hasItemsInContext && hasItemsInData)) {
-      console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
+      if (debug) console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
       
       // Procesar items y crear estructura agrupada (igual que en buildContext)
       // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
@@ -1907,13 +1925,13 @@ export async function previewTemplate(req, res) {
         };
       }
       
-      console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0, 'ivaEnabled:', ivaEnabled);
+      if (debug) console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0, 'ivaEnabled:', ivaEnabled);
     }
   }
   
   const html = renderHB(contentHtml, ctx);
   
-  console.log('[previewTemplate] ===== FIN PREVIEW =====');
+  if (debug) console.log('[previewTemplate] ===== FIN PREVIEW =====');
   
   res.json({ rendered: html, css: contentCss, context: ctx });
 }
