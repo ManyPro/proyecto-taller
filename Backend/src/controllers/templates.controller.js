@@ -125,12 +125,14 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'overflow-wrap:break-word',
           'hyphens:auto',
           'width:100%',
-          'flex:1',
+          'max-width:100%',
+          'flex:1 1 auto',
           'margin:0',
           'padding:0',
           'box-sizing:border-box',
           'overflow:hidden',
           'display:block',
+          'min-width:0',
           'min-height:0'
         ];
         htmlParts.push(

@@ -2744,9 +2744,12 @@ function openMarketplaceHelper(item){
         width: widthPx,
         height: heightPx,
         backgroundColor: '#ffffff',
-        scale: 1,
+        scale: 3,
         windowWidth: widthPx,
-        windowHeight: heightPx
+        windowHeight: heightPx,
+        useCORS: true,
+        allowTaint: false,
+        logging: false
       });
       images.push(canvas.toDataURL('image/png'));
       root.removeChild(box);
@@ -2761,7 +2764,7 @@ function openMarketplaceHelper(item){
     });
     images.forEach((src, idx) => {
       if (idx > 0) doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
-      doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'FAST');
+      doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'SLOW');
     });
     doc.save(`${filenameBase}.pdf`);
   }

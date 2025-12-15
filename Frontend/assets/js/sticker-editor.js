@@ -27,19 +27,19 @@
     // SKU: pequeño, arriba izquierda
     const skuX = 8;
     const skuY = 6;
-    const skuW = 100;
+    const skuW = 95; // Ancho ajustado para dejar espacio al QR sin sobreponerse
     const skuH = 18;
     
-    // Nombre: debajo del SKU, más ancho para permitir wrap vertical
+    // Nombre: debajo del SKU, con espacio suficiente para wrap vertical
     const nameX = 8;
     const nameY = skuY + skuH + 4; // 28px desde arriba
-    const nameW = 100; // Ancho suficiente para texto
-    const nameH = canvasHeight - nameY - 4; // Ocupa el resto del espacio vertical disponible
+    const nameW = 95; // Mismo ancho que SKU para alineación
+    const nameH = canvasHeight - nameY - 4; // Ocupa el resto del espacio vertical disponible (~81px)
     
-    // QR: a la derecha, ocupando buena parte del espacio
+    // QR: a la derecha, bien posicionado sin sobreponerse
     const qrW = 85;
     const qrH = 85;
-    const qrX = canvasWidth - qrW - 6; // Alineado a la derecha con margen
+    const qrX = canvasWidth - qrW - 6; // Alineado a la derecha con margen de 6px
     const qrY = 6; // Alineado arriba
     
     return {
@@ -598,7 +598,8 @@
           textInner.textContent = textContent;
           textInner.style.cssText = `
             width: 100%;
-            flex: 1;
+            max-width: 100%;
+            flex: 1 1 auto;
             font-size: ${el.fontSize || 12}px;
             font-weight: ${el.fontWeight || '600'};
             line-height: ${el.lineHeight || 1.1};
@@ -613,6 +614,7 @@
             box-sizing: border-box;
             overflow: hidden;
             display: block;
+            min-width: 0;
             min-height: 0;
           `;
           wrapper.appendChild(textInner);
