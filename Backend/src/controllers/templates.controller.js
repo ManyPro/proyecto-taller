@@ -99,9 +99,9 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       else if (source === 'custom') textExpr = safe(el.text || 'Texto');
       else textExpr = safe(el.text || '');
 
-      // Para texto con wrap: usar estructura con contenedor interno
+      // Para texto con wrap: usar estructura con contenedor interno que se expande verticalmente
       if (wrap) {
-        // Con wrap: contenedor flex column con elemento interno que permite wrap
+        // Con wrap: contenedor flex column con elemento interno que permite wrap y se expande verticalmente
         const containerStyles = [
           'display:flex',
           'flex-direction:column',
@@ -111,7 +111,8 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'margin:0',
           'width:100%',
           'height:100%',
-          'box-sizing:border-box'
+          'box-sizing:border-box',
+          'min-height:0'
         ];
         const textInnerStyles = [
           `font-size:${fontSize}px`,
@@ -124,9 +125,12 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'overflow-wrap:break-word',
           'hyphens:auto',
           'width:100%',
+          'min-width:0',
+          'flex:1 1 auto',
           'margin:0',
           'padding:0',
-          'box-sizing:border-box'
+          'box-sizing:border-box',
+          'overflow:hidden'
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`

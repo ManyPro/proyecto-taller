@@ -532,6 +532,10 @@
         top: ${el.y}px;
         width: ${el.w}px;
         height: ${el.h}px;
+        min-width: ${el.w}px;
+        min-height: ${el.h}px;
+        max-width: ${el.w}px;
+        max-height: ${el.h}px;
         box-sizing: border-box;
         overflow: hidden;
         border: 2px solid transparent;
@@ -552,7 +556,7 @@
         const wrapEnabled = el.wrap !== false;
         
         if (wrapEnabled) {
-          // Con wrap: usar flex column con contenedor interno para que el texto ocupe el espacio vertical
+          // Con wrap: usar flex column con contenedor interno que se expande verticalmente
           wrapper.style.cssText += `
             display: flex;
             flex-direction: column;
@@ -560,12 +564,16 @@
             justify-content: ${el.vAlign === 'flex-end' ? 'flex-end' : el.vAlign === 'center' ? 'center' : 'flex-start'};
             padding: 2px;
             margin: 0;
+            min-height: 0;
           `;
-          // Contenedor interno para el texto que permite wrap
+          // Contenedor interno para el texto que permite wrap y se expande verticalmente
           const textInner = document.createElement('div');
           textInner.textContent = textContent;
           textInner.style.cssText = `
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            flex: 1 1 0;
             font-size: ${el.fontSize || 12}px;
             font-weight: ${el.fontWeight || '600'};
             line-height: ${el.lineHeight || 1.1};
@@ -578,6 +586,8 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            overflow: hidden;
+            display: block;
           `;
           wrapper.appendChild(textInner);
         } else {
