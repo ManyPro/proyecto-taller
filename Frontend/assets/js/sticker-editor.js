@@ -218,7 +218,6 @@
       el.x = Math.max(0, origin.x + dx);
       el.y = Math.max(0, origin.y + dy);
       scheduleStyle(node, el);
-      renderProperties(true);
     }
     function end() {
       window.removeEventListener('pointermove', move);
@@ -241,7 +240,6 @@
       el.w = Math.max(10, origin.w + dx);
       el.h = Math.max(10, origin.h + dy);
       scheduleStyle(node, el);
-      renderProperties(true);
     }
     function end() {
       window.removeEventListener('pointermove', move);
