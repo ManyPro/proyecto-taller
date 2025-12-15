@@ -20,14 +20,35 @@
   }
 
   function defaultLayout() {
+    // Canvas: 5cm x 3cm = 189px x 113px aproximadamente
+    const canvasWidth = cmToPx(5); // ~189px
+    const canvasHeight = cmToPx(3); // ~113px
+    
+    // SKU: pequeño, arriba izquierda
+    const skuX = 8;
+    const skuY = 6;
+    const skuW = 100;
+    const skuH = 18;
+    
+    // Nombre: debajo del SKU, más ancho para permitir wrap vertical
+    const nameX = 8;
+    const nameY = skuY + skuH + 4; // 28px desde arriba
+    const nameW = 100; // Ancho suficiente para texto
+    const nameH = canvasHeight - nameY - 4; // Ocupa el resto del espacio vertical disponible
+    
+    // QR: a la derecha, ocupando buena parte del espacio
+    const qrW = 85;
+    const qrH = 85;
+    const qrX = canvasWidth - qrW - 6; // Alineado a la derecha con margen
+    const qrY = 6; // Alineado arriba
+    
     return {
       widthCm: 5,
       heightCm: 3,
       elements: [
-        { id: 'sku', type: 'text', source: 'sku', x: 8, y: 8, w: 120, h: 22, fontSize: 14, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
-        { id: 'name', type: 'text', source: 'name', x: 8, y: 34, w: 120, h: 42, fontSize: 11, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.1 },
-        { id: 'qr', type: 'image', source: 'qr', x: 135, y: 6, w: 90, h: 90, fit: 'contain' },
-        { id: 'img', type: 'image', source: 'item-image', x: 8, y: 80, w: 120, h: 40, fit: 'cover' }
+        { id: 'sku', type: 'text', source: 'sku', x: skuX, y: skuY, w: skuW, h: skuH, fontSize: 13, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
+        { id: 'name', type: 'text', source: 'name', x: nameX, y: nameY, w: nameW, h: nameH, fontSize: 10, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.2 },
+        { id: 'qr', type: 'image', source: 'qr', x: qrX, y: qrY, w: qrW, h: qrH, fit: 'contain' }
       ]
     };
   }
@@ -833,7 +854,7 @@
 
   // Asegurar que el editor se inicialice aunque el script cargue tarde
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', init);
   } else {
     // DOM ya listo: ejecutar en el próximo tick
     setTimeout(init, 0);
