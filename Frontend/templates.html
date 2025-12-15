@@ -413,9 +413,13 @@
     (function loadEditorScript(){
       const params = new URLSearchParams(window.location.search);
       const type = params.get('type') || '';
-      const script = document.createElement('script');
-      script.src = type.includes('sticker') ? 'assets/js/sticker-editor.js' : 'assets/js/templates-visual.js';
-      document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
+      // Siempre cargar el editor legacy; el de stickers se auto-desactiva si no es sticker
+      const mainScript = document.createElement('script');
+      mainScript.src = 'assets/js/templates-visual.js';
+      document.currentScript.parentNode.insertBefore(mainScript, document.currentScript.nextSibling);
+      const stickerScript = document.createElement('script');
+      stickerScript.src = 'assets/js/sticker-editor.js';
+      document.currentScript.parentNode.insertBefore(stickerScript, mainScript.nextSibling);
     })();
   </script>
     <!-- Overlay de vista previa no utilizado; mantenido por compatibilidad -->

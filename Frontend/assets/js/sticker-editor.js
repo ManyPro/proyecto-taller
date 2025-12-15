@@ -297,6 +297,7 @@
   }
 
   async function loadExisting(session) {
+    // Si no hay formato previo, usar layout default sin fallar
     if (session.action !== 'edit' || !session.formatId) {
       state.layout = defaultLayout();
       renderCanvas();
@@ -304,19 +305,19 @@
       return;
     }
     try {
-      const tpl = await API.templates.get(session.formatId);
+      const tpl = await (window.API?.templates?.get
+        ? API.templates.get(session.formatId)
+        : Promise.reject(new Error('API.templates.get no disponible')));
       const meta = tpl?.meta || {};
       state.layout = meta.layout || defaultLayout();
       if (!state.layout.widthCm && meta.width) state.layout.widthCm = meta.width;
       if (!state.layout.heightCm && meta.height) state.layout.heightCm = meta.height;
-      renderCanvas();
-      renderProperties();
     } catch (e) {
-      console.error(e);
+      console.error('⚠️ No se pudo cargar el formato, usando layout por defecto', e);
       state.layout = defaultLayout();
-      renderCanvas();
-      renderProperties();
     }
+    renderCanvas();
+    renderProperties();
   }
 
   function buildPayload() {
@@ -393,23 +394,42 @@
   }
 
   async function init() {
-    const params = new URLSearchParams(window.location.search);
-    const type = params.get('type') || 'sticker-qr';
-    const action = params.get('action') || 'create';
-    const formatId = params.get('formatId');
-    const formatName = params.get('formatName') || 'Sticker';
-    if (!type.includes('sticker')) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const type = params.get('type') || 'sticker-qr';
+      const action = params.get('action') || 'create';
+      const formatId = params.get('formatId');
+      const formatName = params.get('formatName') || 'Sticker';
+      if (!type.includes('sticker')) {
+        // Si no es sticker, no bloquear otros formatos: dejar que el loader cargue templates-visual
+        return;
+      }
 
-    state.session = { type, action, formatId, name: formatName };
-    window.currentTemplateSession = state.session;
+      state.session = { type, action, formatId, name: formatName };
+      window.currentTemplateSession = state.session;
 
-    const appSection = document.getElementById('appSection');
-    if (appSection) appSection.classList.remove('hidden');
+      const appSection = document.getElementById('appSection');
+      if (appSection) appSection.classList.remove('hidden');
 
-    renderToolbar();
-    renderSidebar();
-    bindActions();
-    await loadExisting(state.session);
+      renderToolbar();
+      renderSidebar();
+      bindActions();
+      await loadExisting(state.session);
+    } catch (err) {
+      console.error('Sticker editor init failed, usando canvas vacío', err);
+      try {
+        const appSection = document.getElementById('appSection');
+        if (appSection) appSection.classList.remove('hidden');
+        state.layout = defaultLayout();
+        renderToolbar();
+        renderSidebar();
+        bindActions();
+        renderCanvas();
+        renderProperties();
+      } catch (_) {
+        // último recurso: no hacer nada más
+      }
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
