@@ -49,6 +49,7 @@
   function renderToolbar() {
     const bar = document.getElementById('ce-toolbar');
     if (!bar) return;
+    bar.classList.add('sticker-toolbar');
     bar.innerHTML = `
       <div class="flex flex-wrap gap-2 items-center">
         <span class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Elementos:</span>
@@ -126,6 +127,7 @@
     const widthPx = cmToPx(state.layout.widthCm || state.layout.width || 5);
     const heightPx = cmToPx(state.layout.heightCm || state.layout.height || 3);
     // Centrar y limpiar padding heredado del editor general
+    canvas.classList.add('sticker-mode');
     canvas.style.margin = '24px auto 32px';
     canvas.style.display = 'block';
     canvas.style.padding = '0';
@@ -412,6 +414,8 @@
       state.session = { type, action, formatId, name: formatName };
       window.currentTemplateSession = state.session;
 
+      ensureStickerStyles();
+
       const appSection = document.getElementById('appSection');
       if (appSection) appSection.classList.remove('hidden');
 
@@ -437,5 +441,37 @@
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  function ensureStickerStyles(){
+    if (document.getElementById('sticker-editor-style')) return;
+    const css = `
+      body.sticker-mode #custom-editor,
+      body .sticker-mode-shell {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      #ce-toolbar.sticker-toolbar{
+        gap:10px;
+        border-radius: 10px 10px 0 0;
+      }
+      #ce-canvas.sticker-mode{
+        background:#ffffff;
+        border:1px dashed #94a3b8;
+        box-shadow:0 10px 30px rgba(0,0,0,0.12);
+        padding:16px;
+      }
+      #ce-canvas.sticker-mode .st-el{
+        transition: box-shadow 120ms ease;
+      }
+      #ce-canvas.sticker-mode .st-el:hover{
+        box-shadow:0 0 0 1px #cbd5e1;
+      }
+    `;
+    const style = document.createElement('style');
+    style.id = 'sticker-editor-style';
+    style.textContent = css;
+    document.head.appendChild(style);
+    document.body.classList.add('sticker-mode');
+  }
 })();
 
