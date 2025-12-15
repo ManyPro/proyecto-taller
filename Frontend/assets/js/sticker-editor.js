@@ -120,6 +120,16 @@
     node.style.height = `${el.h}px`;
   }
 
+  // Batcher para mover/redimensionar sin saturar el thread
+  let rafToken = null;
+  function scheduleStyle(node, el) {
+    if (rafToken) cancelAnimationFrame(rafToken);
+    rafToken = requestAnimationFrame(() => {
+      applyNodeStyle(node, el);
+      rafToken = null;
+    });
+  }
+
   function renderCanvas() {
     ensureLayout();
     const canvas = getCanvas();
@@ -207,7 +217,7 @@
       const dy = e.clientY - startY;
       el.x = Math.max(0, origin.x + dx);
       el.y = Math.max(0, origin.y + dy);
-      applyNodeStyle(node, el);
+      scheduleStyle(node, el);
       renderProperties(true);
     }
     function end() {
@@ -230,7 +240,7 @@
       const dy = e.clientY - startY;
       el.w = Math.max(10, origin.w + dx);
       el.h = Math.max(10, origin.h + dy);
-      applyNodeStyle(node, el);
+      scheduleStyle(node, el);
       renderProperties(true);
     }
     function end() {
