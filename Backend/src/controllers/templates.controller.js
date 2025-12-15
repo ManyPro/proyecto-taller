@@ -14,6 +14,116 @@ const TEMPLATE_DEBUG = process.env.DEBUG_TEMPLATES === 'true';
 const debugLog = (...args) => { if (TEMPLATE_DEBUG) console.log(...args); };
 const debugWarn = (...args) => { if (TEMPLATE_DEBUG) console.warn(...args); };
 
+// ===== Helpers específicos para stickers (5cm x 3cm, motor basado en layout) =====
+function isStickerType(type = '') {
+  const t = String(type || '').toLowerCase();
+  return t === 'sticker' || t === 'sticker-qr' || t === 'sticker-brand';
+}
+
+// Genera HTML imprimible a partir de un layout de sticker (coordenadas en px dentro de un canvas lógico 5cm x 3cm)
+// El HTML resultante se envuelve en .sticker-wrapper y usa contexto Handlebars (ctx.item.*) para los datos dinámicos
+function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
+  const layout = rawLayout && typeof rawLayout === 'object' ? rawLayout : {};
+  const elements = Array.isArray(layout.elements) ? layout.elements : [];
+
+  const widthCm = Number(rawMeta.width) || Number(layout.widthCm) || Number(layout.width) || 5;
+  const heightCm = Number(rawMeta.height) || Number(layout.heightCm) || Number(layout.height) || 3;
+
+  const safe = (v) => (v === undefined || v === null ? '' : String(v));
+
+  const htmlParts = [];
+  htmlParts.push(
+    `<div class="sticker-wrapper" style="position:relative;width:${widthCm}cm;height:${heightCm}cm;box-sizing:border-box;overflow:hidden;background:#ffffff;">`
+  );
+
+  for (const el of elements) {
+    if (!el) continue;
+    const id = safe(el.id || '');
+    const x = Number(el.x) || 0;
+    const y = Number(el.y) || 0;
+    const w = Number(el.w) || 10;
+    const h = Number(el.h) || 10;
+    const type = (el.type || 'text').toString();
+    const source = (el.source || type).toString();
+    const fontSize = Number(el.fontSize) || 12;
+    const fontWeight = safe(el.fontWeight || '600');
+    const color = safe(el.color || '#000000');
+    const wrap = el.wrap !== false;
+    const align = safe(el.align || 'flex-start');
+    const vAlign = safe(el.vAlign || 'center');
+    const lineHeight = Number(el.lineHeight) || 1.1;
+    const fit = safe(el.fit || 'contain');
+
+    const baseStyle = [
+      'position:absolute',
+      `left:${x}px`,
+      `top:${y}px`,
+      `width:${w}px`,
+      `height:${h}px`,
+      'box-sizing:border-box',
+      'overflow:hidden'
+    ];
+
+    let innerHtml = '';
+
+    if (type === 'image') {
+      // Mapear fuentes conocidas a campos del contexto / helpers
+      let srcExpr = '';
+      if (source === 'qr') {
+        // QR generado en buildContext sobre ctx.item.qr
+        srcExpr = '{{item.qr}}';
+      } else if (source === 'item-image') {
+        // Imagen principal del item:
+        //  - Si el layout trae una URL fija, usarla
+        //  - Si no, usar helper Handlebars itemImage para tomar la primera imagen disponible de ctx.item.images
+        srcExpr = el.url ? safe(el.url) : "{{itemImage item ''}}";
+      } else {
+        // Otros tipos de imagen pueden apoyarse también en itemImage como fallback
+        srcExpr = el.url ? safe(el.url) : "{{itemImage item ''}}";
+      }
+
+      innerHtml =
+        `<img src="${srcExpr}" alt="" style="width:100%;height:100%;object-fit:${fit};display:block;border:0;"/>`;
+    } else {
+      // Texto
+      let textExpr = '';
+      if (source === 'sku') textExpr = '{{item.sku}}';
+      else if (source === 'name') textExpr = '{{item.name}}';
+      else if (source === 'qr-text') textExpr = '{{item.qrText}}';
+      else if (source === 'custom') textExpr = safe(el.text || 'Texto');
+      else textExpr = safe(el.text || '');
+
+      const textStyles = [
+        'display:flex',
+        `align-items:${vAlign}`,
+        `justify-content:${align}`,
+        `font-size:${fontSize}px`,
+        `font-weight:${fontWeight}`,
+        `line-height:${lineHeight}`,
+        `color:${color}`,
+        wrap ? 'white-space:normal' : 'white-space:nowrap',
+        'word-break:break-word',
+        'padding:0',
+        'margin:0'
+      ];
+
+      htmlParts.push(
+        `<div class="st-el" data-id="${id}" style="${baseStyle.join(
+          ';'
+        )};${textStyles.join(';')}">${textExpr}</div>`
+      );
+      continue;
+    }
+
+    htmlParts.push(
+      `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')}">${innerHtml}</div>`
+    );
+  }
+
+  htmlParts.push(`</div>`);
+  return htmlParts.join('\n');
+}
+
 // Helpers para armar contexto base multi-documento
 // Params:
 //  - type: tipo de plantilla (invoice, workOrder, quote, sticker, order)
@@ -855,6 +965,17 @@ function ensureHB() {
   Handlebars.registerHelper('pad', (v, len = 5) => String(v ?? '').toString().padStart(len, '0'));
   Handlebars.registerHelper('uppercase', (v) => String(v || '').toUpperCase());
   Handlebars.registerHelper('lowercase', (v) => String(v || '').toLowerCase());
+  // Helper para obtener la URL de la primera imagen del item
+  // Uso: {{itemImage item 'fallback'}}
+  Handlebars.registerHelper('itemImage', (item, fallback = '') => {
+    if (!item || typeof item !== 'object') return fallback || '';
+    const images = Array.isArray(item.images) ? item.images : [];
+    const first = images.find((img) => img && (img.url || img.secure_url || img.path));
+    return (
+      (first && (first.url || first.secure_url || first.path)) ||
+      String(fallback || '')
+    );
+  });
   // Helper para verificar si un array tiene elementos
   Handlebars.registerHelper('hasItems', function(items) {
     if (!items) return false;
@@ -1561,26 +1682,63 @@ export async function getTemplate(req, res) {
 }
 
 export async function createTemplate(req, res) {
-  let { type, contentHtml = '', contentCss = '', name = '', activate = false } = req.body || {};
+  let {
+    type,
+    contentHtml = '',
+    contentCss = '',
+    name = '',
+    activate = false,
+    meta = {},
+    layout
+  } = req.body || {};
+
   if (!type) return res.status(400).json({ error: 'type required' });
+
   contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
+
   const last = await Template.findOne({ companyId: req.companyId, type }).sort({ version: -1 });
-  const version = last ? (last.version + 1) : 1;
+  const version = last ? last.version + 1 : 1;
+
   if (activate) {
-    await Template.updateMany({ companyId: req.companyId, type, active: true }, { $set: { active: false } });
+    await Template.updateMany(
+      { companyId: req.companyId, type, active: true },
+      { $set: { active: false } }
+    );
   }
-  const doc = await Template.create({ companyId: req.companyId, type, contentHtml, contentCss, name, version, active: !!activate });
+
+  const metaPayload = Object.assign({}, meta || {});
+  if (layout && typeof layout === 'object') {
+    metaPayload.layout = layout;
+  }
+
+  const doc = await Template.create({
+    companyId: req.companyId,
+    type,
+    contentHtml,
+    contentCss,
+    name,
+    version,
+    active: !!activate,
+    meta: metaPayload
+  });
+
   res.json(doc);
 }
 
 export async function updateTemplate(req, res) {
   const { id } = req.params;
-  const { contentHtml, contentCss, name, activate } = req.body || {};
+  const { contentHtml, contentCss, name, activate, meta, layout } = req.body || {};
   const doc = await Template.findOne({ _id: id, companyId: req.companyId });
   if (!doc) return res.status(404).json({ error: 'not found' });
   if (contentHtml !== undefined) doc.contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
   if (contentCss !== undefined) doc.contentCss = contentCss;
   if (name !== undefined) doc.name = name;
+  if (meta !== undefined && meta && typeof meta === 'object') {
+    doc.meta = Object.assign({}, doc.meta || {}, meta);
+  }
+  if (layout && typeof layout === 'object') {
+    doc.meta = Object.assign({}, doc.meta || {}, { layout });
+  }
   if (activate !== undefined && activate) {
     await Template.updateMany({ companyId: req.companyId, type: doc.type, active: true }, { $set: { active: false } });
     doc.active = true;
@@ -1591,7 +1749,7 @@ export async function updateTemplate(req, res) {
 
 export async function previewTemplate(req, res) {
   const { type, sampleId, sampleType, quoteData } = req.body || {};
-  let { contentHtml = '', contentCss = '' } = req.body || {};
+  let { contentHtml = '', contentCss = '', layout, meta = {} } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
   const debug = TEMPLATE_DEBUG;
   
@@ -1602,6 +1760,23 @@ export async function previewTemplate(req, res) {
     console.log('[previewTemplate] SampleType:', sampleType);
     console.log('[previewTemplate] Has quoteData:', !!quoteData);
     console.log('[previewTemplate] ContentHtml length:', contentHtml?.length || 0);
+  }
+
+  // Sobrescribir contentHtml si es un sticker basado en layout
+  if (isStickerType(type)) {
+    // El layout puede venir explícito o embebido en meta
+    const effectiveLayout =
+      (layout && typeof layout === 'object' && layout) ||
+      (meta && typeof meta === 'object' && meta.layout) ||
+      null;
+
+    if (effectiveLayout) {
+      try {
+        contentHtml = buildStickerHtmlFromLayout(effectiveLayout, meta || {});
+      } catch (e) {
+        debugWarn('[previewTemplate] Error generando HTML de sticker desde layout:', e?.message);
+      }
+    }
   }
 
   // Verificar variables en el HTML ANTES de sanitize
