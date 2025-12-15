@@ -317,6 +317,8 @@
       const d = Math.max(-180, Math.min(180, Math.round(newDeg)));
       wrapper.style.transform = `rotate(${d}deg)`;
       wrapper.style.transformOrigin = 'center center';
+      // Guardar rotación en el objeto del elemento para persistencia
+      el.rotation = d;
       e.preventDefault();
     };
 
@@ -325,6 +327,14 @@
         isRotating = false;
         if (rotateHandle) rotateHandle.style.cursor = 'grab';
         if (rotateHandle && !wrapper.matches(':hover')) rotateHandle.style.display = 'none';
+        // Asegurar que la rotación final se guarde
+        const t = wrapper.style.transform || '';
+        const m = t.match(/rotate\(([-\d.]+)deg\)/i);
+        if (m) {
+          const finalDeg = parseFloat(m[1]) || 0;
+          el.rotation = Math.max(-180, Math.min(180, Math.round(finalDeg)));
+        }
+        renderProperties(); // Actualizar propiedades para reflejar la rotación
       }
       document.removeEventListener('mousemove', doRotate);
       document.removeEventListener('mouseup', endRotate);
@@ -339,10 +349,16 @@
       centerX = rect.left + rect.width / 2;
       centerY = rect.top + rect.height / 2;
       startAngleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-      startRotationDeg = 0;
+      // Obtener rotación inicial desde el objeto del elemento o del estilo
+      startRotationDeg = el.rotation != null ? Number(el.rotation) : 0;
       const t = wrapper.style.transform || '';
       const m = t.match(/rotate\(([-\d.]+)deg\)/i);
-      if (m) startRotationDeg = parseFloat(m[1]) || 0;
+      if (m) {
+        const currentDeg = parseFloat(m[1]) || 0;
+        startRotationDeg = currentDeg;
+        // Sincronizar con el objeto si no estaba guardado
+        if (el.rotation == null) el.rotation = currentDeg;
+      }
       document.addEventListener('mousemove', doRotate);
       document.addEventListener('mouseup', endRotate);
     };
@@ -505,6 +521,11 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'st-el tpl-element';
       wrapper.dataset.id = el.id;
+      
+      // Aplicar rotación si existe
+      const rotation = el.rotation != null ? Number(el.rotation) : 0;
+      const transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
+      
       wrapper.style.cssText = `
         position: absolute;
         left: ${el.x}px;
@@ -516,6 +537,7 @@
         border: 2px solid transparent;
         background: transparent;
         cursor: move;
+        ${transform ? `transform: ${transform}; transform-origin: center center;` : ''}
       `;
 
       if (el.type === 'image') {
@@ -525,20 +547,48 @@
         img.style.cssText = 'width: 100%; height: 100%; object-fit: ' + (el.fit || 'contain') + '; display: block;';
         wrapper.appendChild(img);
       } else {
-        wrapper.textContent = sampleValue(el);
-        wrapper.style.cssText += `
-          display: flex;
-          align-items: ${el.vAlign || 'center'};
-          justify-content: ${el.align || 'flex-start'};
-          font-size: ${el.fontSize || 12}px;
-          font-weight: ${el.fontWeight || '600'};
-          line-height: ${el.lineHeight || 1.1};
-          color: ${el.color || '#000'};
-          white-space: ${el.wrap === false ? 'nowrap' : 'normal'};
-          word-break: break-word;
-          padding: 0;
-          margin: 0;
-        `;
+        // Para texto: estructura que permita wrap y ocupe espacio vertical
+        const textContent = sampleValue(el);
+        const wrapEnabled = el.wrap !== false;
+        
+        if (wrapEnabled) {
+          // Con wrap: usar flex column para que el texto ocupe el espacio vertical
+          wrapper.style.cssText += `
+            display: flex;
+            flex-direction: column;
+            align-items: ${el.align === 'flex-end' ? 'flex-end' : el.align === 'center' ? 'center' : 'flex-start'};
+            justify-content: ${el.vAlign === 'flex-end' ? 'flex-end' : el.vAlign === 'center' ? 'center' : 'flex-start'};
+            font-size: ${el.fontSize || 12}px;
+            font-weight: ${el.fontWeight || '600'};
+            line-height: ${el.lineHeight || 1.1};
+            color: ${el.color || '#000'};
+            white-space: normal;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            padding: 2px;
+            margin: 0;
+          `;
+          wrapper.textContent = textContent;
+        } else {
+          // Sin wrap: mantener en una línea con ellipsis si es necesario
+          wrapper.style.cssText += `
+            display: flex;
+            align-items: ${el.vAlign || 'center'};
+            justify-content: ${el.align || 'flex-start'};
+            font-size: ${el.fontSize || 12}px;
+            font-weight: ${el.fontWeight || '600'};
+            line-height: ${el.lineHeight || 1.1};
+            color: ${el.color || '#000'};
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0;
+            margin: 0;
+          `;
+          wrapper.textContent = textContent;
+        }
       }
 
       makeDraggable(wrapper, el);

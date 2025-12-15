@@ -53,6 +53,7 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
     const vAlign = safe(el.vAlign || 'center');
     const lineHeight = Number(el.lineHeight) || 1.1;
     const fit = safe(el.fit || 'contain');
+    const rotation = el.rotation != null ? Number(el.rotation) : 0;
 
     const baseStyle = [
       'position:absolute',
@@ -63,6 +64,11 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       'box-sizing:border-box',
       'overflow:hidden'
     ];
+    
+    // Agregar rotación si existe
+    if (rotation !== 0) {
+      baseStyle.push(`transform:rotate(${rotation}deg)`, 'transform-origin:center center');
+    }
 
     let innerHtml = '';
 
@@ -93,19 +99,47 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       else if (source === 'custom') textExpr = safe(el.text || 'Texto');
       else textExpr = safe(el.text || '');
 
-      const textStyles = [
-        'display:flex',
-        `align-items:${vAlign}`,
-        `justify-content:${align}`,
-        `font-size:${fontSize}px`,
-        `font-weight:${fontWeight}`,
-        `line-height:${lineHeight}`,
-        `color:${color}`,
-        wrap ? 'white-space:normal' : 'white-space:nowrap',
-        'word-break:break-word',
-        'padding:0',
-        'margin:0'
-      ];
+      // Para texto con wrap: usar flex column para que ocupe espacio vertical
+      let textStyles = [];
+      if (wrap) {
+        // Con wrap: flex column permite que el texto ocupe múltiples líneas y use todo el espacio vertical
+        textStyles = [
+          'display:flex',
+          'flex-direction:column',
+          `align-items:${align === 'flex-end' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'}`,
+          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'center' : 'flex-start'}`,
+          `font-size:${fontSize}px`,
+          `font-weight:${fontWeight}`,
+          `line-height:${lineHeight}`,
+          `color:${color}`,
+          'white-space:normal',
+          'word-wrap:break-word',
+          'word-break:break-word',
+          'overflow-wrap:break-word',
+          'hyphens:auto',
+          'padding:2px',
+          'margin:0',
+          'width:100%',
+          'height:100%',
+          'box-sizing:border-box'
+        ];
+      } else {
+        // Sin wrap: mantener en una línea
+        textStyles = [
+          'display:flex',
+          `align-items:${vAlign}`,
+          `justify-content:${align}`,
+          `font-size:${fontSize}px`,
+          `font-weight:${fontWeight}`,
+          `line-height:${lineHeight}`,
+          `color:${color}`,
+          'white-space:nowrap',
+          'overflow:hidden',
+          'text-overflow:ellipsis',
+          'padding:0',
+          'margin:0'
+        ];
+      }
 
       htmlParts.push(
         `<div class="st-el" data-id="${id}" style="${baseStyle.join(
