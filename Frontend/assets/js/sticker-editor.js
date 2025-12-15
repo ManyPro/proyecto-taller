@@ -31,6 +31,16 @@
     };
   }
 
+  function normalizeLayout(raw) {
+    const base = defaultLayout();
+    if (!raw || typeof raw !== 'object') return base;
+    const out = Object.assign({}, base, raw);
+    if (!Array.isArray(out.elements) || !out.elements.length) {
+      out.elements = base.elements.map((el) => Object.assign({}, el));
+    }
+    return out;
+  }
+
   function notify(msg, type = 'info') {
     const el = document.createElement('div');
     el.className = `fixed top-5 right-5 px-4 py-2 rounded-lg shadow-lg text-white text-sm z-[4000] ${type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
@@ -76,7 +86,12 @@
   }
 
   function ensureLayout() {
-    if (!state.layout) state.layout = defaultLayout();
+    if (!state.layout) {
+      state.layout = defaultLayout();
+      return;
+    }
+    // Normalizar por si viene un layout antiguo o corrupto desde el backend
+    state.layout = normalizeLayout(state.layout);
   }
 
   function sampleValue(el) {
@@ -323,7 +338,7 @@
         ? API.templates.get(session.formatId)
         : Promise.reject(new Error('API.templates.get no disponible')));
       const meta = tpl?.meta || {};
-      state.layout = meta.layout || defaultLayout();
+      state.layout = normalizeLayout(meta.layout || defaultLayout());
       if (!state.layout.widthCm && meta.width) state.layout.widthCm = meta.width;
       if (!state.layout.heightCm && meta.height) state.layout.heightCm = meta.height;
     } catch (e) {
