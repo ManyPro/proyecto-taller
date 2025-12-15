@@ -532,15 +532,12 @@
         top: ${el.y}px;
         width: ${el.w}px;
         height: ${el.h}px;
-        min-width: ${el.w}px;
-        min-height: ${el.h}px;
-        max-width: ${el.w}px;
-        max-height: ${el.h}px;
         box-sizing: border-box;
         overflow: hidden;
         border: 2px solid transparent;
         background: transparent;
         cursor: move;
+        z-index: 1;
         ${transform ? `transform: ${transform}; transform-origin: center center;` : ''}
       `;
 
@@ -548,7 +545,17 @@
         const img = document.createElement('img');
         img.src = sampleImage(el);
         img.alt = el.source || '';
-        img.style.cssText = 'width: 100%; height: 100%; object-fit: ' + (el.fit || 'contain') + '; display: block;';
+        img.style.cssText = `
+          width: ${el.w}px;
+          height: ${el.h}px;
+          max-width: ${el.w}px;
+          max-height: ${el.h}px;
+          object-fit: ${el.fit || 'contain'};
+          display: block;
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        `;
         wrapper.appendChild(img);
       } else {
         // Para texto: estructura que permita wrap y ocupe espacio vertical
@@ -556,7 +563,7 @@
         const wrapEnabled = el.wrap !== false;
         
         if (wrapEnabled) {
-          // Con wrap: usar flex column con contenedor interno que se expande verticalmente
+          // Con wrap: usar flex column para que el texto ocupe el espacio vertical disponible
           wrapper.style.cssText += `
             display: flex;
             flex-direction: column;
@@ -564,16 +571,13 @@
             justify-content: ${el.vAlign === 'flex-end' ? 'flex-end' : el.vAlign === 'center' ? 'center' : 'flex-start'};
             padding: 2px;
             margin: 0;
-            min-height: 0;
           `;
-          // Contenedor interno para el texto que permite wrap y se expande verticalmente
+          // Contenedor interno para el texto que permite wrap y ocupa todo el espacio vertical
           const textInner = document.createElement('div');
           textInner.textContent = textContent;
           textInner.style.cssText = `
             width: 100%;
-            max-width: 100%;
-            min-width: 0;
-            flex: 1 1 0;
+            flex: 1;
             font-size: ${el.fontSize || 12}px;
             font-weight: ${el.fontWeight || '600'};
             line-height: ${el.lineHeight || 1.1};
@@ -588,6 +592,7 @@
             box-sizing: border-box;
             overflow: hidden;
             display: block;
+            min-height: 0;
           `;
           wrapper.appendChild(textInner);
         } else {

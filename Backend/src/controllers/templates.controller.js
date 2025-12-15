@@ -89,7 +89,7 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       }
 
       innerHtml =
-        `<img src="${srcExpr}" alt="" style="width:100%;height:100%;object-fit:${fit};display:block;border:0;"/>`;
+        `<img src="${srcExpr}" alt="" style="width:${w}px;height:${h}px;max-width:${w}px;max-height:${h}px;object-fit:${fit};display:block;border:0;margin:0;padding:0;box-sizing:border-box;"/>`;
     } else {
       // Texto
       let textExpr = '';
@@ -125,12 +125,13 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'overflow-wrap:break-word',
           'hyphens:auto',
           'width:100%',
-          'min-width:0',
-          'flex:1 1 auto',
+          'flex:1',
           'margin:0',
           'padding:0',
           'box-sizing:border-box',
-          'overflow:hidden'
+          'overflow:hidden',
+          'display:block',
+          'min-height:0'
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`
