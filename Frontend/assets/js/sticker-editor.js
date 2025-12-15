@@ -123,8 +123,12 @@
     ensureLayout();
     const canvas = getCanvas();
     if (!canvas) return;
-    const widthPx = cmToPx(state.layout.widthCm || 5);
-    const heightPx = cmToPx(state.layout.heightCm || 3);
+    const widthPx = cmToPx(state.layout.widthCm || state.layout.width || 5);
+    const heightPx = cmToPx(state.layout.heightCm || state.layout.height || 3);
+    // Centrar y limpiar padding heredado del editor general
+    canvas.style.margin = '24px auto 32px';
+    canvas.style.display = 'block';
+    canvas.style.padding = '0';
     canvas.innerHTML = '';
     canvas.style.width = `${widthPx}px`;
     canvas.style.height = `${heightPx}px`;
@@ -132,7 +136,7 @@
     canvas.style.position = 'relative';
     canvas.style.background = '#ffffff';
     canvas.style.border = '1px dashed #64748b';
-    canvas.style.padding = '0';
+    canvas.style.boxSizing = 'border-box';
 
     state.layout.elements.forEach((el) => {
       const wrapper = document.createElement('div');
