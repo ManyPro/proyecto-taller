@@ -3,6 +3,7 @@
   'use strict';
 
   const PX_PER_CM = 37.795275591;
+  let elementIdCounter = 0; // Contador para IDs únicos
   const state = {
     session: null,
     layout: null,
@@ -135,7 +136,8 @@
 
   function addElement(kind) {
     ensureLayout();
-    const nextId = `el-${Date.now()}`;
+    // Generar ID único usando contador + timestamp + random para evitar colisiones
+    const nextId = `el-${Date.now()}-${++elementIdCounter}-${Math.random().toString(36).substr(2, 5)}`;
     const base = { id: nextId, x: 12, y: 12, w: 80, h: 22, fontSize: 12, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'center' };
     if (kind === 'sku') state.layout.elements.push({ ...base, type: 'text', source: 'sku', fontWeight: '700', w: 110 });
     else if (kind === 'name') state.layout.elements.push({ ...base, type: 'text', source: 'name', h: 36, wrap: true, lineHeight: 1.1 });
@@ -200,6 +202,8 @@
       `;
       rotateHandle.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" style="pointer-events:none; margin:1px; fill:white"><path d="M7.1 7.1A7 7 0 0 1 19 12h2a9 9 0 1 0-2.64 6.36l-1.42-1.42A7 7 0 1 1 7.1 7.1zM13 3v6h6l-2.24-2.24A7.97 7.97 0 0 0 13 3z"/></svg>';
       wrapper.appendChild(rotateHandle);
+      // Agregar listener DESPUÉS de crear el handle
+      rotateHandle.addEventListener('mousedown', startRotate);
       return rotateHandle;
     };
 
@@ -347,9 +351,26 @@
     document.addEventListener('mousemove', doDrag);
     document.addEventListener('mouseup', endDrag);
     
-    if (rotateHandle) rotateHandle.addEventListener('mousedown', startRotate);
+    // Nota: el listener de rotateHandle se agrega dentro de createRotateHandle()
+    // cuando se crea el handle, no aquí cuando rotateHandle es null
     
     addResizeHandles();
+
+    // Permite limpiar listeners cuando se destruye el wrapper
+    wrapper._dragCleanup = () => {
+      wrapper.removeEventListener('mousedown', startDrag);
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', endDrag);
+      if (rotateHandle) {
+        rotateHandle.removeEventListener('mousedown', startRotate);
+      }
+      document.removeEventListener('mousemove', doRotate);
+      document.removeEventListener('mouseup', endRotate);
+      // Limpiar también los handlers de resize
+      wrapper.querySelectorAll('.resize-handle').forEach(handle => {
+        // Los resize handles se limpian automáticamente al destruir el wrapper
+      });
+    };
   }
 
   function setupResizeHandle(handle, wrapper, el, position) {
@@ -454,6 +475,18 @@
     const heightPx = cmToPx(state.layout.heightCm || state.layout.height || 3);
     
     canvas.classList.add('sticker-mode');
+
+    // Limpiar listeners asociados a wrappers anteriores antes de destruirlos
+    canvas.querySelectorAll('.st-el').forEach((node) => {
+      if (typeof node._dragCleanup === 'function') {
+        try {
+          node._dragCleanup();
+        } catch (_) {
+          // ignorar errores de limpieza
+        }
+      }
+    });
+
     canvas.style.cssText = `
       margin: 24px auto 32px;
       display: block;
@@ -517,11 +550,16 @@
       canvas.appendChild(wrapper);
     });
 
-    canvas.addEventListener('click', (e) => {
-      if (e.target === canvas) {
-        selectElement(null);
-      }
-    });
+    // Evitar acumular listeners: solo registrar uno por canvas
+    if (!canvas._stickerClickHandler) {
+      const handler = (e) => {
+        if (e.target === canvas) {
+          selectElement(null);
+        }
+      };
+      canvas.addEventListener('click', handler);
+      canvas._stickerClickHandler = handler;
+    }
   }
 
   function renderProperties(skipSelectSync = false) {
@@ -719,7 +757,13 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  // Asegurar que el editor se inicialice aunque el script cargue tarde
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    // DOM ya listo: ejecutar en el próximo tick
+    setTimeout(init, 0);
+  }
 
   function ensureStickerStyles(){
     if (document.getElementById('sticker-editor-style')) return;
