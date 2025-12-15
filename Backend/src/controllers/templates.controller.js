@@ -99,15 +99,21 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       else if (source === 'custom') textExpr = safe(el.text || 'Texto');
       else textExpr = safe(el.text || '');
 
-      // Para texto con wrap: usar flex column para que ocupe espacio vertical
-      let textStyles = [];
+      // Para texto con wrap: usar estructura con contenedor interno
       if (wrap) {
-        // Con wrap: flex column permite que el texto ocupe múltiples líneas y use todo el espacio vertical
-        textStyles = [
+        // Con wrap: contenedor flex column con elemento interno que permite wrap
+        const containerStyles = [
           'display:flex',
           'flex-direction:column',
           `align-items:${align === 'flex-end' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'}`,
           `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'center' : 'flex-start'}`,
+          'padding:2px',
+          'margin:0',
+          'width:100%',
+          'height:100%',
+          'box-sizing:border-box'
+        ];
+        const textInnerStyles = [
           `font-size:${fontSize}px`,
           `font-weight:${fontWeight}`,
           `line-height:${lineHeight}`,
@@ -117,15 +123,17 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'word-break:break-word',
           'overflow-wrap:break-word',
           'hyphens:auto',
-          'padding:2px',
-          'margin:0',
           'width:100%',
-          'height:100%',
+          'margin:0',
+          'padding:0',
           'box-sizing:border-box'
         ];
+        htmlParts.push(
+          `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`
+        );
       } else {
         // Sin wrap: mantener en una línea
-        textStyles = [
+        const textStyles = [
           'display:flex',
           `align-items:${vAlign}`,
           `justify-content:${align}`,
@@ -139,13 +147,10 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'padding:0',
           'margin:0'
         ];
+        htmlParts.push(
+          `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${textStyles.join(';')}">${textExpr}</div>`
+        );
       }
-
-      htmlParts.push(
-        `<div class="st-el" data-id="${id}" style="${baseStyle.join(
-          ';'
-        )};${textStyles.join(';')}">${textExpr}</div>`
-      );
       continue;
     }
 

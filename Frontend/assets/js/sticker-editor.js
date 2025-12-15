@@ -552,12 +552,20 @@
         const wrapEnabled = el.wrap !== false;
         
         if (wrapEnabled) {
-          // Con wrap: usar flex column para que el texto ocupe el espacio vertical
+          // Con wrap: usar flex column con contenedor interno para que el texto ocupe el espacio vertical
           wrapper.style.cssText += `
             display: flex;
             flex-direction: column;
             align-items: ${el.align === 'flex-end' ? 'flex-end' : el.align === 'center' ? 'center' : 'flex-start'};
             justify-content: ${el.vAlign === 'flex-end' ? 'flex-end' : el.vAlign === 'center' ? 'center' : 'flex-start'};
+            padding: 2px;
+            margin: 0;
+          `;
+          // Contenedor interno para el texto que permite wrap
+          const textInner = document.createElement('div');
+          textInner.textContent = textContent;
+          textInner.style.cssText = `
+            width: 100%;
             font-size: ${el.fontSize || 12}px;
             font-weight: ${el.fontWeight || '600'};
             line-height: ${el.lineHeight || 1.1};
@@ -567,10 +575,11 @@
             word-break: break-word;
             overflow-wrap: break-word;
             hyphens: auto;
-            padding: 2px;
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
           `;
-          wrapper.textContent = textContent;
+          wrapper.appendChild(textInner);
         } else {
           // Sin wrap: mantener en una línea con ellipsis si es necesario
           wrapper.style.cssText += `
