@@ -1411,6 +1411,20 @@ if (__ON_INV_PAGE__) {
         // Usar exactamente la misma lógica que generateStickersFromSelection
         const list = [{ it, count: qty }];
         
+        try {
+          const base = it.sku || it._id || 'stickers';
+          await renderStickerPdf(list, `stickers-${base}`);
+          invCloseModal();
+          await refreshItems(state.lastItemsParams);
+          hideBusy();
+          showToast('Stock agregado y stickers generados');
+          return;
+        } catch (err) {
+          hideBusy();
+          alert('Error generando stickers: ' + (err.message || err));
+          return;
+        }
+        
         // Intentar usar la PLANTILLA ACTIVA del tipo QR
         const type = 'sticker-qr';
         try {
@@ -2638,6 +2652,119 @@ function openMarketplaceHelper(item){
       });
     });
   }
+
+  // --- Nuevo motor de stickers 5cm x 3cm ---
+  const STICKER_PX_PER_CM = 37.795275591;
+  const STICKER_DEFAULT_LAYOUT = {
+    widthCm: 5,
+    heightCm: 3,
+    elements: [
+      { id: 'sku', type: 'text', source: 'sku', x: 8, y: 8, w: 120, h: 22, fontSize: 14, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
+      { id: 'name', type: 'text', source: 'name', x: 8, y: 34, w: 120, h: 42, fontSize: 11, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.1 },
+      { id: 'qr', type: 'image', source: 'qr', x: 135, y: 6, w: 90, h: 90, fit: 'contain' },
+      { id: 'img', type: 'image', source: 'item-image', x: 8, y: 80, w: 120, h: 40, fit: 'cover' }
+    ]
+  };
+
+  function cloneStickerLayout() {
+    return JSON.parse(JSON.stringify(STICKER_DEFAULT_LAYOUT));
+  }
+
+  async function waitForImagesSafe(rootEl, timeoutMs = 4000) {
+    const imgs = Array.from(rootEl.querySelectorAll('img'));
+    if (!imgs.length) return;
+    await Promise.all(imgs.map(img => new Promise((res) => {
+      if (img.complete && img.naturalWidth > 0) return res();
+      let done = false;
+      const clean = () => { if (done) return; done = true; img.removeEventListener('load', onLoad); img.removeEventListener('error', onErr); clearTimeout(t); res(); };
+      const onLoad = () => clean();
+      const onErr = () => clean();
+      const t = setTimeout(clean, timeoutMs);
+      img.addEventListener('load', onLoad, { once: true });
+      img.addEventListener('error', onErr, { once: true });
+    })));
+  }
+
+  async function renderStickerPdf(list, filenameBase = 'stickers') {
+    const tpl = await API.templates.active('sticker-qr').catch(() => null);
+    const tplLayout = tpl?.meta?.layout || cloneStickerLayout();
+    const widthCm = Number(tpl?.meta?.width) || tplLayout.widthCm || 5;
+    const heightCm = Number(tpl?.meta?.height) || tplLayout.heightCm || 3;
+    const layout = { ...tplLayout, widthCm, heightCm };
+
+    const tasks = [];
+    list.forEach(({ it, count }) => {
+      for (let i = 0; i < count; i++) {
+        tasks.push(() => API.templates.preview({
+          type: 'sticker-qr',
+          layout,
+          meta: { width: widthCm, height: heightCm, layout },
+          sampleId: it._id
+        }));
+      }
+    });
+
+    const results = [];
+    for (const job of tasks) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const pv = await job();
+        results.push(pv?.rendered || '');
+      } catch (e) {
+        results.push('');
+      }
+    }
+
+    const htmls = results.filter((h) => h && h.trim());
+    if (!htmls.length) throw new Error('No se pudieron renderizar los stickers.');
+
+    const widthPx = Math.round(widthCm * STICKER_PX_PER_CM);
+    const heightPx = Math.round(heightCm * STICKER_PX_PER_CM);
+    const widthMm = widthCm * 10;
+    const heightMm = heightCm * 10;
+
+    const html2canvas = await ensureHtml2Canvas();
+    const jsPDF = await ensureJsPDF();
+
+    const root = document.createElement('div');
+    root.style.cssText = 'position:fixed;left:-12000px;top:0;width:0;height:0;overflow:hidden;z-index:-1;background:#fff;';
+    document.body.appendChild(root);
+
+    const images = [];
+    for (const html of htmls) {
+      const box = document.createElement('div');
+      box.className = 'sticker-capture';
+      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
+      box.innerHTML = html;
+      root.appendChild(box);
+      // eslint-disable-next-line no-await-in-loop
+      await waitForImagesSafe(box, 4000);
+      // eslint-disable-next-line no-await-in-loop
+      const canvas = await html2canvas(box, {
+        width: widthPx,
+        height: heightPx,
+        backgroundColor: '#ffffff',
+        scale: 1,
+        windowWidth: widthPx,
+        windowHeight: heightPx
+      });
+      images.push(canvas.toDataURL('image/png'));
+      root.removeChild(box);
+    }
+    document.body.removeChild(root);
+
+    const doc = new jsPDF({
+      orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [widthMm, heightMm],
+      compress: false
+    });
+    images.forEach((src, idx) => {
+      if (idx > 0) doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
+      doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'FAST');
+    });
+    doc.save(`${filenameBase}.pdf`);
+  }
   async function generateStickersFromSelection(variant = 'qr') {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
@@ -2707,6 +2834,18 @@ function openMarketplaceHelper(item){
       if (!list.length) {
         hideBusy();
         alert("Coloca al menos 1 sticker.");
+        return;
+      }
+      try {
+        const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers';
+        await renderStickerPdf(list, `stickers-${base}`);
+        invCloseModal();
+        hideBusy();
+        showToast('Stickers generados');
+        return;
+      } catch (err) {
+        hideBusy();
+        alert('Error generando stickers: ' + (err.message || err));
         return;
       }
       // Intentar usar la PLANTILLA ACTIVA del tipo seleccionado

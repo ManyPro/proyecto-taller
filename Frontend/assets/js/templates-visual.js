@@ -91,6 +91,12 @@
     const action = urlParams.get('action');
     const formatId = urlParams.get('formatId');
     const formatName = urlParams.get('formatName');
+
+    // Nuevo: si es un formato de sticker, dejar que sticker-editor.js se encargue
+    if (documentType && documentType.includes('sticker')) {
+      console.log('🎟️ Sticker detectado, delegando al sticker-editor y deteniendo templates-visual');
+      return;
+    }
     
     // If no parameters, redirect to selector
     if (!documentType || !action) {

@@ -409,7 +409,16 @@
   </div>
   
   <script src="assets/js/api.js"></script>
-  <script src="assets/js/templates-visual.js"></script>
+  <script>
+    (function loadEditorScript(){
+      const params = new URLSearchParams(window.location.search);
+      const type = params.get('type') || '';
+      const script = document.createElement('script');
+      // Cargar solo el editor necesario para reducir peso y tiempos
+      script.src = type.includes('sticker') ? 'assets/js/sticker-editor.js' : 'assets/js/templates-visual.js';
+      document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
+    })();
+  </script>
     <!-- Overlay de vista previa no utilizado; mantenido por compatibilidad -->
       <div id="preview-overlay" class="hidden fixed inset-0 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 z-[9999] flex items-center justify-center p-10">
         <div class="bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 w-[80%] h-[80%] rounded-xl flex flex-col shadow-2xl">
