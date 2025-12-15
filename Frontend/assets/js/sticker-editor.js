@@ -1,4 +1,4 @@
-// Editor dedicado para stickers 5cm x 3cm (drag + resize)
+// Editor dedicado para stickers 5cm x 3cm - Usa el mismo sistema fluido que templates-visual.js
 (function () {
   'use strict';
 
@@ -63,11 +63,11 @@
     bar.innerHTML = `
       <div class="flex flex-wrap gap-2 items-center">
         <span class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Elementos:</span>
-        <button data-add="sku" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">SKU</button>
-        <button data-add="name" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">Nombre</button>
-        <button data-add="qr" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">QR</button>
-        <button data-add="image" class="px-3 py-2 rounded bg-blue-600 text-white text-sm">Imagen externa</button>
-        <button data-add="text" class="px-3 py-2 rounded bg-slate-700 text-white text-sm">Texto libre</button>
+        <button data-add="sku" class="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">SKU</button>
+        <button data-add="name" class="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">Nombre</button>
+        <button data-add="qr" class="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">QR</button>
+        <button data-add="image" class="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">Imagen externa</button>
+        <button data-add="text" class="px-3 py-2 rounded bg-slate-700 text-white text-sm hover:bg-slate-600 transition-colors">Texto libre</button>
         <span class="ml-3 text-xs text-slate-300 theme-light:text-slate-700">Canvas fijo: 5cm x 3cm</span>
       </div>
     `;
@@ -90,7 +90,6 @@
       state.layout = defaultLayout();
       return;
     }
-    // Normalizar por si viene un layout antiguo o corrupto desde el backend
     state.layout = normalizeLayout(state.layout);
   }
 
@@ -111,8 +110,26 @@
   }
 
   function selectElement(id) {
+    // Deseleccionar todos
+    document.querySelectorAll('.st-el').forEach(el => {
+      el.style.border = '2px solid transparent';
+      el.style.boxShadow = 'none';
+      const handles = el.querySelectorAll('.resize-handle, .drag-handle, .rotate-handle');
+      handles.forEach(h => h.style.display = 'none');
+    });
+
     state.selectedId = id;
-    renderCanvas();
+    
+    if (id) {
+      const wrapper = document.querySelector(`.st-el[data-id="${id}"]`);
+      if (wrapper) {
+        wrapper.style.border = '2px solid #2563eb';
+        wrapper.style.boxShadow = '0 0 0 1px rgba(37, 99, 235, 0.2)';
+        const handles = wrapper.querySelectorAll('.resize-handle, .drag-handle, .rotate-handle');
+        handles.forEach(h => h.style.display = 'block');
+      }
+    }
+    
     renderProperties();
   }
 
@@ -125,24 +142,308 @@
     else if (kind === 'qr') state.layout.elements.push({ ...base, type: 'image', source: 'qr', w: 90, h: 90, fit: 'contain', x: cmToPx(5) - 100, y: 10 });
     else if (kind === 'image') state.layout.elements.push({ ...base, type: 'image', source: 'item-image', w: 110, h: 50, fit: 'cover' });
     else if (kind === 'text') state.layout.elements.push({ ...base, type: 'text', source: 'custom', text: 'Texto', wrap: true });
+    renderCanvas();
     selectElement(nextId);
   }
 
-  function applyNodeStyle(node, el) {
-    node.style.left = `${el.x}px`;
-    node.style.top = `${el.y}px`;
-    node.style.width = `${el.w}px`;
-    node.style.height = `${el.h}px`;
+  // Sistema de drag/resize igual que templates-visual.js (mousedown/mousemove/mouseup directo, sin RAF)
+  function makeDraggable(wrapper, el) {
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    let dragHandle = null;
+    let rotateHandle = null;
+    let isRotating = false;
+    let startAngleRad = 0;
+    let startRotationDeg = 0;
+    let centerX = 0, centerY = 0;
+
+    // Drag handle (arriba centro)
+    const createDragHandle = () => {
+      dragHandle = document.createElement('div');
+      dragHandle.className = 'drag-handle';
+      dragHandle.style.cssText = `
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20px;
+        height: 20px;
+        background: #2563eb;
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: move;
+        display: none;
+        z-index: 1001;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+      wrapper.appendChild(dragHandle);
+      return dragHandle;
+    };
+
+    // Rotate handle (arriba derecha)
+    const createRotateHandle = () => {
+      rotateHandle = document.createElement('div');
+      rotateHandle.className = 'rotate-handle';
+      rotateHandle.style.cssText = `
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 20px;
+        height: 20px;
+        background: #10b981;
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: grab;
+        display: none;
+        z-index: 1001;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+      rotateHandle.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" style="pointer-events:none; margin:1px; fill:white"><path d="M7.1 7.1A7 7 0 0 1 19 12h2a9 9 0 1 0-2.64 6.36l-1.42-1.42A7 7 0 1 1 7.1 7.1zM13 3v6h6l-2.24-2.24A7.97 7.97 0 0 0 13 3z"/></svg>';
+      wrapper.appendChild(rotateHandle);
+      return rotateHandle;
+    };
+
+    // Resize handles (4 esquinas)
+    const addResizeHandles = () => {
+      const handles = ['nw', 'ne', 'sw', 'se'];
+      handles.forEach(position => {
+        const handle = document.createElement('div');
+        handle.className = `resize-handle resize-${position}`;
+        handle.style.cssText = `
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          background: #2563eb;
+          border: 2px solid white;
+          cursor: ${position === 'nw' || position === 'se' ? 'nw' : 'ne'}-resize;
+          display: none;
+          z-index: 10000;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+          pointer-events: auto;
+          user-select: none;
+        `;
+        switch(position) {
+          case 'nw': handle.style.top = '-5px'; handle.style.left = '-5px'; break;
+          case 'ne': handle.style.top = '-5px'; handle.style.right = '-5px'; break;
+          case 'sw': handle.style.bottom = '-5px'; handle.style.left = '-5px'; break;
+          case 'se': handle.style.bottom = '-5px'; handle.style.right = '-5px'; break;
+        }
+        wrapper.appendChild(handle);
+        setupResizeHandle(handle, wrapper, el, position);
+      });
+    };
+
+    // Show/hide handles on hover/selection
+    wrapper.addEventListener('mouseenter', () => {
+      if (!dragHandle) dragHandle = createDragHandle();
+      if (!rotateHandle) rotateHandle = createRotateHandle();
+      if (state.selectedId === el.id) {
+        dragHandle.style.display = 'block';
+        rotateHandle.style.display = 'block';
+        wrapper.querySelectorAll('.resize-handle').forEach(h => h.style.display = 'block');
+      }
+    });
+
+    wrapper.addEventListener('mouseleave', () => {
+      if (dragHandle && !isDragging) dragHandle.style.display = 'none';
+      if (rotateHandle && !isRotating) rotateHandle.style.display = 'none';
+      if (!isDragging) wrapper.querySelectorAll('.resize-handle').forEach(h => h.style.display = 'none');
+    });
+
+    // Drag start
+    const startDrag = (e) => {
+      if (e.target === rotateHandle || rotateHandle?.contains(e.target)) return;
+      if (e.target.classList.contains('resize-handle') || e.target.closest('.resize-handle')) return;
+      
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      
+      const rect = wrapper.getBoundingClientRect();
+      const canvasRect = wrapper.parentElement.getBoundingClientRect();
+      initialX = rect.left - canvasRect.left;
+      initialY = rect.top - canvasRect.top;
+      
+      wrapper.style.zIndex = '1000';
+      wrapper.style.userSelect = 'none';
+      selectElement(el.id);
+      
+      if (dragHandle) dragHandle.style.display = 'block';
+      
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Drag move (directo, sin RAF)
+    const doDrag = (e) => {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      const newLeft = initialX + deltaX;
+      const newTop = initialY + deltaY;
+      
+      el.x = Math.max(0, newLeft);
+      el.y = Math.max(0, newTop);
+      
+      wrapper.style.left = el.x + 'px';
+      wrapper.style.top = el.y + 'px';
+      
+      e.preventDefault();
+    };
+
+    // Drag end
+    const endDrag = () => {
+      if (isDragging) {
+        isDragging = false;
+        wrapper.style.zIndex = '';
+        wrapper.style.userSelect = 'auto';
+        if (dragHandle) dragHandle.style.display = 'none';
+        renderProperties();
+      }
+    };
+
+    // Rotate
+    const doRotate = (e) => {
+      if (!isRotating) return;
+      const currentAngleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      const deltaDeg = (currentAngleRad - startAngleRad) * (180 / Math.PI);
+      const newDeg = startRotationDeg + deltaDeg;
+      const d = Math.max(-180, Math.min(180, Math.round(newDeg)));
+      wrapper.style.transform = `rotate(${d}deg)`;
+      wrapper.style.transformOrigin = 'center center';
+      e.preventDefault();
+    };
+
+    const endRotate = () => {
+      if (isRotating) {
+        isRotating = false;
+        if (rotateHandle) rotateHandle.style.cursor = 'grab';
+        if (rotateHandle && !wrapper.matches(':hover')) rotateHandle.style.display = 'none';
+      }
+      document.removeEventListener('mousemove', doRotate);
+      document.removeEventListener('mouseup', endRotate);
+    };
+
+    const startRotate = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      isRotating = true;
+      if (rotateHandle) rotateHandle.style.cursor = 'grabbing';
+      const rect = wrapper.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
+      startAngleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      startRotationDeg = 0;
+      const t = wrapper.style.transform || '';
+      const m = t.match(/rotate\(([-\d.]+)deg\)/i);
+      if (m) startRotationDeg = parseFloat(m[1]) || 0;
+      document.addEventListener('mousemove', doRotate);
+      document.addEventListener('mouseup', endRotate);
+    };
+
+    wrapper.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', endDrag);
+    
+    if (rotateHandle) rotateHandle.addEventListener('mousedown', startRotate);
+    
+    addResizeHandles();
   }
 
-  // Batcher para mover/redimensionar sin saturar el thread
-  let rafToken = null;
-  function scheduleStyle(node, el) {
-    if (rafToken) cancelAnimationFrame(rafToken);
-    rafToken = requestAnimationFrame(() => {
-      applyNodeStyle(node, el);
-      rafToken = null;
+  function setupResizeHandle(handle, wrapper, el, position) {
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight, startLeft, startTop;
+    
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      
+      const rect = wrapper.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
+      
+      const canvas = wrapper.closest('#ce-canvas');
+      if (canvas) {
+        const canvasRect = canvas.getBoundingClientRect();
+        startLeft = rect.left - canvasRect.left;
+        startTop = rect.top - canvasRect.top;
+      } else {
+        startLeft = el.x;
+        startTop = el.y;
+      }
+      
+      document.body.style.cursor = handle.style.cursor;
+      document.body.style.userSelect = 'none';
+      
+      document.addEventListener('mousemove', handleResize, true);
+      document.addEventListener('mouseup', stopResize, true);
     });
+    
+    const handleResize = (e) => {
+      if (!isResizing) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      let newLeft = startLeft;
+      let newTop = startTop;
+      
+      switch(position) {
+        case 'nw':
+          newWidth = Math.max(10, startWidth - deltaX);
+          newHeight = Math.max(10, startHeight - deltaY);
+          newLeft = startLeft + (startWidth - newWidth);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+        case 'ne':
+          newWidth = Math.max(10, startWidth + deltaX);
+          newHeight = Math.max(10, startHeight - deltaY);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+        case 'sw':
+          newWidth = Math.max(10, startWidth - deltaX);
+          newHeight = Math.max(10, startHeight + deltaY);
+          newLeft = startLeft + (startWidth - newWidth);
+          break;
+        case 'se':
+          newWidth = Math.max(10, startWidth + deltaX);
+          newHeight = Math.max(10, startHeight + deltaY);
+          break;
+      }
+      
+      el.w = newWidth;
+      el.h = newHeight;
+      el.x = newLeft;
+      el.y = newTop;
+      
+      wrapper.style.width = newWidth + 'px';
+      wrapper.style.height = newHeight + 'px';
+      wrapper.style.left = newLeft + 'px';
+      wrapper.style.top = newTop + 'px';
+    };
+    
+    const stopResize = (e) => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', handleResize, true);
+        document.removeEventListener('mouseup', stopResize, true);
+        renderProperties();
+      }
+    };
   }
 
   function renderCanvas() {
@@ -151,118 +452,76 @@
     if (!canvas) return;
     const widthPx = cmToPx(state.layout.widthCm || state.layout.width || 5);
     const heightPx = cmToPx(state.layout.heightCm || state.layout.height || 3);
-    // Centrar y limpiar padding heredado del editor general
+    
     canvas.classList.add('sticker-mode');
-    canvas.style.margin = '24px auto 32px';
-    canvas.style.display = 'block';
-    canvas.style.padding = '0';
+    canvas.style.cssText = `
+      margin: 24px auto 32px;
+      display: block;
+      padding: 0;
+      width: ${widthPx}px;
+      height: ${heightPx}px;
+      position: relative;
+      background: #ffffff;
+      border: 2px dashed #64748b;
+      box-sizing: border-box;
+      border-radius: 8px;
+    `;
     canvas.innerHTML = '';
-    canvas.style.width = `${widthPx}px`;
-    canvas.style.height = `${heightPx}px`;
-    canvas.style.margin = '0 auto';
-    canvas.style.position = 'relative';
-    canvas.style.background = '#ffffff';
-    canvas.style.border = '1px dashed #64748b';
-    canvas.style.boxSizing = 'border-box';
 
     state.layout.elements.forEach((el) => {
       const wrapper = document.createElement('div');
-      wrapper.className = 'st-el';
+      wrapper.className = 'st-el tpl-element';
       wrapper.dataset.id = el.id;
-      wrapper.style.position = 'absolute';
-      wrapper.style.boxSizing = 'border-box';
-      wrapper.style.overflow = 'hidden';
-      wrapper.style.border = state.selectedId === el.id ? '1px solid #3b82f6' : '1px dashed #cbd5e1';
-      wrapper.style.background = 'transparent';
-      applyNodeStyle(wrapper, el);
+      wrapper.style.cssText = `
+        position: absolute;
+        left: ${el.x}px;
+        top: ${el.y}px;
+        width: ${el.w}px;
+        height: ${el.h}px;
+        box-sizing: border-box;
+        overflow: hidden;
+        border: 2px solid transparent;
+        background: transparent;
+        cursor: move;
+      `;
 
       if (el.type === 'image') {
         const img = document.createElement('img');
         img.src = sampleImage(el);
         img.alt = el.source || '';
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = el.fit || 'contain';
+        img.style.cssText = 'width: 100%; height: 100%; object-fit: ' + (el.fit || 'contain') + '; display: block;';
         wrapper.appendChild(img);
       } else {
         wrapper.textContent = sampleValue(el);
-        wrapper.style.display = 'flex';
-        wrapper.style.alignItems = el.vAlign || 'center';
-        wrapper.style.justifyContent = el.align || 'flex-start';
-        wrapper.style.fontSize = `${el.fontSize || 12}px`;
-        wrapper.style.fontWeight = el.fontWeight || '600';
-        wrapper.style.lineHeight = `${el.lineHeight || 1.1}`;
-        wrapper.style.color = el.color || '#000';
-        wrapper.style.whiteSpace = el.wrap === false ? 'nowrap' : 'normal';
-        wrapper.style.wordBreak = 'break-word';
+        wrapper.style.cssText += `
+          display: flex;
+          align-items: ${el.vAlign || 'center'};
+          justify-content: ${el.align || 'flex-start'};
+          font-size: ${el.fontSize || 12}px;
+          font-weight: ${el.fontWeight || '600'};
+          line-height: ${el.lineHeight || 1.1};
+          color: ${el.color || '#000'};
+          white-space: ${el.wrap === false ? 'nowrap' : 'normal'};
+          word-break: break-word;
+          padding: 0;
+          margin: 0;
+        `;
       }
 
-      const handle = document.createElement('div');
-      handle.className = 'st-resize';
-      handle.style.position = 'absolute';
-      handle.style.width = '12px';
-      handle.style.height = '12px';
-      handle.style.right = '-6px';
-      handle.style.bottom = '-6px';
-      handle.style.background = '#3b82f6';
-      handle.style.borderRadius = '4px';
-      handle.style.cursor = 'nwse-resize';
-      wrapper.appendChild(handle);
-
-      wrapper.addEventListener('pointerdown', (e) => {
-        if (e.target === handle) return;
+      makeDraggable(wrapper, el);
+      wrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
         selectElement(el.id);
       });
 
-      handle.addEventListener('pointerdown', (e) => startResize(e, el, wrapper));
-      wrapper.addEventListener('pointerdown', (e) => startDrag(e, el, wrapper));
       canvas.appendChild(wrapper);
     });
-  }
 
-  function startDrag(ev, el, node) {
-    if (ev.target.classList.contains('st-resize')) return;
-    ev.preventDefault();
-    selectElement(el.id);
-    const startX = ev.clientX;
-    const startY = ev.clientY;
-    const origin = { x: el.x, y: el.y };
-    function move(e) {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      el.x = Math.max(0, origin.x + dx);
-      el.y = Math.max(0, origin.y + dy);
-      scheduleStyle(node, el);
-    }
-    function end() {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', end);
-      renderProperties();
-    }
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', end);
-  }
-
-  function startResize(ev, el, node) {
-    ev.preventDefault();
-    selectElement(el.id);
-    const startX = ev.clientX;
-    const startY = ev.clientY;
-    const origin = { w: el.w, h: el.h };
-    function move(e) {
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      el.w = Math.max(10, origin.w + dx);
-      el.h = Math.max(10, origin.h + dy);
-      scheduleStyle(node, el);
-    }
-    function end() {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', end);
-      renderProperties();
-    }
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', end);
+    canvas.addEventListener('click', (e) => {
+      if (e.target === canvas) {
+        selectElement(null);
+      }
+    });
   }
 
   function renderProperties(skipSelectSync = false) {
@@ -306,16 +565,16 @@
 
     if (skipSelectSync) return;
     const bind = (id, fn) => { const elDom = document.getElementById(id); if (elDom) elDom.oninput = fn; };
-    bind('st-x', (e) => { el.x = Number(e.target.value) || 0; renderCanvas(); });
-    bind('st-y', (e) => { el.y = Number(e.target.value) || 0; renderCanvas(); });
-    bind('st-w', (e) => { el.w = Math.max(10, Number(e.target.value) || 0); renderCanvas(); });
-    bind('st-h', (e) => { el.h = Math.max(10, Number(e.target.value) || 0); renderCanvas(); });
-    bind('st-fs', (e) => { el.fontSize = Math.max(6, Number(e.target.value) || 0); renderCanvas(); });
-    bind('st-fw', (e) => { el.fontWeight = String(e.target.value || '600'); renderCanvas(); });
-    bind('st-color', (e) => { el.color = e.target.value || '#000000'; renderCanvas(); });
-    bind('st-text', (e) => { el.text = e.target.value || ''; renderCanvas(); });
-    bind('st-fit', (e) => { el.fit = e.target.value || 'contain'; renderCanvas(); });
-    bind('st-url', (e) => { el.url = e.target.value || ''; renderCanvas(); });
+    bind('st-x', (e) => { el.x = Number(e.target.value) || 0; renderCanvas(); selectElement(el.id); });
+    bind('st-y', (e) => { el.y = Number(e.target.value) || 0; renderCanvas(); selectElement(el.id); });
+    bind('st-w', (e) => { el.w = Math.max(10, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
+    bind('st-h', (e) => { el.h = Math.max(10, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
+    bind('st-fs', (e) => { el.fontSize = Math.max(6, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
+    bind('st-fw', (e) => { el.fontWeight = String(e.target.value || '600'); renderCanvas(); selectElement(el.id); });
+    bind('st-color', (e) => { el.color = e.target.value || '#000000'; renderCanvas(); selectElement(el.id); });
+    bind('st-text', (e) => { el.text = e.target.value || ''; renderCanvas(); selectElement(el.id); });
+    bind('st-fit', (e) => { el.fit = e.target.value || 'contain'; renderCanvas(); selectElement(el.id); });
+    bind('st-url', (e) => { el.url = e.target.value || ''; renderCanvas(); selectElement(el.id); });
     const del = document.getElementById('st-del');
     if (del) del.onclick = () => {
       state.layout.elements = state.layout.elements.filter((x) => x.id !== el.id);
@@ -326,7 +585,6 @@
   }
 
   async function loadExisting(session) {
-    // Si no hay formato previo, usar layout default sin fallar
     if (session.action !== 'edit' || !session.formatId) {
       state.layout = defaultLayout();
       renderCanvas();
@@ -430,7 +688,6 @@
       const formatId = params.get('formatId');
       const formatName = params.get('formatName') || 'Sticker';
       if (!type.includes('sticker')) {
-        // Si no es sticker, no bloquear otros formatos: dejar que el loader cargue templates-visual
         return;
       }
 
@@ -458,7 +715,6 @@
         renderCanvas();
         renderProperties();
       } catch (_) {
-        // último recurso: no hacer nada más
       }
     }
   }
@@ -476,18 +732,28 @@
       #ce-toolbar.sticker-toolbar{
         gap:10px;
         border-radius: 10px 10px 0 0;
+        padding: 12px;
+        background: var(--card-alt, rgba(17, 24, 39, 0.5));
+        border: 1px solid var(--border, rgba(31, 41, 55, 0.5));
+        margin-bottom: 10px;
       }
       #ce-canvas.sticker-mode{
         background:#ffffff;
-        border:1px dashed #94a3b8;
+        border:2px dashed #64748b;
         box-shadow:0 10px 30px rgba(0,0,0,0.12);
-        padding:16px;
+        padding:0;
       }
       #ce-canvas.sticker-mode .st-el{
         transition: box-shadow 120ms ease;
       }
       #ce-canvas.sticker-mode .st-el:hover{
-        box-shadow:0 0 0 1px #cbd5e1;
+        box-shadow:0 0 0 1px rgba(37, 99, 235, 0.3);
+      }
+      #ce-canvas.sticker-mode .st-el.tpl-element {
+        border: 2px solid transparent;
+      }
+      #ce-canvas.sticker-mode .st-el.tpl-element:hover {
+        border-color: rgba(37, 99, 235, 0.4);
       }
     `;
     const style = document.createElement('style');
@@ -497,4 +763,3 @@
     document.body.classList.add('sticker-mode');
   }
 })();
-

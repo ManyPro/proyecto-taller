@@ -92,8 +92,10 @@ git status
 
 ```bash
 # Opción A: Usar script automatizado
-./scripts/merge-develop-to-main.sh
-
+    cd proyecto-taller
+    ./scripts/merge-develop-to-main.sh
+    ./scripts/prod-deploy.sh
+    ./scripts/restart-both.sh
 # Opción B: Manual
 git checkout main
 git pull origin main
@@ -101,7 +103,7 @@ git merge develop
 # Resolver conflictos si los hay
 git push origin main
 ```
-
+./scripts/merge-develop-to-main.sh
 ### Paso 3: Deploy Backend (Servidor)
 
 **Si usas Docker:**
@@ -210,15 +212,15 @@ npm run fix:payroll:index  # Si hay problemas con índices
 ### Deploy Scripts (scripts/)
 
 ```bash
-cd proyecto-taller
 # Merge develop a main
-./scripts/merge-develop-to-main.sh
+    cd proyecto-taller
+        ./scripts/merge-develop-to-main.sh
 
-# Deploy completo a producción
-./scripts/prod-deploy.sh
+        # Deploy completo a producción
+        ./scripts/prod-deploy.sh
 
-# Reiniciar servicios
-./scripts/restart-both.sh
+        # Reiniciar servicios
+        ./scripts/restart-both.sh
 ```
 
 ---
