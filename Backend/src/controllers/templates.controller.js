@@ -10,6 +10,86 @@ import PayrollPeriod from '../models/PayrollPeriod.js';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode';
 
+// --- Sticker helpers (nuevo motor 5cm x 3cm) ---
+const STICKER_CM_TO_PX = 37.795275591;
+const DEFAULT_STICKER_SIZE = { width: 5, height: 3 };
+
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function pickStickerValue(el = {}, ctx = {}) {
+  const item = ctx.item || {};
+  const source = el.source || el.kind || '';
+  switch (source) {
+    case 'sku':
+      return item.sku || '';
+    case 'name':
+      return item.name || '';
+    case 'qr-text':
+      return item.qrText || item.sku || '';
+    case 'custom':
+      return el.text || '';
+    default:
+      return el.text || '';
+  }
+}
+
+function pickStickerImage(el = {}, ctx = {}) {
+  const item = ctx.item || {};
+  const source = el.source || el.kind || '';
+  if (source === 'qr') return item.qr || '';
+  if (source === 'item-image') {
+    const first = Array.isArray(item.images) && item.images.length ? item.images[0] : null;
+    return first?.url || el.url || '';
+  }
+  return el.url || '';
+}
+
+function renderStickerLayout({ layout = {}, ctx = {} }) {
+  const widthCm = Number(layout.widthCm || layout.width || DEFAULT_STICKER_SIZE.width) || DEFAULT_STICKER_SIZE.width;
+  const heightCm = Number(layout.heightCm || layout.height || DEFAULT_STICKER_SIZE.height) || DEFAULT_STICKER_SIZE.height;
+  const widthPx = Math.round(widthCm * STICKER_CM_TO_PX);
+  const heightPx = Math.round(heightCm * STICKER_CM_TO_PX);
+  const elements = Array.isArray(layout.elements) ? layout.elements : [];
+
+  const pieces = elements.map((el = {}) => {
+    const id = escapeHtml(el.id || '');
+    const left = Math.max(0, Number(el.x) || 0);
+    const top = Math.max(0, Number(el.y) || 0);
+    const w = Math.max(4, Number(el.w || el.width) || 60);
+    const h = Math.max(4, Number(el.h || el.height) || 20);
+    const color = el.color || '#000000';
+    const align = el.align || 'flex-start';
+    const vAlign = el.vAlign || 'center';
+    const fontSize = Math.max(6, Number(el.fontSize) || 12);
+    const fontWeight = el.fontWeight || '400';
+    const lineHeight = Math.max(1, Number(el.lineHeight) || 1.1);
+    const wrap = el.wrap !== false;
+    const border = el.debug ? '1px dashed #888' : 'none';
+    if (el.type === 'image') {
+      const src = pickStickerImage(el, ctx);
+      if (!src) return '';
+      const fit = el.fit || 'contain';
+      return `<div data-el="${id}" style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;overflow:hidden;border:${border};"><img src="${src}" alt="" style="width:100%;height:100%;object-fit:${fit};display:block;"/></div>`;
+    }
+    // text by default
+    const text = pickStickerValue(el, ctx);
+    return `<div data-el="${id}" style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;overflow:hidden;border:${border};display:flex;align-items:${vAlign};justify-content:${align};font-size:${fontSize}px;font-weight:${fontWeight};color:${color};line-height:${lineHeight};white-space:${wrap ? 'normal' : 'nowrap'};word-break:break-word;">${escapeHtml(text)}</div>`;
+  }).filter(Boolean);
+
+  return {
+    widthCm,
+    heightCm,
+    html: `<div class="sticker-wrapper" style="position:relative;width:${widthPx}px;height:${heightPx}px;overflow:hidden;background:#ffffff;border:0;box-sizing:border-box;">${pieces.join('')}</div>`
+  };
+}
+
 // Helpers para armar contexto base multi-documento
 // Params:
 //  - type: tipo de plantilla (invoice, workOrder, quote, sticker, order)
@@ -1539,30 +1619,63 @@ export async function getTemplate(req, res) {
 }
 
 export async function createTemplate(req, res) {
-  let { type, contentHtml = '', contentCss = '', name = '', activate = false } = req.body || {};
+  let { type, contentHtml = '', contentCss = '', name = '', activate = false, meta = {}, layout } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
-  contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
+
+  // Para stickers permitimos layout JSON; para el resto se mantiene HTML
+  const isSticker = String(type || '').includes('sticker');
+  if (!isSticker) {
+    contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
+  }
+
   const last = await Template.findOne({ companyId: req.companyId, type }).sort({ version: -1 });
   const version = last ? (last.version + 1) : 1;
   if (activate) {
     await Template.updateMany({ companyId: req.companyId, type, active: true }, { $set: { active: false } });
   }
-  const doc = await Template.create({ companyId: req.companyId, type, contentHtml, contentCss, name, version, active: !!activate });
+
+  const metaPayload = typeof meta === 'object' && meta !== null ? { ...meta } : {};
+  if (layout) {
+    metaPayload.layout = layout;
+  }
+
+  const doc = await Template.create({
+    companyId: req.companyId,
+    type,
+    contentHtml,
+    contentCss,
+    name,
+    version,
+    active: !!activate,
+    meta: metaPayload
+  });
   res.json(doc);
 }
 
 export async function updateTemplate(req, res) {
   const { id } = req.params;
-  const { contentHtml, contentCss, name, activate } = req.body || {};
+  const { contentHtml, contentCss, name, activate, meta = {}, layout } = req.body || {};
   const doc = await Template.findOne({ _id: id, companyId: req.companyId });
   if (!doc) return res.status(404).json({ error: 'not found' });
-  if (contentHtml !== undefined) doc.contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
+
+  const isSticker = String(doc.type || '').includes('sticker');
+  if (contentHtml !== undefined) {
+    doc.contentHtml = isSticker ? contentHtml : normalizeTemplateHtml(sanitize(contentHtml));
+  }
   if (contentCss !== undefined) doc.contentCss = contentCss;
   if (name !== undefined) doc.name = name;
   if (activate !== undefined && activate) {
     await Template.updateMany({ companyId: req.companyId, type: doc.type, active: true }, { $set: { active: false } });
     doc.active = true;
   }
+
+  if (meta && typeof meta === 'object') {
+    doc.meta = { ...doc.meta, ...meta };
+  }
+  if (layout) {
+    doc.meta = { ...doc.meta, layout };
+  }
+
   await doc.save();
   res.json(doc);
 }
@@ -1571,7 +1684,25 @@ export async function previewTemplate(req, res) {
   const { type, sampleId, sampleType, quoteData } = req.body || {};
   let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
-  
+
+  const isSticker = String(type || '').includes('sticker');
+  const layoutFromBody = req.body?.layout || req.body?.meta?.layout;
+  const metaFromBody = req.body?.meta || {};
+
+  if (isSticker && layoutFromBody) {
+    const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
+    const layout = typeof layoutFromBody === 'object' ? layoutFromBody : {};
+    const appliedLayout = {
+      ...layout,
+      width: metaFromBody.width || layout.width,
+      widthCm: metaFromBody.width || layout.width || layout.widthCm,
+      height: metaFromBody.height || layout.height,
+      heightCm: metaFromBody.height || layout.height || layout.heightCm
+    };
+    const { html, widthCm, heightCm } = renderStickerLayout({ layout: appliedLayout, ctx });
+    return res.json({ rendered: html, meta: { width: widthCm, height: heightCm, layout: appliedLayout } });
+  }
+
   console.log('[previewTemplate] ===== INICIO PREVIEW =====');
   console.log('[previewTemplate] Type:', type);
   console.log('[previewTemplate] SampleId:', sampleId);
