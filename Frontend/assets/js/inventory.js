@@ -3424,6 +3424,20 @@ function openMarketplaceHelper(item){
       
       console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
       
+      // CRÍTICO: Si las dimensiones aún no son correctas después de todos los intentos, usar transform: scale para corregir
+      if (Math.abs(boxRectBefore.width - widthPx) > 1 || Math.abs(boxRectBefore.height - heightPx) > 1) {
+        const scaleX = widthPx / boxRectBefore.width;
+        const scaleY = heightPx / boxRectBefore.height;
+        console.warn(`⚠️ Box aún tiene dimensiones incorrectas después de todos los intentos. Usando transform: scale(${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}) para corregir...`);
+        box.style.setProperty('transform', `scale(${scaleX}, ${scaleY})`, 'important');
+        box.style.setProperty('transform-origin', 'top left', 'important');
+        // Ajustar dimensiones del box para compensar el scale
+        box.style.setProperty('width', `${boxRectBefore.width}px`, 'important');
+        box.style.setProperty('height', `${boxRectBefore.height}px`, 'important');
+        void box.offsetHeight; // Forzar reflow
+        await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
+      }
+      
       // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
       // El canvas resultante será widthPx * scale x heightPx * scale
       const scale = 3;
