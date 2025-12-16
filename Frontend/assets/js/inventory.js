@@ -1529,10 +1529,17 @@ if (__ON_INV_PAGE__) {
                   `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
                   `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
                   `.sticker-capture [style*="position: absolute"], .sticker-wrapper [style*="position: absolute"]{position: absolute !important;}\n` +
-                  `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
-                  `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important;}\n` +
-                  `/* Asegurar que el QR tenga prioridad visual y tamaño adecuado */\n` +
-                  `.st-el img[src*="data:image"]{z-index: 10 !important; object-fit: contain !important;}\n` +
+                `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
+                `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
+                `/* CRÍTICO: Asegurar que el texto del nombre ocupe TODO el espacio asignado y haga wrap correctamente */\n` +
+                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important;}\n` +
+                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 auto !important; min-height: 0 !important; overflow: hidden !important;}\n` +
+                `/* Preservar estilos de fuente del texto */\n` +
+                `.st-el[data-id*="name"] *{font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; color: inherit !important;}\n` +
+                `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
+                `.st-el[data-id*="qr"] img{width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 100% !important; min-height: 100% !important; object-fit: contain !important; display: block !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important;}\n` +
+                `/* Asegurar que el QR tenga prioridad visual */\n` +
+                `.st-el img[src*="data:image"]{z-index: 10 !important;}\n` +
                   `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
                   `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
                   `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
@@ -1651,53 +1658,83 @@ if (__ON_INV_PAGE__) {
                 // CRÍTICO: Asegurar que el QR ocupe el espacio completo asignado en su contenedor
                 // Buscar imágenes QR y forzar que usen TODO el espacio disponible del contenedor
                 (function ensureQrFullSize(rootEl, stickerWidthPx, stickerHeightPx) {
-                  const imgs = Array.from(rootEl.querySelectorAll('img'));
-                  imgs.forEach((img) => {
-                    const src = img.getAttribute('src') || '';
-                    const isData = src.startsWith('data:image');
-                    
-                    // Detectar QR: imágenes data URL
-                    if (isData) {
-                      // Obtener el contenedor padre (st-el) para conocer el espacio asignado
-                      const container = img.closest('.st-el');
-                      if (container) {
-                        // Obtener dimensiones del contenedor desde el estilo inline o computed
-                        const containerStyle = container.getAttribute('style') || '';
-                        const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
-                        const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+                  // Buscar específicamente el contenedor del QR por su data-id
+                  const qrContainer = rootEl.querySelector('.st-el[data-id*="qr"], .st-el[data-id="qr"]');
+                  if (qrContainer) {
+                    const qrImg = qrContainer.querySelector('img');
+                    if (qrImg && qrImg.src && qrImg.src.startsWith('data:image')) {
+                      // Obtener dimensiones del contenedor desde el estilo inline
+                      const containerStyle = qrContainer.getAttribute('style') || '';
+                      const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+                      const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+                      
+                      let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+                      let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+                      
+                      // Si no se encontraron en el estilo, usar computed o offset
+                      if (!containerW || !containerH) {
+                        const computed = window.getComputedStyle(qrContainer);
+                        containerW = containerW || parseFloat(computed.width) || qrContainer.offsetWidth || 0;
+                        containerH = containerH || parseFloat(computed.height) || qrContainer.offsetHeight || 0;
+                      }
+                      
+                      // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
+                      if (containerW > 0 && containerH > 0) {
+                        // Usar el menor de los dos para mantener aspecto cuadrado del QR
+                        const qrSize = Math.min(containerW, containerH);
                         
-                        let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
-                        let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+                        // Aplicar estilos directamente al contenedor y a la imagen
+                        qrContainer.style.setProperty('overflow', 'hidden', 'important');
+                        qrImg.setAttribute('style', `
+                          width: ${qrSize}px !important;
+                          height: ${qrSize}px !important;
+                          max-width: ${qrSize}px !important;
+                          max-height: ${qrSize}px !important;
+                          min-width: ${qrSize}px !important;
+                          min-height: ${qrSize}px !important;
+                          object-fit: contain !important;
+                          display: block !important;
+                          margin: 0 auto !important;
+                          padding: 0 !important;
+                          box-sizing: border-box !important;
+                        `.replace(/\s+/g, ' ').trim());
                         
-                        // Si no se encontraron en el estilo, usar computed o offset
-                        if (!containerW || !containerH) {
-                          const computed = window.getComputedStyle(container);
-                          containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
-                          containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
-                        }
-                        
-                        // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
-                        if (containerW > 0 && containerH > 0) {
-                          // Usar el menor de los dos para mantener aspecto cuadrado del QR
-                          const qrSize = Math.min(containerW, containerH);
-                          
-                          // Aplicar estilos directamente con !important para sobrescribir cualquier otro estilo
-                          img.setAttribute('style', `
-                            width: ${qrSize}px !important;
-                            height: ${qrSize}px !important;
-                            max-width: ${qrSize}px !important;
-                            max-height: ${qrSize}px !important;
-                            min-width: ${qrSize}px !important;
-                            min-height: ${qrSize}px !important;
-                            object-fit: contain !important;
-                            display: block !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            box-sizing: border-box !important;
-                          `.replace(/\s+/g, ' ').trim());
-                          
-                          console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
-                        }
+                        console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
+                      }
+                    }
+                  }
+                  
+                  // También buscar otras imágenes QR por si acaso
+                  const allImgs = Array.from(rootEl.querySelectorAll('img[src^="data:image"]'));
+                  allImgs.forEach((img) => {
+                    const container = img.closest('.st-el');
+                    if (container && container !== qrContainer) {
+                      const containerStyle = container.getAttribute('style') || '';
+                      const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+                      const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+                      
+                      let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+                      let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+                      
+                      if (!containerW || !containerH) {
+                        const computed = window.getComputedStyle(container);
+                        containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
+                        containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
+                      }
+                      
+                      if (containerW > 0 && containerH > 0) {
+                        const qrSize = Math.min(containerW, containerH);
+                        img.setAttribute('style', `
+                          width: ${qrSize}px !important;
+                          height: ${qrSize}px !important;
+                          max-width: ${qrSize}px !important;
+                          max-height: ${qrSize}px !important;
+                          object-fit: contain !important;
+                          display: block !important;
+                          margin: 0 auto !important;
+                          padding: 0 !important;
+                          box-sizing: border-box !important;
+                        `.replace(/\s+/g, ' ').trim());
                       }
                     }
                   });
@@ -3118,9 +3155,16 @@ function openMarketplaceHelper(item){
                 `/* Texto: permitir salto de línea y ocupar el cuadro asignado */\n` +
                 `.st-el{white-space: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; box-sizing: border-box !important;}\n` +
                 `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
-                `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important;}\n` +
-                `/* Asegurar que el QR tenga prioridad visual y tamaño adecuado */\n` +
-                `.st-el img[src*="data:image"]{z-index: 10 !important; object-fit: contain !important;}\n` +
+                `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
+                `/* CRÍTICO: Asegurar que el texto del nombre ocupe TODO el espacio asignado y haga wrap correctamente */\n` +
+                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important;}\n` +
+                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 auto !important; min-height: 0 !important; overflow: hidden !important;}\n` +
+                `/* Preservar estilos de fuente del texto */\n` +
+                `.st-el[data-id*="name"] *{font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; color: inherit !important;}\n` +
+                `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
+                `.st-el[data-id*="qr"] img{width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 100% !important; min-height: 100% !important; object-fit: contain !important; display: block !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important;}\n` +
+                `/* Asegurar que el QR tenga prioridad visual */\n` +
+                `.st-el img[src*="data:image"]{z-index: 10 !important;}\n` +
                 `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
                 `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
                 `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
@@ -3203,53 +3247,83 @@ function openMarketplaceHelper(item){
               // CRÍTICO: Asegurar que el QR ocupe el espacio completo asignado en su contenedor
               // Buscar imágenes QR y forzar que usen TODO el espacio disponible del contenedor
               (function ensureQrFullSize(rootEl, stickerWidthPx, stickerHeightPx) {
-                const imgs = Array.from(rootEl.querySelectorAll('img'));
-                imgs.forEach((img) => {
-                  const src = img.getAttribute('src') || '';
-                  const isData = src.startsWith('data:image');
-                  
-                  // Detectar QR: imágenes data URL
-                  if (isData) {
-                    // Obtener el contenedor padre (st-el) para conocer el espacio asignado
-                    const container = img.closest('.st-el');
-                    if (container) {
-                      // Obtener dimensiones del contenedor desde el estilo inline o computed
-                      const containerStyle = container.getAttribute('style') || '';
-                      const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
-                      const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+                // Buscar específicamente el contenedor del QR por su data-id
+                const qrContainer = rootEl.querySelector('.st-el[data-id*="qr"], .st-el[data-id="qr"]');
+                if (qrContainer) {
+                  const qrImg = qrContainer.querySelector('img');
+                  if (qrImg && qrImg.src && qrImg.src.startsWith('data:image')) {
+                    // Obtener dimensiones del contenedor desde el estilo inline
+                    const containerStyle = qrContainer.getAttribute('style') || '';
+                    const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+                    const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+                    
+                    let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+                    let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+                    
+                    // Si no se encontraron en el estilo, usar computed o offset
+                    if (!containerW || !containerH) {
+                      const computed = window.getComputedStyle(qrContainer);
+                      containerW = containerW || parseFloat(computed.width) || qrContainer.offsetWidth || 0;
+                      containerH = containerH || parseFloat(computed.height) || qrContainer.offsetHeight || 0;
+                    }
+                    
+                    // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
+                    if (containerW > 0 && containerH > 0) {
+                      // Usar el menor de los dos para mantener aspecto cuadrado del QR
+                      const qrSize = Math.min(containerW, containerH);
                       
-                      let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
-                      let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+                      // Aplicar estilos directamente al contenedor y a la imagen
+                      qrContainer.style.setProperty('overflow', 'hidden', 'important');
+                      qrImg.setAttribute('style', `
+                        width: ${qrSize}px !important;
+                        height: ${qrSize}px !important;
+                        max-width: ${qrSize}px !important;
+                        max-height: ${qrSize}px !important;
+                        min-width: ${qrSize}px !important;
+                        min-height: ${qrSize}px !important;
+                        object-fit: contain !important;
+                        display: block !important;
+                        margin: 0 auto !important;
+                        padding: 0 !important;
+                        box-sizing: border-box !important;
+                      `.replace(/\s+/g, ' ').trim());
                       
-                      // Si no se encontraron en el estilo, usar computed o offset
-                      if (!containerW || !containerH) {
-                        const computed = window.getComputedStyle(container);
-                        containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
-                        containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
-                      }
-                      
-                      // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
-                      if (containerW > 0 && containerH > 0) {
-                        // Usar el menor de los dos para mantener aspecto cuadrado del QR
-                        const qrSize = Math.min(containerW, containerH);
-                        
-                        // Aplicar estilos directamente con !important para sobrescribir cualquier otro estilo
-                        img.setAttribute('style', `
-                          width: ${qrSize}px !important;
-                          height: ${qrSize}px !important;
-                          max-width: ${qrSize}px !important;
-                          max-height: ${qrSize}px !important;
-                          min-width: ${qrSize}px !important;
-                          min-height: ${qrSize}px !important;
-                          object-fit: contain !important;
-                          display: block !important;
-                          margin: 0 !important;
-                          padding: 0 !important;
-                          box-sizing: border-box !important;
-                        `.replace(/\s+/g, ' ').trim());
-                        
-                        console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
-                      }
+                      console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
+                    }
+                  }
+                }
+                
+                // También buscar otras imágenes QR por si acaso
+                const allImgs = Array.from(rootEl.querySelectorAll('img[src^="data:image"]'));
+                allImgs.forEach((img) => {
+                  const container = img.closest('.st-el');
+                  if (container && container !== qrContainer) {
+                    const containerStyle = container.getAttribute('style') || '';
+                    const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+                    const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+                    
+                    let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+                    let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+                    
+                    if (!containerW || !containerH) {
+                      const computed = window.getComputedStyle(container);
+                      containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
+                      containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
+                    }
+                    
+                    if (containerW > 0 && containerH > 0) {
+                      const qrSize = Math.min(containerW, containerH);
+                      img.setAttribute('style', `
+                        width: ${qrSize}px !important;
+                        height: ${qrSize}px !important;
+                        max-width: ${qrSize}px !important;
+                        max-height: ${qrSize}px !important;
+                        object-fit: contain !important;
+                        display: block !important;
+                        margin: 0 auto !important;
+                        padding: 0 !important;
+                        box-sizing: border-box !important;
+                      `.replace(/\s+/g, ' ').trim());
                     }
                   }
                 });

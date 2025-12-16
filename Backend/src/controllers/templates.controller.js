@@ -126,20 +126,21 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'width:100%',
           'height:100%',
           'box-sizing:border-box',
-          'min-height:0'
+          'min-height:0',
+          'overflow:hidden'
         ];
         const textInnerStyles = [
-          `font-size:${fontSize}px`,
-          `font-weight:${fontWeight}`,
-          `line-height:${lineHeight}`,
-          `color:${color}`,
-          'white-space:normal',
-          'word-wrap:break-word',
-          'word-break:break-word',
-          'overflow-wrap:break-word',
+          `font-size:${fontSize}px !important`,
+          `font-weight:${fontWeight} !important`,
+          `line-height:${lineHeight} !important`,
+          `color:${color} !important`,
+          'white-space:normal !important',
+          'word-wrap:break-word !important',
+          'word-break:break-word !important',
+          'overflow-wrap:break-word !important',
           'hyphens:auto',
-          'width:100%',
-          'max-width:100%',
+          'width:100% !important',
+          'max-width:100% !important',
           'flex:1 1 auto',
           'margin:0',
           'padding:0',
@@ -147,32 +148,33 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'overflow:hidden',
           'display:block',
           'min-width:0',
-          'min-height:0'
+          'min-height:0',
+          'text-align:left'
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`
         );
       } else {
-        // Sin wrap explícito: permitir salto de línea dentro del cuadro
-        // para que el texto use todo el alto/ancho disponible
+        // Sin wrap explícito en el layout, pero PERMITIR wrap si el texto es largo
+        // para que el texto use todo el alto/ancho disponible sin desbordarse
         const textStyles = [
-          'display:flex',
-          'flex-direction:column',
-          'align-items:flex-start',
-          'justify-content:flex-start',
-          `font-size:${fontSize}px`,
-          `font-weight:${fontWeight}`,
-          `line-height:${lineHeight}`,
-          `color:${color}`,
-          'white-space:normal',
-          'word-wrap:break-word',
-          'word-break:break-word',
-          'overflow-wrap:break-word',
+          'display:block',
+          `font-size:${fontSize}px !important`,
+          `font-weight:${fontWeight} !important`,
+          `line-height:${lineHeight} !important`,
+          `color:${color} !important`,
+          'white-space:normal !important',
+          'word-wrap:break-word !important',
+          'word-break:break-word !important',
+          'overflow-wrap:break-word !important',
           'overflow:hidden',
           'text-overflow:clip',
           'padding:2px',
           'margin:0',
-          'box-sizing:border-box'
+          'width:100% !important',
+          'height:100% !important',
+          'box-sizing:border-box',
+          'text-align:left'
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${textStyles.join(';')}">${textExpr}</div>`
@@ -904,15 +906,15 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       try {
         const qrValue = ctx.item.sku || String(ctx.item._id || '');
         if (qrValue) {
-          // Generar QR con tamaño adecuado para stickers
-          // Para un sticker de 5cm x 3cm, el QR debe ocupar aproximadamente 2-2.5cm
-          // A 300 DPI (resolución de impresión), 2cm = ~236px, 2.5cm = ~295px
-          // Aumentamos el tamaño para que sea más visible y ocupe mejor el espacio
-          // Usamos 400px como tamaño base para mejor legibilidad y visibilidad
-          const qrSizePx = 400;
+          // Generar QR con tamaño MUY GRANDE para stickers de 5cm x 3cm
+          // El QR debe ocupar aproximadamente 2.5-3cm del sticker
+          // A 300 DPI (resolución de impresión), 2.5cm = ~295px, 3cm = ~354px
+          // Usamos 600px para asegurar que el QR sea grande y se escale correctamente
+          // cuando se renderice en el contenedor de 90px (el QR se escalará hacia abajo manteniendo calidad)
+          const qrSizePx = 600;
           ctx.item.qr = await QRCode.toDataURL(qrValue, { 
-            margin: 2, // Margen un poco mayor para mejor escaneo
-            width: qrSizePx, // Tamaño aumentado en píxeles
+            margin: 2, // Margen para mejor escaneo
+            width: qrSizePx, // Tamaño muy grande para mejor calidad al escalar
             color: { dark: '#000000', light: '#FFFFFF' }
           });
           ctx.item.qrText = qrValue;

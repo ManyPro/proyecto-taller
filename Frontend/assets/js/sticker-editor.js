@@ -39,24 +39,24 @@
     const textAreaY = margin;
     const textAreaH = canvasHeight - (margin * 2); // Altura total menos márgenes
     
-    // SKU: arriba izquierda, altura fija
+    // SKU: arriba izquierda, altura suficiente para permitir wrap si es necesario
     const skuX = textAreaX;
     const skuY = textAreaY;
     const skuW = textAreaW;
-    const skuH = 20; // Altura suficiente para una línea
+    const skuH = 24; // Altura aumentada para permitir 2 líneas si el SKU es largo
     
     // Nombre: debajo del SKU, ocupa el resto del espacio vertical disponible
     const nameX = textAreaX;
-    const nameY = skuY + skuH + 6; // Espacio de 6px entre SKU y nombre
+    const nameY = skuY + skuH + 8; // Espacio aumentado a 8px entre SKU y nombre para evitar superposición
     const nameW = textAreaW;
-    const nameH = textAreaH - skuH - 6; // Resto del espacio vertical menos el espacio entre elementos
+    const nameH = textAreaH - skuH - 8; // Resto del espacio vertical menos el espacio entre elementos
     
     return {
       widthCm: 5,
       heightCm: 3,
       elements: [
-        { id: 'sku', type: 'text', source: 'sku', x: skuX, y: skuY, w: skuW, h: skuH, fontSize: 12, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
-        { id: 'name', type: 'text', source: 'name', x: nameX, y: nameY, w: nameW, h: nameH, fontSize: 9, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.15 },
+        { id: 'sku', type: 'text', source: 'sku', x: skuX, y: skuY, w: skuW, h: skuH, fontSize: 11, fontWeight: '700', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.1 },
+        { id: 'name', type: 'text', source: 'name', x: nameX, y: nameY, w: nameW, h: nameH, fontSize: 9, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.2 },
         { id: 'qr', type: 'image', source: 'qr', x: qrX, y: qrY, w: qrW, h: qrH, fit: 'contain' }
       ]
     };
