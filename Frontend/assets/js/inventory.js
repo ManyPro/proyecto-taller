@@ -2877,11 +2877,11 @@ function openMarketplaceHelper(item){
 
   // Ajusta dinámicamente el tamaño de fuente de los textos dentro del sticker
   // para que no se salgan de su cuadro (solo reduce, nunca aumenta).
-  function autoFitStickerTexts(rootEl) {
+  async function autoFitStickerTexts(rootEl) {
     if (!rootEl) return;
 
     const candidates = rootEl.querySelectorAll('.st-el');
-    candidates.forEach((wrapper) => {
+    for (const wrapper of candidates) {
       // Solo ajustar textos, no imágenes
       const hasImg = wrapper.querySelector('img');
       if (hasImg) return;
@@ -2944,9 +2944,22 @@ function openMarketplaceHelper(item){
         // Si no tiene fontSize, intentar leerlo del elemento o usar un default
         fontSize = parseFloat(targetStyle.fontSize) || 12;
       }
+      
+      // Obtener line-height inicial y mantenerlo proporcional
+      let lineHeight = parseFloat(targetStyle.lineHeight);
+      if (!lineHeight || isNaN(lineHeight) || lineHeight <= 0) {
+        // Si no tiene line-height, calcular uno razonable (1.2x el fontSize)
+        lineHeight = fontSize * 1.2;
+      } else if (lineHeight < 1) {
+        // Si es un factor (ej: 1.2), convertirlo a px
+        lineHeight = fontSize * lineHeight;
+      }
+      const initialLineHeight = lineHeight;
+      const lineHeightRatio = lineHeight / fontSize; // Mantener proporción
 
       const minFont = 7; // px
-      const maxIterations = 40; // Aumentado para más precisión
+      const minLineHeight = 8; // px mínimo para legibilidad
+      const maxIterations = 50; // Aumentado para más precisión
       let iter = 0;
 
       const fits = () => {
@@ -2960,27 +2973,40 @@ function openMarketplaceHelper(item){
         const currentHeight = targetRect.height;
         
         // Verificar overflow usando scrollHeight/scrollWidth vs las dimensiones asignadas
-        const overflowsVert = target.scrollHeight > currentHeight + 2; // Tolerancia de 2px
-        const overflowsHoriz = target.scrollWidth > currentWidth + 2;
+        // Aumentar tolerancia a 3px para evitar ajustes excesivos
+        const overflowsVert = target.scrollHeight > currentHeight + 3;
+        const overflowsHoriz = target.scrollWidth > currentWidth + 3;
         
         return !overflowsVert && !overflowsHoriz;
       };
 
-      // Aplicar el fontSize inicial
+      // Aplicar el fontSize y lineHeight iniciales
       target.style.setProperty('font-size', `${fontSize}px`, 'important');
+      target.style.setProperty('line-height', `${lineHeight}px`, 'important');
       
       // Forzar un reflow inicial
       void target.offsetHeight;
 
       while (!fits() && fontSize > minFont && iter < maxIterations) {
-        fontSize = Math.max(minFont, fontSize - 0.5);
+        // Reducir fontSize de forma más gradual
+        fontSize = Math.max(minFont, fontSize - 0.3); // Reducción más suave (0.3px en lugar de 0.5px)
+        
+        // Ajustar line-height proporcionalmente, pero mantener mínimo
+        lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
+        
         target.style.setProperty('font-size', `${fontSize}px`, 'important');
+        target.style.setProperty('line-height', `${lineHeight}px`, 'important');
         iter += 1;
         
         // Forzar reflow después de cada cambio de tamaño
         void target.offsetHeight;
+        
+        // Pequeña pausa cada 10 iteraciones para permitir renderizado
+        if (iter % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1));
+        }
       }
-    });
+    }
   }
 
   async function renderStickerPdf(list, filenameBase = 'stickers') {
@@ -3121,7 +3147,7 @@ function openMarketplaceHelper(item){
       await new Promise(resolve => requestAnimationFrame(resolve));
       
       // Ahora ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
-      autoFitStickerTexts(box);
+      await autoFitStickerTexts(box);
       
       // Esperar otro frame después del ajuste para que los cambios se apliquen
       await new Promise(resolve => requestAnimationFrame(resolve));
