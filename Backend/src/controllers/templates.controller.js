@@ -65,6 +65,15 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       'overflow:hidden'
     ];
     
+    // Agregar z-index para evitar superposiciones: QR debe estar por encima de textos
+    if (type === 'image' && source === 'qr') {
+      baseStyle.push('z-index:10'); // QR con mayor prioridad
+    } else if (type === 'text') {
+      baseStyle.push('z-index:1'); // Textos con menor prioridad
+    } else {
+      baseStyle.push('z-index:2'); // Otras imágenes
+    }
+    
     // Agregar rotación si existe
     if (rotation !== 0) {
       baseStyle.push(`transform:rotate(${rotation}deg)`, 'transform-origin:center center');
@@ -88,8 +97,13 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
         srcExpr = el.url ? safe(el.url) : "{{itemImage item ''}}";
       }
 
+      // Para QR, asegurar que la imagen ocupe todo el espacio disponible sin comprimirse
+      const imgStyle = source === 'qr' 
+        ? `width:100%;height:100%;max-width:100%;max-height:100%;min-width:${w}px;min-height:${h}px;object-fit:${fit};display:block;border:0;margin:0;padding:0;box-sizing:border-box;`
+        : `width:${w}px;height:${h}px;max-width:${w}px;max-height:${h}px;object-fit:${fit};display:block;border:0;margin:0;padding:0;box-sizing:border-box;`;
+      
       innerHtml =
-        `<img src="${srcExpr}" alt="" style="width:${w}px;height:${h}px;max-width:${w}px;max-height:${h}px;object-fit:${fit};display:block;border:0;margin:0;padding:0;box-sizing:border-box;"/>`;
+        `<img src="${srcExpr}" alt="" style="${imgStyle}"/>`;
     } else {
       // Texto
       let textExpr = '';
@@ -884,15 +898,15 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       try {
         const qrValue = ctx.item.sku || String(ctx.item._id || '');
         if (qrValue) {
-          // Generar QR con tamaño adecuado para stickers (5cm x 3cm)
-          // Usar width específico en píxeles para asegurar tamaño correcto
-          // Para un sticker de 5x3cm, el QR debe ocupar aproximadamente 1.5-2cm
-          // A 300 DPI (resolución de impresión), 1.5cm = ~177px, 2cm = ~236px
-          // Usamos 200px como tamaño base para buena legibilidad
-          const qrSizePx = 200;
+          // Generar QR con tamaño adecuado para stickers
+          // Para un sticker de 5cm x 3cm, el QR debe ocupar aproximadamente 2-2.5cm
+          // A 300 DPI (resolución de impresión), 2cm = ~236px, 2.5cm = ~295px
+          // Aumentamos el tamaño para que sea más visible y ocupe mejor el espacio
+          // Usamos 400px como tamaño base para mejor legibilidad y visibilidad
+          const qrSizePx = 400;
           ctx.item.qr = await QRCode.toDataURL(qrValue, { 
-            margin: 1, // Margen mínimo para mejor escaneo
-            width: qrSizePx, // Tamaño fijo en píxeles
+            margin: 2, // Margen un poco mayor para mejor escaneo
+            width: qrSizePx, // Tamaño aumentado en píxeles
             color: { dark: '#000000', light: '#FFFFFF' }
           });
           ctx.item.qrText = qrValue;
