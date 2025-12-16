@@ -3364,6 +3364,47 @@ function openMarketplaceHelper(item){
       
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
+      
+      // CRÍTICO: Verificar y corregir dimensiones ANTES de capturar
+      let boxRectBefore = box.getBoundingClientRect();
+      const wrapperBefore = box.querySelector('.sticker-wrapper');
+      let wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
+      
+      // CRÍTICO: Si las dimensiones no son correctas, forzar nuevamente
+      let attempts = 0;
+      while ((Math.abs(boxRectBefore.width - widthPx) > 1 || Math.abs(boxRectBefore.height - heightPx) > 1) && attempts < 3) {
+        console.warn(`⚠️ Box tiene dimensiones incorrectas: ${boxRectBefore.width}x${boxRectBefore.height}px, esperado: ${widthPx}x${heightPx}px - Forzando nuevamente (intento ${attempts + 1})...`);
+        box.style.setProperty('width', `${widthPx}px`, 'important');
+        box.style.setProperty('height', `${heightPx}px`, 'important');
+        box.style.setProperty('max-width', `${widthPx}px`, 'important');
+        box.style.setProperty('max-height', `${heightPx}px`, 'important');
+        box.style.setProperty('min-width', `${widthPx}px`, 'important');
+        box.style.setProperty('min-height', `${heightPx}px`, 'important');
+        void box.offsetHeight; // Forzar reflow
+        await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
+        boxRectBefore = box.getBoundingClientRect();
+        attempts++;
+      }
+      
+      if (wrapperBefore) {
+        attempts = 0;
+        while (wrapperRectBefore && (Math.abs(wrapperRectBefore.width - widthPx) > 1 || Math.abs(wrapperRectBefore.height - heightPx) > 1) && attempts < 3) {
+          console.warn(`⚠️ Wrapper tiene dimensiones incorrectas: ${wrapperRectBefore.width}x${wrapperRectBefore.height}px, esperado: ${widthPx}x${heightPx}px - Forzando nuevamente (intento ${attempts + 1})...`);
+          wrapperBefore.style.setProperty('width', `${widthPx}px`, 'important');
+          wrapperBefore.style.setProperty('height', `${heightPx}px`, 'important');
+          wrapperBefore.style.setProperty('max-width', `${widthPx}px`, 'important');
+          wrapperBefore.style.setProperty('max-height', `${heightPx}px`, 'important');
+          wrapperBefore.style.setProperty('min-width', `${widthPx}px`, 'important');
+          wrapperBefore.style.setProperty('min-height', `${heightPx}px`, 'important');
+          void wrapperBefore.offsetHeight; // Forzar reflow
+          await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
+          wrapperRectBefore = wrapperBefore.getBoundingClientRect();
+          attempts++;
+        }
+      }
+      
+      console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
+      
       // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
       // El canvas resultante será widthPx * scale x heightPx * scale
       const scale = 3;
@@ -3382,12 +3423,6 @@ function openMarketplaceHelper(item){
         scaleX: 1,
         scaleY: 1
       });
-      
-      // CRÍTICO: Verificar dimensiones ANTES de capturar
-      const boxRectBefore = box.getBoundingClientRect();
-      const wrapperBefore = box.querySelector('.sticker-wrapper');
-      const wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
-      console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
       
       // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
       const expectedCanvasWidth = Math.round(widthPx * scale);
