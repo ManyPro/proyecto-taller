@@ -2997,9 +2997,10 @@ function openMarketplaceHelper(item){
       const initialLineHeight = lineHeight;
       const lineHeightRatio = lineHeight / fontSize; // Mantener proporción
 
-      const minFont = 7; // px
-      const minLineHeight = 8; // px mínimo para legibilidad
-      const maxIterations = 50; // Aumentado para más precisión
+      // CRÍTICO: Eliminar límite mínimo o reducirlo significativamente para permitir ajuste completo
+      const minFont = 4; // px - Reducido de 7px a 4px para permitir más ajuste
+      const minLineHeight = 5; // px - Reducido proporcionalmente
+      const maxIterations = 100; // Aumentado para permitir más iteraciones si es necesario
       let iter = 0;
 
       const fits = () => {
@@ -3012,12 +3013,30 @@ function openMarketplaceHelper(item){
         const currentWidth = targetRect.width;
         const currentHeight = targetRect.height;
         
-        // Verificar overflow usando scrollHeight/scrollWidth vs las dimensiones asignadas
-        // Aumentar tolerancia a 3px para evitar ajustes excesivos
-        const overflowsVert = target.scrollHeight > currentHeight + 3;
-        const overflowsHoriz = target.scrollWidth > currentWidth + 3;
+        // CRÍTICO: Verificar overflow de forma más estricta
+        // Usar scrollHeight/scrollWidth que son más precisos que getBoundingClientRect para contenido
+        const scrollWidth = target.scrollWidth;
+        const scrollHeight = target.scrollHeight;
         
-        return !overflowsVert && !overflowsHoriz;
+        // Tolerancia muy pequeña (1px) para detección precisa de overflow
+        const overflowsVert = scrollHeight > currentHeight + 1;
+        const overflowsHoriz = scrollWidth > currentWidth + 1;
+        
+        // También verificar que el contenido no se salga visualmente
+        const computedStyle = window.getComputedStyle(target);
+        const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+        const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+        const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+        const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+        
+        // El contenido real debe caber dentro del área disponible (width/height - padding)
+        const availableWidth = currentWidth - paddingLeft - paddingRight;
+        const availableHeight = currentHeight - paddingTop - paddingBottom;
+        
+        const overflowsHorizStrict = scrollWidth > availableWidth + 1;
+        const overflowsVertStrict = scrollHeight > availableHeight + 1;
+        
+        return !overflowsVert && !overflowsHoriz && !overflowsHorizStrict && !overflowsVertStrict;
       };
 
       // Aplicar el fontSize y lineHeight iniciales
@@ -3028,8 +3047,17 @@ function openMarketplaceHelper(item){
       void target.offsetHeight;
 
       while (!fits() && fontSize > minFont && iter < maxIterations) {
-        // Reducir fontSize de forma más gradual
-        fontSize = Math.max(minFont, fontSize - 0.3); // Reducción más suave (0.3px en lugar de 0.5px)
+        // CRÍTICO: Reducir fontSize más agresivamente si el overflow es grande
+        // Si el overflow es muy grande, reducir más rápido
+        const targetRect = target.getBoundingClientRect();
+        const overflowRatio = Math.max(
+          (target.scrollWidth / targetRect.width) || 1,
+          (target.scrollHeight / targetRect.height) || 1
+        );
+        
+        // Si el overflow es muy grande (>1.5x), reducir más rápido
+        const reductionStep = overflowRatio > 1.5 ? 0.5 : 0.2;
+        fontSize = Math.max(minFont, fontSize - reductionStep);
         
         // Ajustar line-height proporcionalmente, pero mantener mínimo
         lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
