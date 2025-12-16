@@ -206,7 +206,8 @@
             type: 'image',
             source: 'image',
             url: uploaded.url || uploaded.path || '',
-            fit: 'cover'
+            // Usar contain por defecto para NO recortar la imagen al redimensionar
+            fit: 'contain'
           });
 
           renderCanvas();

@@ -2875,6 +2875,42 @@ function openMarketplaceHelper(item){
     })));
   }
 
+  // Ajusta dinámicamente el tamaño de fuente de los textos dentro del sticker
+  // para que no se salgan de su cuadro (solo reduce, nunca aumenta).
+  function autoFitStickerTexts(rootEl) {
+    if (!rootEl) return;
+
+    const candidates = rootEl.querySelectorAll('.st-el');
+    candidates.forEach((wrapper) => {
+      // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
+      // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
+      let target = wrapper.querySelector('div') || wrapper;
+      const style = window.getComputedStyle(target);
+      let fontSize = parseFloat(style.fontSize || '0');
+      if (!fontSize || fontSize <= 0) return;
+
+      // Solo ajustar textos, no imágenes
+      const hasImg = wrapper.querySelector('img');
+      if (hasImg) return;
+
+      const minFont = 7; // px
+      const maxIterations = 20;
+      let iter = 0;
+
+      const fits = () => {
+        const overflowsVert = target.scrollHeight - 1 > target.clientHeight;
+        const overflowsHoriz = target.scrollWidth - 1 > target.clientWidth;
+        return !overflowsVert && !overflowsHoriz;
+      };
+
+      while (!fits() && fontSize > minFont && iter < maxIterations) {
+        fontSize -= 0.5;
+        target.style.fontSize = `${fontSize}px`;
+        iter += 1;
+      }
+    });
+  }
+
   async function renderStickerPdf(list, filenameBase = 'stickers') {
     const tpl = await API.templates.active('sticker-qr').catch(() => null);
     const tplLayout = tpl?.meta?.layout || cloneStickerLayout();
@@ -2926,6 +2962,8 @@ function openMarketplaceHelper(item){
       box.className = 'sticker-capture';
       box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
       box.innerHTML = html;
+      // Ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
+      autoFitStickerTexts(box);
       root.appendChild(box);
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
