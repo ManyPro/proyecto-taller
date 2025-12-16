@@ -1245,7 +1245,7 @@ function openDayEventsModal(date, dayEvents) {
             ${htmlEscape(event.customer.name)} • ${htmlEscape(event.plate)}
           </div>
         ` : ''}
-        <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-400">${startDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-400">${startDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}</div>
       </div>
     `;
   }).join('');
