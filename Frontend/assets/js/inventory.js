@@ -1531,11 +1531,8 @@ if (__ON_INV_PAGE__) {
                   `.sticker-capture [style*="position: absolute"], .sticker-wrapper [style*="position: absolute"]{position: absolute !important;}\n` +
                 `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
                 `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
-                `/* CRÍTICO: Asegurar que el texto del nombre ocupe TODO el espacio asignado y haga wrap correctamente */\n` +
-                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; justify-content: flex-start !important; align-items: flex-start !important; overflow: hidden !important;}\n` +
-                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 0% !important; min-height: 100% !important; height: 100% !important; overflow: visible !important; display: block !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
-                `/* Preservar estilos de fuente del texto */\n` +
-                `.st-el[data-id*="name"] *{font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; color: inherit !important;}\n` +
+                `/* CRÍTICO: Asegurar que el texto del nombre respete el cuadro definido en el layout (sin expandirse más allá) */\n` +
+                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; justify-content: flex-start !important; align-items: flex-start !important;}\n` +
                 `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
                 `.st-el[data-id*="qr"] img{width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 100% !important; min-height: 100% !important; object-fit: contain !important; display: block !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important;}\n` +
                 `/* Asegurar que el QR tenga prioridad visual */\n` +
@@ -3187,11 +3184,8 @@ function openMarketplaceHelper(item){
                 `.st-el{white-space: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; box-sizing: border-box !important;}\n` +
                 `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
                 `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
-                `/* CRÍTICO: Asegurar que el texto del nombre ocupe TODO el espacio asignado y haga wrap correctamente */\n` +
-                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; justify-content: flex-start !important; align-items: flex-start !important; overflow: hidden !important;}\n` +
-                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 0% !important; min-height: 100% !important; height: 100% !important; overflow: visible !important; display: block !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
-                `/* Preservar estilos de fuente del texto */\n` +
-                `.st-el[data-id*="name"] *{font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; color: inherit !important;}\n` +
+                `/* CRÍTICO: Asegurar que el texto del nombre respete el cuadro definido en el layout (sin expandirse más allá) */\n` +
+                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; justify-content: flex-start !important; align-items: flex-start !important;}\n` +
                 `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
                 `.st-el[data-id*="qr"] img{width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 100% !important; min-height: 100% !important; object-fit: contain !important; display: block !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important;}\n` +
                 `/* Asegurar que el QR tenga prioridad visual */\n` +
