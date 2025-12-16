@@ -125,6 +125,40 @@
     state.layout = normalizeLayout(state.layout);
   }
 
+  // Sincroniza el layout con lo que realmente se ve en el canvas (por si algún cambio
+  // de drag/resize/rotación no quedó reflejado en el objeto de layout).
+  function syncLayoutFromDOM() {
+    ensureLayout();
+    const canvas = getCanvas();
+    if (!canvas || !state.layout || !Array.isArray(state.layout.elements)) return;
+
+    const rectCanvas = canvas.getBoundingClientRect();
+    state.layout.elements.forEach((el) => {
+      if (!el || !el.id) return;
+      const dom = canvas.querySelector(`.st-el[data-id="${el.id}"]`);
+      if (!dom) return;
+      const r = dom.getBoundingClientRect();
+      const x = r.left - rectCanvas.left;
+      const y = r.top - rectCanvas.top;
+      const w = r.width;
+      const h = r.height;
+      if (Number.isFinite(x)) el.x = Math.round(x);
+      if (Number.isFinite(y)) el.y = Math.round(y);
+      if (Number.isFinite(w) && w > 0) el.w = Math.round(w);
+      if (Number.isFinite(h) && h > 0) el.h = Math.round(h);
+      
+      // Sincronizar rotación desde el transform del DOM
+      const transform = dom.style.transform || window.getComputedStyle(dom).transform;
+      if (transform) {
+        const match = transform.match(/rotate\(([-\d.]+)deg\)/i);
+        if (match) {
+          const deg = parseFloat(match[1]) || 0;
+          el.rotation = Math.max(-180, Math.min(180, Math.round(deg)));
+        }
+      }
+    });
+  }
+
   function sampleValue(el) {
     const src = el.source || el.type;
     if (src === 'sku') return state.sample.sku;
@@ -640,11 +674,13 @@
         const img = document.createElement('img');
         img.src = sampleImage(el);
         img.alt = el.source || '';
+        // MUY IMPORTANTE: que la imagen siempre se adapte al tamaño del wrapper,
+        // para que al redimensionar el cuadro la imagen crezca/disminuya con él.
         img.style.cssText = `
-          width: ${el.w}px;
-          height: ${el.h}px;
-          max-width: ${el.w}px;
-          max-height: ${el.h}px;
+          width: 100%;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
           object-fit: ${el.fit || 'contain'};
           display: block;
           margin: 0;
@@ -817,7 +853,8 @@
   }
 
   function buildPayload() {
-    ensureLayout();
+    // Asegurar que el layout refleje exactamente lo que se ve en el canvas
+    syncLayoutFromDOM();
     const meta = {
       width: state.layout.widthCm || 5,
       height: state.layout.heightCm || 3,
