@@ -119,19 +119,26 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       else if (source === 'custom') textExpr = safe(el.text || 'Texto');
       else textExpr = safe(el.text || '');
 
+      // CRÍTICO: Usar dimensiones ABSOLUTAS en píxeles, NO porcentajes
+      // El contenedor ya tiene width y height en px desde baseStyle, así que el contenido interno
+      // debe usar esas mismas dimensiones absolutas, no 100%
+      const innerWidth = w - 4; // Restar padding
+      const innerHeight = h - 4; // Restar padding
+      
       // Para texto con wrap: usar estructura con contenedor interno que se expande verticalmente
       if (wrap) {
-        // Con wrap: contenedor flex column con elemento interno que permite wrap y se expande verticalmente
+        // Con wrap: contenedor flex column con elemento interno que permite wrap
         const containerStyles = [
           'display:flex',
           'flex-direction:column',
           `align-items:${align === 'flex-end' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'}`,
-          // Para el nombre, usar flex-start en justify-content para que el texto comience arriba pero se expanda
           `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'flex-start' : 'flex-start'}`,
           'padding:2px',
           'margin:0',
-          'width:100%',
-          'height:100%',
+          `width:${w}px`,
+          `height:${h}px`,
+          `max-width:${w}px`,
+          `max-height:${h}px`,
           'box-sizing:border-box',
           'min-height:0',
           'overflow:hidden'
@@ -146,17 +153,15 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'word-break:break-word !important',
           'overflow-wrap:break-word !important',
           'hyphens:auto',
-          'width:100% !important',
-          'max-width:100% !important',
-          'flex:1 1 0%',
-          'min-height:100%',
-          'height:100%',
+          `width:${innerWidth}px !important`,
+          `max-width:${innerWidth}px !important`,
+          `height:${innerHeight}px !important`,
+          `max-height:${innerHeight}px !important`,
           'margin:0',
           'padding:0',
           'box-sizing:border-box',
-          'overflow:visible',
+          'overflow:hidden !important',
           'display:block',
-          'min-width:0',
           'text-align:left'
         ];
         htmlParts.push(
@@ -164,7 +169,6 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
         );
       } else {
         // Sin wrap explícito en el layout, pero PERMITIR wrap si el texto es largo
-        // para que el texto use todo el alto/ancho disponible sin desbordarse
         const textStyles = [
           'display:block',
           `font-size:${fontSize}px !important`,
@@ -179,8 +183,10 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'text-overflow:clip',
           'padding:2px',
           'margin:0',
-          'width:100% !important',
-          'height:100% !important',
+          `width:${innerWidth}px !important`,
+          `max-width:${innerWidth}px !important`,
+          `height:${innerHeight}px !important`,
+          `max-height:${innerHeight}px !important`,
           'box-sizing:border-box',
           'text-align:left'
         ];

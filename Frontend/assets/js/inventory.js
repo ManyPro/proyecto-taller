@@ -2886,29 +2886,60 @@ function openMarketplaceHelper(item){
       const hasImg = wrapper.querySelector('img');
       if (hasImg) return;
 
-      // Forzar overflow hidden en el wrapper
+      // Obtener dimensiones absolutas del wrapper desde el estilo inline
+      const wrapperStyle = window.getComputedStyle(wrapper);
+      const wrapperWidth = parseFloat(wrapperStyle.width) || wrapper.getBoundingClientRect().width;
+      const wrapperHeight = parseFloat(wrapperStyle.height) || wrapper.getBoundingClientRect().height;
+      
+      // Forzar overflow hidden y dimensiones absolutas en el wrapper
       wrapper.style.setProperty('overflow', 'hidden', 'important');
-      wrapper.style.setProperty('max-width', '100%', 'important');
-      wrapper.style.setProperty('max-height', '100%', 'important');
+      if (wrapperStyle.width && !wrapperStyle.width.includes('%')) {
+        wrapper.style.setProperty('width', wrapperStyle.width, 'important');
+        wrapper.style.setProperty('max-width', wrapperStyle.width, 'important');
+      }
+      if (wrapperStyle.height && !wrapperStyle.height.includes('%')) {
+        wrapper.style.setProperty('height', wrapperStyle.height, 'important');
+        wrapper.style.setProperty('max-height', wrapperStyle.height, 'important');
+      }
 
       // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
       // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
       let target = wrapper.querySelector('div') || wrapper;
       
-      // Forzar límites en el target también
-      target.style.setProperty('max-width', '100%', 'important');
-      target.style.setProperty('max-height', '100%', 'important');
+      // Obtener dimensiones del target y forzar límites absolutos
+      const targetStyle = window.getComputedStyle(target);
+      const targetWidth = parseFloat(targetStyle.width) || wrapperWidth - 4; // Restar padding
+      const targetHeight = parseFloat(targetStyle.height) || wrapperHeight - 4;
+      
+      // Forzar límites absolutos en el target (NO porcentajes)
       target.style.setProperty('overflow', 'hidden', 'important');
       target.style.setProperty('word-wrap', 'break-word', 'important');
       target.style.setProperty('word-break', 'break-word', 'important');
       target.style.setProperty('overflow-wrap', 'break-word', 'important');
+      target.style.setProperty('box-sizing', 'border-box', 'important');
+      
+      // Si el target tiene width/height en px, usarlos; si no, usar las del wrapper menos padding
+      if (targetStyle.width && !targetStyle.width.includes('%')) {
+        target.style.setProperty('width', targetStyle.width, 'important');
+        target.style.setProperty('max-width', targetStyle.width, 'important');
+      } else {
+        target.style.setProperty('width', `${targetWidth}px`, 'important');
+        target.style.setProperty('max-width', `${targetWidth}px`, 'important');
+      }
+      if (targetStyle.height && !targetStyle.height.includes('%')) {
+        target.style.setProperty('height', targetStyle.height, 'important');
+        target.style.setProperty('max-height', targetStyle.height, 'important');
+      } else {
+        target.style.setProperty('height', `${targetHeight}px`, 'important');
+        target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+      }
       
       const style = window.getComputedStyle(target);
       let fontSize = parseFloat(style.fontSize || '0');
       if (!fontSize || fontSize <= 0) return;
 
       const minFont = 7; // px
-      const maxIterations = 30; // Aumentado para más precisión
+      const maxIterations = 30;
       let iter = 0;
 
       const fits = () => {
@@ -2916,12 +2947,9 @@ function openMarketplaceHelper(item){
         void wrapper.offsetHeight;
         void target.offsetHeight;
         
-        const wrapperRect = wrapper.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        
-        // Verificar que el contenido no se salga del wrapper
-        const overflowsVert = target.scrollHeight > wrapperRect.height + 1;
-        const overflowsHoriz = target.scrollWidth > wrapperRect.width + 1;
+        // Verificar overflow usando scrollHeight/scrollWidth vs clientHeight/clientWidth
+        const overflowsVert = target.scrollHeight > target.clientHeight + 1;
+        const overflowsHoriz = target.scrollWidth > target.clientWidth + 1;
         
         return !overflowsVert && !overflowsHoriz;
       };
@@ -3007,25 +3035,26 @@ function openMarketplaceHelper(item){
           margin: 0 !important;
           padding: 0 !important;
         }
-        /* CRÍTICO: Forzar que los textos NO se salgan de su cuadro asignado */
+        /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS, no porcentajes */
         .st-el[data-id*="sku"], .st-el[data-id*="name"] {
           overflow: hidden !important;
-          max-width: 100% !important;
-          max-height: 100% !important;
           white-space: normal !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           z-index: 1 !important;
+          /* NO usar width/height 100%, usar las dimensiones absolutas del elemento */
+          box-sizing: border-box !important;
         }
-        /* CRÍTICO: El div interno de texto también debe respetar límites */
+        /* CRÍTICO: El div interno de texto también debe usar dimensiones absolutas */
         .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div {
-          max-width: 100% !important;
-          max-height: 100% !important;
           overflow: hidden !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
+          box-sizing: border-box !important;
+          /* NO permitir que se expanda más allá de su contenedor */
+          display: block !important;
         }
         /* CRÍTICO: QR debe estar POR ENCIMA de textos */
         .st-el[data-id*="qr"] {
@@ -3046,19 +3075,24 @@ function openMarketplaceHelper(item){
       `;
       box.appendChild(style);
       
-      // Convertir wrapper de cm a px si es necesario
+      // CRÍTICO: Convertir wrapper de cm a px y forzar dimensiones exactas
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
         const wrapperStyle = window.getComputedStyle(wrapper);
-        // Si el wrapper tiene dimensiones en cm, convertirlas a px
-        if (wrapperStyle.width.includes('cm') || wrapperStyle.height.includes('cm')) {
-          wrapper.style.width = `${widthPx}px`;
-          wrapper.style.height = `${heightPx}px`;
-          wrapper.style.maxWidth = `${widthPx}px`;
-          wrapper.style.maxHeight = `${heightPx}px`;
-          wrapper.style.minWidth = `${widthPx}px`;
-          wrapper.style.minHeight = `${heightPx}px`;
+        // Si el wrapper tiene dimensiones en cm o cualquier otra unidad, forzar px
+        if (wrapperStyle.width.includes('cm') || wrapperStyle.height.includes('cm') || 
+            wrapperStyle.width.includes('%') || wrapperStyle.height.includes('%')) {
+          wrapper.style.setProperty('width', `${widthPx}px`, 'important');
+          wrapper.style.setProperty('height', `${heightPx}px`, 'important');
+          wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
+          wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
+          wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
+          wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
         }
+        // Asegurar que no haya padding/margin que cause espacios en blanco
+        wrapper.style.setProperty('margin', '0', 'important');
+        wrapper.style.setProperty('padding', '0', 'important');
+        wrapper.style.setProperty('box-sizing', 'border-box', 'important');
       }
       
       // Ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
