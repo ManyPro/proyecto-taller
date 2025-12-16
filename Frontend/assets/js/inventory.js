@@ -3064,11 +3064,24 @@ function openMarketplaceHelper(item){
       const availableWidth = targetRect.width - paddingLeft - paddingRight;
       const availableHeight = targetRect.height - paddingTop - paddingBottom;
       
-      const hasOverflow = scrollWidth > availableWidth + 1 || scrollHeight > availableHeight + 1;
+      // CRÍTICO: Verificar overflow de forma más precisa
+      // Tolerancia de 2px para evitar falsos positivos
+      const hasOverflow = scrollWidth > availableWidth + 2 || scrollHeight > availableHeight + 2;
       
-      // Si NO hay overflow, NO reducir el tamaño - solo asegurar que ocupe el espacio vertical
-      if (!hasOverflow) {
+      // CRÍTICO: Para SKU, ser más estricto - solo reducir si el overflow es significativo (>5px)
+      const isSku = wrapper.getAttribute('data-id')?.includes('sku');
+      const hasSignificantOverflow = isSku 
+        ? (scrollWidth > availableWidth + 5 || scrollHeight > availableHeight + 5)
+        : hasOverflow;
+      
+      // Si NO hay overflow significativo, NO reducir el tamaño - solo asegurar que ocupe el espacio vertical
+      if (!hasSignificantOverflow) {
         // CRÍTICO: Asegurar que el texto ocupe todo el espacio vertical disponible
+        // Forzar que el div interno use height: 100% para ocupar TODO el espacio
+        target.style.setProperty('height', '100%', 'important');
+        target.style.setProperty('min-height', '100%', 'important');
+        target.style.setProperty('flex', '1 1 0%', 'important');
+        
         // Si el contenido es menor al 90% del espacio disponible, ajustar line-height para expandirlo
         if (scrollHeight < availableHeight * 0.9) {
           // Aumentar ligeramente el line-height para que el texto ocupe más espacio vertical
@@ -3224,7 +3237,9 @@ function openMarketplaceHelper(item){
           max-width: 100% !important;
           max-height: 100% !important;
           width: 100% !important;
-          height: 100% !important;
+          height: 100% !important; /* CRÍTICO: Ocupar TODO el espacio vertical disponible */
+          flex: 1 1 0% !important; /* CRÍTICO: Permitir que se expanda verticalmente */
+          min-height: 100% !important; /* CRÍTICO: Mínimo 100% del contenedor */
           /* CRÍTICO: Forzar que las letras no se amontonen - usar letter-spacing si es necesario */
           letter-spacing: normal !important;
           text-rendering: optimizeLegibility !important;

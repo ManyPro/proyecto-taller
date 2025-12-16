@@ -155,14 +155,15 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'hyphens:auto',
           `width:${innerWidth}px !important`,
           `max-width:${innerWidth}px !important`,
-          `height:${innerHeight}px !important`,
-          `max-height:${innerHeight}px !important`,
+          'height:100% !important', // CRÍTICO: Usar 100% para ocupar TODO el espacio vertical
+          `max-height:${innerHeight}px !important`, // Pero limitar con max-height
           'margin:0',
           'padding:0',
           'box-sizing:border-box',
           'overflow:hidden !important',
           'display:block',
-          'text-align:left'
+          'text-align:left',
+          'flex:1 1 0% !important' // CRÍTICO: Permitir que se expanda verticalmente
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`
