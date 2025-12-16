@@ -3208,12 +3208,27 @@ function openMarketplaceHelper(item){
     for (const html of htmls) {
       const box = document.createElement('div');
       box.className = 'sticker-capture';
-      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
+      // CRÍTICO: Box debe tener dimensiones EXACTAS sin padding/margin
+      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0; display: block;`;
       box.innerHTML = html;
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
       const style = document.createElement('style');
       style.textContent = `
+        .sticker-capture {
+          position: relative !important;
+          width: ${widthPx}px !important;
+          height: ${heightPx}px !important;
+          max-width: ${widthPx}px !important;
+          max-height: ${heightPx}px !important;
+          min-width: ${widthPx}px !important;
+          min-height: ${heightPx}px !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+        }
         .sticker-wrapper {
           position: relative !important;
           width: ${widthPx}px !important;
@@ -3226,6 +3241,8 @@ function openMarketplaceHelper(item){
           box-sizing: border-box !important;
           margin: 0 !important;
           padding: 0 !important;
+          left: 0 !important;
+          top: 0 !important;
         }
         /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS y NO se salgan */
         .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
