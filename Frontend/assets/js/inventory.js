@@ -1532,8 +1532,8 @@ if (__ON_INV_PAGE__) {
                 `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
                 `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
                 `/* CRÍTICO: Asegurar que el texto del nombre ocupe TODO el espacio asignado y haga wrap correctamente */\n` +
-                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; justify-content: flex-start !important; align-items: flex-start !important;}\n` +
-                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 auto !important; min-height: 100% !important; height: 100% !important; overflow: hidden !important; display: block !important;}\n` +
+                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; justify-content: flex-start !important; align-items: flex-start !important; overflow: hidden !important;}\n` +
+                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 0% !important; min-height: 100% !important; height: 100% !important; overflow: visible !important; display: block !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
                 `/* Preservar estilos de fuente del texto */\n` +
                 `.st-el[data-id*="name"] *{font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; color: inherit !important;}\n` +
                 `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
@@ -1596,6 +1596,37 @@ if (__ON_INV_PAGE__) {
                 
                 // Forzar reflow para asegurar que el contenido se renderice
                 box.offsetHeight;
+                
+                // CRÍTICO: Forzar que el texto del nombre se expanda y haga wrap correctamente
+                (function forceTextWrap(rootEl) {
+                  const nameElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="name"]'));
+                  nameElements.forEach((nameEl) => {
+                    const innerDiv = nameEl.querySelector('div');
+                    if (innerDiv) {
+                      // Obtener las dimensiones del contenedor
+                      const containerStyle = window.getComputedStyle(nameEl);
+                      const containerHeight = parseFloat(containerStyle.height) || nameEl.offsetHeight || 0;
+                      const containerWidth = parseFloat(containerStyle.width) || nameEl.offsetWidth || 0;
+                      
+                      // Forzar que el div interno ocupe todo el espacio
+                      innerDiv.style.setProperty('width', '100%', 'important');
+                      innerDiv.style.setProperty('max-width', '100%', 'important');
+                      innerDiv.style.setProperty('min-height', `${containerHeight}px`, 'important');
+                      innerDiv.style.setProperty('height', 'auto', 'important');
+                      innerDiv.style.setProperty('white-space', 'normal', 'important');
+                      innerDiv.style.setProperty('word-wrap', 'break-word', 'important');
+                      innerDiv.style.setProperty('word-break', 'break-word', 'important');
+                      innerDiv.style.setProperty('overflow-wrap', 'break-word', 'important');
+                      innerDiv.style.setProperty('overflow', 'visible', 'important');
+                      innerDiv.style.setProperty('display', 'block', 'important');
+                      
+                      // Asegurar que el contenedor tenga overflow hidden
+                      nameEl.style.setProperty('overflow', 'hidden', 'important');
+                      
+                      console.log(`📝 Texto del nombre forzado a expandirse: contenedor ${containerWidth}px x ${containerHeight}px`);
+                    }
+                  });
+                })(box);
                 
                 // CRÍTICO: Ajustar posiciones de elementos de texto para evitar superposiciones
                 // Asegurar que los textos respeten sus dimensiones asignadas y no se superpongan
@@ -3157,8 +3188,8 @@ function openMarketplaceHelper(item){
                 `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
                 `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
                 `/* CRÍTICO: Asegurar que el texto del nombre ocupe TODO el espacio asignado y haga wrap correctamente */\n` +
-                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; justify-content: flex-start !important; align-items: flex-start !important;}\n` +
-                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 auto !important; min-height: 100% !important; height: 100% !important; overflow: hidden !important; display: block !important;}\n` +
+                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; justify-content: flex-start !important; align-items: flex-start !important; overflow: hidden !important;}\n` +
+                `.st-el[data-id*="name"] > div{width: 100% !important; max-width: 100% !important; flex: 1 1 0% !important; min-height: 100% !important; height: 100% !important; overflow: visible !important; display: block !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
                 `/* Preservar estilos de fuente del texto */\n` +
                 `.st-el[data-id*="name"] *{font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; color: inherit !important;}\n` +
                 `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
@@ -3231,6 +3262,37 @@ function openMarketplaceHelper(item){
               })(box);
               
               root.appendChild(box);
+              
+              // CRÍTICO: Forzar que el texto del nombre se expanda y haga wrap correctamente
+              (function forceTextWrap(rootEl) {
+                const nameElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="name"]'));
+                nameElements.forEach((nameEl) => {
+                  const innerDiv = nameEl.querySelector('div');
+                  if (innerDiv) {
+                    // Obtener las dimensiones del contenedor
+                    const containerStyle = window.getComputedStyle(nameEl);
+                    const containerHeight = parseFloat(containerStyle.height) || nameEl.offsetHeight || 0;
+                    const containerWidth = parseFloat(containerStyle.width) || nameEl.offsetWidth || 0;
+                    
+                    // Forzar que el div interno ocupe todo el espacio
+                    innerDiv.style.setProperty('width', '100%', 'important');
+                    innerDiv.style.setProperty('max-width', '100%', 'important');
+                    innerDiv.style.setProperty('min-height', `${containerHeight}px`, 'important');
+                    innerDiv.style.setProperty('height', 'auto', 'important');
+                    innerDiv.style.setProperty('white-space', 'normal', 'important');
+                    innerDiv.style.setProperty('word-wrap', 'break-word', 'important');
+                    innerDiv.style.setProperty('word-break', 'break-word', 'important');
+                    innerDiv.style.setProperty('overflow-wrap', 'break-word', 'important');
+                    innerDiv.style.setProperty('overflow', 'visible', 'important');
+                    innerDiv.style.setProperty('display', 'block', 'important');
+                    
+                    // Asegurar que el contenedor tenga overflow hidden
+                    nameEl.style.setProperty('overflow', 'hidden', 'important');
+                    
+                    console.log(`📝 Texto del nombre forzado a expandirse: contenedor ${containerWidth}px x ${containerHeight}px`);
+                  }
+                });
+              })(box);
               
               // Forzar reflow y verificar dimensiones
               box.offsetHeight;
