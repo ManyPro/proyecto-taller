@@ -2890,14 +2890,29 @@ function openMarketplaceHelper(item){
 
   // Ajusta dinámicamente el tamaño de fuente de los textos dentro del sticker
   // para que no se salgan de su cuadro (solo reduce, nunca aumenta).
+  // CRÍTICO: Cada elemento se procesa de forma COMPLETAMENTE INDEPENDIENTE
   async function autoFitStickerTexts(rootEl) {
     if (!rootEl) return;
 
     const candidates = rootEl.querySelectorAll('.st-el');
-    for (const wrapper of candidates) {
+    // CRÍTICO: Procesar cada elemento de forma INDEPENDIENTE
+    // Usar Promise.all para procesar en paralelo, pero cada uno de forma aislada
+    const promises = Array.from(candidates).map(async (wrapper) => {
       // Solo ajustar textos, no imágenes
       const hasImg = wrapper.querySelector('img');
-      if (hasImg) continue; // Cambiar return por continue para procesar todos los textos
+      if (hasImg) return; // Saltar imágenes
+      
+      // CRÍTICO: Crear un scope aislado para cada elemento
+      // Esto asegura que los cambios en un elemento NO afecten a otros
+      await processElementIndependently(wrapper);
+    });
+    
+    await Promise.all(promises);
+  }
+  
+  // CRÍTICO: Procesar cada elemento de forma completamente independiente
+  async function processElementIndependently(wrapper) {
+    try {
 
       // Obtener dimensiones absolutas del wrapper desde el estilo inline
       const wrapperStyle = window.getComputedStyle(wrapper);
@@ -3136,6 +3151,9 @@ function openMarketplaceHelper(item){
         void target.offsetHeight;
         void wrapper.offsetHeight;
       }
+    } catch (err) {
+      // Si hay un error procesando este elemento, continuar con los demás
+      console.warn('Error procesando elemento:', err);
     }
   }
 

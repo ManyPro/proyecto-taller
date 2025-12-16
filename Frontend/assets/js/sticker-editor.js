@@ -193,6 +193,10 @@
       if (!el || !el.id) return;
       const dom = canvas.querySelector(`.st-el[data-id="${el.id}"]`);
       if (!dom) return;
+      
+      // CRÍTICO: Solo sincronizar posición, tamaño y rotación desde el DOM
+      // NO sincronizar propiedades de estilo (fontSize, fontWeight, color, etc.)
+      // porque estas se actualizan directamente en el objeto el cuando el usuario las cambia en el panel
       const r = dom.getBoundingClientRect();
       const x = r.left - rectCanvas.left;
       const y = r.top - rectCanvas.top;
@@ -213,67 +217,9 @@
         }
       }
       
-      // CRÍTICO: Sincronizar propiedades de texto desde el DOM si es un elemento de texto
-      if (el.type === 'text') {
-        const computedStyle = window.getComputedStyle(dom);
-        const innerDiv = dom.querySelector('div');
-        const targetEl = innerDiv || dom;
-        const targetStyle = window.getComputedStyle(targetEl);
-        
-        // Sincronizar fontSize, fontWeight, color desde el estilo computado
-        const fs = parseFloat(targetStyle.fontSize);
-        if (fs && !isNaN(fs)) el.fontSize = Math.round(fs);
-        
-        const fw = targetStyle.fontWeight;
-        if (fw) el.fontWeight = fw;
-        
-        const col = targetStyle.color;
-        if (col && col !== 'rgba(0, 0, 0, 0)') {
-          // Convertir rgb/rgba a hex si es necesario
-          if (col.startsWith('rgb')) {
-            const rgb = col.match(/\d+/g);
-            if (rgb && rgb.length >= 3) {
-              const r = parseInt(rgb[0], 10).toString(16).padStart(2, '0');
-              const g = parseInt(rgb[1], 10).toString(16).padStart(2, '0');
-              const b = parseInt(rgb[2], 10).toString(16).padStart(2, '0');
-              el.color = `#${r}${g}${b}`;
-            }
-          } else if (col.startsWith('#')) {
-            el.color = col;
-          }
-        }
-        
-        // Sincronizar lineHeight
-        const lh = parseFloat(targetStyle.lineHeight);
-        if (lh && !isNaN(lh)) {
-          // Si lineHeight es relativo (sin px), calcular desde fontSize
-          if (lh < 10) {
-            el.lineHeight = lh; // Es un ratio
-          } else {
-            el.lineHeight = lh / (el.fontSize || 12); // Convertir a ratio
-          }
-        }
-        
-        // Sincronizar wrap: verificar si tiene estructura flex (wrap) o no
-        const display = computedStyle.display;
-        const flexDirection = computedStyle.flexDirection;
-        el.wrap = (display === 'flex' && flexDirection === 'column');
-      }
-      
-      // CRÍTICO: Sincronizar propiedades de imagen desde el DOM si es un elemento de imagen
-      if (el.type === 'image') {
-        const img = dom.querySelector('img');
-        if (img) {
-          const imgStyle = window.getComputedStyle(img);
-          const objectFit = imgStyle.objectFit || 'contain';
-          el.fit = objectFit;
-          
-          // Sincronizar URL si es una imagen externa
-          if (el.source === 'external' && img.src && !img.src.includes('data:image') && !img.src.includes('placeholder')) {
-            el.url = img.src;
-          }
-        }
-      }
+      // CRÍTICO: NO sincronizar propiedades de estilo desde el DOM
+      // Estas propiedades se mantienen del objeto el (que se actualiza cuando el usuario las cambia en el panel)
+      // Solo sincronizar posición, tamaño y rotación que pueden cambiar por drag/resize
     });
   }
 
