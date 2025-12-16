@@ -3930,7 +3930,30 @@ function openMarketplaceHelper(item){
                 console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
               }
               
-              images.push(canvas.toDataURL('image/png'));
+              // CRÍTICO: Guardar la imagen con sus dimensiones reales
+              // Obtener dimensiones del template antes de guardar
+              let stickerWidthCm = 5;
+              let stickerHeightCm = 3;
+              if (tpl.meta && tpl.meta.width) {
+                const parsedWidth = parseFloat(tpl.meta.width);
+                if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                  stickerWidthCm = parsedWidth;
+                }
+              }
+              if (tpl.meta && tpl.meta.height) {
+                const parsedHeight = parseFloat(tpl.meta.height);
+                if (!isNaN(parsedHeight) && parsedHeight > 0) {
+                  stickerHeightCm = parsedHeight;
+                }
+              }
+              
+              images.push({
+                data: canvas.toDataURL('image/png'),
+                width: canvas.width,
+                height: canvas.height,
+                targetWidthMm: stickerWidthCm * 10,
+                targetHeightMm: stickerHeightCm * 10
+              });
               root.removeChild(box);
             };
 
@@ -3979,7 +4002,12 @@ function openMarketplaceHelper(item){
             doc.internal.pageSize.setHeight(pdfHeightMm);
           }
           
-          images.forEach((src, idx) => {
+          // CRÍTICO: Eliminar márgenes de impresión también
+          if (doc.internal && doc.internal.pageMargins) {
+            doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+          }
+          
+          images.forEach((imgData, idx) => {
             if (idx > 0) {
               doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
               // Eliminar márgenes en páginas adicionales también
@@ -3987,9 +4015,25 @@ function openMarketplaceHelper(item){
                 doc.internal.pageSize.setWidth(pdfWidthMm);
                 doc.internal.pageSize.setHeight(pdfHeightMm);
               }
+              if (doc.internal && doc.internal.pageMargins) {
+                doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+              }
             }
+            
             // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
-            doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'SLOW');
+            // Si imgData es un objeto con dimensiones, usar esas dimensiones
+            const src = typeof imgData === 'string' ? imgData : imgData.data;
+            const targetW = typeof imgData === 'object' ? imgData.targetWidthMm : pdfWidthMm;
+            const targetH = typeof imgData === 'object' ? imgData.targetHeightMm : pdfHeightMm;
+            
+            // CRÍTICO: Insertar la imagen ocupando TODO el espacio de la página
+            doc.addImage(src, 'PNG', 0, 0, targetW, targetH, undefined, 'SLOW');
+            
+            // Log para debugging
+            if (idx === 0) {
+              console.log(`📄 Insertando imagen en PDF: ${targetW}mm x ${targetH}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
+              console.log(`📐 Dimensiones del canvas capturado: ${typeof imgData === 'object' ? `${imgData.width}x${imgData.height}` : 'N/A'}px`);
+            }
           });
           
           console.log(`📄 PDF generado con dimensiones exactas: ${pdfWidthMm}mm x ${pdfHeightMm}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
