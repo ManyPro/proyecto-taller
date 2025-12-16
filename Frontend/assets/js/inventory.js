@@ -2888,8 +2888,9 @@ function openMarketplaceHelper(item){
 
       // Obtener dimensiones absolutas del wrapper desde el estilo inline
       const wrapperStyle = window.getComputedStyle(wrapper);
-      const wrapperWidth = parseFloat(wrapperStyle.width) || wrapper.getBoundingClientRect().width;
-      const wrapperHeight = parseFloat(wrapperStyle.height) || wrapper.getBoundingClientRect().height;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const wrapperWidth = wrapperRect.width || parseFloat(wrapperStyle.width);
+      const wrapperHeight = wrapperRect.height || parseFloat(wrapperStyle.height);
       
       // Forzar overflow hidden y dimensiones absolutas en el wrapper
       wrapper.style.setProperty('overflow', 'hidden', 'important');
@@ -2906,63 +2907,78 @@ function openMarketplaceHelper(item){
       // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
       let target = wrapper.querySelector('div') || wrapper;
       
-      // Obtener dimensiones del target y forzar límites absolutos
+      // Obtener dimensiones del target desde el estilo inline o calcularlas
       const targetStyle = window.getComputedStyle(target);
-      const targetWidth = parseFloat(targetStyle.width) || wrapperWidth - 4; // Restar padding
-      const targetHeight = parseFloat(targetStyle.height) || wrapperHeight - 4;
+      let targetWidth = parseFloat(targetStyle.width);
+      let targetHeight = parseFloat(targetStyle.height);
       
-      // Forzar límites absolutos en el target (NO porcentajes)
+      // Si no tiene dimensiones absolutas, calcularlas desde el wrapper
+      if (!targetWidth || isNaN(targetWidth)) {
+        // El wrapper tiene padding de 2px, así que restamos 4px (2px cada lado)
+        targetWidth = wrapperWidth - 4;
+      }
+      if (!targetHeight || isNaN(targetHeight)) {
+        targetHeight = wrapperHeight - 4;
+      }
+      
+      // CRÍTICO: Forzar dimensiones absolutas en el target ANTES de verificar overflow
       target.style.setProperty('overflow', 'hidden', 'important');
       target.style.setProperty('word-wrap', 'break-word', 'important');
       target.style.setProperty('word-break', 'break-word', 'important');
       target.style.setProperty('overflow-wrap', 'break-word', 'important');
       target.style.setProperty('box-sizing', 'border-box', 'important');
+      target.style.setProperty('width', `${targetWidth}px`, 'important');
+      target.style.setProperty('max-width', `${targetWidth}px`, 'important');
+      target.style.setProperty('height', `${targetHeight}px`, 'important');
+      target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+      target.style.setProperty('white-space', 'normal', 'important');
+      target.style.setProperty('display', 'block', 'important');
       
-      // Si el target tiene width/height en px, usarlos; si no, usar las del wrapper menos padding
-      if (targetStyle.width && !targetStyle.width.includes('%')) {
-        target.style.setProperty('width', targetStyle.width, 'important');
-        target.style.setProperty('max-width', targetStyle.width, 'important');
-      } else {
-        target.style.setProperty('width', `${targetWidth}px`, 'important');
-        target.style.setProperty('max-width', `${targetWidth}px`, 'important');
-      }
-      if (targetStyle.height && !targetStyle.height.includes('%')) {
-        target.style.setProperty('height', targetStyle.height, 'important');
-        target.style.setProperty('max-height', targetStyle.height, 'important');
-      } else {
-        target.style.setProperty('height', `${targetHeight}px`, 'important');
-        target.style.setProperty('max-height', `${targetHeight}px`, 'important');
-      }
+      // Forzar reflow para que el navegador calcule las dimensiones correctamente
+      void target.offsetHeight;
+      void wrapper.offsetHeight;
       
       const style = window.getComputedStyle(target);
       let fontSize = parseFloat(style.fontSize || '0');
-      if (!fontSize || fontSize <= 0) return;
+      if (!fontSize || fontSize <= 0) {
+        // Si no tiene fontSize, intentar leerlo del elemento o usar un default
+        fontSize = parseFloat(targetStyle.fontSize) || 12;
+      }
 
       const minFont = 7; // px
-      const maxIterations = 30;
+      const maxIterations = 40; // Aumentado para más precisión
       let iter = 0;
 
       const fits = () => {
-        // Forzar recálculo de dimensiones
+        // Forzar recálculo de dimensiones después de cada cambio
         void wrapper.offsetHeight;
         void target.offsetHeight;
         
-        // Verificar overflow usando scrollHeight/scrollWidth vs clientHeight/clientWidth
-        const overflowsVert = target.scrollHeight > target.clientHeight + 1;
-        const overflowsHoriz = target.scrollWidth > target.clientWidth + 1;
+        // Obtener dimensiones actuales después del reflow
+        const targetRect = target.getBoundingClientRect();
+        const currentWidth = targetRect.width;
+        const currentHeight = targetRect.height;
+        
+        // Verificar overflow usando scrollHeight/scrollWidth vs las dimensiones asignadas
+        const overflowsVert = target.scrollHeight > currentHeight + 2; // Tolerancia de 2px
+        const overflowsHoriz = target.scrollWidth > currentWidth + 2;
         
         return !overflowsVert && !overflowsHoriz;
       };
+
+      // Aplicar el fontSize inicial
+      target.style.setProperty('font-size', `${fontSize}px`, 'important');
+      
+      // Forzar un reflow inicial
+      void target.offsetHeight;
 
       while (!fits() && fontSize > minFont && iter < maxIterations) {
         fontSize = Math.max(minFont, fontSize - 0.5);
         target.style.setProperty('font-size', `${fontSize}px`, 'important');
         iter += 1;
         
-        // Pequeña pausa para permitir reflow
-        if (iter % 5 === 0) {
-          void target.offsetHeight;
-        }
+        // Forzar reflow después de cada cambio de tamaño
+        void target.offsetHeight;
       }
     });
   }
@@ -3095,9 +3111,21 @@ function openMarketplaceHelper(item){
         wrapper.style.setProperty('box-sizing', 'border-box', 'important');
       }
       
-      // Ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
-      autoFitStickerTexts(box);
+      // CRÍTICO: Esperar a que el DOM se renderice completamente antes de ajustar textos
       root.appendChild(box);
+      
+      // Forzar un reflow para que el navegador calcule las dimensiones
+      void box.offsetHeight;
+      
+      // Esperar un frame para que el navegador termine de renderizar
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
+      // Ahora ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
+      autoFitStickerTexts(box);
+      
+      // Esperar otro frame después del ajuste para que los cambios se apliquen
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
       // eslint-disable-next-line no-await-in-loop
