@@ -12,7 +12,8 @@
       sku: 'SKU-0001',
       name: 'Producto de ejemplo',
       qr: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140"><rect width="140" height="140" fill="white"/><rect x="10" y="10" width="120" height="120" fill="black"/><rect x="20" y="20" width="100" height="100" fill="white"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="16" font-family="Arial">QR</text></svg>'
-    }
+    },
+    imageFileInput: null
   };
 
   function cmToPx(cm) {
@@ -164,6 +165,65 @@
     renderProperties();
   }
 
+  async function addExternalImageElement() {
+    // Crear input de archivo si no existe aún
+    if (!state.imageFileInput) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.id = 'sticker-image-file';
+      input.className = 'hidden';
+      document.body.appendChild(input);
+      state.imageFileInput = input;
+    }
+
+    const fileInput = state.imageFileInput;
+
+    return new Promise((resolve) => {
+      const onChange = async () => {
+        fileInput.removeEventListener('change', onChange);
+        const file = fileInput.files?.[0];
+        fileInput.value = '';
+        if (!file) {
+          return resolve();
+        }
+
+        try {
+          notify('Subiendo imagen...');
+          const uploadRes = await (window.API?.mediaUpload ? API.mediaUpload([file]) : null);
+          const uploaded = uploadRes && uploadRes.files && uploadRes.files[0];
+          if (!uploaded || !uploaded.url) {
+            throw new Error('No se pudo subir la imagen');
+          }
+
+          ensureLayout();
+          const nextId = `el-${Date.now()}-${++elementIdCounter}-${Math.random().toString(36).substr(2, 5)}`;
+          const base = { id: nextId, x: 12, y: 12, w: 110, h: 50, fontSize: 12, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'center' };
+          
+          // type:image + source:image + url directa al archivo subido
+          state.layout.elements.push({
+            ...base,
+            type: 'image',
+            source: 'image',
+            url: uploaded.url || uploaded.path || '',
+            fit: 'cover'
+          });
+
+          renderCanvas();
+          selectElement(nextId);
+        } catch (err) {
+          console.error(err);
+          notify('No se pudo subir la imagen', 'error');
+        } finally {
+          resolve();
+        }
+      };
+
+      fileInput.addEventListener('change', onChange, { once: true });
+      fileInput.click();
+    });
+  }
+
   function addElement(kind) {
     ensureLayout();
     // Generar ID único usando contador + timestamp + random para evitar colisiones
@@ -172,7 +232,11 @@
     if (kind === 'sku') state.layout.elements.push({ ...base, type: 'text', source: 'sku', fontWeight: '700', w: 110 });
     else if (kind === 'name') state.layout.elements.push({ ...base, type: 'text', source: 'name', h: 36, wrap: true, lineHeight: 1.1 });
     else if (kind === 'qr') state.layout.elements.push({ ...base, type: 'image', source: 'qr', w: 90, h: 90, fit: 'contain', x: cmToPx(5) - 100, y: 10 });
-    else if (kind === 'image') state.layout.elements.push({ ...base, type: 'image', source: 'item-image', w: 110, h: 50, fit: 'cover' });
+    else if (kind === 'image') {
+      // Para imagen externa, usar flujo de subida desde el computador
+      addExternalImageElement();
+      return;
+    }
     else if (kind === 'text') state.layout.elements.push({ ...base, type: 'text', source: 'custom', text: 'Texto', wrap: true });
     renderCanvas();
     selectElement(nextId);

@@ -2814,14 +2814,45 @@ function openMarketplaceHelper(item){
 
   // --- Nuevo motor de stickers 5cm x 3cm ---
   const STICKER_PX_PER_CM = 37.795275591;
+  // Layout por defecto que coincide con el del editor (sin imagen del item)
+  // Canvas: 5cm x 3cm = 189px x 113px aproximadamente
+  const canvasWidth = Math.round(5 * STICKER_PX_PER_CM); // ~189px
+  const canvasHeight = Math.round(3 * STICKER_PX_PER_CM); // ~113px
+  
+  // Márgenes del sticker
+  const margin = 6;
+  
+  // QR: a la derecha, ocupa la mayor parte del espacio vertical disponible
+  const qrW = 90; // Aumentado para que sea más grande
+  const qrH = 90; // Aumentado para que sea más grande
+  const qrX = canvasWidth - qrW - margin; // Alineado a la derecha con margen
+  const qrY = margin; // Alineado arriba con margen
+  
+  // Área de texto a la izquierda (sin superponerse con QR)
+  const textAreaX = margin;
+  const textAreaW = qrX - textAreaX - 4; // Espacio entre texto y QR: 4px
+  const textAreaY = margin;
+  const textAreaH = canvasHeight - (margin * 2); // Altura total menos márgenes
+  
+  // SKU: arriba izquierda, altura suficiente para permitir wrap si es necesario
+  const skuX = textAreaX;
+  const skuY = textAreaY;
+  const skuW = textAreaW;
+  const skuH = 24; // Altura aumentada para permitir 2 líneas si el SKU es largo
+  
+  // Nombre: debajo del SKU, ocupa el resto del espacio vertical disponible
+  const nameX = textAreaX;
+  const nameY = skuY + skuH + 8; // Espacio aumentado a 8px entre SKU y nombre para evitar superposición
+  const nameW = textAreaW;
+  const nameH = textAreaH - skuH - 8; // Resto del espacio vertical menos el espacio entre elementos
+  
   const STICKER_DEFAULT_LAYOUT = {
     widthCm: 5,
     heightCm: 3,
     elements: [
-      { id: 'sku', type: 'text', source: 'sku', x: 8, y: 8, w: 120, h: 22, fontSize: 14, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
-      { id: 'name', type: 'text', source: 'name', x: 8, y: 34, w: 120, h: 42, fontSize: 11, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.1 },
-      { id: 'qr', type: 'image', source: 'qr', x: 135, y: 6, w: 90, h: 90, fit: 'contain' },
-      { id: 'img', type: 'image', source: 'item-image', x: 8, y: 80, w: 120, h: 40, fit: 'cover' }
+      { id: 'sku', type: 'text', source: 'sku', x: skuX, y: skuY, w: skuW, h: skuH, fontSize: 11, fontWeight: '700', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.1 },
+      { id: 'name', type: 'text', source: 'name', x: nameX, y: nameY, w: nameW, h: nameH, fontSize: 9, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.2 },
+      { id: 'qr', type: 'image', source: 'qr', x: qrX, y: qrY, w: qrW, h: qrH, fit: 'contain' }
     ]
   };
 
