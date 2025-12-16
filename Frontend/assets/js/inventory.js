@@ -2931,6 +2931,19 @@ function openMarketplaceHelper(item){
         targetHeight = wrapperHeight - 4;
       }
       
+      // CRÍTICO: Forzar dimensiones absolutas en el wrapper para evitar expansión
+      wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
+      wrapper.style.setProperty('max-height', `${wrapperHeight}px`, 'important');
+      wrapper.style.setProperty('min-width', '0', 'important');
+      wrapper.style.setProperty('min-height', '0', 'important');
+      
+      // CRÍTICO: Forzar límites estrictos en el wrapper para evitar expansión
+      wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
+      wrapper.style.setProperty('max-height', `${wrapperHeight}px`, 'important');
+      wrapper.style.setProperty('min-width', '0', 'important');
+      wrapper.style.setProperty('min-height', '0', 'important');
+      wrapper.style.setProperty('position', 'absolute', 'important');
+      
       // CRÍTICO: Forzar dimensiones absolutas en el target ANTES de verificar overflow
       target.style.setProperty('overflow', 'hidden', 'important');
       target.style.setProperty('word-wrap', 'break-word', 'important');
@@ -2943,6 +2956,10 @@ function openMarketplaceHelper(item){
       target.style.setProperty('max-height', `${targetHeight}px`, 'important');
       target.style.setProperty('white-space', 'normal', 'important');
       target.style.setProperty('display', 'block', 'important');
+      target.style.setProperty('min-width', '0', 'important');
+      target.style.setProperty('min-height', '0', 'important');
+      target.style.setProperty('min-width', '0', 'important');
+      target.style.setProperty('min-height', '0', 'important');
       
       // Forzar reflow para que el navegador calcule las dimensiones correctamente
       void target.offsetHeight;
@@ -3087,7 +3104,7 @@ function openMarketplaceHelper(item){
           margin: 0 !important;
           padding: 0 !important;
         }
-        /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS, no porcentajes */
+        /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS y NO se salgan */
         .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
           overflow: hidden !important;
           white-space: normal !important;
@@ -3095,18 +3112,27 @@ function openMarketplaceHelper(item){
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           z-index: 1 !important;
-          /* NO usar width/height 100%, usar las dimensiones absolutas del elemento */
           box-sizing: border-box !important;
+          position: absolute !important;
+          /* CRÍTICO: NO permitir que se expanda más allá de sus límites definidos */
+          max-width: inherit !important;
+          max-height: inherit !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
         }
-        /* CRÍTICO: El div interno de texto también debe usar dimensiones absolutas */
+        /* CRÍTICO: El div interno de texto también debe usar dimensiones absolutas y NO escaparse */
         .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
           overflow: hidden !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           box-sizing: border-box !important;
-          /* NO permitir que se expanda más allá de su contenedor */
           display: block !important;
+          /* CRÍTICO: El contenido interno NO puede exceder el tamaño del contenedor */
+          max-width: 100% !important;
+          max-height: 100% !important;
+          width: 100% !important;
+          height: 100% !important;
         }
         /* CRÍTICO: Asegurar que SKU también tenga estructura flex si tiene wrap */
         .st-el[data-id*="sku"] {
@@ -3115,9 +3141,17 @@ function openMarketplaceHelper(item){
           justify-content: flex-start !important;
           align-items: flex-start !important;
         }
-        /* CRÍTICO: QR debe estar POR ENCIMA de textos */
+        /* CRÍTICO: Asegurar que nombre también tenga estructura flex */
+        .st-el[data-id*="name"] {
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: flex-start !important;
+          align-items: flex-start !important;
+        }
+        /* CRÍTICO: QR debe estar POR ENCIMA de textos y tener posición absoluta */
         .st-el[data-id*="qr"] {
           z-index: 10 !important;
+          position: absolute !important;
         }
         .st-el[data-id*="qr"] img {
           width: 100% !important;
@@ -3130,6 +3164,18 @@ function openMarketplaceHelper(item){
         /* Otras imágenes también deben respetar límites */
         .st-el[type="image"]:not([data-id*="qr"]) {
           z-index: 2 !important;
+          position: absolute !important;
+        }
+        /* CRÍTICO: Todos los elementos deben tener position absolute explícita y NO expandirse */
+        .st-el {
+          position: absolute !important;
+          /* Asegurar que NO se expandan más allá de sus límites definidos */
+          box-sizing: border-box !important;
+        }
+        /* CRÍTICO: El contenido de texto NO puede escaparse del contenedor */
+        .st-el[data-id*="sku"] *, .st-el[data-id*="name"] *, .st-el[data-id*="custom"] * {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
         }
       `;
       box.appendChild(style);
