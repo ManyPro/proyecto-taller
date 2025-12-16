@@ -3373,8 +3373,20 @@ function openMarketplaceHelper(item){
       const expectedCanvasHeight = Math.round(heightPx * scale);
       if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
         console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
+        // Si las dimensiones no coinciden, ajustar
+        console.log(`📐 Ajustando: Canvas=${canvas.width}x${canvas.height}, Esperado=${expectedCanvasWidth}x${expectedCanvasHeight}, widthPx=${widthPx}, heightPx=${heightPx}, widthMm=${widthMm}, heightMm=${heightMm}`);
       }
-      images.push(canvas.toDataURL('image/png'));
+      
+      // CRÍTICO: Guardar la imagen con sus dimensiones reales
+      // La imagen tiene dimensiones canvas.width x canvas.height en píxeles
+      // Pero debe insertarse en el PDF con dimensiones widthMm x heightMm en mm
+      images.push({
+        data: canvas.toDataURL('image/png'),
+        width: canvas.width,
+        height: canvas.height,
+        targetWidthMm: widthMm,
+        targetHeightMm: heightMm
+      });
       root.removeChild(box);
     }
     document.body.removeChild(root);
@@ -3394,7 +3406,7 @@ function openMarketplaceHelper(item){
       doc.internal.pageSize.setHeight(heightMm);
     }
     
-    images.forEach((src, idx) => {
+    images.forEach((imgData, idx) => {
       if (idx > 0) {
         doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
         // Eliminar márgenes en páginas adicionales también
@@ -3403,8 +3415,21 @@ function openMarketplaceHelper(item){
           doc.internal.pageSize.setHeight(heightMm);
         }
       }
+      
       // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
-      doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'SLOW');
+      // Si imgData es un objeto con dimensiones, usar esas dimensiones
+      const src = typeof imgData === 'string' ? imgData : imgData.data;
+      const targetW = typeof imgData === 'object' ? imgData.targetWidthMm : widthMm;
+      const targetH = typeof imgData === 'object' ? imgData.targetHeightMm : heightMm;
+      
+      // CRÍTICO: Insertar la imagen ocupando TODO el espacio de la página
+      doc.addImage(src, 'PNG', 0, 0, targetW, targetH, undefined, 'SLOW');
+      
+      // Log para debugging
+      if (idx === 0) {
+        console.log(`📄 Insertando imagen en PDF: ${targetW}mm x ${targetH}mm (${widthCm}cm x ${heightCm}cm)`);
+        console.log(`📐 Dimensiones del canvas capturado: ${typeof imgData === 'object' ? `${imgData.width}x${imgData.height}` : 'N/A'}px`);
+      }
     });
     doc.save(`${filenameBase}.pdf`);
   }
