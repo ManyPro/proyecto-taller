@@ -3049,7 +3049,41 @@ function openMarketplaceHelper(item){
       
       // Forzar un reflow inicial
       void target.offsetHeight;
+      void wrapper.offsetHeight;
+      
+      // CRÍTICO: Verificar primero si hay overflow antes de reducir
+      // Cada elemento se procesa de forma INDEPENDIENTE
+      const targetRect = target.getBoundingClientRect();
+      const scrollWidth = target.scrollWidth;
+      const scrollHeight = target.scrollHeight;
+      const computedStyle = window.getComputedStyle(target);
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+      const availableWidth = targetRect.width - paddingLeft - paddingRight;
+      const availableHeight = targetRect.height - paddingTop - paddingBottom;
+      
+      const hasOverflow = scrollWidth > availableWidth + 1 || scrollHeight > availableHeight + 1;
+      
+      // Si NO hay overflow, NO reducir el tamaño - solo asegurar que ocupe el espacio vertical
+      if (!hasOverflow) {
+        // CRÍTICO: Asegurar que el texto ocupe todo el espacio vertical disponible
+        // Si el contenido es menor al 90% del espacio disponible, ajustar line-height para expandirlo
+        if (scrollHeight < availableHeight * 0.9) {
+          // Aumentar ligeramente el line-height para que el texto ocupe más espacio vertical
+          const newLineHeight = Math.min(fontSize * 1.5, availableHeight / (scrollHeight / lineHeight || 1));
+          if (newLineHeight > lineHeight) {
+            lineHeight = newLineHeight;
+            target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+            void target.offsetHeight;
+          }
+        }
+        // Si no hay overflow, no hacer nada más - mantener el tamaño original
+        continue; // Pasar al siguiente elemento
+      }
 
+      // Solo si hay overflow, proceder con la reducción
       while (!fits() && fontSize > minFont && iter < maxIterations) {
         // CRÍTICO: Reducir fontSize más agresivamente si el overflow es grande
         // Si el overflow es muy grande, reducir más rápido
