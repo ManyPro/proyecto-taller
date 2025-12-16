@@ -3036,7 +3036,11 @@ function openMarketplaceHelper(item){
         const overflowsHorizStrict = scrollWidth > availableWidth + 1;
         const overflowsVertStrict = scrollHeight > availableHeight + 1;
         
-        return !overflowsVert && !overflowsHoriz && !overflowsHorizStrict && !overflowsVertStrict;
+        // CRÍTICO: Si no hay overflow, el texto debe ocupar todo el espacio vertical disponible
+        // Verificar que el contenido esté usando al menos el 90% del espacio vertical disponible
+        const usesVerticalSpace = scrollHeight >= availableHeight * 0.9 || !overflowsVertStrict;
+        
+        return !overflowsVert && !overflowsHoriz && !overflowsHorizStrict && !overflowsVertStrict && usesVerticalSpace;
       };
 
       // Aplicar el fontSize y lineHeight iniciales
