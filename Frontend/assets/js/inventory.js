@@ -3331,18 +3331,31 @@ function openMarketplaceHelper(item){
       
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
+      // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
+      // El canvas resultante será widthPx * scale x heightPx * scale
+      const scale = 3;
       // eslint-disable-next-line no-await-in-loop
       const canvas = await html2canvas(box, {
         width: widthPx,
         height: heightPx,
         backgroundColor: '#ffffff',
-        scale: 3,
+        scale: scale,
         windowWidth: widthPx,
         windowHeight: heightPx,
         useCORS: true,
         allowTaint: false,
-        logging: false
+        logging: false,
+        // CRÍTICO: Asegurar que no haya escalado adicional
+        scaleX: 1,
+        scaleY: 1
       });
+      
+      // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
+      const expectedCanvasWidth = Math.round(widthPx * scale);
+      const expectedCanvasHeight = Math.round(heightPx * scale);
+      if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
+        console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
+      }
       images.push(canvas.toDataURL('image/png'));
       root.removeChild(box);
     }
