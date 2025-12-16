@@ -3068,11 +3068,22 @@ function openMarketplaceHelper(item){
         
         // Forzar reflow después de cada cambio de tamaño
         void target.offsetHeight;
+        void wrapper.offsetHeight;
         
         // Pequeña pausa cada 10 iteraciones para permitir renderizado
         if (iter % 10 === 0) {
           await new Promise(resolve => setTimeout(resolve, 1));
         }
+      }
+      
+      // CRÍTICO: Si después de todas las iteraciones aún no cabe, forzar tamaño mínimo
+      if (!fits() && fontSize > minFont) {
+        fontSize = minFont;
+        lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
+        target.style.setProperty('font-size', `${fontSize}px`, 'important');
+        target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+        void target.offsetHeight;
+        void wrapper.offsetHeight;
       }
     }
   }
@@ -3176,6 +3187,13 @@ function openMarketplaceHelper(item){
           max-height: 100% !important;
           width: 100% !important;
           height: 100% !important;
+          /* CRÍTICO: Forzar que las letras no se amontonen - usar letter-spacing si es necesario */
+          letter-spacing: normal !important;
+          text-rendering: optimizeLegibility !important;
+          /* CRÍTICO: Asegurar que el texto se ajuste correctamente sin superposiciones */
+          hyphens: auto !important;
+          -webkit-hyphens: auto !important;
+          -moz-hyphens: auto !important;
         }
         /* CRÍTICO: Asegurar que SKU también tenga estructura flex si tiene wrap */
         .st-el[data-id*="sku"] {
