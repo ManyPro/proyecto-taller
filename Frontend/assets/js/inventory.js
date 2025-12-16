@@ -3108,7 +3108,7 @@ function openMarketplaceHelper(item){
           }
         }
         // Si no hay overflow, no hacer nada más - mantener el tamaño original
-        continue; // Pasar al siguiente elemento
+        return; // Terminar procesamiento de este elemento
       }
 
       // Solo si hay overflow, proceder con la reducción
