@@ -3312,24 +3312,23 @@ function openMarketplaceHelper(item){
       `;
       box.appendChild(style);
       
-      // CRÍTICO: Convertir wrapper de cm a px y forzar dimensiones exactas
+      // CRÍTICO: Forzar dimensiones exactas en el wrapper y asegurar que ocupe TODO el espacio del box
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
-        const wrapperStyle = window.getComputedStyle(wrapper);
-        // Si el wrapper tiene dimensiones en cm o cualquier otra unidad, forzar px
-        if (wrapperStyle.width.includes('cm') || wrapperStyle.height.includes('cm') || 
-            wrapperStyle.width.includes('%') || wrapperStyle.height.includes('%')) {
-          wrapper.style.setProperty('width', `${widthPx}px`, 'important');
-          wrapper.style.setProperty('height', `${heightPx}px`, 'important');
-          wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
-          wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
-          wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
-          wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
+        // CRÍTICO: Forzar dimensiones exactas iguales al box
+        wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important;`;
+        
+        // CRÍTICO: Verificar que el wrapper tenga las dimensiones correctas
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const boxRect = box.getBoundingClientRect();
+        if (Math.abs(wrapperRect.width - widthPx) > 1 || Math.abs(wrapperRect.height - heightPx) > 1) {
+          console.warn(`⚠️ Wrapper tiene dimensiones incorrectas: ${wrapperRect.width}x${wrapperRect.height}, esperado: ${widthPx}x${heightPx}`);
         }
-        // Asegurar que no haya padding/margin que cause espacios en blanco
-        wrapper.style.setProperty('margin', '0', 'important');
-        wrapper.style.setProperty('padding', '0', 'important');
-        wrapper.style.setProperty('box-sizing', 'border-box', 'important');
+        if (Math.abs(boxRect.width - widthPx) > 1 || Math.abs(boxRect.height - heightPx) > 1) {
+          console.warn(`⚠️ Box tiene dimensiones incorrectas: ${boxRect.width}x${boxRect.height}, esperado: ${widthPx}x${heightPx}`);
+        }
+      } else {
+        console.warn('⚠️ No se encontró .sticker-wrapper en el HTML');
       }
       
       // CRÍTICO: Esperar a que el DOM se renderice completamente antes de ajustar textos
