@@ -1593,7 +1593,7 @@ if (__ON_INV_PAGE__) {
                 
                 // Forzar reflow para asegurar que el contenido se renderice
                 box.offsetHeight;
-                
+
                 // CRÍTICO: Forzar que el texto del nombre se expanda y haga wrap correctamente
                 (function forceTextWrap(rootEl) {
                   const nameElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="name"]'));
@@ -3191,11 +3191,16 @@ function openMarketplaceHelper(item){
     if (!htmls.length) throw new Error('No se pudieron renderizar los stickers.');
 
     // CRÍTICO: Calcular dimensiones exactas en píxeles y milímetros
-    const widthPx = Math.round(widthCm * STICKER_PX_PER_CM);
-    const heightPx = Math.round(heightCm * STICKER_PX_PER_CM);
-    // Convertir cm a mm (1cm = 10mm)
-    const widthMm = Math.round(widthCm * 10 * 100) / 100; // Redondear a 2 decimales
-    const heightMm = Math.round(heightCm * 10 * 100) / 100;
+    // Asegurar que widthCm y heightCm sean exactamente 5 y 3
+    const finalWidthCm = widthCm || 5;
+    const finalHeightCm = heightCm || 3;
+    const widthPx = Math.round(finalWidthCm * STICKER_PX_PER_CM);
+    const heightPx = Math.round(finalHeightCm * STICKER_PX_PER_CM);
+    // Convertir cm a mm (1cm = 10mm) - usar valores exactos
+    const widthMm = finalWidthCm * 10; // 50mm para 5cm
+    const heightMm = finalHeightCm * 10; // 30mm para 3cm
+    
+    console.log(`📐 Dimensiones calculadas: widthCm=${finalWidthCm}, heightCm=${finalHeightCm}, widthPx=${widthPx}, heightPx=${heightPx}, widthMm=${widthMm}, heightMm=${heightMm}`);
 
     const html2canvas = await ensureHtml2Canvas();
     const jsPDF = await ensureJsPDF();
@@ -3329,30 +3334,24 @@ function openMarketplaceHelper(item){
       `;
       box.appendChild(style);
       
-      // CRÍTICO: Forzar dimensiones exactas en el wrapper y asegurar que ocupe TODO el espacio del box
+      // CRÍTICO: Añadir al DOM PRIMERO para que tenga dimensiones
+      root.appendChild(box);
+      
+      // CRÍTICO: Forzar dimensiones exactas en el box DESPUÉS de añadirlo al DOM
+      box.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; background: #fff !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; display: block !important;`;
+      
+      // CRÍTICO: Forzar dimensiones exactas en el wrapper DESPUÉS de añadir al DOM
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
         // CRÍTICO: Forzar dimensiones exactas iguales al box
         wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important;`;
-        
-        // CRÍTICO: Verificar que el wrapper tenga las dimensiones correctas
-        const wrapperRect = wrapper.getBoundingClientRect();
-        const boxRect = box.getBoundingClientRect();
-        if (Math.abs(wrapperRect.width - widthPx) > 1 || Math.abs(wrapperRect.height - heightPx) > 1) {
-          console.warn(`⚠️ Wrapper tiene dimensiones incorrectas: ${wrapperRect.width}x${wrapperRect.height}, esperado: ${widthPx}x${heightPx}`);
-        }
-        if (Math.abs(boxRect.width - widthPx) > 1 || Math.abs(boxRect.height - heightPx) > 1) {
-          console.warn(`⚠️ Box tiene dimensiones incorrectas: ${boxRect.width}x${boxRect.height}, esperado: ${widthPx}x${heightPx}`);
-        }
       } else {
-        console.warn('⚠️ No se encontró .sticker-wrapper en el HTML');
+        console.error('❌ No se encontró .sticker-wrapper en el HTML');
       }
-      
-      // CRÍTICO: Esperar a que el DOM se renderice completamente antes de ajustar textos
-      root.appendChild(box);
       
       // Forzar un reflow para que el navegador calcule las dimensiones
       void box.offsetHeight;
+      void wrapper?.offsetHeight;
       
       // Esperar un frame para que el navegador termine de renderizar
       await new Promise(resolve => requestAnimationFrame(resolve));
