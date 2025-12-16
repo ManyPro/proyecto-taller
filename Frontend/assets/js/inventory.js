@@ -3236,6 +3236,13 @@ function openMarketplaceHelper(item){
           margin: 0 !important;
           padding: 0 !important;
           display: block !important;
+          transform: none !important;
+          zoom: 1 !important;
+          scale: 1 !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
         }
         .sticker-wrapper {
           position: relative !important;
@@ -3251,6 +3258,13 @@ function openMarketplaceHelper(item){
           padding: 0 !important;
           left: 0 !important;
           top: 0 !important;
+          transform: none !important;
+          zoom: 1 !important;
+          scale: 1 !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
         }
         /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS y NO se salgan */
         .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
