@@ -3385,10 +3385,10 @@ function openMarketplaceHelper(item){
       });
       
       // CRÍTICO: Verificar dimensiones ANTES de capturar
-      const boxRect = box.getBoundingClientRect();
-      const wrapper = box.querySelector('.sticker-wrapper');
-      const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : null;
-      console.log(`📐 ANTES de capturar - Box: ${boxRect.width}x${boxRect.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRect ? `${wrapperRect.width}x${wrapperRect.height}px` : 'no encontrado'}`);
+      const boxRectBefore = box.getBoundingClientRect();
+      const wrapperBefore = box.querySelector('.sticker-wrapper');
+      const wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
+      console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
       
       // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
       const expectedCanvasWidth = Math.round(widthPx * scale);
