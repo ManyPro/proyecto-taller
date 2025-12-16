@@ -120,7 +120,8 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'display:flex',
           'flex-direction:column',
           `align-items:${align === 'flex-end' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'}`,
-          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'center' : 'flex-start'}`,
+          // Para el nombre, usar flex-start en justify-content para que el texto comience arriba pero se expanda
+          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'flex-start' : 'flex-start'}`,
           'padding:2px',
           'margin:0',
           'width:100%',
@@ -142,13 +143,13 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'width:100% !important',
           'max-width:100% !important',
           'flex:1 1 auto',
+          'min-height:100%',
           'margin:0',
           'padding:0',
           'box-sizing:border-box',
           'overflow:hidden',
           'display:block',
           'min-width:0',
-          'min-height:0',
           'text-align:left'
         ];
         htmlParts.push(
