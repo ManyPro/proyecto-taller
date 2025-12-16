@@ -2882,31 +2882,59 @@ function openMarketplaceHelper(item){
 
     const candidates = rootEl.querySelectorAll('.st-el');
     candidates.forEach((wrapper) => {
-      // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
-      // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
-      let target = wrapper.querySelector('div') || wrapper;
-      const style = window.getComputedStyle(target);
-      let fontSize = parseFloat(style.fontSize || '0');
-      if (!fontSize || fontSize <= 0) return;
-
       // Solo ajustar textos, no imágenes
       const hasImg = wrapper.querySelector('img');
       if (hasImg) return;
 
+      // Forzar overflow hidden en el wrapper
+      wrapper.style.setProperty('overflow', 'hidden', 'important');
+      wrapper.style.setProperty('max-width', '100%', 'important');
+      wrapper.style.setProperty('max-height', '100%', 'important');
+
+      // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
+      // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
+      let target = wrapper.querySelector('div') || wrapper;
+      
+      // Forzar límites en el target también
+      target.style.setProperty('max-width', '100%', 'important');
+      target.style.setProperty('max-height', '100%', 'important');
+      target.style.setProperty('overflow', 'hidden', 'important');
+      target.style.setProperty('word-wrap', 'break-word', 'important');
+      target.style.setProperty('word-break', 'break-word', 'important');
+      target.style.setProperty('overflow-wrap', 'break-word', 'important');
+      
+      const style = window.getComputedStyle(target);
+      let fontSize = parseFloat(style.fontSize || '0');
+      if (!fontSize || fontSize <= 0) return;
+
       const minFont = 7; // px
-      const maxIterations = 20;
+      const maxIterations = 30; // Aumentado para más precisión
       let iter = 0;
 
       const fits = () => {
-        const overflowsVert = target.scrollHeight - 1 > target.clientHeight;
-        const overflowsHoriz = target.scrollWidth - 1 > target.clientWidth;
+        // Forzar recálculo de dimensiones
+        void wrapper.offsetHeight;
+        void target.offsetHeight;
+        
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        
+        // Verificar que el contenido no se salga del wrapper
+        const overflowsVert = target.scrollHeight > wrapperRect.height + 1;
+        const overflowsHoriz = target.scrollWidth > wrapperRect.width + 1;
+        
         return !overflowsVert && !overflowsHoriz;
       };
 
       while (!fits() && fontSize > minFont && iter < maxIterations) {
-        fontSize -= 0.5;
-        target.style.fontSize = `${fontSize}px`;
+        fontSize = Math.max(minFont, fontSize - 0.5);
+        target.style.setProperty('font-size', `${fontSize}px`, 'important');
         iter += 1;
+        
+        // Pequeña pausa para permitir reflow
+        if (iter % 5 === 0) {
+          void target.offsetHeight;
+        }
       }
     });
   }
@@ -2962,6 +2990,77 @@ function openMarketplaceHelper(item){
       box.className = 'sticker-capture';
       box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
       box.innerHTML = html;
+      
+      // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
+      const style = document.createElement('style');
+      style.textContent = `
+        .sticker-wrapper {
+          position: relative !important;
+          width: ${widthPx}px !important;
+          height: ${heightPx}px !important;
+          max-width: ${widthPx}px !important;
+          max-height: ${heightPx}px !important;
+          min-width: ${widthPx}px !important;
+          min-height: ${heightPx}px !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        /* CRÍTICO: Forzar que los textos NO se salgan de su cuadro asignado */
+        .st-el[data-id*="sku"], .st-el[data-id*="name"] {
+          overflow: hidden !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          white-space: normal !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          z-index: 1 !important;
+        }
+        /* CRÍTICO: El div interno de texto también debe respetar límites */
+        .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div {
+          max-width: 100% !important;
+          max-height: 100% !important;
+          overflow: hidden !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+        }
+        /* CRÍTICO: QR debe estar POR ENCIMA de textos */
+        .st-el[data-id*="qr"] {
+          z-index: 10 !important;
+        }
+        .st-el[data-id*="qr"] img {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain !important;
+          display: block !important;
+        }
+        /* Otras imágenes también deben respetar límites */
+        .st-el[type="image"]:not([data-id*="qr"]) {
+          z-index: 2 !important;
+        }
+      `;
+      box.appendChild(style);
+      
+      // Convertir wrapper de cm a px si es necesario
+      const wrapper = box.querySelector('.sticker-wrapper');
+      if (wrapper) {
+        const wrapperStyle = window.getComputedStyle(wrapper);
+        // Si el wrapper tiene dimensiones en cm, convertirlas a px
+        if (wrapperStyle.width.includes('cm') || wrapperStyle.height.includes('cm')) {
+          wrapper.style.width = `${widthPx}px`;
+          wrapper.style.height = `${heightPx}px`;
+          wrapper.style.maxWidth = `${widthPx}px`;
+          wrapper.style.maxHeight = `${heightPx}px`;
+          wrapper.style.minWidth = `${widthPx}px`;
+          wrapper.style.minHeight = `${heightPx}px`;
+        }
+      }
+      
       // Ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
       autoFitStickerTexts(box);
       root.appendChild(box);

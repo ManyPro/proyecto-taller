@@ -132,6 +132,16 @@
     const canvas = getCanvas();
     if (!canvas || !state.layout || !Array.isArray(state.layout.elements)) return;
 
+    // Sincronizar dimensiones del canvas también
+    const canvasRect = canvas.getBoundingClientRect();
+    const canvasWidthPx = canvasRect.width;
+    const canvasHeightPx = canvasRect.height;
+    // Convertir px a cm para guardar
+    const canvasWidthCm = canvasWidthPx / PX_PER_CM;
+    const canvasHeightCm = canvasHeightPx / PX_PER_CM;
+    if (Number.isFinite(canvasWidthCm) && canvasWidthCm > 0) state.layout.widthCm = canvasWidthCm;
+    if (Number.isFinite(canvasHeightCm) && canvasHeightCm > 0) state.layout.heightCm = canvasHeightCm;
+
     const rectCanvas = canvas.getBoundingClientRect();
     state.layout.elements.forEach((el) => {
       if (!el || !el.id) return;

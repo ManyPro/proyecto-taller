@@ -29,11 +29,17 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
   const widthCm = Number(rawMeta.width) || Number(layout.widthCm) || Number(layout.width) || 5;
   const heightCm = Number(rawMeta.height) || Number(layout.heightCm) || Number(layout.height) || 3;
 
+  // Convertir cm a px para el wrapper (1cm = 37.795275591px)
+  const PX_PER_CM = 37.795275591;
+  const widthPx = Math.round(widthCm * PX_PER_CM);
+  const heightPx = Math.round(heightCm * PX_PER_CM);
+
   const safe = (v) => (v === undefined || v === null ? '' : String(v));
 
   const htmlParts = [];
+  // CRÍTICO: Usar píxeles en lugar de cm para que coincida exactamente con el canvas
   htmlParts.push(
-    `<div class="sticker-wrapper" style="position:relative;width:${widthCm}cm;height:${heightCm}cm;box-sizing:border-box;overflow:hidden;background:#ffffff;">`
+    `<div class="sticker-wrapper" style="position:relative;width:${widthPx}px;height:${heightPx}px;max-width:${widthPx}px;max-height:${heightPx}px;min-width:${widthPx}px;min-height:${heightPx}px;box-sizing:border-box;overflow:hidden;background:#ffffff;">`
   );
 
   for (const el of elements) {
