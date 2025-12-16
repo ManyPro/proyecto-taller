@@ -2884,7 +2884,7 @@ function openMarketplaceHelper(item){
     for (const wrapper of candidates) {
       // Solo ajustar textos, no imágenes
       const hasImg = wrapper.querySelector('img');
-      if (hasImg) return;
+      if (hasImg) continue; // Cambiar return por continue para procesar todos los textos
 
       // Obtener dimensiones absolutas del wrapper desde el estilo inline
       const wrapperStyle = window.getComputedStyle(wrapper);
@@ -2905,7 +2905,17 @@ function openMarketplaceHelper(item){
 
       // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
       // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
-      let target = wrapper.querySelector('div') || wrapper;
+      // CRÍTICO: Para SKU y nombre, siempre buscar el div interno primero
+      let target = wrapper.querySelector('div');
+      // Si no hay div interno (texto sin wrap), usar el wrapper mismo pero asegurar que tenga las propiedades correctas
+      if (!target) {
+        target = wrapper;
+        // Si es el wrapper directo, asegurar que tenga las propiedades de texto
+        target.style.setProperty('white-space', 'normal', 'important');
+        target.style.setProperty('word-wrap', 'break-word', 'important');
+        target.style.setProperty('word-break', 'break-word', 'important');
+        target.style.setProperty('overflow-wrap', 'break-word', 'important');
+      }
       
       // Obtener dimensiones del target desde el estilo inline o calcularlas
       const targetStyle = window.getComputedStyle(target);
@@ -3078,7 +3088,7 @@ function openMarketplaceHelper(item){
           padding: 0 !important;
         }
         /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS, no porcentajes */
-        .st-el[data-id*="sku"], .st-el[data-id*="name"] {
+        .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
           overflow: hidden !important;
           white-space: normal !important;
           word-wrap: break-word !important;
@@ -3089,7 +3099,7 @@ function openMarketplaceHelper(item){
           box-sizing: border-box !important;
         }
         /* CRÍTICO: El div interno de texto también debe usar dimensiones absolutas */
-        .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div {
+        .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
           overflow: hidden !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
@@ -3097,6 +3107,13 @@ function openMarketplaceHelper(item){
           box-sizing: border-box !important;
           /* NO permitir que se expanda más allá de su contenedor */
           display: block !important;
+        }
+        /* CRÍTICO: Asegurar que SKU también tenga estructura flex si tiene wrap */
+        .st-el[data-id*="sku"] {
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: flex-start !important;
+          align-items: flex-start !important;
         }
         /* CRÍTICO: QR debe estar POR ENCIMA de textos */
         .st-el[data-id*="qr"] {
