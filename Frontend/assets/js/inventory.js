@@ -1853,10 +1853,23 @@ if (__ON_INV_PAGE__) {
               compress: false
             });
             
+            // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
+            doc.setPage(1);
+            if (doc.internal && doc.internal.pageSize) {
+              doc.internal.pageSize.setWidth(pdfWidthMm);
+              doc.internal.pageSize.setHeight(pdfHeightMm);
+            }
+            
             images.forEach((src, idx) => {
-              if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
-              // Insertar la imagen con las dimensiones físicas exactas del sticker
-              // Usar 'SLOW' en lugar de 'FAST' para mejor calidad de compresión
+              if (idx > 0) {
+                doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
+                // Eliminar márgenes en páginas adicionales también
+                if (doc.internal && doc.internal.pageSize) {
+                  doc.internal.pageSize.setWidth(pdfWidthMm);
+                  doc.internal.pageSize.setHeight(pdfHeightMm);
+                }
+              }
+              // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
               doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'SLOW');
             });
             
@@ -3069,10 +3082,12 @@ function openMarketplaceHelper(item){
     const htmls = results.filter((h) => h && h.trim());
     if (!htmls.length) throw new Error('No se pudieron renderizar los stickers.');
 
+    // CRÍTICO: Calcular dimensiones exactas en píxeles y milímetros
     const widthPx = Math.round(widthCm * STICKER_PX_PER_CM);
     const heightPx = Math.round(heightCm * STICKER_PX_PER_CM);
-    const widthMm = widthCm * 10;
-    const heightMm = heightCm * 10;
+    // Convertir cm a mm (1cm = 10mm)
+    const widthMm = Math.round(widthCm * 10 * 100) / 100; // Redondear a 2 decimales
+    const heightMm = Math.round(heightCm * 10 * 100) / 100;
 
     const html2canvas = await ensureHtml2Canvas();
     const jsPDF = await ensureJsPDF();
@@ -3234,14 +3249,31 @@ function openMarketplaceHelper(item){
     }
     document.body.removeChild(root);
 
+    // CRÍTICO: Crear PDF con dimensiones exactas, sin márgenes
     const doc = new jsPDF({
       orientation: widthMm > heightMm ? 'landscape' : 'portrait',
       unit: 'mm',
       format: [widthMm, heightMm],
       compress: false
     });
+    
+    // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
+    doc.setPage(1);
+    if (doc.internal && doc.internal.pageSize) {
+      doc.internal.pageSize.setWidth(widthMm);
+      doc.internal.pageSize.setHeight(heightMm);
+    }
+    
     images.forEach((src, idx) => {
-      if (idx > 0) doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
+      if (idx > 0) {
+        doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
+        // Eliminar márgenes en páginas adicionales también
+        if (doc.internal && doc.internal.pageSize) {
+          doc.internal.pageSize.setWidth(widthMm);
+          doc.internal.pageSize.setHeight(heightMm);
+        }
+      }
+      // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
       doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'SLOW');
     });
     doc.save(`${filenameBase}.pdf`);
@@ -3785,11 +3817,23 @@ function openMarketplaceHelper(item){
             compress: false
           });
           
+          // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
+          doc.setPage(1);
+          if (doc.internal && doc.internal.pageSize) {
+            doc.internal.pageSize.setWidth(pdfWidthMm);
+            doc.internal.pageSize.setHeight(pdfHeightMm);
+          }
+          
           images.forEach((src, idx) => {
-            if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
-            // CRÍTICO: Insertar imagen con dimensiones exactas
-            // Usar 'SLOW' en lugar de 'FAST' para mejor calidad de compresión
-            // La imagen ya tiene alta resolución (scale 3), así que se inserta sin escalado adicional
+            if (idx > 0) {
+              doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
+              // Eliminar márgenes en páginas adicionales también
+              if (doc.internal && doc.internal.pageSize) {
+                doc.internal.pageSize.setWidth(pdfWidthMm);
+                doc.internal.pageSize.setHeight(pdfHeightMm);
+              }
+            }
+            // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
             doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'SLOW');
           });
           

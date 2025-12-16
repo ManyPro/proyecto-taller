@@ -66,10 +66,56 @@
   function normalizeLayout(raw) {
     const base = defaultLayout();
     if (!raw || typeof raw !== 'object') return base;
-    const out = Object.assign({}, base, raw);
-    if (!Array.isArray(out.elements) || !out.elements.length) {
+    
+    // Preservar widthCm y heightCm del raw si existen
+    const out = {
+      widthCm: raw.widthCm || base.widthCm || 5,
+      heightCm: raw.heightCm || base.heightCm || 3,
+      elements: []
+    };
+    
+    // Si hay elementos en raw, normalizarlos preservando TODAS sus propiedades
+    if (Array.isArray(raw.elements) && raw.elements.length > 0) {
+      out.elements = raw.elements.map((rawEl) => {
+        if (!rawEl || typeof rawEl !== 'object') return null;
+        
+        // Encontrar el elemento base correspondiente (por id o source)
+        const baseEl = base.elements.find(b => 
+          b.id === rawEl.id || 
+          (b.source && b.source === rawEl.source && b.type === rawEl.type)
+        ) || {};
+        
+        // Preservar TODAS las propiedades del rawEl, usando baseEl como fallback
+        return {
+          id: rawEl.id || baseEl.id || `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          type: rawEl.type || baseEl.type || 'text',
+          source: rawEl.source || baseEl.source || 'custom',
+          // Posición y tamaño
+          x: Number(rawEl.x) || baseEl.x || 0,
+          y: Number(rawEl.y) || baseEl.y || 0,
+          w: Number(rawEl.w) || baseEl.w || 80,
+          h: Number(rawEl.h) || baseEl.h || 22,
+          // Propiedades de texto
+          fontSize: Number(rawEl.fontSize) || baseEl.fontSize || 12,
+          fontWeight: String(rawEl.fontWeight || baseEl.fontWeight || '600'),
+          color: String(rawEl.color || baseEl.color || '#000000'),
+          wrap: rawEl.wrap !== undefined ? rawEl.wrap : (baseEl.wrap !== undefined ? baseEl.wrap : true),
+          align: String(rawEl.align || baseEl.align || 'flex-start'),
+          vAlign: String(rawEl.vAlign || baseEl.vAlign || 'flex-start'),
+          lineHeight: Number(rawEl.lineHeight) || baseEl.lineHeight || 1.1,
+          text: rawEl.text !== undefined ? String(rawEl.text || '') : (baseEl.text || ''),
+          // Propiedades de imagen
+          fit: String(rawEl.fit || baseEl.fit || 'contain'),
+          url: rawEl.url !== undefined ? String(rawEl.url || '') : (baseEl.url || ''),
+          // Rotación
+          rotation: rawEl.rotation !== undefined ? Number(rawEl.rotation) : (baseEl.rotation !== undefined ? Number(baseEl.rotation) : 0)
+        };
+      }).filter(Boolean); // Eliminar nulls
+    } else {
+      // Si no hay elementos, usar los del base
       out.elements = base.elements.map((el) => Object.assign({}, el));
     }
+    
     return out;
   }
 
@@ -164,6 +210,68 @@
         if (match) {
           const deg = parseFloat(match[1]) || 0;
           el.rotation = Math.max(-180, Math.min(180, Math.round(deg)));
+        }
+      }
+      
+      // CRÍTICO: Sincronizar propiedades de texto desde el DOM si es un elemento de texto
+      if (el.type === 'text') {
+        const computedStyle = window.getComputedStyle(dom);
+        const innerDiv = dom.querySelector('div');
+        const targetEl = innerDiv || dom;
+        const targetStyle = window.getComputedStyle(targetEl);
+        
+        // Sincronizar fontSize, fontWeight, color desde el estilo computado
+        const fs = parseFloat(targetStyle.fontSize);
+        if (fs && !isNaN(fs)) el.fontSize = Math.round(fs);
+        
+        const fw = targetStyle.fontWeight;
+        if (fw) el.fontWeight = fw;
+        
+        const col = targetStyle.color;
+        if (col && col !== 'rgba(0, 0, 0, 0)') {
+          // Convertir rgb/rgba a hex si es necesario
+          if (col.startsWith('rgb')) {
+            const rgb = col.match(/\d+/g);
+            if (rgb && rgb.length >= 3) {
+              const r = parseInt(rgb[0], 10).toString(16).padStart(2, '0');
+              const g = parseInt(rgb[1], 10).toString(16).padStart(2, '0');
+              const b = parseInt(rgb[2], 10).toString(16).padStart(2, '0');
+              el.color = `#${r}${g}${b}`;
+            }
+          } else if (col.startsWith('#')) {
+            el.color = col;
+          }
+        }
+        
+        // Sincronizar lineHeight
+        const lh = parseFloat(targetStyle.lineHeight);
+        if (lh && !isNaN(lh)) {
+          // Si lineHeight es relativo (sin px), calcular desde fontSize
+          if (lh < 10) {
+            el.lineHeight = lh; // Es un ratio
+          } else {
+            el.lineHeight = lh / (el.fontSize || 12); // Convertir a ratio
+          }
+        }
+        
+        // Sincronizar wrap: verificar si tiene estructura flex (wrap) o no
+        const display = computedStyle.display;
+        const flexDirection = computedStyle.flexDirection;
+        el.wrap = (display === 'flex' && flexDirection === 'column');
+      }
+      
+      // CRÍTICO: Sincronizar propiedades de imagen desde el DOM si es un elemento de imagen
+      if (el.type === 'image') {
+        const img = dom.querySelector('img');
+        if (img) {
+          const imgStyle = window.getComputedStyle(img);
+          const objectFit = imgStyle.objectFit || 'contain';
+          el.fit = objectFit;
+          
+          // Sincronizar URL si es una imagen externa
+          if (el.source === 'external' && img.src && !img.src.includes('data:image') && !img.src.includes('placeholder')) {
+            el.url = img.src;
+          }
         }
       }
     });
