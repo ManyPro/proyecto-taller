@@ -3384,14 +3384,24 @@ function openMarketplaceHelper(item){
         scaleY: 1
       });
       
+      // CRÍTICO: Verificar dimensiones ANTES de capturar
+      const boxRect = box.getBoundingClientRect();
+      const wrapper = box.querySelector('.sticker-wrapper');
+      const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : null;
+      console.log(`📐 ANTES de capturar - Box: ${boxRect.width}x${boxRect.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRect ? `${wrapperRect.width}x${wrapperRect.height}px` : 'no encontrado'}`);
+      
       // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
       const expectedCanvasWidth = Math.round(widthPx * scale);
       const expectedCanvasHeight = Math.round(heightPx * scale);
+      console.log(`📐 Canvas esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}px (widthPx=${widthPx}, heightPx=${heightPx}, scale=${scale})`);
+      
       if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
         console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
-        // Si las dimensiones no coinciden, ajustar
-        console.log(`📐 Ajustando: Canvas=${canvas.width}x${canvas.height}, Esperado=${expectedCanvasWidth}x${expectedCanvasHeight}, widthPx=${widthPx}, heightPx=${heightPx}, widthMm=${widthMm}, heightMm=${heightMm}`);
+      } else {
+        console.log(`✅ Canvas capturado correctamente: ${canvas.width}x${canvas.height}px`);
       }
+      
+      console.log(`📐 PDF será: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
       
       // CRÍTICO: Guardar la imagen con sus dimensiones reales
       // La imagen tiene dimensiones canvas.width x canvas.height en píxeles
