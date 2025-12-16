@@ -1591,71 +1591,112 @@ if (__ON_INV_PAGE__) {
                 box.offsetHeight;
                 
                 // CRÍTICO: Ajustar posiciones de elementos de texto para evitar superposiciones
+                // Asegurar que los textos respeten sus dimensiones asignadas y no se superpongan
                 (function fixTextOverlaps(rootEl) {
                   const textElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="sku"], .st-el[data-id*="name"]'));
+                  
                   // Ordenar por posición Y (top)
                   textElements.sort((a, b) => {
-                    const aTop = parseFloat(a.style.top || window.getComputedStyle(a).top || 0);
-                    const bTop = parseFloat(b.style.top || window.getComputedStyle(b).top || 0);
+                    const aStyle = a.getAttribute('style') || '';
+                    const bStyle = b.getAttribute('style') || '';
+                    const aTopMatch = aStyle.match(/top:\s*([\d.]+)px/);
+                    const bTopMatch = bStyle.match(/top:\s*([\d.]+)px/);
+                    const aTop = aTopMatch ? parseFloat(aTopMatch[1]) : parseFloat(window.getComputedStyle(a).top) || 0;
+                    const bTop = bTopMatch ? parseFloat(bTopMatch[1]) : parseFloat(window.getComputedStyle(b).top) || 0;
                     return aTop - bTop;
                   });
                   
-                  // Ajustar posiciones para evitar superposiciones
+                  // Ajustar posiciones y dimensiones para evitar superposiciones
                   for (let i = 1; i < textElements.length; i++) {
                     const prev = textElements[i - 1];
                     const curr = textElements[i];
-                    const prevTop = parseFloat(prev.style.top || window.getComputedStyle(prev).top || 0);
-                    const prevHeight = parseFloat(prev.style.height || window.getComputedStyle(prev).height || prev.offsetHeight || 0);
-                    const currTop = parseFloat(curr.style.top || window.getComputedStyle(curr).top || 0);
+                    
+                    // Obtener posiciones y dimensiones desde el estilo inline
+                    const prevStyle = prev.getAttribute('style') || '';
+                    const currStyle = curr.getAttribute('style') || '';
+                    
+                    const prevTopMatch = prevStyle.match(/top:\s*([\d.]+)px/);
+                    const prevHeightMatch = prevStyle.match(/height:\s*([\d.]+)px/);
+                    const currTopMatch = currStyle.match(/top:\s*([\d.]+)px/);
+                    
+                    let prevTop = prevTopMatch ? parseFloat(prevTopMatch[1]) : parseFloat(window.getComputedStyle(prev).top) || 0;
+                    let prevHeight = prevHeightMatch ? parseFloat(prevHeightMatch[1]) : prev.offsetHeight || parseFloat(window.getComputedStyle(prev).height) || 0;
+                    let currTop = currTopMatch ? parseFloat(currTopMatch[1]) : parseFloat(window.getComputedStyle(curr).top) || 0;
                     
                     // Si el elemento actual está muy cerca o superpuesto al anterior, ajustarlo
-                    const minSpacing = 4; // Espacio mínimo entre elementos en píxeles
+                    const minSpacing = 6; // Espacio mínimo entre elementos en píxeles
                     const newTop = Math.max(currTop, prevTop + prevHeight + minSpacing);
                     
                     if (newTop > currTop) {
-                      curr.style.top = `${newTop}px`;
+                      // Actualizar el estilo inline manteniendo el resto de propiedades
+                      const updatedStyle = currStyle.replace(/top:\s*[\d.]+px/, `top: ${newTop}px`);
+                      if (updatedStyle === currStyle) {
+                        // Si no había top en el estilo, agregarlo
+                        curr.setAttribute('style', `${currStyle}; top: ${newTop}px`.replace(/^;\s*/, ''));
+                      } else {
+                        curr.setAttribute('style', updatedStyle);
+                      }
                       console.log(`📐 Ajustada posición de ${curr.dataset.id}: ${currTop}px -> ${newTop}px para evitar superposición`);
+                    }
+                    
+                    // Asegurar que el elemento tenga overflow hidden para que el texto no se salga
+                    const currComputed = window.getComputedStyle(curr);
+                    if (currComputed.overflow !== 'hidden') {
+                      const finalStyle = curr.getAttribute('style') || '';
+                      curr.setAttribute('style', `${finalStyle}; overflow: hidden !important`.replace(/^;\s*/, ''));
                     }
                   }
                 })(box);
 
-                // Asegurar que el QR ocupe el espacio completo asignado en su contenedor
-                // Buscar imágenes QR (data URLs cuadradas) y asegurar que usen todo el espacio disponible
+                // CRÍTICO: Asegurar que el QR ocupe el espacio completo asignado en su contenedor
+                // Buscar imágenes QR y forzar que usen TODO el espacio disponible del contenedor
                 (function ensureQrFullSize(rootEl, stickerWidthPx, stickerHeightPx) {
                   const imgs = Array.from(rootEl.querySelectorAll('img'));
                   imgs.forEach((img) => {
                     const src = img.getAttribute('src') || '';
                     const isData = src.startsWith('data:image');
                     
-                    // Detectar QR: imágenes data URL (más flexible que solo cuadradas)
+                    // Detectar QR: imágenes data URL
                     if (isData) {
                       // Obtener el contenedor padre (st-el) para conocer el espacio asignado
                       const container = img.closest('.st-el');
                       if (container) {
-                        const containerStyle = window.getComputedStyle(container);
-                        let containerW = parseFloat(containerStyle.width) || container.offsetWidth || 0;
-                        let containerH = parseFloat(containerStyle.height) || container.offsetHeight || 0;
+                        // Obtener dimensiones del contenedor desde el estilo inline o computed
+                        const containerStyle = container.getAttribute('style') || '';
+                        const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+                        const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
                         
-                        // Si las dimensiones del contenedor son muy pequeñas, usar un tamaño mínimo razonable
-                        const minQrSize = Math.min(stickerWidthPx, stickerHeightPx) * 0.4; // 40% del lado más corto
-                        if (containerW < minQrSize) containerW = minQrSize;
-                        if (containerH < minQrSize) containerH = minQrSize;
+                        let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+                        let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
                         
-                        // Asegurar que el QR ocupe todo el espacio del contenedor
+                        // Si no se encontraron en el estilo, usar computed o offset
+                        if (!containerW || !containerH) {
+                          const computed = window.getComputedStyle(container);
+                          containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
+                          containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
+                        }
+                        
+                        // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
                         if (containerW > 0 && containerH > 0) {
                           // Usar el menor de los dos para mantener aspecto cuadrado del QR
                           const qrSize = Math.min(containerW, containerH);
-                          img.style.width = `${qrSize}px`;
-                          img.style.height = `${qrSize}px`;
-                          img.style.maxWidth = `${qrSize}px`;
-                          img.style.maxHeight = `${qrSize}px`;
-                          img.style.minWidth = `${qrSize}px`;
-                          img.style.minHeight = `${qrSize}px`;
-                          img.style.objectFit = 'contain';
-                          img.style.display = 'block';
-                          img.style.margin = '0';
-                          img.style.padding = '0';
-                          console.log(`📱 QR ajustado a tamaño: ${qrSize}px x ${qrSize}px (contenedor: ${containerW}px x ${containerH}px)`);
+                          
+                          // Aplicar estilos directamente con !important para sobrescribir cualquier otro estilo
+                          img.setAttribute('style', `
+                            width: ${qrSize}px !important;
+                            height: ${qrSize}px !important;
+                            max-width: ${qrSize}px !important;
+                            max-height: ${qrSize}px !important;
+                            min-width: ${qrSize}px !important;
+                            min-height: ${qrSize}px !important;
+                            object-fit: contain !important;
+                            display: block !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            box-sizing: border-box !important;
+                          `.replace(/\s+/g, ' ').trim());
+                          
+                          console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
                         }
                       }
                     }
@@ -3088,30 +3129,59 @@ function openMarketplaceHelper(item){
               box.appendChild(style);
               
               // CRÍTICO: Ajustar posiciones de elementos de texto para evitar superposiciones
+              // Asegurar que los textos respeten sus dimensiones asignadas y no se superpongan
               (function fixTextOverlaps(rootEl) {
                 const textElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="sku"], .st-el[data-id*="name"]'));
+                
                 // Ordenar por posición Y (top)
                 textElements.sort((a, b) => {
-                  const aTop = parseFloat(a.style.top || window.getComputedStyle(a).top || 0);
-                  const bTop = parseFloat(b.style.top || window.getComputedStyle(b).top || 0);
+                  const aStyle = a.getAttribute('style') || '';
+                  const bStyle = b.getAttribute('style') || '';
+                  const aTopMatch = aStyle.match(/top:\s*([\d.]+)px/);
+                  const bTopMatch = bStyle.match(/top:\s*([\d.]+)px/);
+                  const aTop = aTopMatch ? parseFloat(aTopMatch[1]) : parseFloat(window.getComputedStyle(a).top) || 0;
+                  const bTop = bTopMatch ? parseFloat(bTopMatch[1]) : parseFloat(window.getComputedStyle(b).top) || 0;
                   return aTop - bTop;
                 });
                 
-                // Ajustar posiciones para evitar superposiciones
+                // Ajustar posiciones y dimensiones para evitar superposiciones
                 for (let i = 1; i < textElements.length; i++) {
                   const prev = textElements[i - 1];
                   const curr = textElements[i];
-                  const prevTop = parseFloat(prev.style.top || window.getComputedStyle(prev).top || 0);
-                  const prevHeight = parseFloat(prev.style.height || window.getComputedStyle(prev).height || prev.offsetHeight || 0);
-                  const currTop = parseFloat(curr.style.top || window.getComputedStyle(curr).top || 0);
+                  
+                  // Obtener posiciones y dimensiones desde el estilo inline
+                  const prevStyle = prev.getAttribute('style') || '';
+                  const currStyle = curr.getAttribute('style') || '';
+                  
+                  const prevTopMatch = prevStyle.match(/top:\s*([\d.]+)px/);
+                  const prevHeightMatch = prevStyle.match(/height:\s*([\d.]+)px/);
+                  const currTopMatch = currStyle.match(/top:\s*([\d.]+)px/);
+                  
+                  let prevTop = prevTopMatch ? parseFloat(prevTopMatch[1]) : parseFloat(window.getComputedStyle(prev).top) || 0;
+                  let prevHeight = prevHeightMatch ? parseFloat(prevHeightMatch[1]) : prev.offsetHeight || parseFloat(window.getComputedStyle(prev).height) || 0;
+                  let currTop = currTopMatch ? parseFloat(currTopMatch[1]) : parseFloat(window.getComputedStyle(curr).top) || 0;
                   
                   // Si el elemento actual está muy cerca o superpuesto al anterior, ajustarlo
-                  const minSpacing = 4; // Espacio mínimo entre elementos en píxeles
+                  const minSpacing = 6; // Espacio mínimo entre elementos en píxeles
                   const newTop = Math.max(currTop, prevTop + prevHeight + minSpacing);
                   
                   if (newTop > currTop) {
-                    curr.style.top = `${newTop}px`;
+                    // Actualizar el estilo inline manteniendo el resto de propiedades
+                    const updatedStyle = currStyle.replace(/top:\s*[\d.]+px/, `top: ${newTop}px`);
+                    if (updatedStyle === currStyle) {
+                      // Si no había top en el estilo, agregarlo
+                      curr.setAttribute('style', `${currStyle}; top: ${newTop}px`.replace(/^;\s*/, ''));
+                    } else {
+                      curr.setAttribute('style', updatedStyle);
+                    }
                     console.log(`📐 Ajustada posición de ${curr.dataset.id}: ${currTop}px -> ${newTop}px para evitar superposición`);
+                  }
+                  
+                  // Asegurar que el elemento tenga overflow hidden para que el texto no se salga
+                  const currComputed = window.getComputedStyle(curr);
+                  if (currComputed.overflow !== 'hidden') {
+                    const finalStyle = curr.getAttribute('style') || '';
+                    curr.setAttribute('style', `${finalStyle}; overflow: hidden !important`.replace(/^;\s*/, ''));
                   }
                 }
               })(box);
@@ -3130,43 +3200,55 @@ function openMarketplaceHelper(item){
                 expectedHeight: heightPx
               });
 
-              // Asegurar que el QR ocupe el espacio completo asignado en su contenedor
-              // Buscar imágenes QR (data URLs cuadradas) y asegurar que usen todo el espacio disponible
+              // CRÍTICO: Asegurar que el QR ocupe el espacio completo asignado en su contenedor
+              // Buscar imágenes QR y forzar que usen TODO el espacio disponible del contenedor
               (function ensureQrFullSize(rootEl, stickerWidthPx, stickerHeightPx) {
                 const imgs = Array.from(rootEl.querySelectorAll('img'));
                 imgs.forEach((img) => {
                   const src = img.getAttribute('src') || '';
                   const isData = src.startsWith('data:image');
                   
-                  // Detectar QR: imágenes data URL (más flexible que solo cuadradas)
+                  // Detectar QR: imágenes data URL
                   if (isData) {
                     // Obtener el contenedor padre (st-el) para conocer el espacio asignado
                     const container = img.closest('.st-el');
                     if (container) {
-                      const containerStyle = window.getComputedStyle(container);
-                      let containerW = parseFloat(containerStyle.width) || container.offsetWidth || 0;
-                      let containerH = parseFloat(containerStyle.height) || container.offsetHeight || 0;
+                      // Obtener dimensiones del contenedor desde el estilo inline o computed
+                      const containerStyle = container.getAttribute('style') || '';
+                      const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+                      const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
                       
-                      // Si las dimensiones del contenedor son muy pequeñas, usar un tamaño mínimo razonable
-                      const minQrSize = Math.min(stickerWidthPx, stickerHeightPx) * 0.4; // 40% del lado más corto
-                      if (containerW < minQrSize) containerW = minQrSize;
-                      if (containerH < minQrSize) containerH = minQrSize;
+                      let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+                      let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
                       
-                      // Asegurar que el QR ocupe todo el espacio del contenedor
+                      // Si no se encontraron en el estilo, usar computed o offset
+                      if (!containerW || !containerH) {
+                        const computed = window.getComputedStyle(container);
+                        containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
+                        containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
+                      }
+                      
+                      // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
                       if (containerW > 0 && containerH > 0) {
                         // Usar el menor de los dos para mantener aspecto cuadrado del QR
                         const qrSize = Math.min(containerW, containerH);
-                        img.style.width = `${qrSize}px`;
-                        img.style.height = `${qrSize}px`;
-                        img.style.maxWidth = `${qrSize}px`;
-                        img.style.maxHeight = `${qrSize}px`;
-                        img.style.minWidth = `${qrSize}px`;
-                        img.style.minHeight = `${qrSize}px`;
-                        img.style.objectFit = 'contain';
-                        img.style.display = 'block';
-                        img.style.margin = '0';
-                        img.style.padding = '0';
-                        console.log(`📱 QR ajustado a tamaño: ${qrSize}px x ${qrSize}px (contenedor: ${containerW}px x ${containerH}px)`);
+                        
+                        // Aplicar estilos directamente con !important para sobrescribir cualquier otro estilo
+                        img.setAttribute('style', `
+                          width: ${qrSize}px !important;
+                          height: ${qrSize}px !important;
+                          max-width: ${qrSize}px !important;
+                          max-height: ${qrSize}px !important;
+                          min-width: ${qrSize}px !important;
+                          min-height: ${qrSize}px !important;
+                          object-fit: contain !important;
+                          display: block !important;
+                          margin: 0 !important;
+                          padding: 0 !important;
+                          box-sizing: border-box !important;
+                        `.replace(/\s+/g, ' ').trim());
+                        
+                        console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
                       }
                     }
                   }

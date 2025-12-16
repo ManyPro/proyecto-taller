@@ -24,30 +24,39 @@
     const canvasWidth = cmToPx(5); // ~189px
     const canvasHeight = cmToPx(3); // ~113px
     
-    // SKU: pequeño, arriba izquierda
-    const skuX = 8;
-    const skuY = 6;
-    const skuW = 95; // Ancho ajustado para dejar espacio al QR sin sobreponerse
-    const skuH = 18;
+    // Márgenes del sticker
+    const margin = 6;
     
-    // Nombre: debajo del SKU, con espacio suficiente para wrap vertical
-    const nameX = 8;
-    const nameY = skuY + skuH + 4; // 28px desde arriba
-    const nameW = 95; // Mismo ancho que SKU para alineación
-    const nameH = canvasHeight - nameY - 4; // Ocupa el resto del espacio vertical disponible (~81px)
+    // QR: a la derecha, ocupa la mayor parte del espacio vertical disponible
+    const qrW = 90; // Aumentado para que sea más grande
+    const qrH = 90; // Aumentado para que sea más grande
+    const qrX = canvasWidth - qrW - margin; // Alineado a la derecha con margen
+    const qrY = margin; // Alineado arriba con margen
     
-    // QR: a la derecha, bien posicionado sin sobreponerse
-    const qrW = 85;
-    const qrH = 85;
-    const qrX = canvasWidth - qrW - 6; // Alineado a la derecha con margen de 6px
-    const qrY = 6; // Alineado arriba
+    // Área de texto a la izquierda (sin superponerse con QR)
+    const textAreaX = margin;
+    const textAreaW = qrX - textAreaX - 4; // Espacio entre texto y QR: 4px
+    const textAreaY = margin;
+    const textAreaH = canvasHeight - (margin * 2); // Altura total menos márgenes
+    
+    // SKU: arriba izquierda, altura fija
+    const skuX = textAreaX;
+    const skuY = textAreaY;
+    const skuW = textAreaW;
+    const skuH = 20; // Altura suficiente para una línea
+    
+    // Nombre: debajo del SKU, ocupa el resto del espacio vertical disponible
+    const nameX = textAreaX;
+    const nameY = skuY + skuH + 6; // Espacio de 6px entre SKU y nombre
+    const nameW = textAreaW;
+    const nameH = textAreaH - skuH - 6; // Resto del espacio vertical menos el espacio entre elementos
     
     return {
       widthCm: 5,
       heightCm: 3,
       elements: [
-        { id: 'sku', type: 'text', source: 'sku', x: skuX, y: skuY, w: skuW, h: skuH, fontSize: 13, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
-        { id: 'name', type: 'text', source: 'name', x: nameX, y: nameY, w: nameW, h: nameH, fontSize: 10, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.2 },
+        { id: 'sku', type: 'text', source: 'sku', x: skuX, y: skuY, w: skuW, h: skuH, fontSize: 12, fontWeight: '700', wrap: false, align: 'flex-start', vAlign: 'center' },
+        { id: 'name', type: 'text', source: 'name', x: nameX, y: nameY, w: nameW, h: nameH, fontSize: 9, fontWeight: '600', wrap: true, align: 'flex-start', vAlign: 'flex-start', lineHeight: 1.15 },
         { id: 'qr', type: 'image', source: 'qr', x: qrX, y: qrY, w: qrW, h: qrH, fit: 'contain' }
       ]
     };
