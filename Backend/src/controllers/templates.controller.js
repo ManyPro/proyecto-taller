@@ -153,20 +153,26 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`
         );
       } else {
-        // Sin wrap: mantener en una línea
+        // Sin wrap explícito: permitir salto de línea dentro del cuadro
+        // para que el texto use todo el alto/ancho disponible
         const textStyles = [
           'display:flex',
-          `align-items:${vAlign}`,
-          `justify-content:${align}`,
+          'flex-direction:column',
+          'align-items:flex-start',
+          'justify-content:flex-start',
           `font-size:${fontSize}px`,
           `font-weight:${fontWeight}`,
           `line-height:${lineHeight}`,
           `color:${color}`,
-          'white-space:nowrap',
+          'white-space:normal',
+          'word-wrap:break-word',
+          'word-break:break-word',
+          'overflow-wrap:break-word',
           'overflow:hidden',
-          'text-overflow:ellipsis',
-          'padding:0',
-          'margin:0'
+          'text-overflow:clip',
+          'padding:2px',
+          'margin:0',
+          'box-sizing:border-box'
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${textStyles.join(';')}">${textExpr}</div>`

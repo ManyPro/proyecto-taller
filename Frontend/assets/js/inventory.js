@@ -1521,14 +1521,23 @@ if (__ON_INV_PAGE__) {
                 const style = document.createElement('style');
                 style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                   `/* Ocultar handles y selección del editor durante el render */\n` +
-                  `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
+                  `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected,.rotate-handle{display:none!important;visibility:hidden!important;opacity:0!important;}\n` +
                   `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                   `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
                   `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
                   `/* CRÍTICO: Wrapper con dimensiones EXACTAS en píxeles (no porcentajes) */\n` +
                   `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
                   `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
-                  `.sticker-capture [style*="position: absolute"]{position: absolute !important;}`;
+                  `.sticker-capture [style*="position: absolute"], .sticker-wrapper [style*="position: absolute"]{position: absolute !important;}\n` +
+                  `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
+                  `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important;}\n` +
+                  `/* Asegurar que el QR tenga prioridad visual y tamaño adecuado */\n` +
+                  `.st-el img[src*="data:image"]{z-index: 10 !important; object-fit: contain !important;}\n` +
+                  `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
+                  `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
+                  `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
+                  `.sticker-capture *{color: inherit !important;}\n` +
+                  `.sticker-capture *:not([style*="color"]){color: #000000 !important;}`;
                 // Insertar el HTML directamente en el box, no en un inner div
                 if (contentFragment) {
                   box.appendChild(contentFragment);
@@ -1580,6 +1589,35 @@ if (__ON_INV_PAGE__) {
                 
                 // Forzar reflow para asegurar que el contenido se renderice
                 box.offsetHeight;
+                
+                // CRÍTICO: Ajustar posiciones de elementos de texto para evitar superposiciones
+                (function fixTextOverlaps(rootEl) {
+                  const textElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="sku"], .st-el[data-id*="name"]'));
+                  // Ordenar por posición Y (top)
+                  textElements.sort((a, b) => {
+                    const aTop = parseFloat(a.style.top || window.getComputedStyle(a).top || 0);
+                    const bTop = parseFloat(b.style.top || window.getComputedStyle(b).top || 0);
+                    return aTop - bTop;
+                  });
+                  
+                  // Ajustar posiciones para evitar superposiciones
+                  for (let i = 1; i < textElements.length; i++) {
+                    const prev = textElements[i - 1];
+                    const curr = textElements[i];
+                    const prevTop = parseFloat(prev.style.top || window.getComputedStyle(prev).top || 0);
+                    const prevHeight = parseFloat(prev.style.height || window.getComputedStyle(prev).height || prev.offsetHeight || 0);
+                    const currTop = parseFloat(curr.style.top || window.getComputedStyle(curr).top || 0);
+                    
+                    // Si el elemento actual está muy cerca o superpuesto al anterior, ajustarlo
+                    const minSpacing = 4; // Espacio mínimo entre elementos en píxeles
+                    const newTop = Math.max(currTop, prevTop + prevHeight + minSpacing);
+                    
+                    if (newTop > currTop) {
+                      curr.style.top = `${newTop}px`;
+                      console.log(`📐 Ajustada posición de ${curr.dataset.id}: ${currTop}px -> ${newTop}px para evitar superposición`);
+                    }
+                  }
+                })(box);
 
                 // Asegurar que el QR ocupe el espacio completo asignado en su contenedor
                 // Buscar imágenes QR (data URLs cuadradas) y asegurar que usen todo el espacio disponible
@@ -1588,29 +1626,36 @@ if (__ON_INV_PAGE__) {
                   imgs.forEach((img) => {
                     const src = img.getAttribute('src') || '';
                     const isData = src.startsWith('data:image');
-                    const natW = img.naturalWidth || 0;
-                    const natH = img.naturalHeight || 0;
-                    const isSquare = natW && natH && Math.abs(natW - natH) <= Math.max(natW, natH) * 0.1;
                     
-                    // Detectar QR: imágenes data URL cuadradas
-                    if (isData && isSquare) {
+                    // Detectar QR: imágenes data URL (más flexible que solo cuadradas)
+                    if (isData) {
                       // Obtener el contenedor padre (st-el) para conocer el espacio asignado
                       const container = img.closest('.st-el');
                       if (container) {
                         const containerStyle = window.getComputedStyle(container);
-                        const containerW = parseFloat(containerStyle.width) || container.offsetWidth || 0;
-                        const containerH = parseFloat(containerStyle.height) || container.offsetHeight || 0;
+                        let containerW = parseFloat(containerStyle.width) || container.offsetWidth || 0;
+                        let containerH = parseFloat(containerStyle.height) || container.offsetHeight || 0;
+                        
+                        // Si las dimensiones del contenedor son muy pequeñas, usar un tamaño mínimo razonable
+                        const minQrSize = Math.min(stickerWidthPx, stickerHeightPx) * 0.4; // 40% del lado más corto
+                        if (containerW < minQrSize) containerW = minQrSize;
+                        if (containerH < minQrSize) containerH = minQrSize;
                         
                         // Asegurar que el QR ocupe todo el espacio del contenedor
                         if (containerW > 0 && containerH > 0) {
-                          img.style.width = `${containerW}px`;
-                          img.style.height = `${containerH}px`;
-                          img.style.maxWidth = `${containerW}px`;
-                          img.style.maxHeight = `${containerH}px`;
-                          img.style.minWidth = `${containerW}px`;
-                          img.style.minHeight = `${containerH}px`;
+                          // Usar el menor de los dos para mantener aspecto cuadrado del QR
+                          const qrSize = Math.min(containerW, containerH);
+                          img.style.width = `${qrSize}px`;
+                          img.style.height = `${qrSize}px`;
+                          img.style.maxWidth = `${qrSize}px`;
+                          img.style.maxHeight = `${qrSize}px`;
+                          img.style.minWidth = `${qrSize}px`;
+                          img.style.minHeight = `${qrSize}px`;
                           img.style.objectFit = 'contain';
                           img.style.display = 'block';
+                          img.style.margin = '0';
+                          img.style.padding = '0';
+                          console.log(`📱 QR ajustado a tamaño: ${qrSize}px x ${qrSize}px (contenedor: ${containerW}px x ${containerH}px)`);
                         }
                       }
                     }
@@ -3029,12 +3074,47 @@ function openMarketplaceHelper(item){
                 `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
                 `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
                 `.sticker-capture [style*="position: absolute"], .sticker-wrapper [style*="position: absolute"]{position: absolute !important;}\n` +
+                `/* Texto: permitir salto de línea y ocupar el cuadro asignado */\n` +
+                `.st-el{white-space: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; box-sizing: border-box !important;}\n` +
+                `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
+                `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important;}\n` +
+                `/* Asegurar que el QR tenga prioridad visual y tamaño adecuado */\n` +
+                `.st-el img[src*="data:image"]{z-index: 10 !important; object-fit: contain !important;}\n` +
                 `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
                 `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
                 `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
                 `.sticker-capture *{color: inherit !important;}\n` +
                 `.sticker-capture *:not([style*="color"]){color: #000000 !important;}`;
               box.appendChild(style);
+              
+              // CRÍTICO: Ajustar posiciones de elementos de texto para evitar superposiciones
+              (function fixTextOverlaps(rootEl) {
+                const textElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="sku"], .st-el[data-id*="name"]'));
+                // Ordenar por posición Y (top)
+                textElements.sort((a, b) => {
+                  const aTop = parseFloat(a.style.top || window.getComputedStyle(a).top || 0);
+                  const bTop = parseFloat(b.style.top || window.getComputedStyle(b).top || 0);
+                  return aTop - bTop;
+                });
+                
+                // Ajustar posiciones para evitar superposiciones
+                for (let i = 1; i < textElements.length; i++) {
+                  const prev = textElements[i - 1];
+                  const curr = textElements[i];
+                  const prevTop = parseFloat(prev.style.top || window.getComputedStyle(prev).top || 0);
+                  const prevHeight = parseFloat(prev.style.height || window.getComputedStyle(prev).height || prev.offsetHeight || 0);
+                  const currTop = parseFloat(curr.style.top || window.getComputedStyle(curr).top || 0);
+                  
+                  // Si el elemento actual está muy cerca o superpuesto al anterior, ajustarlo
+                  const minSpacing = 4; // Espacio mínimo entre elementos en píxeles
+                  const newTop = Math.max(currTop, prevTop + prevHeight + minSpacing);
+                  
+                  if (newTop > currTop) {
+                    curr.style.top = `${newTop}px`;
+                    console.log(`📐 Ajustada posición de ${curr.dataset.id}: ${currTop}px -> ${newTop}px para evitar superposición`);
+                  }
+                }
+              })(box);
               
               root.appendChild(box);
               
@@ -3057,29 +3137,36 @@ function openMarketplaceHelper(item){
                 imgs.forEach((img) => {
                   const src = img.getAttribute('src') || '';
                   const isData = src.startsWith('data:image');
-                  const natW = img.naturalWidth || 0;
-                  const natH = img.naturalHeight || 0;
-                  const isSquare = natW && natH && Math.abs(natW - natH) <= Math.max(natW, natH) * 0.1;
                   
-                  // Detectar QR: imágenes data URL cuadradas
-                  if (isData && isSquare) {
+                  // Detectar QR: imágenes data URL (más flexible que solo cuadradas)
+                  if (isData) {
                     // Obtener el contenedor padre (st-el) para conocer el espacio asignado
                     const container = img.closest('.st-el');
                     if (container) {
                       const containerStyle = window.getComputedStyle(container);
-                      const containerW = parseFloat(containerStyle.width) || container.offsetWidth || 0;
-                      const containerH = parseFloat(containerStyle.height) || container.offsetHeight || 0;
+                      let containerW = parseFloat(containerStyle.width) || container.offsetWidth || 0;
+                      let containerH = parseFloat(containerStyle.height) || container.offsetHeight || 0;
+                      
+                      // Si las dimensiones del contenedor son muy pequeñas, usar un tamaño mínimo razonable
+                      const minQrSize = Math.min(stickerWidthPx, stickerHeightPx) * 0.4; // 40% del lado más corto
+                      if (containerW < minQrSize) containerW = minQrSize;
+                      if (containerH < minQrSize) containerH = minQrSize;
                       
                       // Asegurar que el QR ocupe todo el espacio del contenedor
                       if (containerW > 0 && containerH > 0) {
-                        img.style.width = `${containerW}px`;
-                        img.style.height = `${containerH}px`;
-                        img.style.maxWidth = `${containerW}px`;
-                        img.style.maxHeight = `${containerH}px`;
-                        img.style.minWidth = `${containerW}px`;
-                        img.style.minHeight = `${containerH}px`;
+                        // Usar el menor de los dos para mantener aspecto cuadrado del QR
+                        const qrSize = Math.min(containerW, containerH);
+                        img.style.width = `${qrSize}px`;
+                        img.style.height = `${qrSize}px`;
+                        img.style.maxWidth = `${qrSize}px`;
+                        img.style.maxHeight = `${qrSize}px`;
+                        img.style.minWidth = `${qrSize}px`;
+                        img.style.minHeight = `${qrSize}px`;
                         img.style.objectFit = 'contain';
                         img.style.display = 'block';
+                        img.style.margin = '0';
+                        img.style.padding = '0';
+                        console.log(`📱 QR ajustado a tamaño: ${qrSize}px x ${qrSize}px (contenedor: ${containerW}px x ${containerH}px)`);
                       }
                     }
                   }
