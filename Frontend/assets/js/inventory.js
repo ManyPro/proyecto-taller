@@ -3224,9 +3224,28 @@ function openMarketplaceHelper(item){
     // CRÍTICO: Crear contenedor root con dimensiones adecuadas para evitar escalado
     const root = document.createElement('div');
     root.id = 'sticker-pdf-capture-root';
-    // CRÍTICO: El root debe tener dimensiones suficientes para contener el box sin escalar
-    root.style.cssText = `position:fixed !important;left:-12000px !important;top:0 !important;width:${widthPx + 100}px !important;height:${heightPx + 100}px !important;overflow:visible !important;z-index:-1 !important;background:#fff !important;transform:none !important;zoom:1 !important;scale:1 !important;`;
+    // CRÍTICO: El root debe tener dimensiones suficientes y forzar que NO se escale
+    // Usar valores absolutos y asegurar que no haya transform/zoom/scale
+    root.style.cssText = `position:fixed !important;left:-12000px !important;top:0 !important;width:${widthPx + 100}px !important;height:${heightPx + 100}px !important;overflow:visible !important;z-index:-1 !important;background:#fff !important;transform:none !important;zoom:1 !important;scale:1 !important;-webkit-transform:none !important;-moz-transform:none !important;-ms-transform:none !important;-o-transform:none !important;box-sizing:border-box !important;margin:0 !important;padding:0 !important;`;
     document.body.appendChild(root);
+    
+    // CRÍTICO: Verificar y forzar dimensiones del root después de añadirlo al DOM
+    const rootRect = root.getBoundingClientRect();
+    const expectedRootWidth = widthPx + 100;
+    const expectedRootHeight = heightPx + 100;
+    if (Math.abs(rootRect.width - expectedRootWidth) > 1 || Math.abs(rootRect.height - expectedRootHeight) > 1) {
+      console.warn(`⚠️ Root tiene dimensiones incorrectas: ${rootRect.width}x${rootRect.height}px, esperado: ${expectedRootWidth}x${expectedRootHeight}px - Forzando...`);
+      root.style.setProperty('width', `${expectedRootWidth}px`, 'important');
+      root.style.setProperty('height', `${expectedRootHeight}px`, 'important');
+      root.style.setProperty('min-width', `${expectedRootWidth}px`, 'important');
+      root.style.setProperty('min-height', `${expectedRootHeight}px`, 'important');
+      root.style.setProperty('max-width', `${expectedRootWidth}px`, 'important');
+      root.style.setProperty('max-height', `${expectedRootHeight}px`, 'important');
+      root.style.setProperty('transform', 'none', 'important');
+      root.style.setProperty('zoom', '1', 'important');
+      root.style.setProperty('scale', '1', 'important');
+      void root.offsetHeight; // Forzar reflow
+    }
 
     const images = [];
     for (const html of htmls) {
