@@ -3221,8 +3221,11 @@ function openMarketplaceHelper(item){
     const html2canvas = await ensureHtml2Canvas();
     const jsPDF = await ensureJsPDF();
 
+    // CRÍTICO: Crear contenedor root con dimensiones adecuadas para evitar escalado
     const root = document.createElement('div');
-    root.style.cssText = 'position:fixed;left:-12000px;top:0;width:0;height:0;overflow:hidden;z-index:-1;background:#fff;';
+    root.id = 'sticker-pdf-capture-root';
+    // CRÍTICO: El root debe tener dimensiones suficientes para contener el box sin escalar
+    root.style.cssText = `position:fixed !important;left:-12000px !important;top:0 !important;width:${widthPx + 100}px !important;height:${heightPx + 100}px !important;overflow:visible !important;z-index:-1 !important;background:#fff !important;transform:none !important;zoom:1 !important;scale:1 !important;`;
     document.body.appendChild(root);
 
     const images = [];
