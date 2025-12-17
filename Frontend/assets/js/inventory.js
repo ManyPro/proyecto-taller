@@ -3045,15 +3045,31 @@ function openMarketplaceHelper(item){
         return; // El texto ya está bien ajustado
       }
       
-      // CRÍTICO: Si el texto NO ocupa el espacio vertical, aumentar line-height primero
+      // CRÍTICO: Si el texto NO ocupa el espacio vertical, aumentar line-height para expandirlo
       if (!usesVerticalSpace && !hasOverflow) {
-        // Aumentar line-height para que el texto ocupe más espacio vertical
-        const targetLineHeight = targetHeight / (Math.ceil(scrollHeight / lineHeight) || 1);
-        if (targetLineHeight > lineHeight && targetLineHeight <= fontSize * 2) {
+        // Calcular cuántas líneas de texto hay actualmente
+        const currentLines = Math.ceil(scrollHeight / lineHeight) || 1;
+        // Calcular el line-height necesario para ocupar todo el espacio vertical
+        const targetLineHeight = targetHeight / currentLines;
+        
+        // Aumentar line-height si es razonable (máximo 2x el fontSize)
+        if (targetLineHeight > lineHeight && targetLineHeight <= fontSize * 2.5) {
           lineHeight = targetLineHeight;
           target.style.setProperty('line-height', `${lineHeight}px`, 'important');
           void target.offsetHeight;
           await new Promise(resolve => requestAnimationFrame(resolve));
+          
+          // Verificar nuevamente después del ajuste
+          const newScrollHeight = target.scrollHeight;
+          if (newScrollHeight < targetHeight * 0.95) {
+            // Si aún no ocupa suficiente espacio, aumentar más el line-height
+            const newTargetLineHeight = targetHeight / Math.ceil(newScrollHeight / lineHeight);
+            if (newTargetLineHeight > lineHeight && newTargetLineHeight <= fontSize * 2.5) {
+              lineHeight = newTargetLineHeight;
+              target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+              void target.offsetHeight;
+            }
+          }
         }
       }
 

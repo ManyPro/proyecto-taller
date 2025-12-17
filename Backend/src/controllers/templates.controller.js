@@ -141,15 +141,16 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'display:flex',
           'flex-direction:column',
           `align-items:${align === 'flex-end' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'}`,
-          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'flex-start' : 'flex-start'}`,
+          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'center' : 'flex-start'}`, // CRÍTICO: Usar flex-start para que el texto empiece desde arriba
           'padding:2px',
           'margin:0',
           `width:${w}px`,
           `height:${h}px`,
           `max-width:${w}px`,
           `max-height:${h}px`,
-          'box-sizing:border-box',
+          'min-width:0',
           'min-height:0',
+          'box-sizing:border-box',
           'overflow:hidden'
         ];
         const textInnerStyles = [
@@ -1946,22 +1947,39 @@ export async function previewTemplate(req, res) {
   }
   
   // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
-  // O si hay quoteData y los items del contexto están vacíos, usar quoteData
+  // IMPORTANTE: Siempre usar quoteData cuando se proporciona, ya que son los datos más actualizados de la UI
   if (quoteData && type === 'quote') {
     const hasItemsInData = (quoteData.items || []).length > 0;
     const hasItemsInContext = (ctx.quote?.items || []).length > 0;
+    const contextItemsAreValid = hasItemsInContext && (ctx.quote?.itemsGrouped?.hasProducts || ctx.quote?.itemsGrouped?.hasServices || ctx.quote?.itemsGrouped?.hasCombos);
     
     if (debug) {
       console.log('[previewTemplate] QuoteData check:', {
         hasItemsInData,
         hasItemsInContext,
-        quoteDataItemsCount: (quoteData.items || []).length
+        contextItemsAreValid,
+        quoteDataItemsCount: (quoteData.items || []).length,
+        contextItemsCount: (ctx.quote?.items || []).length,
+        hasProducts: ctx.quote?.itemsGrouped?.hasProducts,
+        hasServices: ctx.quote?.itemsGrouped?.hasServices,
+        hasCombos: ctx.quote?.itemsGrouped?.hasCombos
       });
     }
     
-    // Usar quoteData si no hay sampleId o si los items del contexto están vacíos pero quoteData tiene items
-    if (!sampleId || (!hasItemsInContext && hasItemsInData)) {
-      if (debug) console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
+    // SIEMPRE usar quoteData cuando se proporciona Y tiene items
+    // O si el contexto NO tiene items válidos (aunque tenga items, si no están agrupados correctamente, usar quoteData)
+    // Esto asegura que los datos de la UI (que pueden tener cambios no guardados) se usen para la impresión
+    // CRÍTICO: Si quoteData tiene items, SIEMPRE usarlo, incluso si hay sampleId y el contexto tiene items
+    // porque los datos de quoteData son los más actualizados de la UI
+    // La condición simplificada: usar quoteData si tiene items O si el contexto no tiene items válidos
+    if (hasItemsInData || !contextItemsAreValid) {
+      if (debug) console.log('[previewTemplate] Usando quoteData para sobrescribir contexto (items actualizados de la UI)', {
+        hasItemsInData,
+        hasItemsInContext,
+        quoteDataItemsCount: (quoteData.items || []).length,
+        contextItemsCount: (ctx.quote?.items || []).length,
+        willUseQuoteData: true
+      });
       
       // Procesar items y crear estructura agrupada (igual que en buildContext)
       // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
