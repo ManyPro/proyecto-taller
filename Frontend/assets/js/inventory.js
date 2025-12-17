@@ -3445,8 +3445,10 @@ function openMarketplaceHelper(item){
         const newZoom = (1/htmlZoom) * scaleX;
         console.warn(`⚠️ Box tiene dimensiones visuales incorrectas. Ajustando zoom de ${(1/htmlZoom).toFixed(3)} a ${newZoom.toFixed(3)}...`);
         box.style.setProperty('zoom', `${newZoom}`, 'important');
+        // CRÍTICO: El wrapper NO debe tener zoom porque el box ya lo tiene
+        // Si el wrapper también tiene zoom, se aplica dos veces causando dimensiones incorrectas
         if (wrapper) {
-          wrapper.style.setProperty('zoom', `${newZoom}`, 'important');
+          wrapper.style.setProperty('zoom', '1', 'important'); // Forzar zoom: 1 en el wrapper
         }
         void box.offsetHeight;
         await new Promise(resolve => requestAnimationFrame(resolve));
