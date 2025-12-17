@@ -3432,30 +3432,37 @@ function openMarketplaceHelper(item){
       console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
       
       // CRÍTICO: Si las dimensiones aún no son correctas después de todos los intentos, usar transform: scale para corregir
+      let needsScale = false;
+      let scaleX = 1;
+      let scaleY = 1;
+      
       if (Math.abs(boxRectBefore.width - widthPx) > 1 || Math.abs(boxRectBefore.height - heightPx) > 1) {
-        const scaleX = widthPx / boxRectBefore.width;
-        const scaleY = heightPx / boxRectBefore.height;
+        scaleX = widthPx / boxRectBefore.width;
+        scaleY = heightPx / boxRectBefore.height;
         console.warn(`⚠️ Box aún tiene dimensiones incorrectas después de todos los intentos. Usando transform: scale(${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}) para corregir...`);
         box.style.setProperty('transform', `scale(${scaleX}, ${scaleY})`, 'important');
         box.style.setProperty('transform-origin', 'top left', 'important');
-        // Ajustar dimensiones del box para compensar el scale
+        // CRÍTICO: Mantener dimensiones originales del box para que html2canvas capture correctamente
+        // El transform: scale hará que el contenido se vea del tamaño correcto
         box.style.setProperty('width', `${boxRectBefore.width}px`, 'important');
         box.style.setProperty('height', `${boxRectBefore.height}px`, 'important');
         void box.offsetHeight; // Forzar reflow
         await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
+        needsScale = true;
       }
       
       // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
-      // El canvas resultante será widthPx * scale x heightPx * scale
+      // Si usamos transform: scale, html2canvas capturará el contenido escalado
+      // pero necesitamos que el resultado final sea widthPx * scale x heightPx * scale
       const scale = 3;
       // eslint-disable-next-line no-await-in-loop
       const canvas = await html2canvas(box, {
-        width: widthPx,
-        height: heightPx,
+        width: needsScale ? boxRectBefore.width : widthPx, // Si usamos scale, capturar tamaño original
+        height: needsScale ? boxRectBefore.height : heightPx,
         backgroundColor: '#ffffff',
         scale: scale,
-        windowWidth: widthPx,
-        windowHeight: heightPx,
+        windowWidth: needsScale ? boxRectBefore.width : widthPx,
+        windowHeight: needsScale ? boxRectBefore.height : heightPx,
         useCORS: true,
         allowTaint: false,
         logging: false,
@@ -3463,6 +3470,14 @@ function openMarketplaceHelper(item){
         scaleX: 1,
         scaleY: 1
       });
+      
+      // CRÍTICO: Si usamos transform: scale, el canvas capturado será del tamaño original escalado
+      // pero el contenido visual será del tamaño correcto gracias al transform: scale
+      // El canvas resultante debería ser (boxRectBefore.width * scale) x (boxRectBefore.height * scale)
+      // pero visualmente contendrá el contenido escalado a widthPx x heightPx
+      if (needsScale) {
+        console.log(`📐 Canvas capturado con scale: ${canvas.width}x${canvas.height}px (box original: ${boxRectBefore.width}x${boxRectBefore.height}px, scale aplicado: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)})`);
+      }
       
       // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
       const expectedCanvasWidth = Math.round(widthPx * scale);
