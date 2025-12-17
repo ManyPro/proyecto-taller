@@ -3231,12 +3231,39 @@ function openMarketplaceHelper(item){
       box.className = 'sticker-capture';
       // CRÍTICO: Box debe tener dimensiones EXACTAS sin padding/margin
       box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0; display: block;`;
-      box.innerHTML = html;
+      
+      // CRÍTICO: Modificar el HTML ANTES de insertarlo para asegurar dimensiones correctas
+      // Reemplazar cualquier dimensión incorrecta en el HTML generado
+      let modifiedHtml = html;
+      // Buscar y reemplazar dimensiones incorrectas en el sticker-wrapper
+      modifiedHtml = modifiedHtml.replace(
+        /<div\s+class="sticker-wrapper"[^>]*style="[^"]*width:\s*([^;]+);[^"]*height:\s*([^;]+);/gi,
+        (match, width, height) => {
+          // Reemplazar con dimensiones exactas
+          return match.replace(/width:\s*[^;]+;/, `width:${widthPx}px;`).replace(/height:\s*[^;]+;/, `height:${heightPx}px;`);
+        }
+      );
+      // También reemplazar si las dimensiones están en diferentes formatos
+      modifiedHtml = modifiedHtml.replace(
+        /style="([^"]*width:\s*)[^;]+(px|cm|%)([^"]*)"/gi,
+        (match, before, unit, after) => {
+          if (match.includes('sticker-wrapper')) {
+            return match.replace(/(width:\s*)[^;]+(px|cm|%)/gi, `$1${widthPx}px`).replace(/(height:\s*)[^;]+(px|cm|%)/gi, `$1${heightPx}px`);
+          }
+          return match;
+        }
+      );
+      
+      box.innerHTML = modifiedHtml;
       
       // CRÍTICO: Obtener wrapper y forzar dimensiones INMEDIATAMENTE después de insertar HTML
       const wrapper = box.querySelector('.sticker-wrapper');
       if (!wrapper) {
         console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
+      } else {
+        // CRÍTICO: Verificar dimensiones actuales del wrapper
+        const wrapperRect = wrapper.getBoundingClientRect();
+        console.log(`📐 Wrapper dimensiones después de insertar HTML: ${wrapperRect.width}x${wrapperRect.height}px (esperado: ${widthPx}x${heightPx}px)`);
       }
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
