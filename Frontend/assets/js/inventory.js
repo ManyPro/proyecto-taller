@@ -3177,7 +3177,13 @@ function openMarketplaceHelper(item){
         tasks.push(() => API.templates.preview({
           type: 'sticker-qr',
           layout,
-          meta: { width: widthCm, height: heightCm, layout },
+          // CRÍTICO: Enviar width y height como números exactos (5 y 3) en meta
+          // Esto asegura que el backend use valores exactos
+          meta: { 
+            width: 5, // Forzar exactamente 5cm
+            height: 3, // Forzar exactamente 3cm
+            layout 
+          },
           sampleId: it._id
         }));
       }

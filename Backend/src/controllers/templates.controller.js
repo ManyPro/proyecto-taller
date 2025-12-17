@@ -26,8 +26,17 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
   const layout = rawLayout && typeof rawLayout === 'object' ? rawLayout : {};
   const elements = Array.isArray(layout.elements) ? layout.elements : [];
 
-  const widthCm = Number(rawMeta.width) || Number(layout.widthCm) || Number(layout.width) || 5;
-  const heightCm = Number(rawMeta.height) || Number(layout.heightCm) || Number(layout.height) || 3;
+  // CRÍTICO: Forzar valores exactos (5cm y 3cm) para evitar problemas de precisión
+  // Si viene width/height en meta, usarlos, pero siempre redondear a valores exactos
+  let widthCm = Number(rawMeta.width) || Number(layout.widthCm) || Number(layout.width) || 5;
+  let heightCm = Number(rawMeta.height) || Number(layout.heightCm) || Number(layout.height) || 3;
+  
+  // CRÍTICO: Forzar valores exactos (5cm y 3cm) redondeando a 2 decimales y luego forzando valores exactos
+  widthCm = Math.round(widthCm * 100) / 100; // Redondear a 2 decimales
+  heightCm = Math.round(heightCm * 100) / 100;
+  // Si está cerca de 5 o 3, forzar exactamente 5 o 3
+  if (Math.abs(widthCm - 5) < 0.01) widthCm = 5;
+  if (Math.abs(heightCm - 3) < 0.01) heightCm = 3;
 
   // Convertir cm a px para el wrapper (1cm = 37.795275591px)
   const PX_PER_CM = 37.795275591;
