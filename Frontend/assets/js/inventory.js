@@ -3490,17 +3490,20 @@ function openMarketplaceHelper(item){
         console.log(`✅ Canvas capturado correctamente: ${canvas.width}x${canvas.height}px`);
       }
       
-      console.log(`📐 PDF será: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
+      // CRÍTICO: Forzar valores exactos para el PDF (50mm x 30mm)
+      const exactWidthMm = 50; // 5cm = 50mm exactos
+      const exactHeightMm = 30; // 3cm = 30mm exactos
+      console.log(`📐 PDF será: ${exactWidthMm}mm x ${exactHeightMm}mm (5cm x 3cm exactos)`);
       
       // CRÍTICO: Guardar la imagen con sus dimensiones reales
       // La imagen tiene dimensiones canvas.width x canvas.height en píxeles
-      // Pero debe insertarse en el PDF con dimensiones widthMm x heightMm en mm
+      // Pero debe insertarse en el PDF con dimensiones exactas (50mm x 30mm)
       images.push({
         data: canvas.toDataURL('image/png'),
         width: canvas.width,
         height: canvas.height,
-        targetWidthMm: widthMm,
-        targetHeightMm: heightMm
+        targetWidthMm: exactWidthMm, // Usar valores exactos
+        targetHeightMm: exactHeightMm // Usar valores exactos
       });
       root.removeChild(box);
     }
