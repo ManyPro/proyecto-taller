@@ -851,7 +851,7 @@ if (__ON_INV_PAGE__) {
         <span>☑</span> Seleccionar todos (página)
       </button>
       <div class="flex gap-2 flex-wrap">
-        <button id="sel-stickers-qr" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Generar PDF - Solo QR">Solo QR</button>
+        <button id="sel-stickers-qr" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Generar stickers con QR">Generar stickers</button>
         <button id="sel-stock-in-bulk" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Agregar stock a todos los seleccionados">Agregar stock (masivo)</button>
         <button id="sel-publish-bulk" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Publicar/Despublicar ítems seleccionados, por entrada o SKUs">Publicación (masiva)</button>
       </div>
@@ -3561,6 +3561,11 @@ function openMarketplaceHelper(item){
       doc.internal.pageSize.setHeight(exactHeightMm);
     }
     
+    // CRÍTICO: Eliminar márgenes de impresión también
+    if (doc.internal && doc.internal.pageMargins) {
+      doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+    }
+    
     images.forEach((imgData, idx) => {
       if (idx > 0) {
         doc.addPage([exactWidthMm, exactHeightMm], exactWidthMm > exactHeightMm ? 'landscape' : 'portrait');
@@ -3568,6 +3573,9 @@ function openMarketplaceHelper(item){
         if (doc.internal && doc.internal.pageSize) {
           doc.internal.pageSize.setWidth(exactWidthMm);
           doc.internal.pageSize.setHeight(exactHeightMm);
+        }
+        if (doc.internal && doc.internal.pageMargins) {
+          doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
         }
       }
       
