@@ -3233,6 +3233,17 @@ function openMarketplaceHelper(item){
       box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0; display: block;`;
       box.innerHTML = html;
       
+      // CRÍTICO: Forzar dimensiones del wrapper INMEDIATAMENTE después de insertar HTML
+      // Esto debe hacerse ANTES de inyectar CSS para evitar conflictos
+      const wrapper = box.querySelector('.sticker-wrapper');
+      if (wrapper) {
+        // CRÍTICO: Forzar dimensiones exactas usando cssText para sobrescribir TODO
+        wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important;`;
+        console.log(`📐 Wrapper forzado inmediatamente: ${widthPx}px x ${heightPx}px`);
+      } else {
+        console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
+      }
+      
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
       const style = document.createElement('style');
       style.textContent = `
