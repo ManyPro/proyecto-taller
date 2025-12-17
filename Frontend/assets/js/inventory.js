@@ -2932,8 +2932,23 @@ function openMarketplaceHelper(item){
         wrapperHeight = parseFloat(inlineHeight);
       }
       
+      // CRÍTICO: Leer coordenadas left/top del layout para asegurar posicionamiento correcto
+      const inlineLeft = wrapper.style.left;
+      const inlineTop = wrapper.style.top;
+      let wrapperLeft = parseFloat(inlineLeft) || 0;
+      let wrapperTop = parseFloat(inlineTop) || 0;
+      
+      if (inlineLeft && inlineLeft.includes('px')) {
+        wrapperLeft = parseFloat(inlineLeft);
+      }
+      if (inlineTop && inlineTop.includes('px')) {
+        wrapperTop = parseFloat(inlineTop);
+      }
+      
       // CRÍTICO: Forzar dimensiones EXACTAS del wrapper desde el layout
       wrapper.style.setProperty('position', 'absolute', 'important');
+      wrapper.style.setProperty('left', `${wrapperLeft}px`, 'important'); // CRÍTICO: Preservar left del layout
+      wrapper.style.setProperty('top', `${wrapperTop}px`, 'important'); // CRÍTICO: Preservar top del layout
       wrapper.style.setProperty('width', `${wrapperWidth}px`, 'important');
       wrapper.style.setProperty('height', `${wrapperHeight}px`, 'important');
       wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
