@@ -2993,163 +2993,121 @@ function openMarketplaceHelper(item){
       void target.offsetHeight;
       void wrapper.offsetHeight;
       
-      const style = window.getComputedStyle(target);
-      let fontSize = parseFloat(style.fontSize || '0');
+      // Obtener fontSize y lineHeight iniciales del estilo
+      const targetStyle = window.getComputedStyle(target);
+      let fontSize = parseFloat(targetStyle.fontSize || '0');
       if (!fontSize || fontSize <= 0) {
-        // Si no tiene fontSize, intentar leerlo del elemento o usar un default
-        fontSize = parseFloat(targetStyle.fontSize) || 12;
+        fontSize = 12; // Default
       }
       
-      // Obtener line-height inicial y mantenerlo proporcional
+      // Obtener line-height inicial
       let lineHeight = parseFloat(targetStyle.lineHeight);
       if (!lineHeight || isNaN(lineHeight) || lineHeight <= 0) {
-        // Si no tiene line-height, calcular uno razonable (1.2x el fontSize)
         lineHeight = fontSize * 1.2;
       } else if (lineHeight < 1) {
-        // Si es un factor (ej: 1.2), convertirlo a px
         lineHeight = fontSize * lineHeight;
       }
-      const initialLineHeight = lineHeight;
-      const lineHeightRatio = lineHeight / fontSize; // Mantener proporción
+      const lineHeightRatio = lineHeight / fontSize;
 
-      // CRÍTICO: Eliminar límite mínimo o reducirlo significativamente para permitir ajuste completo
-      const minFont = 4; // px - Reducido de 7px a 4px para permitir más ajuste
-      const minLineHeight = 5; // px - Reducido proporcionalmente
-      const maxIterations = 100; // Aumentado para permitir más iteraciones si es necesario
+      // CRÍTICO: Límites para el ajuste
+      const minFont = 4; // px
+      const minLineHeight = 5; // px
+      const maxIterations = 150;
       let iter = 0;
 
+      // CRÍTICO: Función para verificar si el texto cabe correctamente
       const fits = () => {
-        // Forzar recálculo de dimensiones después de cada cambio
-        void wrapper.offsetHeight;
         void target.offsetHeight;
+        void wrapper.offsetHeight;
         
-        // Obtener dimensiones actuales después del reflow
         const targetRect = target.getBoundingClientRect();
-        const currentWidth = targetRect.width;
-        const currentHeight = targetRect.height;
-        
-        // CRÍTICO: Verificar overflow de forma más estricta
-        // Usar scrollHeight/scrollWidth que son más precisos que getBoundingClientRect para contenido
         const scrollWidth = target.scrollWidth;
         const scrollHeight = target.scrollHeight;
         
-        // Tolerancia muy pequeña (1px) para detección precisa de overflow
-        const overflowsVert = scrollHeight > currentHeight + 1;
-        const overflowsHoriz = scrollWidth > currentWidth + 1;
+        // Verificar overflow con tolerancia de 1px
+        const overflowsVert = scrollHeight > targetHeight + 1;
+        const overflowsHoriz = scrollWidth > targetWidth + 1;
         
-        // También verificar que el contenido no se salga visualmente
-        const computedStyle = window.getComputedStyle(target);
-        const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-        const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-        const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-        const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+        // CRÍTICO: Verificar que el texto ocupe al menos el 95% del espacio vertical
+        const usesVerticalSpace = scrollHeight >= targetHeight * 0.95;
         
-        // El contenido real debe caber dentro del área disponible (width/height - padding)
-        const availableWidth = currentWidth - paddingLeft - paddingRight;
-        const availableHeight = currentHeight - paddingTop - paddingBottom;
-        
-        const overflowsHorizStrict = scrollWidth > availableWidth + 1;
-        const overflowsVertStrict = scrollHeight > availableHeight + 1;
-        
-        // CRÍTICO: Si no hay overflow, el texto debe ocupar todo el espacio vertical disponible
-        // Verificar que el contenido esté usando al menos el 90% del espacio vertical disponible
-        const usesVerticalSpace = scrollHeight >= availableHeight * 0.9 || !overflowsVertStrict;
-        
-        return !overflowsVert && !overflowsHoriz && !overflowsHorizStrict && !overflowsVertStrict && usesVerticalSpace;
+        return !overflowsVert && !overflowsHoriz && usesVerticalSpace;
       };
 
-      // Aplicar el fontSize y lineHeight iniciales
+      // Aplicar fontSize y lineHeight iniciales
       target.style.setProperty('font-size', `${fontSize}px`, 'important');
       target.style.setProperty('line-height', `${lineHeight}px`, 'important');
       
-      // Forzar un reflow inicial
+      // Forzar reflow inicial
       void target.offsetHeight;
       void wrapper.offsetHeight;
+      await new Promise(resolve => requestAnimationFrame(resolve));
       
-      // CRÍTICO: Verificar primero si hay overflow antes de reducir
-      // Cada elemento se procesa de forma INDEPENDIENTE
+      // CRÍTICO: Verificar overflow inicial
       const targetRect = target.getBoundingClientRect();
       const scrollWidth = target.scrollWidth;
       const scrollHeight = target.scrollHeight;
-      const computedStyle = window.getComputedStyle(target);
-      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-      const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
-      const availableWidth = targetRect.width - paddingLeft - paddingRight;
-      const availableHeight = targetRect.height - paddingTop - paddingBottom;
+      const hasOverflow = scrollWidth > targetWidth + 2 || scrollHeight > targetHeight + 2;
+      const usesVerticalSpace = scrollHeight >= targetHeight * 0.95;
       
-      // CRÍTICO: Verificar overflow de forma más precisa
-      // Tolerancia de 2px para evitar falsos positivos
-      const hasOverflow = scrollWidth > availableWidth + 2 || scrollHeight > availableHeight + 2;
+      // Si NO hay overflow Y el texto ocupa el espacio vertical, no hacer nada más
+      if (!hasOverflow && usesVerticalSpace) {
+        return; // El texto ya está bien ajustado
+      }
       
-      // CRÍTICO: Para SKU, ser más estricto - solo reducir si el overflow es significativo (>5px)
-      const isSku = wrapper.getAttribute('data-id')?.includes('sku');
-      const hasSignificantOverflow = isSku 
-        ? (scrollWidth > availableWidth + 5 || scrollHeight > availableHeight + 5)
-        : hasOverflow;
-      
-      // Si NO hay overflow significativo, NO reducir el tamaño - solo asegurar que ocupe el espacio vertical
-      if (!hasSignificantOverflow) {
-        // CRÍTICO: Asegurar que el texto ocupe todo el espacio vertical disponible
-        // Forzar que el div interno use height: 100% para ocupar TODO el espacio
-        target.style.setProperty('height', '100%', 'important');
-        target.style.setProperty('min-height', '100%', 'important');
-        target.style.setProperty('flex', '1 1 0%', 'important');
-        
-        // Si el contenido es menor al 90% del espacio disponible, ajustar line-height para expandirlo
-        if (scrollHeight < availableHeight * 0.9) {
-          // Aumentar ligeramente el line-height para que el texto ocupe más espacio vertical
-          const newLineHeight = Math.min(fontSize * 1.5, availableHeight / (scrollHeight / lineHeight || 1));
-          if (newLineHeight > lineHeight) {
-            lineHeight = newLineHeight;
-            target.style.setProperty('line-height', `${lineHeight}px`, 'important');
-            void target.offsetHeight;
-          }
+      // CRÍTICO: Si el texto NO ocupa el espacio vertical, aumentar line-height primero
+      if (!usesVerticalSpace && !hasOverflow) {
+        // Aumentar line-height para que el texto ocupe más espacio vertical
+        const targetLineHeight = targetHeight / (Math.ceil(scrollHeight / lineHeight) || 1);
+        if (targetLineHeight > lineHeight && targetLineHeight <= fontSize * 2) {
+          lineHeight = targetLineHeight;
+          target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+          void target.offsetHeight;
+          await new Promise(resolve => requestAnimationFrame(resolve));
         }
-        // Si no hay overflow, no hacer nada más - mantener el tamaño original
-        return; // Terminar procesamiento de este elemento
       }
 
-      // Solo si hay overflow, proceder con la reducción
+      // CRÍTICO: Si hay overflow, reducir fontSize hasta que quepa
       while (!fits() && fontSize > minFont && iter < maxIterations) {
-        // CRÍTICO: Reducir fontSize más agresivamente si el overflow es grande
-        // Si el overflow es muy grande, reducir más rápido
-        const targetRect = target.getBoundingClientRect();
-        const overflowRatio = Math.max(
-          (target.scrollWidth / targetRect.width) || 1,
-          (target.scrollHeight / targetRect.height) || 1
-        );
+        const currentRect = target.getBoundingClientRect();
+        const currentScrollWidth = target.scrollWidth;
+        const currentScrollHeight = target.scrollHeight;
         
-        // Si el overflow es muy grande (>1.5x), reducir más rápido
-        const reductionStep = overflowRatio > 1.5 ? 0.5 : 0.2;
+        // Calcular ratio de overflow
+        const overflowRatioX = currentScrollWidth / targetWidth;
+        const overflowRatioY = currentScrollHeight / targetHeight;
+        const maxOverflow = Math.max(overflowRatioX, overflowRatioY);
+        
+        // Reducir fontSize proporcionalmente al overflow
+        const reductionStep = maxOverflow > 1.5 ? 0.5 : 0.2;
         fontSize = Math.max(minFont, fontSize - reductionStep);
         
-        // Ajustar line-height proporcionalmente, pero mantener mínimo
+        // Ajustar line-height proporcionalmente
         lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
         
         target.style.setProperty('font-size', `${fontSize}px`, 'important');
         target.style.setProperty('line-height', `${lineHeight}px`, 'important');
         iter += 1;
         
-        // Forzar reflow después de cada cambio de tamaño
         void target.offsetHeight;
         void wrapper.offsetHeight;
         
-        // Pequeña pausa cada 10 iteraciones para permitir renderizado
         if (iter % 10 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 1));
+          await new Promise(resolve => requestAnimationFrame(resolve));
         }
       }
       
-      // CRÍTICO: Si después de todas las iteraciones aún no cabe, forzar tamaño mínimo
-      if (!fits() && fontSize > minFont) {
-        fontSize = minFont;
-        lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
-        target.style.setProperty('font-size', `${fontSize}px`, 'important');
-        target.style.setProperty('line-height', `${lineHeight}px`, 'important');
-        void target.offsetHeight;
-        void wrapper.offsetHeight;
+      // CRÍTICO: Después de reducir, verificar si necesita expandirse verticalmente
+      void target.offsetHeight;
+      const finalScrollHeight = target.scrollHeight;
+      if (finalScrollHeight < targetHeight * 0.95 && !hasOverflow) {
+        // Aumentar line-height para ocupar más espacio vertical
+        const targetLineHeight = targetHeight / (Math.ceil(finalScrollHeight / lineHeight) || 1);
+        if (targetLineHeight > lineHeight && targetLineHeight <= fontSize * 2) {
+          lineHeight = targetLineHeight;
+          target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+          void target.offsetHeight;
+        }
       }
     } catch (err) {
       // Si hay un error procesando este elemento, continuar con los demás
