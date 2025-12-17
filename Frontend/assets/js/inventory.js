@@ -3287,18 +3287,12 @@ function openMarketplaceHelper(item){
         }
         .sticker-wrapper {
           position: relative !important;
-          width: ${widthPx / htmlZoom}px !important;
-          height: ${heightPx / htmlZoom}px !important;
-          zoom: ${1/htmlZoom} !important;
-          transform: none !important;
-          -webkit-transform: none !important;
-          -moz-transform: none !important;
-          -ms-transform: none !important;
-          -o-transform: none !important;
-          max-width: ${widthPx}px !important;
-          max-height: ${heightPx}px !important;
-          min-width: ${widthPx}px !important;
-          min-height: ${heightPx}px !important;
+          width: ${compensatedBoxWidth}px !important;
+          height: ${compensatedBoxHeight}px !important;
+          max-width: ${compensatedBoxWidth}px !important;
+          max-height: ${compensatedBoxHeight}px !important;
+          min-width: ${compensatedBoxWidth}px !important;
+          min-height: ${compensatedBoxHeight}px !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
           margin: 0 !important;
@@ -3306,7 +3300,7 @@ function openMarketplaceHelper(item){
           left: 0 !important;
           top: 0 !important;
           transform: none !important;
-          zoom: 1 !important;
+          zoom: ${1/htmlZoom} !important;
           scale: 1 !important;
           -webkit-transform: none !important;
           -moz-transform: none !important;
