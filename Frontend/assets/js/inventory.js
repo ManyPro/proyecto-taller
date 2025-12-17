@@ -2977,25 +2977,28 @@ function openMarketplaceHelper(item){
       wrapper.style.setProperty('box-sizing', 'border-box', 'important');
       wrapper.style.setProperty('z-index', '1', 'important'); // Asegurar z-index para textos
       
+      // CRÍTICO: Leer padding del wrapper DESPUÉS de forzar dimensiones
+      const wrapperStyle = window.getComputedStyle(wrapper);
+      const paddingLeft = parseFloat(wrapperStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(wrapperStyle.paddingRight) || 0;
+      const paddingTop = parseFloat(wrapperStyle.paddingTop) || 0;
+      const paddingBottom = parseFloat(wrapperStyle.paddingBottom) || 0;
+      
+      // CRÍTICO: Calcular dimensiones del target restando padding del wrapper
+      const targetWidth = Math.max(0, wrapperWidth - paddingLeft - paddingRight);
+      const targetHeight = Math.max(0, wrapperHeight - paddingTop - paddingBottom);
+      
       // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
       // CRÍTICO: Para SKU y nombre, siempre buscar el div interno primero
       let target = wrapper.querySelector('div');
-      if (!target) {
+      if (!target || target === wrapper) {
+        // Si no hay div interno, usar el wrapper mismo como target
         target = wrapper;
         target.style.setProperty('white-space', 'normal', 'important');
         target.style.setProperty('word-wrap', 'break-word', 'important');
         target.style.setProperty('word-break', 'break-word', 'important');
         target.style.setProperty('overflow-wrap', 'break-word', 'important');
       }
-      
-      // CRÍTICO: Calcular dimensiones del target restando padding del wrapper
-      const paddingLeft = parseFloat(wrapperStyle.paddingLeft) || 0;
-      const paddingRight = parseFloat(wrapperStyle.paddingRight) || 0;
-      const paddingTop = parseFloat(wrapperStyle.paddingTop) || 0;
-      const paddingBottom = parseFloat(wrapperStyle.paddingBottom) || 0;
-      
-      const targetWidth = wrapperWidth - paddingLeft - paddingRight;
-      const targetHeight = wrapperHeight - paddingTop - paddingBottom;
       
       // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
       target.style.setProperty('width', `${targetWidth}px`, 'important');
