@@ -3230,39 +3230,19 @@ function openMarketplaceHelper(item){
 
     const images = [];
     for (const html of htmls) {
-      // CRÍTICO: Crear un contenedor temporal para parsear el HTML
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = html;
-      const originalWrapper = tempDiv.querySelector('.sticker-wrapper');
-      
-      if (!originalWrapper) {
-        console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
-        continue; // Saltar este sticker si no hay wrapper
-      }
-      
-      // CRÍTICO: Crear box y wrapper NUEVOS con dimensiones exactas desde cero
+      // CRÍTICO: Enfoque simplificado - usar el HTML directamente sin recrear elementos
       const box = document.createElement('div');
       box.className = 'sticker-capture';
-      // CRÍTICO: Box debe tener dimensiones EXACTAS sin padding/margin
-      box.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; background: #fff !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important;`;
+      box.innerHTML = html;
       
-      // CRÍTICO: Crear wrapper NUEVO con dimensiones exactas
-      const wrapper = document.createElement('div');
-      wrapper.className = 'sticker-wrapper';
-      wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important; background: #ffffff !important;`;
+      // CRÍTICO: Obtener wrapper del HTML insertado
+      const wrapper = box.querySelector('.sticker-wrapper');
+      if (!wrapper) {
+        console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
+        continue;
+      }
       
-      // CRÍTICO: Clonar TODOS los elementos hijos del wrapper original al nuevo wrapper
-      // Esto preserva el contenido pero elimina cualquier estilo inline problemático
-      Array.from(originalWrapper.children).forEach(child => {
-        // Clonar el elemento profundamente
-        const clonedChild = child.cloneNode(true);
-        wrapper.appendChild(clonedChild);
-      });
-      
-      // Añadir el wrapper al box
-      box.appendChild(wrapper);
-      
-      console.log(`📐 Box y wrapper creados desde cero con dimensiones exactas: ${widthPx}px x ${heightPx}px`);
+      console.log(`📐 Box y wrapper creados desde HTML: ${widthPx}px x ${heightPx}px`);
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
       const style = document.createElement('style');
@@ -3398,64 +3378,6 @@ function openMarketplaceHelper(item){
       // CRÍTICO: Añadir al DOM PRIMERO para que tenga dimensiones
       root.appendChild(box);
       
-      // CRÍTICO: Verificar dimensiones del root antes de forzar box
-      const rootRect = root.getBoundingClientRect();
-      console.log(`📐 Root dimensiones: ${rootRect.width}x${rootRect.height}px`);
-      
-      // CRÍTICO: Forzar dimensiones exactas en el box DESPUÉS de añadirlo al DOM
-      // Usar setProperty en lugar de cssText para asegurar que se aplique
-      box.style.setProperty('position', 'relative', 'important');
-      box.style.setProperty('width', `${widthPx}px`, 'important');
-      box.style.setProperty('height', `${heightPx}px`, 'important');
-      box.style.setProperty('max-width', `${widthPx}px`, 'important');
-      box.style.setProperty('max-height', `${heightPx}px`, 'important');
-      box.style.setProperty('min-width', `${widthPx}px`, 'important');
-      box.style.setProperty('min-height', `${heightPx}px`, 'important');
-      box.style.setProperty('overflow', 'hidden', 'important');
-      box.style.setProperty('background', '#fff', 'important');
-      box.style.setProperty('box-sizing', 'border-box', 'important');
-      box.style.setProperty('margin', '0', 'important');
-      box.style.setProperty('padding', '0', 'important');
-      box.style.setProperty('display', 'block', 'important');
-      box.style.setProperty('transform', 'none', 'important');
-      box.style.setProperty('zoom', '1', 'important');
-      box.style.setProperty('scale', '1', 'important');
-      
-      // CRÍTICO: Forzar dimensiones exactas en el wrapper DESPUÉS de añadir al DOM
-      // (Reutilizar la variable wrapper ya declarada arriba)
-      if (wrapper) {
-        // CRÍTICO: Usar setProperty en lugar de cssText para asegurar que se aplique
-        wrapper.style.setProperty('position', 'relative', 'important');
-        wrapper.style.setProperty('width', `${widthPx}px`, 'important');
-        wrapper.style.setProperty('height', `${heightPx}px`, 'important');
-        wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
-        wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
-        wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
-        wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
-        wrapper.style.setProperty('overflow', 'hidden', 'important');
-        wrapper.style.setProperty('box-sizing', 'border-box', 'important');
-        wrapper.style.setProperty('margin', '0', 'important');
-        wrapper.style.setProperty('padding', '0', 'important');
-        wrapper.style.setProperty('left', '0', 'important');
-        wrapper.style.setProperty('top', '0', 'important');
-        wrapper.style.setProperty('display', 'block', 'important');
-        wrapper.style.setProperty('transform', 'none', 'important');
-        wrapper.style.setProperty('zoom', '1', 'important');
-        wrapper.style.setProperty('scale', '1', 'important');
-        void wrapper.offsetHeight; // Forzar reflow
-        
-        // CRÍTICO: Verificar dimensiones después de forzar
-        const wrapperRect = wrapper.getBoundingClientRect();
-        console.log(`📐 Wrapper forzado después de añadir al DOM: ${wrapperRect.width}x${wrapperRect.height}px (esperado: ${widthPx}x${heightPx}px)`);
-      }
-      
-      // Forzar un reflow para que el navegador calcule las dimensiones
-      void box.offsetHeight;
-      
-      // CRÍTICO: Verificar dimensiones del box después de forzar
-      const boxRect = box.getBoundingClientRect();
-      console.log(`📐 Box dimensiones después de forzar: ${boxRect.width}x${boxRect.height}px (esperado: ${widthPx}x${heightPx}px)`);
-      
       // Esperar un frame para que el navegador termine de renderizar
       await new Promise(resolve => requestAnimationFrame(resolve));
       
@@ -3468,49 +3390,14 @@ function openMarketplaceHelper(item){
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
       
-      // CRÍTICO: Verificar y corregir dimensiones ANTES de capturar
-      let boxRectBefore = box.getBoundingClientRect();
+      // CRÍTICO: Verificar dimensiones ANTES de capturar
+      const boxRectBefore = box.getBoundingClientRect();
       const wrapperBefore = box.querySelector('.sticker-wrapper');
-      let wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
-      
-      // CRÍTICO: Si las dimensiones no son correctas, calcular factor de escala y corregir
-      let attempts = 0;
-      while ((Math.abs(boxRectBefore.width - widthPx) > 1 || Math.abs(boxRectBefore.height - heightPx) > 1) && attempts < 5) {
-        const scaleX = widthPx / boxRectBefore.width;
-        const scaleY = heightPx / boxRectBefore.height;
-        console.warn(`⚠️ Box tiene dimensiones incorrectas: ${boxRectBefore.width}x${boxRectBefore.height}px, esperado: ${widthPx}x${heightPx}px - Factor de escala: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)} - Forzando nuevamente (intento ${attempts + 1})...`);
-        
-        // CRÍTICO: Usar cssText para sobrescribir TODOS los estilos, incluyendo transform
-        box.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; background: #fff !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important;`;
-        
-        void box.offsetHeight; // Forzar reflow
-        await new Promise(resolve => setTimeout(resolve, 10)); // Esperar más tiempo
-        await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
-        boxRectBefore = box.getBoundingClientRect();
-        attempts++;
-      }
-      
-      if (wrapperBefore) {
-        attempts = 0;
-        while (wrapperRectBefore && (Math.abs(wrapperRectBefore.width - widthPx) > 1 || Math.abs(wrapperRectBefore.height - heightPx) > 1) && attempts < 5) {
-          const scaleX = widthPx / wrapperRectBefore.width;
-          const scaleY = heightPx / wrapperRectBefore.height;
-          console.warn(`⚠️ Wrapper tiene dimensiones incorrectas: ${wrapperRectBefore.width}x${wrapperRectBefore.height}px, esperado: ${widthPx}x${heightPx}px - Factor de escala: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)} - Forzando nuevamente (intento ${attempts + 1})...`);
-          
-          // CRÍTICO: Usar cssText para sobrescribir TODOS los estilos
-          wrapperBefore.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important;`;
-          
-          void wrapperBefore.offsetHeight; // Forzar reflow
-          await new Promise(resolve => setTimeout(resolve, 10)); // Esperar más tiempo
-          await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
-          wrapperRectBefore = wrapperBefore.getBoundingClientRect();
-          attempts++;
-        }
-      }
+      const wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
       
       console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
       
-      // CRÍTICO: Si las dimensiones aún no son correctas después de todos los intentos, usar transform: scale para corregir
+      // CRÍTICO: Si las dimensiones no son correctas, usar transform: scale para corregir
       let needsScale = false;
       let scaleX = 1;
       let scaleY = 1;
@@ -3518,15 +3405,13 @@ function openMarketplaceHelper(item){
       if (Math.abs(boxRectBefore.width - widthPx) > 1 || Math.abs(boxRectBefore.height - heightPx) > 1) {
         scaleX = widthPx / boxRectBefore.width;
         scaleY = heightPx / boxRectBefore.height;
-        console.warn(`⚠️ Box aún tiene dimensiones incorrectas después de todos los intentos. Usando transform: scale(${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}) para corregir...`);
+        console.warn(`⚠️ Box tiene dimensiones incorrectas. Usando transform: scale(${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}) para corregir...`);
         box.style.setProperty('transform', `scale(${scaleX}, ${scaleY})`, 'important');
         box.style.setProperty('transform-origin', 'top left', 'important');
-        // CRÍTICO: Mantener dimensiones originales del box para que html2canvas capture correctamente
-        // El transform: scale hará que el contenido se vea del tamaño correcto
         box.style.setProperty('width', `${boxRectBefore.width}px`, 'important');
         box.style.setProperty('height', `${boxRectBefore.height}px`, 'important');
-        void box.offsetHeight; // Forzar reflow
-        await new Promise(resolve => requestAnimationFrame(resolve)); // Esperar frame
+        void box.offsetHeight;
+        await new Promise(resolve => requestAnimationFrame(resolve));
         needsScale = true;
       }
       
