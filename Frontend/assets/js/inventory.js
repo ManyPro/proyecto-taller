@@ -3230,19 +3230,11 @@ function openMarketplaceHelper(item){
 
     const images = [];
     for (const html of htmls) {
-      // CRÍTICO: Enfoque simplificado - usar el HTML directamente sin recrear elementos
+      // CRÍTICO: Usar el mismo enfoque simple que funcionaba antes (captureSingleBox)
       const box = document.createElement('div');
       box.className = 'sticker-capture';
-      box.innerHTML = html;
-      
-      // CRÍTICO: Obtener wrapper del HTML insertado
-      const wrapper = box.querySelector('.sticker-wrapper');
-      if (!wrapper) {
-        console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
-        continue;
-      }
-      
-      console.log(`📐 Box y wrapper creados desde HTML: ${widthPx}px x ${heightPx}px`);
+      // CRÍTICO: Usar dimensiones exactas sin !important en el box inicial (como funcionaba antes)
+      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
       const style = document.createElement('style');
