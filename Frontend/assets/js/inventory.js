@@ -3299,12 +3299,15 @@ function openMarketplaceHelper(item){
           max-width: 100% !important;
           max-height: 100% !important;
           width: 100% !important;
-          height: 100% !important; /* CRÍTICO: Ocupar TODO el espacio vertical disponible */
-          flex: 1 1 0% !important; /* CRÍTICO: Permitir que se expanda verticalmente */
-          min-height: 100% !important; /* CRÍTICO: Mínimo 100% del contenedor */
-          /* CRÍTICO: Forzar que las letras no se amontonen - usar letter-spacing si es necesario */
+          /* CRÍTICO: NO usar height: 100% porque puede causar problemas de posicionamiento */
+          /* En su lugar, usar min-height para asegurar que ocupe el espacio, pero permitir que crezca */
+          min-height: 100% !important;
+          height: auto !important; /* Permitir que el contenido determine la altura */
+          /* CRÍTICO: Forzar que las letras no se amontonen */
           letter-spacing: normal !important;
           text-rendering: optimizeLegibility !important;
+          font-kerning: normal !important;
+          font-variant-ligatures: normal !important;
           /* CRÍTICO: Asegurar que el texto se ajuste correctamente sin superposiciones */
           hyphens: auto !important;
           -webkit-hyphens: auto !important;
