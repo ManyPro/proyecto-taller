@@ -105,6 +105,8 @@ async function computeItems(itemsInput = [], companyId = null) {
 
     // Si es un combo (source='price' con refId y tipo='combo'), expandirlo automáticamente
     // PERO solo si el frontend no ya expandió los items (verificar si hay items con comboParent que apunten a este refId)
+    // IMPORTANTE: Si el item tiene un precio personalizado (unitPrice diferente al precio del combo), NO expandir
+    // porque significa que el usuario editó el precio manualmente y quiere mantener el combo como un solo item
     if (source === 'price' && refId && itemKind === 'Combo' && PriceEntry && companyId) {
       // Verificar si ya hay items expandidos para este combo en el input
       const alreadyExpanded = itemsInput.some(otherIt => {
@@ -112,8 +114,30 @@ async function computeItems(itemsInput = [], companyId = null) {
         return otherComboParent && String(otherComboParent).trim() === String(refId).trim();
       });
       
-      // Solo expandir si no está ya expandido
+      // Verificar si el precio fue editado manualmente (diferente al precio del combo)
+      let priceWasEdited = false;
       if (!alreadyExpanded) {
+        try {
+          let pe = priceEntryCache.get(String(refId));
+          if (!pe) {
+            pe = await PriceEntry.findOne({ _id: refId, companyId })
+              .populate('vehicleId', 'make line displacement modelYear')
+              .populate('itemId', 'sku name stock salePrice')
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
+            if (pe) priceEntryCache.set(String(refId), pe);
+          }
+          // Si el precio del item es diferente al precio del combo, significa que fue editado
+          if (pe && pe.total && Math.abs(Number(pe.total) - unitPrice) > 0.01) {
+            priceWasEdited = true;
+          }
+        } catch (err) {
+          // Continuar si hay error
+        }
+      }
+      
+      // Solo expandir si no está ya expandido Y el precio no fue editado manualmente
+      if (!alreadyExpanded && !priceWasEdited) {
         let pe = priceEntryCache.get(String(refId));
         if (!pe) {
           try {

@@ -931,7 +931,7 @@ export function initQuotes({ getCompanyEmail }) {
         '',
         'Items:'
       ];
-      readRows().forEach(r => {
+      (window._tempModalReadRows ? window._tempModalReadRows() : readRows()).forEach(r => {
         linesOut.push('- ' + (r.qty || 0) + ' x ' + (r.desc || '') + ' (' + money((r.qty>0?r.qty:1)*(r.price||0)) + ')');
       });
       const txt = linesOut.join('\n');
@@ -1036,7 +1036,8 @@ export function initQuotes({ getCompanyEmail }) {
           const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
           
           // Preparar datos de la cotización desde la UI
-          const quoteData = {
+          // Si hay datos temporales del modal, usarlos; sino usar datos de la UI principal
+          const quoteData = window._tempModalQuoteData || {
             number: iNumber.value || '',
             date: iDatetime.value || todayIso(),
             customer: {
@@ -1052,7 +1053,7 @@ export function initQuotes({ getCompanyEmail }) {
               displacement: iCc.value || ''
             },
             validity: iValidDays.value || '',
-            items: readRows().map(r => ({
+            items: (window._tempModalReadRows ? window._tempModalReadRows() : readRows()).map(r => ({
               description: r.desc || '',
               qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
               unitPrice: Number(r.price || 0),
@@ -2916,9 +2917,71 @@ export function initQuotes({ getCompanyEmail }) {
         window.open(`https://wa.me/?text=${encodedText}`, '_blank');
       }
     });
-    q('#m-pdf')?.addEventListener('click',()=>{
-      // Usar exportPDF que ya maneja templates correctamente
-      exportPDF().catch(e=>alert(e?.message||'Error generando PDF'));
+    q('#m-pdf')?.addEventListener('click', async ()=>{
+      try {
+        // Preparar datos del modal para impresión
+        const modalRows = readRows();
+        const modalQuoteData = {
+          number: iNumber.value || '',
+          date: iDatetime.value || todayIso(),
+          customer: {
+            name: iName.value || '',
+            phone: iPhone.value || '',
+            email: iEmail.value || ''
+          },
+          vehicle: {
+            plate: iPlate.value || '',
+            make: iBrand.value || '',
+            line: iLine.value || '',
+            modelYear: iYear.value || '',
+            displacement: iCc.value || ''
+          },
+          validity: iValid.value || '',
+          items: modalRows.map(r => ({
+            description: r.desc || '',
+            qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
+            unitPrice: Number(r.price || 0),
+            subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
+            sku: r.sku || '',
+            kind: r.type || 'SERVICIO',
+            source: r.source || undefined,
+            refId: r.refId || undefined,
+            comboParent: r.comboParent || undefined
+          })),
+          totals: {
+            total: parseMoney(lblT?.textContent) || 0
+          },
+          ivaEnabled: false
+        };
+        
+        // Guardar contexto temporal para que exportPDF use los datos del modal
+        const originalReadRows = window._tempModalReadRows;
+        const originalQuoteData = window._tempModalQuoteData;
+        const originalCurrentQuoteId = currentQuoteId;
+        
+        window._tempModalReadRows = () => modalRows;
+        window._tempModalQuoteData = modalQuoteData;
+        currentQuoteId = doc?._id || null;
+        
+        try {
+          await exportPDF();
+        } finally {
+          // Restaurar contexto original
+          if (originalReadRows !== undefined) {
+            window._tempModalReadRows = originalReadRows;
+          } else {
+            delete window._tempModalReadRows;
+          }
+          if (originalQuoteData !== undefined) {
+            window._tempModalQuoteData = originalQuoteData;
+          } else {
+            delete window._tempModalQuoteData;
+          }
+          currentQuoteId = originalCurrentQuoteId;
+        }
+      } catch(e) {
+        alert(e?.message||'Error generando PDF');
+      }
     });
     q('#m-save')?.addEventListener('click', async ()=>{
       try{
@@ -2973,6 +3036,10 @@ export function initQuotes({ getCompanyEmail }) {
               base.refId = r.refId.trim();
             }
             if(r.sku) base.sku=r.sku;
+            // Incluir comboParent si existe (para items anidados de combos)
+            if(r.comboParent) {
+              base.comboParent = String(r.comboParent).trim();
+            }
             return base;
           }).filter(item => {
             // Filtrar solo items completamente vacíos
