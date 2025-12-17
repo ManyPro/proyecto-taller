@@ -3398,20 +3398,63 @@ function openMarketplaceHelper(item){
       // CRÍTICO: Añadir al DOM PRIMERO para que tenga dimensiones
       root.appendChild(box);
       
+      // CRÍTICO: Verificar dimensiones del root antes de forzar box
+      const rootRect = root.getBoundingClientRect();
+      console.log(`📐 Root dimensiones: ${rootRect.width}x${rootRect.height}px`);
+      
       // CRÍTICO: Forzar dimensiones exactas en el box DESPUÉS de añadirlo al DOM
-      box.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; background: #fff !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; display: block !important;`;
+      // Usar setProperty en lugar de cssText para asegurar que se aplique
+      box.style.setProperty('position', 'relative', 'important');
+      box.style.setProperty('width', `${widthPx}px`, 'important');
+      box.style.setProperty('height', `${heightPx}px`, 'important');
+      box.style.setProperty('max-width', `${widthPx}px`, 'important');
+      box.style.setProperty('max-height', `${heightPx}px`, 'important');
+      box.style.setProperty('min-width', `${widthPx}px`, 'important');
+      box.style.setProperty('min-height', `${heightPx}px`, 'important');
+      box.style.setProperty('overflow', 'hidden', 'important');
+      box.style.setProperty('background', '#fff', 'important');
+      box.style.setProperty('box-sizing', 'border-box', 'important');
+      box.style.setProperty('margin', '0', 'important');
+      box.style.setProperty('padding', '0', 'important');
+      box.style.setProperty('display', 'block', 'important');
+      box.style.setProperty('transform', 'none', 'important');
+      box.style.setProperty('zoom', '1', 'important');
+      box.style.setProperty('scale', '1', 'important');
       
       // CRÍTICO: Forzar dimensiones exactas en el wrapper DESPUÉS de añadir al DOM
       // (Reutilizar la variable wrapper ya declarada arriba)
       if (wrapper) {
-        // CRÍTICO: Forzar dimensiones exactas usando cssText para sobrescribir TODO
-        wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important;`;
+        // CRÍTICO: Usar setProperty en lugar de cssText para asegurar que se aplique
+        wrapper.style.setProperty('position', 'relative', 'important');
+        wrapper.style.setProperty('width', `${widthPx}px`, 'important');
+        wrapper.style.setProperty('height', `${heightPx}px`, 'important');
+        wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
+        wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
+        wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
+        wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
+        wrapper.style.setProperty('overflow', 'hidden', 'important');
+        wrapper.style.setProperty('box-sizing', 'border-box', 'important');
+        wrapper.style.setProperty('margin', '0', 'important');
+        wrapper.style.setProperty('padding', '0', 'important');
+        wrapper.style.setProperty('left', '0', 'important');
+        wrapper.style.setProperty('top', '0', 'important');
+        wrapper.style.setProperty('display', 'block', 'important');
+        wrapper.style.setProperty('transform', 'none', 'important');
+        wrapper.style.setProperty('zoom', '1', 'important');
+        wrapper.style.setProperty('scale', '1', 'important');
         void wrapper.offsetHeight; // Forzar reflow
-        console.log(`📐 Wrapper forzado después de añadir al DOM: ${widthPx}px x ${heightPx}px`);
+        
+        // CRÍTICO: Verificar dimensiones después de forzar
+        const wrapperRect = wrapper.getBoundingClientRect();
+        console.log(`📐 Wrapper forzado después de añadir al DOM: ${wrapperRect.width}x${wrapperRect.height}px (esperado: ${widthPx}x${heightPx}px)`);
       }
       
       // Forzar un reflow para que el navegador calcule las dimensiones
       void box.offsetHeight;
+      
+      // CRÍTICO: Verificar dimensiones del box después de forzar
+      const boxRect = box.getBoundingClientRect();
+      console.log(`📐 Box dimensiones después de forzar: ${boxRect.width}x${boxRect.height}px (esperado: ${widthPx}x${heightPx}px)`);
       
       // Esperar un frame para que el navegador termine de renderizar
       await new Promise(resolve => requestAnimationFrame(resolve));
