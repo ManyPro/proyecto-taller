@@ -3286,6 +3286,8 @@ function openMarketplaceHelper(item){
           max-height: inherit !important;
           min-width: 0 !important;
           min-height: 0 !important;
+          /* CRÍTICO: Asegurar que el posicionamiento sea correcto - NO sobrescribir left/top del layout */
+          /* Las coordenadas left y top vienen del layout y NO deben ser sobrescritas */
         }
         /* CRÍTICO: El div interno de texto también debe usar dimensiones absolutas y NO escaparse */
         .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
