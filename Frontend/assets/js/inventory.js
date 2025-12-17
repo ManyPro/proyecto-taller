@@ -3396,10 +3396,35 @@ function openMarketplaceHelper(item){
           box-sizing: border-box !important;
         }
       `;
+      
+      // CRÍTICO: Insertar HTML después de crear el box y el style (como funcionaba antes)
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html || '';
+      const stickerNode = tempDiv.querySelector('.sticker-wrapper');
+      if (stickerNode) {
+        box.appendChild(stickerNode);
+      } else {
+        const bodyNode = tempDiv.querySelector('body');
+        const source = bodyNode || tempDiv;
+        while (source.firstChild) {
+          box.appendChild(source.firstChild);
+        }
+      }
+      
+      // Agregar el style al final para que tenga prioridad
       box.appendChild(style);
       
-      // CRÍTICO: Añadir al DOM PRIMERO para que tenga dimensiones
+      // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS
+      const wrapper = box.querySelector('.sticker-wrapper');
+      if (wrapper) {
+        wrapper.style.cssText = `position: relative !important; width: ${compensatedBoxWidth}px !important; height: ${compensatedBoxHeight}px !important; max-width: ${compensatedBoxWidth}px !important; max-height: ${compensatedBoxHeight}px !important; min-width: ${compensatedBoxWidth}px !important; min-height: ${compensatedBoxHeight}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; zoom: ${1/htmlZoom} !important; transform: none !important; -webkit-transform: none !important; -moz-transform: none !important; -ms-transform: none !important; -o-transform: none !important;`;
+      }
+      
+      // CRÍTICO: Añadir al DOM
       root.appendChild(box);
+      
+      // Forzar reflow para asegurar que el contenido se renderice
+      void box.offsetHeight;
       
       // Esperar un frame para que el navegador termine de renderizar
       await new Promise(resolve => requestAnimationFrame(resolve));
