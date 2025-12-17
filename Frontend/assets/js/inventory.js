@@ -3509,36 +3509,40 @@ function openMarketplaceHelper(item){
     }
     document.body.removeChild(root);
 
+    // CRÍTICO: Forzar valores exactos para el PDF (50mm x 30mm)
+    const exactWidthMm = 50; // 5cm = 50mm exactos
+    const exactHeightMm = 30; // 3cm = 30mm exactos
+    
     // CRÍTICO: Crear PDF con dimensiones exactas, sin márgenes
     const doc = new jsPDF({
-      orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+      orientation: exactWidthMm > exactHeightMm ? 'landscape' : 'portrait',
       unit: 'mm',
-      format: [widthMm, heightMm],
+      format: [exactWidthMm, exactHeightMm],
       compress: false
     });
     
     // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
     doc.setPage(1);
     if (doc.internal && doc.internal.pageSize) {
-      doc.internal.pageSize.setWidth(widthMm);
-      doc.internal.pageSize.setHeight(heightMm);
+      doc.internal.pageSize.setWidth(exactWidthMm);
+      doc.internal.pageSize.setHeight(exactHeightMm);
     }
     
     images.forEach((imgData, idx) => {
       if (idx > 0) {
-        doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
+        doc.addPage([exactWidthMm, exactHeightMm], exactWidthMm > exactHeightMm ? 'landscape' : 'portrait');
         // Eliminar márgenes en páginas adicionales también
         if (doc.internal && doc.internal.pageSize) {
-          doc.internal.pageSize.setWidth(widthMm);
-          doc.internal.pageSize.setHeight(heightMm);
+          doc.internal.pageSize.setWidth(exactWidthMm);
+          doc.internal.pageSize.setHeight(exactHeightMm);
         }
       }
       
       // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
-      // Si imgData es un objeto con dimensiones, usar esas dimensiones
+      // Usar valores exactos (50mm x 30mm) independientemente de lo que venga en imgData
       const src = typeof imgData === 'string' ? imgData : imgData.data;
-      const targetW = typeof imgData === 'object' ? imgData.targetWidthMm : widthMm;
-      const targetH = typeof imgData === 'object' ? imgData.targetHeightMm : heightMm;
+      const targetW = exactWidthMm; // Siempre usar valores exactos
+      const targetH = exactHeightMm; // Siempre usar valores exactos
       
       // CRÍTICO: Insertar la imagen ocupando TODO el espacio de la página
       doc.addImage(src, 'PNG', 0, 0, targetW, targetH, undefined, 'SLOW');
