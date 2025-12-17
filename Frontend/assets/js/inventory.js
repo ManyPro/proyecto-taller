@@ -3250,10 +3250,15 @@ function openMarketplaceHelper(item){
     const images = [];
     for (const html of htmls) {
       // CRÍTICO: Usar el mismo enfoque simple que funcionaba antes (captureSingleBox)
+      // NOTA: Hay un CSS global que aplica zoom: 0.85 al html, lo que escala todo al 85%
+      // Necesitamos contrarrestar esto forzando zoom: 1 en el box
+      const htmlZoom = 0.85; // Zoom global aplicado al html
+      const compensatedBoxWidth = widthPx / htmlZoom;
+      const compensatedBoxHeight = heightPx / htmlZoom;
       const box = document.createElement('div');
       box.className = 'sticker-capture';
-      // CRÍTICO: Usar dimensiones exactas sin !important en el box inicial (como funcionaba antes)
-      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
+      // CRÍTICO: Usar dimensiones compensadas y zoom: 1 para contrarrestar el zoom global
+      box.style.cssText = `position: relative; width: ${compensatedBoxWidth}px; height: ${compensatedBoxHeight}px; overflow: hidden; background: #fff; box-sizing: border-box; zoom: ${1/htmlZoom}; transform: none; -webkit-transform: none; -moz-transform: none; -ms-transform: none; -o-transform: none;`;
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
       const style = document.createElement('style');
@@ -3281,8 +3286,14 @@ function openMarketplaceHelper(item){
         }
         .sticker-wrapper {
           position: relative !important;
-          width: ${widthPx}px !important;
-          height: ${heightPx}px !important;
+          width: ${widthPx / htmlZoom}px !important;
+          height: ${heightPx / htmlZoom}px !important;
+          zoom: ${1/htmlZoom} !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
           max-width: ${widthPx}px !important;
           max-height: ${heightPx}px !important;
           min-width: ${widthPx}px !important;
