@@ -3551,8 +3551,21 @@ function openMarketplaceHelper(item){
       orientation: exactWidthMm > exactHeightMm ? 'landscape' : 'portrait',
       unit: 'mm',
       format: [exactWidthMm, exactHeightMm],
-      compress: false
+      compress: false,
+      precision: 16 // Mayor precisión para dimensiones exactas
     });
+    
+    // CRÍTICO: Forzar que no haya márgenes desde el inicio
+    if (doc.internal) {
+      if (doc.internal.pageMargins) {
+        doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
+      // Asegurar que las dimensiones de la página sean exactas
+      if (doc.internal.pageSize) {
+        doc.internal.pageSize.width = exactWidthMm;
+        doc.internal.pageSize.height = exactHeightMm;
+      }
+    }
     
     // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
     doc.setPage(1);
