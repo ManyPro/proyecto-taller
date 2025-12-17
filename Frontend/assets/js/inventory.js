@@ -3261,12 +3261,19 @@ function openMarketplaceHelper(item){
       box.style.cssText = `position: relative; width: ${compensatedBoxWidth}px; height: ${compensatedBoxHeight}px; overflow: hidden; background: #fff; box-sizing: border-box; zoom: ${1/htmlZoom}; transform: none; -webkit-transform: none; -moz-transform: none; -ms-transform: none; -o-transform: none;`;
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
+      // NOTA: Compensar el zoom global del html (0.85) usando dimensiones / 0.85 y zoom: 1/0.85
       const style = document.createElement('style');
       style.textContent = `
         .sticker-capture {
           position: relative !important;
-          width: ${widthPx}px !important;
-          height: ${heightPx}px !important;
+          width: ${compensatedBoxWidth}px !important;
+          height: ${compensatedBoxHeight}px !important;
+          zoom: ${1/htmlZoom} !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
           max-width: ${widthPx}px !important;
           max-height: ${heightPx}px !important;
           min-width: ${widthPx}px !important;
