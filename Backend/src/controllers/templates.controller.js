@@ -1946,7 +1946,7 @@ export async function previewTemplate(req, res) {
     }
   }
   
-  // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
+  // Si se proporcionan datos de cotización directamente (desde UI sin guardar o desde historial), sobrescribir el contexto
   // IMPORTANTE: Siempre usar quoteData cuando se proporciona, ya que son los datos más actualizados de la UI
   if (quoteData && type === 'quote') {
     const hasItemsInData = (quoteData.items || []).length > 0;
@@ -1962,24 +1962,27 @@ export async function previewTemplate(req, res) {
         contextItemsCount: (ctx.quote?.items || []).length,
         hasProducts: ctx.quote?.itemsGrouped?.hasProducts,
         hasServices: ctx.quote?.itemsGrouped?.hasServices,
-        hasCombos: ctx.quote?.itemsGrouped?.hasCombos
+        hasCombos: ctx.quote?.itemsGrouped?.hasCombos,
+        sampleId: sampleId || 'none'
       });
     }
     
-    // SIEMPRE usar quoteData cuando se proporciona Y tiene items
-    // O si el contexto NO tiene items válidos (aunque tenga items, si no están agrupados correctamente, usar quoteData)
-    // Esto asegura que los datos de la UI (que pueden tener cambios no guardados) se usen para la impresión
-    // CRÍTICO: Si quoteData tiene items, SIEMPRE usarlo, incluso si hay sampleId y el contexto tiene items
-    // porque los datos de quoteData son los más actualizados de la UI
-    // La condición simplificada: usar quoteData si tiene items O si el contexto no tiene items válidos
+    // CRÍTICO: SIEMPRE usar quoteData cuando se proporciona Y tiene items
+    // Esto asegura que los datos de la UI (que pueden tener cambios no guardados) o del historial se usen para la impresión
+    // La única excepción es si quoteData NO tiene items Y el contexto SÍ tiene items válidos (usar contexto en ese caso)
+    // Pero en la práctica, si quoteData se proporciona, siempre debe usarse porque viene de la UI o del historial
     if (hasItemsInData || !contextItemsAreValid) {
-      if (debug) console.log('[previewTemplate] Usando quoteData para sobrescribir contexto (items actualizados de la UI)', {
-        hasItemsInData,
-        hasItemsInContext,
-        quoteDataItemsCount: (quoteData.items || []).length,
-        contextItemsCount: (ctx.quote?.items || []).length,
-        willUseQuoteData: true
-      });
+      if (debug) {
+        console.log('[previewTemplate] ✅ Usando quoteData para sobrescribir contexto (items actualizados de la UI/historial)', {
+          hasItemsInData,
+          hasItemsInContext,
+          contextItemsAreValid,
+          quoteDataItemsCount: (quoteData.items || []).length,
+          contextItemsCount: (ctx.quote?.items || []).length,
+          willUseQuoteData: true,
+          reason: hasItemsInData ? 'quoteData tiene items' : 'contexto no tiene items válidos'
+        });
+      }
       
       // Procesar items y crear estructura agrupada (igual que en buildContext)
       // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
@@ -2212,7 +2215,21 @@ export async function previewTemplate(req, res) {
         };
       }
       
-      if (debug) console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0, 'ivaEnabled:', ivaEnabled);
+      if (debug) {
+        console.log('[previewTemplate] ✅ Quote context actualizado con items:', {
+          itemsCount: ctx.quote.items?.length || 0,
+          itemsGrouped: {
+            hasProducts: ctx.quote.itemsGrouped?.hasProducts,
+            hasServices: ctx.quote.itemsGrouped?.hasServices,
+            hasCombos: ctx.quote.itemsGrouped?.hasCombos,
+            productsCount: ctx.quote.itemsGrouped?.products?.length || 0,
+            servicesCount: ctx.quote.itemsGrouped?.services?.length || 0,
+            combosCount: ctx.quote.itemsGrouped?.combos?.length || 0
+          },
+          ivaEnabled: ivaEnabled,
+          total: ctx.quote.total
+        });
+      }
     }
   }
   

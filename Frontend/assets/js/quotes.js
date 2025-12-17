@@ -1073,6 +1073,15 @@ export function initQuotes({ getCompanyEmail }) {
           // Si hay una cotización guardada, usar su ID para obtener datos reales
           const sampleId = currentQuoteId || undefined;
           
+          // Log para debugging
+          console.log('[exportPDF] Enviando datos al preview:', {
+            sampleId: sampleId || 'none',
+            quoteDataItemsCount: (quoteData.items || []).length,
+            quoteDataItems: (quoteData.items || []).slice(0, 3).map(i => ({ desc: i.description, qty: i.qty, price: i.unitPrice })),
+            quoteDataTotal: quoteData.totals?.total,
+            hasQuoteData: !!quoteData
+          });
+          
           // Enviar a endpoint preview con datos de la UI
           return API.templates.preview({ 
             type:'quote', 
@@ -3157,10 +3166,68 @@ export function initQuotes({ getCompanyEmail }) {
       setUIFromQuote(d);
       
       // Esperar un momento para que la UI se actualice
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Usar exportPDF que ya maneja templates correctamente
-      await exportPDF();
+      // CRÍTICO: Preparar quoteData directamente desde el documento para asegurar que los items se pasen correctamente
+      // Esto es necesario porque cuando se imprime desde el historial, los items pueden no estar cargados correctamente en la UI
+      const quoteDataFromDoc = {
+        number: d?.number || '',
+        date: d?.createdAt ? new Date(d.createdAt).toISOString().slice(0, 16) : todayIso(),
+        customer: {
+          name: d?.customer?.name || '',
+          phone: d?.customer?.phone || '',
+          email: d?.customer?.email || ''
+        },
+        vehicle: {
+          plate: d?.vehicle?.plate || '',
+          make: d?.vehicle?.make || '',
+          line: d?.vehicle?.line || '',
+          modelYear: d?.vehicle?.modelYear || '',
+          displacement: d?.vehicle?.displacement || '',
+          mileage: d?.vehicle?.mileage || ''
+        },
+        validity: d?.validity || '',
+        items: (d?.items || []).map(item => ({
+          description: item.description || '',
+          qty: item.qty === null || item.qty === undefined || item.qty === '' ? null : Number(item.qty),
+          unitPrice: Number(item.unitPrice || 0),
+          subtotal: (item.qty > 0 ? item.qty : 1) * (item.unitPrice || 0),
+          sku: item.sku || '',
+          kind: item.kind || 'SERVICIO',
+          source: item.source || undefined,
+          refId: item.refId || undefined,
+          comboParent: item.comboParent || undefined
+        })),
+        totals: {
+          total: d?.total || 0
+        },
+        ivaEnabled: d?.ivaEnabled || false,
+        discount: d?.discount || null
+      };
+      
+      // Log para debugging
+      console.log('[exportPDFFromDoc] QuoteData preparado desde documento:', {
+        itemsCount: quoteDataFromDoc.items?.length || 0,
+        items: quoteDataFromDoc.items?.slice(0, 3).map(i => ({ desc: i.description, qty: i.qty, price: i.unitPrice })),
+        total: quoteDataFromDoc.totals?.total,
+        docId: d._id
+      });
+      
+      // Guardar quoteData temporalmente para que exportPDF lo use
+      const originalQuoteData = window._tempModalQuoteData;
+      window._tempModalQuoteData = quoteDataFromDoc;
+      
+      try {
+        // Usar exportPDF que ya maneja templates correctamente
+        await exportPDF();
+      } finally {
+        // Restaurar quoteData original
+        if (originalQuoteData !== undefined) {
+          window._tempModalQuoteData = originalQuoteData;
+        } else {
+          delete window._tempModalQuoteData;
+        }
+      }
     } catch(e) {
       console.error('[exportPDFFromDoc] Error:', e);
       alert(e?.message || 'Error generando PDF');
