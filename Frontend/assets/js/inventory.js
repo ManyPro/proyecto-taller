@@ -2914,84 +2914,74 @@ function openMarketplaceHelper(item){
   async function processElementIndependently(wrapper) {
     try {
 
-      // Obtener dimensiones absolutas del wrapper desde el estilo inline
+      // CRÍTICO: Leer dimensiones REALES del wrapper desde el layout (estilo inline)
       const wrapperStyle = window.getComputedStyle(wrapper);
       const wrapperRect = wrapper.getBoundingClientRect();
-      const wrapperWidth = wrapperRect.width || parseFloat(wrapperStyle.width);
-      const wrapperHeight = wrapperRect.height || parseFloat(wrapperStyle.height);
       
-      // Forzar overflow hidden y dimensiones absolutas en el wrapper
+      // CRÍTICO: Leer dimensiones del estilo inline que vienen del layout
+      const inlineWidth = wrapper.style.width;
+      const inlineHeight = wrapper.style.height;
+      let wrapperWidth = parseFloat(inlineWidth) || wrapperRect.width;
+      let wrapperHeight = parseFloat(inlineHeight) || wrapperRect.height;
+      
+      // Si las dimensiones vienen en píxeles del estilo inline, usarlas directamente
+      if (inlineWidth && inlineWidth.includes('px')) {
+        wrapperWidth = parseFloat(inlineWidth);
+      }
+      if (inlineHeight && inlineHeight.includes('px')) {
+        wrapperHeight = parseFloat(inlineHeight);
+      }
+      
+      // CRÍTICO: Forzar dimensiones EXACTAS del wrapper desde el layout
+      wrapper.style.setProperty('position', 'absolute', 'important');
+      wrapper.style.setProperty('width', `${wrapperWidth}px`, 'important');
+      wrapper.style.setProperty('height', `${wrapperHeight}px`, 'important');
+      wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
+      wrapper.style.setProperty('max-height', `${wrapperHeight}px`, 'important');
+      wrapper.style.setProperty('min-width', `${wrapperWidth}px`, 'important');
+      wrapper.style.setProperty('min-height', `${wrapperHeight}px`, 'important');
       wrapper.style.setProperty('overflow', 'hidden', 'important');
-      if (wrapperStyle.width && !wrapperStyle.width.includes('%')) {
-        wrapper.style.setProperty('width', wrapperStyle.width, 'important');
-        wrapper.style.setProperty('max-width', wrapperStyle.width, 'important');
-      }
-      if (wrapperStyle.height && !wrapperStyle.height.includes('%')) {
-        wrapper.style.setProperty('height', wrapperStyle.height, 'important');
-        wrapper.style.setProperty('max-height', wrapperStyle.height, 'important');
-      }
-
+      wrapper.style.setProperty('box-sizing', 'border-box', 'important');
+      
       // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
-      // El HTML sin wrap viene directo en la .st-el. En ambos casos usamos el nodo más interno.
       // CRÍTICO: Para SKU y nombre, siempre buscar el div interno primero
       let target = wrapper.querySelector('div');
-      // Si no hay div interno (texto sin wrap), usar el wrapper mismo pero asegurar que tenga las propiedades correctas
       if (!target) {
         target = wrapper;
-        // Si es el wrapper directo, asegurar que tenga las propiedades de texto
         target.style.setProperty('white-space', 'normal', 'important');
         target.style.setProperty('word-wrap', 'break-word', 'important');
         target.style.setProperty('word-break', 'break-word', 'important');
         target.style.setProperty('overflow-wrap', 'break-word', 'important');
       }
       
-      // Obtener dimensiones del target desde el estilo inline o calcularlas
-      const targetStyle = window.getComputedStyle(target);
-      let targetWidth = parseFloat(targetStyle.width);
-      let targetHeight = parseFloat(targetStyle.height);
+      // CRÍTICO: Calcular dimensiones del target restando padding del wrapper
+      const paddingLeft = parseFloat(wrapperStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(wrapperStyle.paddingRight) || 0;
+      const paddingTop = parseFloat(wrapperStyle.paddingTop) || 0;
+      const paddingBottom = parseFloat(wrapperStyle.paddingBottom) || 0;
       
-      // Si no tiene dimensiones absolutas, calcularlas desde el wrapper
-      if (!targetWidth || isNaN(targetWidth)) {
-        // El wrapper tiene padding de 2px, así que restamos 4px (2px cada lado)
-        targetWidth = wrapperWidth - 4;
-      }
-      if (!targetHeight || isNaN(targetHeight)) {
-        targetHeight = wrapperHeight - 4;
-      }
+      const targetWidth = wrapperWidth - paddingLeft - paddingRight;
+      const targetHeight = wrapperHeight - paddingTop - paddingBottom;
       
-      // CRÍTICO: Forzar dimensiones absolutas en el wrapper para evitar expansión
-      wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
-      wrapper.style.setProperty('max-height', `${wrapperHeight}px`, 'important');
-      wrapper.style.setProperty('min-width', '0', 'important');
-      wrapper.style.setProperty('min-height', '0', 'important');
-      
-      // CRÍTICO: Forzar límites estrictos en el wrapper para evitar expansión
-      wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
-      wrapper.style.setProperty('max-height', `${wrapperHeight}px`, 'important');
-      wrapper.style.setProperty('min-width', '0', 'important');
-      wrapper.style.setProperty('min-height', '0', 'important');
-      wrapper.style.setProperty('position', 'absolute', 'important');
-      
-      // CRÍTICO: Forzar dimensiones absolutas en el target ANTES de verificar overflow
+      // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
+      target.style.setProperty('width', `${targetWidth}px`, 'important');
+      target.style.setProperty('height', `${targetHeight}px`, 'important');
+      target.style.setProperty('max-width', `${targetWidth}px`, 'important');
+      target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+      target.style.setProperty('min-width', `${targetWidth}px`, 'important');
+      target.style.setProperty('min-height', `${targetHeight}px`, 'important');
       target.style.setProperty('overflow', 'hidden', 'important');
       target.style.setProperty('word-wrap', 'break-word', 'important');
       target.style.setProperty('word-break', 'break-word', 'important');
       target.style.setProperty('overflow-wrap', 'break-word', 'important');
       target.style.setProperty('box-sizing', 'border-box', 'important');
-      target.style.setProperty('width', `${targetWidth}px`, 'important');
-      target.style.setProperty('max-width', `${targetWidth}px`, 'important');
-      target.style.setProperty('height', `${targetHeight}px`, 'important');
-      target.style.setProperty('max-height', `${targetHeight}px`, 'important');
       target.style.setProperty('white-space', 'normal', 'important');
       target.style.setProperty('display', 'block', 'important');
-      target.style.setProperty('min-width', '0', 'important');
-      target.style.setProperty('min-height', '0', 'important');
-      target.style.setProperty('min-width', '0', 'important');
-      target.style.setProperty('min-height', '0', 'important');
       
       // Forzar reflow para que el navegador calcule las dimensiones correctamente
       void target.offsetHeight;
       void wrapper.offsetHeight;
+      await new Promise(resolve => requestAnimationFrame(resolve));
       
       // Obtener fontSize y lineHeight iniciales del estilo
       const targetStyle = window.getComputedStyle(target);
