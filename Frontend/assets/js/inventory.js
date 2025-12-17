@@ -3423,9 +3423,31 @@ function openMarketplaceHelper(item){
       // CRÍTICO: Verificar dimensiones ANTES de capturar
       const boxRectBefore = box.getBoundingClientRect();
       const wrapperBefore = box.querySelector('.sticker-wrapper');
-      const wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
       
-      console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado visual: ${widthPx}x${heightPx}px, compensado: ${compensatedBoxWidth.toFixed(2)}x${compensatedBoxHeight.toFixed(2)}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
+      // CRÍTICO: Verificar dimensiones del wrapper también
+      if (wrapperBefore) {
+        const wrapperRectBefore = wrapperBefore.getBoundingClientRect();
+        const expectedWrapperWidth = widthPx; // El wrapper debería verse como 189px visualmente
+        const expectedWrapperHeight = heightPx; // El wrapper debería verse como 113px visualmente
+        
+        console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado visual: ${widthPx}x${heightPx}px, compensado: ${compensatedBoxWidth.toFixed(2)}x${compensatedBoxHeight.toFixed(2)}px), Wrapper: ${wrapperRectBefore.width}x${wrapperRectBefore.height}px (esperado visual: ${expectedWrapperWidth}x${expectedWrapperHeight}px)`);
+        
+        // CRÍTICO: Si el wrapper tiene dimensiones incorrectas, forzar zoom: 1 y dimensiones exactas
+        if (Math.abs(wrapperRectBefore.width - expectedWrapperWidth) > 2 || Math.abs(wrapperRectBefore.height - expectedWrapperHeight) > 2) {
+          console.warn(`⚠️ Wrapper tiene dimensiones incorrectas. Forzando zoom: 1 y dimensiones exactas...`);
+          wrapperBefore.style.setProperty('zoom', '1', 'important');
+          wrapperBefore.style.setProperty('width', `${compensatedBoxWidth}px`, 'important');
+          wrapperBefore.style.setProperty('height', `${compensatedBoxHeight}px`, 'important');
+          wrapperBefore.style.setProperty('max-width', `${compensatedBoxWidth}px`, 'important');
+          wrapperBefore.style.setProperty('max-height', `${compensatedBoxHeight}px`, 'important');
+          wrapperBefore.style.setProperty('min-width', `${compensatedBoxWidth}px`, 'important');
+          wrapperBefore.style.setProperty('min-height', `${compensatedBoxHeight}px`, 'important');
+          void wrapperBefore.offsetHeight;
+          await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+      } else {
+        console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado visual: ${widthPx}x${heightPx}px, compensado: ${compensatedBoxWidth.toFixed(2)}x${compensatedBoxHeight.toFixed(2)}px), Wrapper: no encontrado`);
+      }
       
       // CRÍTICO: NO aplicar transform: scale porque ya estamos compensando el zoom global
       // El box tiene dimensiones compensadas (222.35px) que se ven como 189px debido al zoom: 1/0.85
