@@ -3437,24 +3437,32 @@ function openMarketplaceHelper(item){
       const wrapperBefore = box.querySelector('.sticker-wrapper');
       const wrapperRectBefore = wrapperBefore ? wrapperBefore.getBoundingClientRect() : null;
       
-      console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado: ${widthPx}x${heightPx}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
+      console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado visual: ${widthPx}x${heightPx}px, compensado: ${compensatedBoxWidth.toFixed(2)}x${compensatedBoxHeight.toFixed(2)}px), Wrapper: ${wrapperRectBefore ? `${wrapperRectBefore.width}x${wrapperRectBefore.height}px` : 'no encontrado'}`);
       
-      // CRÍTICO: Si las dimensiones no son correctas, usar transform: scale para corregir
+      // CRÍTICO: NO aplicar transform: scale porque ya estamos compensando el zoom global
+      // El box tiene dimensiones compensadas (222.35px) que se ven como 189px debido al zoom: 1/0.85
+      // getBoundingClientRect devuelve las dimensiones visuales después del zoom
+      // Si el box tiene 222.35px y zoom 1/0.85, debería verse como ~189px
       let needsScale = false;
-      let scaleX = 1;
-      let scaleY = 1;
       
-      if (Math.abs(boxRectBefore.width - widthPx) > 1 || Math.abs(boxRectBefore.height - heightPx) > 1) {
-        scaleX = widthPx / boxRectBefore.width;
-        scaleY = heightPx / boxRectBefore.height;
-        console.warn(`⚠️ Box tiene dimensiones incorrectas. Usando transform: scale(${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}) para corregir...`);
-        box.style.setProperty('transform', `scale(${scaleX}, ${scaleY})`, 'important');
-        box.style.setProperty('transform-origin', 'top left', 'important');
-        box.style.setProperty('width', `${boxRectBefore.width}px`, 'important');
-        box.style.setProperty('height', `${boxRectBefore.height}px`, 'important');
+      // Verificar si las dimensiones visuales son correctas (deberían ser ~189x113px)
+      // Si no, ajustar el zoom en lugar de usar transform: scale
+      const expectedVisualWidth = widthPx; // Esperamos que se vea como 189px
+      const expectedVisualHeight = heightPx; // Esperamos que se vea como 113px
+      
+      if (Math.abs(boxRectBefore.width - expectedVisualWidth) > 2 || Math.abs(boxRectBefore.height - expectedVisualHeight) > 2) {
+        // Si las dimensiones visuales no son correctas, ajustar el zoom
+        const scaleX = expectedVisualWidth / boxRectBefore.width;
+        const scaleY = expectedVisualHeight / boxRectBefore.height;
+        const newZoom = (1/htmlZoom) * scaleX;
+        console.warn(`⚠️ Box tiene dimensiones visuales incorrectas. Ajustando zoom de ${(1/htmlZoom).toFixed(3)} a ${newZoom.toFixed(3)}...`);
+        box.style.setProperty('zoom', `${newZoom}`, 'important');
+        if (wrapper) {
+          wrapper.style.setProperty('zoom', `${newZoom}`, 'important');
+        }
         void box.offsetHeight;
         await new Promise(resolve => requestAnimationFrame(resolve));
-        needsScale = true;
+        needsScale = false; // No usar transform: scale, solo ajustar zoom
       }
       
       // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
