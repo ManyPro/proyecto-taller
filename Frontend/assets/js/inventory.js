@@ -3160,9 +3160,16 @@ function openMarketplaceHelper(item){
   async function renderStickerPdf(list, filenameBase = 'stickers') {
     const tpl = await API.templates.active('sticker-qr').catch(() => null);
     const tplLayout = tpl?.meta?.layout || cloneStickerLayout();
-    const widthCm = Number(tpl?.meta?.width) || tplLayout.widthCm || 5;
-    const heightCm = Number(tpl?.meta?.height) || tplLayout.heightCm || 3;
-    const layout = { ...tplLayout, widthCm, heightCm };
+    // CRÍTICO: Forzar valores exactos (5cm y 3cm) independientemente de lo que venga del template
+    // Esto asegura que el PDF siempre tenga dimensiones exactas
+    const widthCm = 5; // Forzar exactamente 5cm
+    const heightCm = 3; // Forzar exactamente 3cm
+    // CRÍTICO: Asegurar que el layout tenga dimensiones exactas
+    const layout = { 
+      ...tplLayout, 
+      widthCm: widthCm, 
+      heightCm: heightCm 
+    };
 
     const tasks = [];
     list.forEach(({ it, count }) => {
