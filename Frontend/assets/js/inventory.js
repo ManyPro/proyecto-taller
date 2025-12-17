@@ -2913,42 +2913,60 @@ function openMarketplaceHelper(item){
   // CRÍTICO: Procesar cada elemento de forma completamente independiente
   async function processElementIndependently(wrapper) {
     try {
-
-      // CRÍTICO: Leer dimensiones REALES del wrapper desde el layout (estilo inline)
-      const wrapperStyle = window.getComputedStyle(wrapper);
-      const wrapperRect = wrapper.getBoundingClientRect();
+      // CRÍTICO: Leer dimensiones REALES del wrapper desde el estilo inline que viene del layout
+      // El layout genera HTML con estilos inline como: style="position:absolute;left:6px;top:6px;width:89px;height:24px;..."
+      // Debemos leer estos valores directamente del estilo inline, NO de getBoundingClientRect
+      // porque getBoundingClientRect puede estar afectado por zoom, transform, etc.
       
-      // CRÍTICO: Leer dimensiones del estilo inline que vienen del layout
-      const inlineWidth = wrapper.style.width;
-      const inlineHeight = wrapper.style.height;
-      let wrapperWidth = parseFloat(inlineWidth) || wrapperRect.width;
-      let wrapperHeight = parseFloat(inlineHeight) || wrapperRect.height;
+      const inlineStyle = wrapper.getAttribute('style') || '';
       
-      // Si las dimensiones vienen en píxeles del estilo inline, usarlas directamente
-      if (inlineWidth && inlineWidth.includes('px')) {
-        wrapperWidth = parseFloat(inlineWidth);
+      // CRÍTICO: Extraer valores del estilo inline usando regex
+      const extractPxValue = (style, prop) => {
+        const regex = new RegExp(`${prop}:\\s*([\\d.]+)px`, 'i');
+        const match = style.match(regex);
+        return match ? parseFloat(match[1]) : null;
+      };
+      
+      // Leer dimensiones y posición del estilo inline
+      let wrapperLeft = extractPxValue(inlineStyle, 'left') || 0;
+      let wrapperTop = extractPxValue(inlineStyle, 'top') || 0;
+      let wrapperWidth = extractPxValue(inlineStyle, 'width') || 0;
+      let wrapperHeight = extractPxValue(inlineStyle, 'height') || 0;
+      
+      // Si no se encontraron en el estilo inline, intentar leer del estilo computado
+      if (!wrapperWidth || !wrapperHeight) {
+        const wrapperStyle = window.getComputedStyle(wrapper);
+        const wrapperRect = wrapper.getBoundingClientRect();
+        
+        // Intentar leer del estilo inline directamente
+        const inlineWidth = wrapper.style.width;
+        const inlineHeight = wrapper.style.height;
+        
+        if (inlineWidth && inlineWidth.includes('px')) {
+          wrapperWidth = parseFloat(inlineWidth);
+        } else {
+          wrapperWidth = wrapperRect.width;
+        }
+        
+        if (inlineHeight && inlineHeight.includes('px')) {
+          wrapperHeight = parseFloat(inlineHeight);
+        } else {
+          wrapperHeight = wrapperRect.height;
+        }
       }
-      if (inlineHeight && inlineHeight.includes('px')) {
-        wrapperHeight = parseFloat(inlineHeight);
-      }
       
-      // CRÍTICO: Leer coordenadas left/top del layout para asegurar posicionamiento correcto
-      const inlineLeft = wrapper.style.left;
-      const inlineTop = wrapper.style.top;
-      let wrapperLeft = parseFloat(inlineLeft) || 0;
-      let wrapperTop = parseFloat(inlineTop) || 0;
-      
-      if (inlineLeft && inlineLeft.includes('px')) {
-        wrapperLeft = parseFloat(inlineLeft);
-      }
-      if (inlineTop && inlineTop.includes('px')) {
-        wrapperTop = parseFloat(inlineTop);
+      // Si aún no tenemos valores, usar getBoundingClientRect como último recurso
+      if (!wrapperWidth || !wrapperHeight) {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        wrapperWidth = wrapperWidth || wrapperRect.width;
+        wrapperHeight = wrapperHeight || wrapperRect.height;
       }
       
       // CRÍTICO: Forzar dimensiones EXACTAS del wrapper desde el layout
+      // Esto asegura que el wrapper respete las dimensiones definidas en el layout
       wrapper.style.setProperty('position', 'absolute', 'important');
-      wrapper.style.setProperty('left', `${wrapperLeft}px`, 'important'); // CRÍTICO: Preservar left del layout
-      wrapper.style.setProperty('top', `${wrapperTop}px`, 'important'); // CRÍTICO: Preservar top del layout
+      wrapper.style.setProperty('left', `${wrapperLeft}px`, 'important');
+      wrapper.style.setProperty('top', `${wrapperTop}px`, 'important');
       wrapper.style.setProperty('width', `${wrapperWidth}px`, 'important');
       wrapper.style.setProperty('height', `${wrapperHeight}px`, 'important');
       wrapper.style.setProperty('max-width', `${wrapperWidth}px`, 'important');
@@ -2957,6 +2975,7 @@ function openMarketplaceHelper(item){
       wrapper.style.setProperty('min-height', `${wrapperHeight}px`, 'important');
       wrapper.style.setProperty('overflow', 'hidden', 'important');
       wrapper.style.setProperty('box-sizing', 'border-box', 'important');
+      wrapper.style.setProperty('z-index', '1', 'important'); // Asegurar z-index para textos
       
       // El HTML de texto con wrap viene como: <div class="st-el"...><div>Texto</div></div>
       // CRÍTICO: Para SKU y nombre, siempre buscar el div interno primero
