@@ -3227,44 +3227,39 @@ function openMarketplaceHelper(item){
 
     const images = [];
     for (const html of htmls) {
+      // CRÍTICO: Crear un contenedor temporal para parsear el HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      const originalWrapper = tempDiv.querySelector('.sticker-wrapper');
+      
+      if (!originalWrapper) {
+        console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
+        continue; // Saltar este sticker si no hay wrapper
+      }
+      
+      // CRÍTICO: Crear box y wrapper NUEVOS con dimensiones exactas desde cero
       const box = document.createElement('div');
       box.className = 'sticker-capture';
       // CRÍTICO: Box debe tener dimensiones EXACTAS sin padding/margin
-      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0; display: block;`;
+      box.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; background: #fff !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important;`;
       
-      // CRÍTICO: Modificar el HTML ANTES de insertarlo para asegurar dimensiones correctas
-      // Reemplazar cualquier dimensión incorrecta en el HTML generado
-      let modifiedHtml = html;
-      // Buscar y reemplazar dimensiones incorrectas en el sticker-wrapper
-      modifiedHtml = modifiedHtml.replace(
-        /<div\s+class="sticker-wrapper"[^>]*style="[^"]*width:\s*([^;]+);[^"]*height:\s*([^;]+);/gi,
-        (match, width, height) => {
-          // Reemplazar con dimensiones exactas
-          return match.replace(/width:\s*[^;]+;/, `width:${widthPx}px;`).replace(/height:\s*[^;]+;/, `height:${heightPx}px;`);
-        }
-      );
-      // También reemplazar si las dimensiones están en diferentes formatos
-      modifiedHtml = modifiedHtml.replace(
-        /style="([^"]*width:\s*)[^;]+(px|cm|%)([^"]*)"/gi,
-        (match, before, unit, after) => {
-          if (match.includes('sticker-wrapper')) {
-            return match.replace(/(width:\s*)[^;]+(px|cm|%)/gi, `$1${widthPx}px`).replace(/(height:\s*)[^;]+(px|cm|%)/gi, `$1${heightPx}px`);
-          }
-          return match;
-        }
-      );
+      // CRÍTICO: Crear wrapper NUEVO con dimensiones exactas
+      const wrapper = document.createElement('div');
+      wrapper.className = 'sticker-wrapper';
+      wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; display: block !important; transform: none !important; zoom: 1 !important; scale: 1 !important; background: #ffffff !important;`;
       
-      box.innerHTML = modifiedHtml;
+      // CRÍTICO: Clonar TODOS los elementos hijos del wrapper original al nuevo wrapper
+      // Esto preserva el contenido pero elimina cualquier estilo inline problemático
+      Array.from(originalWrapper.children).forEach(child => {
+        // Clonar el elemento profundamente
+        const clonedChild = child.cloneNode(true);
+        wrapper.appendChild(clonedChild);
+      });
       
-      // CRÍTICO: Obtener wrapper y forzar dimensiones INMEDIATAMENTE después de insertar HTML
-      const wrapper = box.querySelector('.sticker-wrapper');
-      if (!wrapper) {
-        console.error('❌ No se encontró .sticker-wrapper en el HTML generado');
-      } else {
-        // CRÍTICO: Verificar dimensiones actuales del wrapper
-        const wrapperRect = wrapper.getBoundingClientRect();
-        console.log(`📐 Wrapper dimensiones después de insertar HTML: ${wrapperRect.width}x${wrapperRect.height}px (esperado: ${widthPx}x${heightPx}px)`);
-      }
+      // Añadir el wrapper al box
+      box.appendChild(wrapper);
+      
+      console.log(`📐 Box y wrapper creados desde cero con dimensiones exactas: ${widthPx}px x ${heightPx}px`);
       
       // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
       const style = document.createElement('style');
