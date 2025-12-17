@@ -3452,11 +3452,11 @@ function openMarketplaceHelper(item){
       }
       
       // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
-      // Si usamos transform: scale, html2canvas capturará el contenido escalado
-      // pero necesitamos que el resultado final sea widthPx * scale x heightPx * scale
+      // Si usamos transform: scale, html2canvas capturará el tamaño físico del box
+      // pero el contenido visual será del tamaño correcto gracias al transform: scale
       const scale = 3;
       // eslint-disable-next-line no-await-in-loop
-      const canvas = await html2canvas(box, {
+      let canvas = await html2canvas(box, {
         width: needsScale ? boxRectBefore.width : widthPx, // Si usamos scale, capturar tamaño original
         height: needsScale ? boxRectBefore.height : heightPx,
         backgroundColor: '#ffffff',
@@ -3471,12 +3471,31 @@ function openMarketplaceHelper(item){
         scaleY: 1
       });
       
-      // CRÍTICO: Si usamos transform: scale, el canvas capturado será del tamaño original escalado
-      // pero el contenido visual será del tamaño correcto gracias al transform: scale
-      // El canvas resultante debería ser (boxRectBefore.width * scale) x (boxRectBefore.height * scale)
-      // pero visualmente contendrá el contenido escalado a widthPx x heightPx
+      // CRÍTICO: Si usamos transform: scale, el canvas capturado será del tamaño físico del box
+      // pero necesitamos escalarlo al tamaño visual correcto
       if (needsScale) {
+        const expectedCanvasWidth = Math.round(widthPx * scale);
+        const expectedCanvasHeight = Math.round(heightPx * scale);
         console.log(`📐 Canvas capturado con scale: ${canvas.width}x${canvas.height}px (box original: ${boxRectBefore.width}x${boxRectBefore.height}px, scale aplicado: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)})`);
+        console.log(`📐 Canvas esperado después de escalar: ${expectedCanvasWidth}x${expectedCanvasHeight}px`);
+        
+        // CRÍTICO: Escalar el canvas al tamaño correcto usando un canvas auxiliar
+        if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
+          const scaledCanvas = document.createElement('canvas');
+          scaledCanvas.width = expectedCanvasWidth;
+          scaledCanvas.height = expectedCanvasHeight;
+          const ctx = scaledCanvas.getContext('2d');
+          
+          // CRÍTICO: Usar imageSmoothingEnabled para mejor calidad al escalar
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // CRÍTICO: Dibujar el canvas original escalado al tamaño correcto
+          ctx.drawImage(canvas, 0, 0, expectedCanvasWidth, expectedCanvasHeight);
+          
+          console.log(`✅ Canvas escalado correctamente: ${scaledCanvas.width}x${scaledCanvas.height}px`);
+          canvas = scaledCanvas; // Reemplazar el canvas original con el escalado
+        }
       }
       
       // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
