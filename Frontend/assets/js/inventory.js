@@ -3393,9 +3393,13 @@ function openMarketplaceHelper(item){
       box.appendChild(style);
       
       // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS
+      // NOTA: El wrapper NO debe tener zoom porque el box ya lo tiene
+      // El wrapper debe tener las dimensiones compensadas pero SIN zoom adicional
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
-        wrapper.style.cssText = `position: relative !important; width: ${compensatedBoxWidth}px !important; height: ${compensatedBoxHeight}px !important; max-width: ${compensatedBoxWidth}px !important; max-height: ${compensatedBoxHeight}px !important; min-width: ${compensatedBoxWidth}px !important; min-height: ${compensatedBoxHeight}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; zoom: ${1/htmlZoom} !important; transform: none !important; -webkit-transform: none !important; -moz-transform: none !important; -ms-transform: none !important; -o-transform: none !important;`;
+        // CRÍTICO: El wrapper debe tener las dimensiones compensadas pero SIN zoom
+        // porque el zoom ya está aplicado en el box
+        wrapper.style.cssText = `position: relative !important; width: ${compensatedBoxWidth}px !important; height: ${compensatedBoxHeight}px !important; max-width: ${compensatedBoxWidth}px !important; max-height: ${compensatedBoxHeight}px !important; min-width: ${compensatedBoxWidth}px !important; min-height: ${compensatedBoxHeight}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; transform: none !important; -webkit-transform: none !important; -moz-transform: none !important; -ms-transform: none !important; -o-transform: none !important; zoom: 1 !important;`;
       }
       
       // CRÍTICO: Añadir al DOM
