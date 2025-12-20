@@ -360,8 +360,8 @@ const API = {
     addByQR: (saleId, payload) =>
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
 
-    completeSlot: (id, slotIndex, itemId, sku) =>
-      http.post(`/api/v1/sales/${id}/complete-slot`, { slotIndex, itemId, sku }),
+    completeSlot: (id, slotIndex, comboPriceId, itemId, sku) =>
+      http.post(`/api/v1/sales/${id}/complete-slot`, { slotIndex, comboPriceId, itemId, sku }),
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),

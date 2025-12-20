@@ -2378,10 +2378,14 @@ export const deleteSalesBulk = async (req, res) => {
 // ===== Completar slot abierto mediante QR =====
 export const completeOpenSlot = async (req, res) => {
   const { id } = req.params; // saleId
-  const { slotIndex, itemId, sku } = req.body || {};
+  const { slotIndex, comboPriceId, itemId, sku } = req.body || {};
   
   if (slotIndex === undefined || slotIndex === null) {
     return res.status(400).json({ error: 'slotIndex requerido' });
+  }
+  
+  if (!comboPriceId) {
+    return res.status(400).json({ error: 'comboPriceId requerido' });
   }
   
   const companyFilter = getSaleQueryCompanyFilter(req);
@@ -2394,10 +2398,15 @@ export const completeOpenSlot = async (req, res) => {
     return res.status(400).json({ error: 'Esta venta no tiene slots abiertos' });
   }
   
-  // Buscar el slot por su slotIndex (índice en el combo), no por el índice del array
-  const slot = sale.openSlots.find(s => s.slotIndex === slotIndex);
+  // CRÍTICO: Buscar el slot usando slotIndex Y comboPriceId para identificar de forma única
+  // Esto evita conflictos cuando múltiples combos tienen slots con el mismo índice
+  const slot = sale.openSlots.find(s => 
+    s.slotIndex === slotIndex && 
+    s.comboPriceId && 
+    String(s.comboPriceId) === String(comboPriceId)
+  );
   if (!slot) {
-    return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} no encontrado` });
+    return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} y comboPriceId ${comboPriceId} no encontrado` });
   }
   
   if (slot.completed) {

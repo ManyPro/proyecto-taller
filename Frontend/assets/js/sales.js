@@ -3668,7 +3668,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
           sku = parsed.sku;
         }
         
-        const result = await API.sales.completeSlot(saleId, slotIndex, itemId, sku);
+        const result = await API.sales.completeSlot(saleId, slotIndex, slot.comboPriceId, itemId, sku);
         current = result.sale;
         syncCurrentIntoOpenList();
         await renderAll();
