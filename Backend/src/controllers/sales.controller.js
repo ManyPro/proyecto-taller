@@ -2992,7 +2992,19 @@ export const technicianReport = async (req, res) => {
       const dateRange = createDateRange(from, to);
       const gte = dateRange.from;
       const lte = dateRange.to;
+      
+      // Log para debugging
+      logger.info('technicianReport date filter', { 
+        from, 
+        to, 
+        gte: gte ? gte.toISOString() : null, 
+        lte: lte ? lte.toISOString() : null 
+      });
+      
       if (gte || lte) {
+        // CRÍTICO: En $expr, las fechas deben ser objetos Date de JavaScript
+        // createDateRange ya devuelve objetos Date, pero MongoDB necesita que se pasen correctamente
+        // Usar directamente los objetos Date sin convertir de nuevo
         const dateConditions = [];
         if (gte && lte) {
           // Ambas fechas: rango completo
@@ -3029,6 +3041,16 @@ export const technicianReport = async (req, res) => {
 
     const skip = (pg - 1) * lim;
 
+    // Log del match antes de ejecutar la agregación
+    logger.info('technicianReport match filter', { 
+      match: JSON.stringify(match, (key, value) => {
+        if (value instanceof Date) {
+          return value.toISOString();
+        }
+        return value;
+      })
+    });
+    
     const pipeline = [
       { $match: match },
       { $addFields: {
@@ -3067,6 +3089,17 @@ export const technicianReport = async (req, res) => {
     const rows = pack.rows || [];
     const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
     const totalDocs = totalsRaw.count || 0;
+    
+    // Log de resultados para debugging
+    logger.info('technicianReport results', { 
+      totalDocs, 
+      rowsReturned: rows.length,
+      sampleDates: rows.slice(0, 3).map(r => ({
+        _id: r._id,
+        closedAt: r.closedAt ? new Date(r.closedAt).toISOString() : null,
+        _reportDate: r._reportDate ? new Date(r._reportDate).toISOString() : null
+      }))
+    });
 
     // Fallback simple si no se obtuvieron filas pero deberÃ­an existir (debug)
     if (!rows.length) {
