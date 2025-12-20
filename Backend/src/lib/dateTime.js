@@ -84,6 +84,12 @@ export function utcToISO(utcDate) {
 export function startOfDayUTC(dateInput) {
   if (!dateInput) return null;
   
+  // Si es string en formato YYYY-MM-DD, parsearlo directamente como UTC
+  if (typeof dateInput === 'string' && dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateInput.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  }
+  
   const date = dateInput instanceof Date ? dateInput : parseISO(dateInput);
   if (!isValid(date)) return null;
   
@@ -103,6 +109,12 @@ export function startOfDayUTC(dateInput) {
  */
 export function endOfDayUTC(dateInput) {
   if (!dateInput) return null;
+  
+  // Si es string en formato YYYY-MM-DD, parsearlo directamente como UTC
+  if (typeof dateInput === 'string' && dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateInput.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  }
   
   const date = dateInput instanceof Date ? dateInput : parseISO(dateInput);
   if (!isValid(date)) return null;

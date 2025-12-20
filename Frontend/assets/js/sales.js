@@ -12437,11 +12437,13 @@ async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
   viewHistorial.innerHTML = '';
   viewHistorial.appendChild(reportContainer);
   
-  // Renderizar ventas
+  // Renderizar ventas y guardar referencia a las tarjetas para poder restaurar posiciones
   const salesListContainer = document.getElementById('technician-sales-list');
+  
   if (salesListContainer && sales.length > 0) {
-    for (const sale of sales) {
-      const saleCard = await createTechnicianReportSaleCard(sale);
+    for (let i = 0; i < sales.length; i++) {
+      const sale = sales[i];
+      const saleCard = await createTechnicianReportSaleCard(sale, i, salesListContainer);
       salesListContainer.appendChild(saleCard);
     }
   }
@@ -12456,10 +12458,12 @@ async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
   });
 }
 
-async function createTechnicianReportSaleCard(sale) {
+async function createTechnicianReportSaleCard(sale, originalIndex, container) {
   const card = document.createElement('div');
   card.className = 'technician-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 cursor-pointer transition-all duration-200 hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-sky-100';
   card.dataset.saleId = sale._id;
+  card.dataset.originalIndex = originalIndex;
+  card.dataset.isHidden = 'false';
   
   const plate = sale?.vehicle?.plate || 'Sin placa';
   const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
@@ -12500,7 +12504,10 @@ async function createTechnicianReportSaleCard(sale) {
           <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(total)}</div>
         </div>
       </div>
-      <div class="flex-shrink-0">
+      <div class="flex-shrink-0 flex gap-2">
+        <button class="btn-tech-toggle-visibility px-3 py-2 text-xs bg-slate-600/50 dark:bg-slate-600/50 hover:bg-slate-600 dark:hover:bg-slate-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-500/50 dark:border-slate-500/50" data-sale-id="${sale._id}" title="Ocultar/Mostrar">
+          👁️
+        </button>
         <button class="btn-tech-view-detail px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
           👁️ Ver Detalle
         </button>
@@ -12511,7 +12518,7 @@ async function createTechnicianReportSaleCard(sale) {
     </div>
   `;
   
-  // Event listener para expandir/colapsar
+  // Event listener para expandir/colapsar detalle
   const viewBtn = card.querySelector('.btn-tech-view-detail');
   const detailDiv = card.querySelector(`#tech-sale-detail-${sale._id}`);
   
@@ -12537,6 +12544,68 @@ async function createTechnicianReportSaleCard(sale) {
       // Colapsar
       detailDiv.classList.add('hidden');
       viewBtn.textContent = '👁️ Ver Detalle';
+    }
+  });
+  
+  // Event listener para toggle de visibilidad (botón de ojo)
+  const toggleBtn = card.querySelector('.btn-tech-toggle-visibility');
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    
+    const isHidden = card.dataset.isHidden === 'true';
+    const salesListContainer = container || document.getElementById('technician-sales-list');
+    if (!salesListContainer) return;
+    
+    if (isHidden) {
+      // Mostrar: restaurar a posición original
+      card.dataset.isHidden = 'false';
+      card.style.display = '';
+      toggleBtn.textContent = '👁️';
+      toggleBtn.title = 'Ocultar';
+      
+      const cardOriginalIndex = parseInt(card.dataset.originalIndex || '0');
+      const allCards = Array.from(salesListContainer.querySelectorAll('.technician-sale-card'));
+      const visibleCards = allCards.filter(c => c !== card && c.dataset.isHidden === 'false');
+      
+      // Ordenar las tarjetas visibles por índice original
+      visibleCards.sort((a, b) => {
+        const idxA = parseInt(a.dataset.originalIndex || '0');
+        const idxB = parseInt(b.dataset.originalIndex || '0');
+        return idxA - idxB;
+      });
+      
+      // Encontrar la posición correcta basada en el índice original
+      let insertBefore = null;
+      for (const otherCard of visibleCards) {
+        const otherIndex = parseInt(otherCard.dataset.originalIndex || '0');
+        if (otherIndex > cardOriginalIndex) {
+          insertBefore = otherCard;
+          break;
+        }
+      }
+      
+      if (insertBefore) {
+        salesListContainer.insertBefore(card, insertBefore);
+      } else {
+        // Si no hay ninguna tarjeta después, agregar al final de las visibles
+        const lastVisible = visibleCards[visibleCards.length - 1];
+        if (lastVisible && lastVisible.nextSibling) {
+          salesListContainer.insertBefore(card, lastVisible.nextSibling);
+        } else {
+          // Si no hay tarjetas visibles después, agregar al final
+          salesListContainer.appendChild(card);
+        }
+      }
+    } else {
+      // Ocultar: mover al final y ocultar
+      card.dataset.isHidden = 'true';
+      toggleBtn.textContent = '👁️‍🗨️';
+      toggleBtn.title = 'Mostrar';
+      
+      // Mover al final de la lista primero
+      salesListContainer.appendChild(card);
+      // Luego ocultar
+      card.style.display = 'none';
     }
   });
   
