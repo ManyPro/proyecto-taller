@@ -9798,35 +9798,34 @@ async function loadHistorial(forceRefresh = false) {
     const params = {
       status: 'closed',
       limit: historialPageSize,
-      page: historialCurrentPage
+      page: historialCurrentPage // SIEMPRE usar la página actual, incluso sin filtros
     };
 
-    // Si hay filtros de fecha, placa o técnico, usarlos; si no, cargar últimas 20
-    if (historialDateFrom || historialDateTo || historialPlate || historialTechnician) {
-      if (historialDateFrom) params.from = historialDateFrom;
-      if (historialDateTo) params.to = historialDateTo;
-      if (historialPlate) params.plate = historialPlate;
-      if (historialTechnician) params.technician = historialTechnician;
-    } else {
-      // Sin filtros: cargar últimas 20 ventas
-      params.limit = 20;
-      params.page = 1;
-    }
+    // Agregar filtros si existen
+    if (historialDateFrom) params.from = historialDateFrom;
+    if (historialDateTo) params.to = historialDateTo;
+    if (historialPlate) params.plate = historialPlate;
+    // NOTA: El filtro de técnico se envía al backend, no se filtra en frontend
+    // El backend no soporta filtro por técnico en listSales, así que lo mantenemos en frontend por ahora
+    // pero sin afectar la paginación
 
-    // Generar clave de cache
+    // Generar clave de cache (incluye página para evitar conflictos)
     const cacheKey = JSON.stringify(params);
     
     // Usar cache si está disponible y no se fuerza refresh
     if (!forceRefresh && historialCache && historialCacheKey === cacheKey) {
       const sales = historialCache;
       renderHistorialSales(sales);
+      updateHistorialPagination();
       return;
     }
 
     const res = await API.sales.list(params);
     let sales = Array.isArray(res?.items) ? res.items : [];
     
-    // Filtrar por técnico en el frontend si está especificado
+    // Filtrar por técnico en el frontend si está especificado (solo para visualización)
+    // NOTA: Esto puede causar que se muestren menos items de los esperados por página
+    // pero es necesario porque el backend no soporta filtro por técnico en listSales
     if (historialTechnician) {
       sales = sales.filter(sale => {
         const tech = sale?.technician || sale?.closingTechnician || sale?.initialTechnician || '';
@@ -9838,16 +9837,19 @@ async function loadHistorial(forceRefresh = false) {
     historialCache = sales;
     historialCacheKey = cacheKey;
     
-    // Ajustar totales si se filtró por técnico
-    if (historialTechnician) {
-      historialTotal = sales.length;
-      historialTotalPages = Math.ceil(historialTotal / historialPageSize);
-    } else {
-      historialTotal = res?.total || sales.length;
-      historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+    // Actualizar totales desde la respuesta del backend
+    historialTotal = res?.total || sales.length;
+    historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+    
+    // Si se filtró por técnico en frontend, ajustar totales (pero mantener paginación del backend)
+    // Esto es un workaround hasta que el backend soporte filtro por técnico
+    if (historialTechnician && res?.total) {
+      // El total del backend no refleja el filtro de técnico, pero mantenemos la paginación
+      // para evitar problemas de navegación
     }
 
     renderHistorialSales(sales);
+    updateHistorialPagination();
 
   } catch (err) {
     console.error('Error loading historial:', err);
