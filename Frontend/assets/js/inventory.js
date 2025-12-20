@@ -3001,12 +3001,14 @@ function openMarketplaceHelper(item){
       }
       
       // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
+      // PERO permitir que el contenido haga wrap correctamente
       target.style.setProperty('width', `${targetWidth}px`, 'important');
-      target.style.setProperty('height', `${targetHeight}px`, 'important');
       target.style.setProperty('max-width', `${targetWidth}px`, 'important');
-      target.style.setProperty('max-height', `${targetHeight}px`, 'important');
       target.style.setProperty('min-width', `${targetWidth}px`, 'important');
-      target.style.setProperty('min-height', `${targetHeight}px`, 'important');
+      // CRÍTICO: NO usar height fijo, usar max-height para permitir que el contenido crezca hasta el límite
+      target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+      target.style.setProperty('min-height', '0', 'important');
+      // CRÍTICO: Usar overflow: hidden para cortar contenido que se salga
       target.style.setProperty('overflow', 'hidden', 'important');
       target.style.setProperty('word-wrap', 'break-word', 'important');
       target.style.setProperty('word-break', 'break-word', 'important');
@@ -3014,6 +3016,12 @@ function openMarketplaceHelper(item){
       target.style.setProperty('box-sizing', 'border-box', 'important');
       target.style.setProperty('white-space', 'normal', 'important');
       target.style.setProperty('display', 'block', 'important');
+      target.style.setProperty('margin', '0', 'important');
+      target.style.setProperty('padding', '0', 'important');
+      
+      // CRÍTICO: Asegurar que el wrapper también tenga overflow hidden para evitar superposiciones
+      wrapper.style.setProperty('overflow', 'hidden', 'important');
+      wrapper.style.setProperty('clip', 'auto', 'important');
       
       // Forzar reflow para que el navegador calcule las dimensiones correctamente
       void target.offsetHeight;
@@ -3047,18 +3055,26 @@ function openMarketplaceHelper(item){
         void target.offsetHeight;
         void wrapper.offsetHeight;
         
+        // CRÍTICO: Verificar dimensiones REALES del target después del wrap
         const targetRect = target.getBoundingClientRect();
         const scrollWidth = target.scrollWidth;
         const scrollHeight = target.scrollHeight;
         
-        // Verificar overflow con tolerancia de 1px
-        const overflowsVert = scrollHeight > targetHeight + 1;
-        const overflowsHoriz = scrollWidth > targetWidth + 1;
+        // CRÍTICO: Verificar que el contenido NO se salga del contenedor
+        // Usar tolerancia de 2px para evitar falsos positivos por redondeo
+        const overflowsVert = scrollHeight > targetHeight + 2;
+        const overflowsHoriz = scrollWidth > targetWidth + 2;
         
-        // CRÍTICO: Verificar que el texto ocupe al menos el 95% del espacio vertical
-        const usesVerticalSpace = scrollHeight >= targetHeight * 0.95;
+        // CRÍTICO: Verificar que el texto ocupe al menos el 90% del espacio vertical (reducido de 95% para ser más flexible)
+        const usesVerticalSpace = scrollHeight >= targetHeight * 0.90;
         
-        return !overflowsVert && !overflowsHoriz && usesVerticalSpace;
+        // CRÍTICO: Si hay overflow, NO cabe - esto es lo más importante
+        if (overflowsVert || overflowsHoriz) {
+          return false;
+        }
+        
+        // Si no hay overflow pero no usa suficiente espacio vertical, está bien (puede ser texto corto)
+        return true;
       };
 
       // Aplicar fontSize y lineHeight iniciales
@@ -3070,23 +3086,24 @@ function openMarketplaceHelper(item){
       void wrapper.offsetHeight;
       await new Promise(resolve => requestAnimationFrame(resolve));
       
-      // CRÍTICO: Verificar overflow inicial
+      // CRÍTICO: Verificar overflow inicial DESPUÉS de forzar dimensiones
       const targetRect = target.getBoundingClientRect();
       const scrollWidth = target.scrollWidth;
       const scrollHeight = target.scrollHeight;
       const hasOverflow = scrollWidth > targetWidth + 2 || scrollHeight > targetHeight + 2;
-      const usesVerticalSpace = scrollHeight >= targetHeight * 0.95;
+      const usesVerticalSpace = scrollHeight >= targetHeight * 0.90;
       
-      // Si NO hay overflow Y el texto ocupa el espacio vertical, no hacer nada más
-      if (!hasOverflow && usesVerticalSpace) {
+      // CRÍTICO: Si hay overflow, reducir fontSize INMEDIATAMENTE sin intentar expandir
+      if (hasOverflow) {
+        // Ir directamente al bucle de reducción de fontSize
+      } else if (usesVerticalSpace) {
+        // Si NO hay overflow Y el texto ocupa suficiente espacio vertical, está bien
         return; // El texto ya está bien ajustado
-      }
-      
-      // CRÍTICO: Si el texto NO ocupa el espacio vertical, aumentar line-height para expandirlo
-      if (!usesVerticalSpace && !hasOverflow) {
+      } else {
+        // Si NO hay overflow pero el texto NO ocupa suficiente espacio vertical, intentar expandir line-height
         // Calcular cuántas líneas de texto hay actualmente
         const currentLines = Math.ceil(scrollHeight / lineHeight) || 1;
-        // Calcular el line-height necesario para ocupar todo el espacio vertical
+        // Calcular el line-height necesario para ocupar más espacio vertical
         const targetLineHeight = targetHeight / currentLines;
         
         // Aumentar line-height si es razonable (máximo 2x el fontSize)
@@ -3098,7 +3115,15 @@ function openMarketplaceHelper(item){
           
           // Verificar nuevamente después del ajuste
           const newScrollHeight = target.scrollHeight;
-          if (newScrollHeight < targetHeight * 0.95) {
+          const newHasOverflow = newScrollHeight > targetHeight + 2;
+          
+          // Si después de aumentar line-height hay overflow, revertir y reducir fontSize
+          if (newHasOverflow) {
+            lineHeight = fontSize * lineHeightRatio;
+            target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+            void target.offsetHeight;
+            // Continuar al bucle de reducción de fontSize
+          } else if (newScrollHeight < targetHeight * 0.90) {
             // Si aún no ocupa suficiente espacio, aumentar más el line-height
             const newTargetLineHeight = targetHeight / Math.ceil(newScrollHeight / lineHeight);
             if (newTargetLineHeight > lineHeight && newTargetLineHeight <= fontSize * 2.5) {
@@ -3111,45 +3136,81 @@ function openMarketplaceHelper(item){
       }
 
       // CRÍTICO: Si hay overflow, reducir fontSize hasta que quepa
+      // Este bucle es CRÍTICO para evitar que el texto se salga del contenedor
       while (!fits() && fontSize > minFont && iter < maxIterations) {
-        const currentRect = target.getBoundingClientRect();
         const currentScrollWidth = target.scrollWidth;
         const currentScrollHeight = target.scrollHeight;
         
         // Calcular ratio de overflow
-        const overflowRatioX = currentScrollWidth / targetWidth;
-        const overflowRatioY = currentScrollHeight / targetHeight;
+        const overflowRatioX = currentScrollWidth / Math.max(1, targetWidth);
+        const overflowRatioY = currentScrollHeight / Math.max(1, targetHeight);
         const maxOverflow = Math.max(overflowRatioX, overflowRatioY);
         
-        // Reducir fontSize proporcionalmente al overflow
-        const reductionStep = maxOverflow > 1.5 ? 0.5 : 0.2;
+        // CRÍTICO: Reducir fontSize más agresivamente si el overflow es grande
+        let reductionStep;
+        if (maxOverflow > 2.0) {
+          reductionStep = 1.0; // Reducción grande para overflow muy grande
+        } else if (maxOverflow > 1.5) {
+          reductionStep = 0.5; // Reducción media
+        } else {
+          reductionStep = 0.2; // Reducción pequeña
+        }
+        
         fontSize = Math.max(minFont, fontSize - reductionStep);
         
-        // Ajustar line-height proporcionalmente
+        // Ajustar line-height proporcionalmente manteniendo el ratio
         lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
         
         target.style.setProperty('font-size', `${fontSize}px`, 'important');
         target.style.setProperty('line-height', `${lineHeight}px`, 'important');
         iter += 1;
         
+        // CRÍTICO: Forzar reflow después de cada cambio
         void target.offsetHeight;
         void wrapper.offsetHeight;
         
-        if (iter % 10 === 0) {
+        // Pequeña pausa cada 5 iteraciones para permitir renderizado
+        if (iter % 5 === 0) {
           await new Promise(resolve => requestAnimationFrame(resolve));
         }
       }
       
-      // CRÍTICO: Después de reducir, verificar si necesita expandirse verticalmente
+      // CRÍTICO: Después de reducir, verificar que NO haya overflow
       void target.offsetHeight;
+      void wrapper.offsetHeight;
+      const finalScrollWidth = target.scrollWidth;
       const finalScrollHeight = target.scrollHeight;
-      if (finalScrollHeight < targetHeight * 0.95 && !hasOverflow) {
+      const finalHasOverflow = finalScrollWidth > targetWidth + 2 || finalScrollHeight > targetHeight + 2;
+      
+      // Si aún hay overflow después de todas las iteraciones, forzar tamaño mínimo
+      if (finalHasOverflow && fontSize > minFont) {
+        fontSize = minFont;
+        lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
+        target.style.setProperty('font-size', `${fontSize}px`, 'important');
+        target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+        void target.offsetHeight;
+        void wrapper.offsetHeight;
+      }
+      
+      // CRÍTICO: Solo intentar expandir verticalmente si NO hay overflow
+      if (!finalHasOverflow && finalScrollHeight < targetHeight * 0.90) {
         // Aumentar line-height para ocupar más espacio vertical
-        const targetLineHeight = targetHeight / (Math.ceil(finalScrollHeight / lineHeight) || 1);
-        if (targetLineHeight > lineHeight && targetLineHeight <= fontSize * 2) {
+        const currentLines = Math.ceil(finalScrollHeight / lineHeight) || 1;
+        const targetLineHeight = targetHeight / currentLines;
+        if (targetLineHeight > lineHeight && targetLineHeight <= fontSize * 2.5) {
           lineHeight = targetLineHeight;
           target.style.setProperty('line-height', `${lineHeight}px`, 'important');
           void target.offsetHeight;
+          void wrapper.offsetHeight;
+          
+          // Verificar que no se haya creado overflow
+          const newScrollHeight = target.scrollHeight;
+          if (newScrollHeight > targetHeight + 2) {
+            // Si se creó overflow, revertir
+            lineHeight = fontSize * lineHeightRatio;
+            target.style.setProperty('line-height', `${lineHeight}px`, 'important');
+            void target.offsetHeight;
+          }
         }
       }
     } catch (err) {
