@@ -2988,7 +2988,7 @@ export const technicianReport = async (req, res) => {
     // Base match: ventas cerradas
     const match = { companyId: req.companyId, status: 'closed' };
 
-    // Preparar fechas para el filtro
+    // Preparar fechas para el filtro (se aplicará después en el pipeline)
     let fromDate = null;
     let toDate = null;
     if (from || to) {
@@ -3003,80 +3003,15 @@ export const technicianReport = async (req, res) => {
         fromDate: fromDate ? fromDate.toISOString() : null, 
         toDate: toDate ? toDate.toISOString() : null 
       });
-      
-      // Aplicar filtro de fechas usando $expr para manejar closedAt o updatedAt
-      // Esto es más robusto y maneja correctamente los casos donde closedAt es null
-      if (fromDate || toDate) {
-        const dateExprConditions = [];
-        
-        if (fromDate && toDate) {
-          // Usar $expr para comparar fechas de manera más precisa
-          dateExprConditions.push({
-            $and: [
-              { $ne: ['$closedAt', null] },
-              { $gte: ['$closedAt', fromDate] },
-              { $lte: ['$closedAt', toDate] }
-            ]
-          });
-          // Si closedAt es null, usar updatedAt
-          dateExprConditions.push({
-            $and: [
-              { $eq: ['$closedAt', null] },
-              { $gte: ['$updatedAt', fromDate] },
-              { $lte: ['$updatedAt', toDate] }
-            ]
-          });
-        } else if (fromDate) {
-          dateExprConditions.push({
-            $and: [
-              { $ne: ['$closedAt', null] },
-              { $gte: ['$closedAt', fromDate] }
-            ]
-          });
-          dateExprConditions.push({
-            $and: [
-              { $eq: ['$closedAt', null] },
-              { $gte: ['$updatedAt', fromDate] }
-            ]
-          });
-        } else if (toDate) {
-          dateExprConditions.push({
-            $and: [
-              { $ne: ['$closedAt', null] },
-              { $lte: ['$closedAt', toDate] }
-            ]
-          });
-          dateExprConditions.push({
-            $and: [
-              { $eq: ['$closedAt', null] },
-              { $lte: ['$updatedAt', toDate] }
-            ]
-          });
-        }
-        
-        if (dateExprConditions.length > 0) {
-          match.$expr = { $or: dateExprConditions };
-        }
-      }
     }
 
+    // Filtro de técnico (aplicado en el $match inicial)
     if (tech) {
-      const techConditions = [
+      match.$or = [
         { technician: tech },
         { initialTechnician: tech },
         { closingTechnician: tech }
       ];
-      
-      // Si ya hay $expr, necesitamos usar $and para combinar ambos filtros
-      if (match.$expr) {
-        match.$and = [
-          { $expr: match.$expr },
-          { $or: techConditions }
-        ];
-        delete match.$expr;
-      } else {
-        match.$or = techConditions;
-      }
     }
 
     const skip = (pg - 1) * lim;
@@ -3111,6 +3046,16 @@ export const technicianReport = async (req, res) => {
       },
       // Filtrar solo las que tengan participaciÃ³n > 0
       { $match: { _laborShareCalc: { $gt: 0 } } },
+      // Aplicar filtro de fechas DESPUÉS de calcular _reportDate (más preciso y evita problemas de serialización)
+      ...(fromDate || toDate ? [{
+        $match: {
+          _reportDate: fromDate && toDate 
+            ? { $gte: fromDate, $lte: toDate }
+            : fromDate 
+            ? { $gte: fromDate }
+            : { $lte: toDate }
+        }
+      }] : []),
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
           rows: [ { $skip: skip }, { $limit: lim }, { $project: {
@@ -3134,10 +3079,17 @@ export const technicianReport = async (req, res) => {
     logger.info('technicianReport results', { 
       totalDocs, 
       rowsReturned: rows.length,
-      sampleDates: rows.slice(0, 3).map(r => ({
+      fromDate: fromDate ? fromDate.toISOString() : null,
+      toDate: toDate ? toDate.toISOString() : null,
+      sampleDates: rows.slice(0, 5).map(r => ({
         _id: r._id,
+        number: r.number,
         closedAt: r.closedAt ? new Date(r.closedAt).toISOString() : null,
-        _reportDate: r._reportDate ? new Date(r._reportDate).toISOString() : null
+        updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : null,
+        _reportDate: r._reportDate ? new Date(r._reportDate).toISOString() : null,
+        inRange: fromDate && toDate && r._reportDate 
+          ? (new Date(r._reportDate) >= fromDate && new Date(r._reportDate) <= toDate)
+          : null
       }))
     });
 
