@@ -2981,18 +2981,20 @@ export const technicianReport = async (req, res) => {
   try {
     let { from, to, technician, page = 1, limit = 100 } = req.query || {};
     const pg = Math.max(1, Number(page || 1));
-    const lim = Math.max(1, Math.min(500, Number(limit || 100)));
+    // Permitir límites más altos para reportes (hasta 50000)
+    const lim = Math.max(1, Math.min(50000, Number(limit || 100)));
     const tech = technician ? String(technician).trim().toUpperCase() : '';
 
     // Base match: ventas cerradas
     const match = { companyId: req.companyId, status: 'closed' };
 
-    // Rango de fechas sobre closedAt (fallback updatedAt) usando $expr con $or
-    // Similar a listSales para evitar problemas de serialización de fechas
+    // Preparar fechas para el filtro (se aplicará después en el pipeline)
+    let fromDate = null;
+    let toDate = null;
     if (from || to) {
       const dateRange = createDateRange(from, to);
-      const fromDate = dateRange.from;
-      const toDate = dateRange.to;
+      fromDate = dateRange.from;
+      toDate = dateRange.to;
       
       // Log para debugging
       logger.info('technicianReport date filter', { 
@@ -3001,64 +3003,6 @@ export const technicianReport = async (req, res) => {
         fromDate: fromDate ? fromDate.toISOString() : null, 
         toDate: toDate ? toDate.toISOString() : null 
       });
-      
-      if (fromDate || toDate) {
-        // Construir filtro de fecha usando $expr con $or para manejar closedAt o updatedAt
-        // Esto evita problemas de serialización de fechas en MongoDB
-        const dateConditions = [];
-        
-        if (fromDate && toDate) {
-          // Ambas fechas: rango completo
-          // Primero intentar con closedAt
-          dateConditions.push({
-            $and: [
-              { $ne: ['$closedAt', null] },
-              { $gte: ['$closedAt', fromDate] },
-              { $lte: ['$closedAt', toDate] }
-            ]
-          });
-          // Si no tiene closedAt, usar updatedAt
-          dateConditions.push({
-            $and: [
-              { $eq: ['$closedAt', null] },
-              { $gte: ['$updatedAt', fromDate] },
-              { $lte: ['$updatedAt', toDate] }
-            ]
-          });
-        } else if (fromDate) {
-          // Solo fecha desde
-          dateConditions.push({
-            $and: [
-              { $ne: ['$closedAt', null] },
-              { $gte: ['$closedAt', fromDate] }
-            ]
-          });
-          dateConditions.push({
-            $and: [
-              { $eq: ['$closedAt', null] },
-              { $gte: ['$updatedAt', fromDate] }
-            ]
-          });
-        } else if (toDate) {
-          // Solo fecha hasta
-          dateConditions.push({
-            $and: [
-              { $ne: ['$closedAt', null] },
-              { $lte: ['$closedAt', toDate] }
-            ]
-          });
-          dateConditions.push({
-            $and: [
-              { $eq: ['$closedAt', null] },
-              { $lte: ['$updatedAt', toDate] }
-            ]
-          });
-        }
-        
-        if (dateConditions.length > 0) {
-          match.$expr = { $or: dateConditions };
-        }
-      }
     }
 
     if (tech) {
@@ -3101,6 +3045,18 @@ export const technicianReport = async (req, res) => {
       },
       // Filtrar solo las que tengan participaciÃ³n > 0
       { $match: { _laborShareCalc: { $gt: 0 } } },
+      // Aplicar filtro de fechas después de calcular _reportDate para mayor precisión
+      ...(fromDate || toDate ? [{
+        $match: {
+          ...(fromDate && toDate ? {
+            _reportDate: { $gte: fromDate, $lte: toDate }
+          } : fromDate ? {
+            _reportDate: { $gte: fromDate }
+          } : {
+            _reportDate: { $lte: toDate }
+          })
+        }
+      }] : []),
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
           rows: [ { $skip: skip }, { $limit: lim }, { $project: {
