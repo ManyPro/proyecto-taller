@@ -52,12 +52,12 @@ async function getPriceEntryCached(refId) {
         window.priceEntryCache.set(refIdStr, pe);
         return pe;
       }
-      // Si no se encontró, guardar en el set de errores para no intentar de nuevo
+      // Si no se encontró (null), guardar en el set de errores para no intentar de nuevo
       window.priceEntryErrors.add(refIdStr);
       return null;
     } catch (err) {
+      // API.prices.get ahora retorna null para 404s, pero por si acaso manejamos otros errores
       // Si es un 404 (PriceEntry no existe), guardarlo en el set de errores y no mostrar error
-      // Solo mostrar error si no es un 404 (otros tipos de errores)
       if (err?.message?.includes('404') || err?.message?.includes('not found') || err?.message?.includes('Not found')) {
         window.priceEntryErrors.add(refIdStr);
         // No mostrar error para 404s - es normal que algunos PriceEntry ya no existan
