@@ -2993,12 +2993,29 @@ export const technicianReport = async (req, res) => {
       const gte = dateRange.from;
       const lte = dateRange.to;
       if (gte || lte) {
-        match.$expr = {
-          $and: [
-            gte ? { $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ] } : { $gte: [0,0] },
-            lte ? { $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ] } : { $gte: [0,0] }
-          ]
-        };
+        const dateConditions = [];
+        if (gte && lte) {
+          // Ambas fechas: rango completo
+          dateConditions.push({
+            $and: [
+              { $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ] },
+              { $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ] }
+            ]
+          });
+        } else if (gte) {
+          // Solo fecha desde
+          dateConditions.push({
+            $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ]
+          });
+        } else if (lte) {
+          // Solo fecha hasta
+          dateConditions.push({
+            $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ]
+          });
+        }
+        if (dateConditions.length > 0) {
+          match.$expr = dateConditions.length === 1 ? dateConditions[0] : { $and: dateConditions };
+        }
       }
     }
 

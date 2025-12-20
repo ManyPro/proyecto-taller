@@ -12351,21 +12351,15 @@ async function generateTechnicianReport(fechaDesde, fechaHasta, tecnico) {
   document.body.appendChild(loadingDiv);
   
   try {
-    // Obtener todas las ventas cerradas en el rango de fechas
-    const salesData = await API.sales.list({ 
-      status: 'closed', 
+    // Usar el endpoint específico de reporte de técnicos que ya filtra por fecha y técnico
+    const salesData = await API.sales.techReport({ 
       from: fechaDesde, 
       to: fechaHasta, 
+      technician: tecnico,
       limit: 10000 
     });
     
-    const allSales = Array.isArray(salesData?.items) ? salesData.items : [];
-    
-    // Filtrar ventas donde el técnico participó
-    const technicianSales = allSales.filter(sale => {
-      const saleTechnician = sale.technician || sale.closingTechnician || '';
-      return saleTechnician.toLowerCase() === tecnico.toLowerCase();
-    });
+    const technicianSales = Array.isArray(salesData?.items) ? salesData.items : [];
     
     // Mostrar reporte
     showTechnicianReport(technicianSales, fechaDesde, fechaHasta, tecnico);
