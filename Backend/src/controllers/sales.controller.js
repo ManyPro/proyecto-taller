@@ -2987,46 +2987,76 @@ export const technicianReport = async (req, res) => {
     // Base match: ventas cerradas
     const match = { companyId: req.companyId, status: 'closed' };
 
-    // Rango de fechas sobre closedAt (fallback updatedAt) usando $expr
+    // Rango de fechas sobre closedAt (fallback updatedAt) usando $expr con $or
+    // Similar a listSales para evitar problemas de serialización de fechas
     if (from || to) {
       const dateRange = createDateRange(from, to);
-      const gte = dateRange.from;
-      const lte = dateRange.to;
+      const fromDate = dateRange.from;
+      const toDate = dateRange.to;
       
       // Log para debugging
       logger.info('technicianReport date filter', { 
         from, 
         to, 
-        gte: gte ? gte.toISOString() : null, 
-        lte: lte ? lte.toISOString() : null 
+        fromDate: fromDate ? fromDate.toISOString() : null, 
+        toDate: toDate ? toDate.toISOString() : null 
       });
       
-      if (gte || lte) {
-        // CRÍTICO: En $expr, las fechas deben ser objetos Date de JavaScript
-        // createDateRange ya devuelve objetos Date, pero MongoDB necesita que se pasen correctamente
-        // Usar directamente los objetos Date sin convertir de nuevo
+      if (fromDate || toDate) {
+        // Construir filtro de fecha usando $expr con $or para manejar closedAt o updatedAt
+        // Esto evita problemas de serialización de fechas en MongoDB
         const dateConditions = [];
-        if (gte && lte) {
+        
+        if (fromDate && toDate) {
           // Ambas fechas: rango completo
+          // Primero intentar con closedAt
           dateConditions.push({
             $and: [
-              { $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ] },
-              { $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ] }
+              { $ne: ['$closedAt', null] },
+              { $gte: ['$closedAt', fromDate] },
+              { $lte: ['$closedAt', toDate] }
             ]
           });
-        } else if (gte) {
+          // Si no tiene closedAt, usar updatedAt
+          dateConditions.push({
+            $and: [
+              { $eq: ['$closedAt', null] },
+              { $gte: ['$updatedAt', fromDate] },
+              { $lte: ['$updatedAt', toDate] }
+            ]
+          });
+        } else if (fromDate) {
           // Solo fecha desde
           dateConditions.push({
-            $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ]
+            $and: [
+              { $ne: ['$closedAt', null] },
+              { $gte: ['$closedAt', fromDate] }
+            ]
           });
-        } else if (lte) {
+          dateConditions.push({
+            $and: [
+              { $eq: ['$closedAt', null] },
+              { $gte: ['$updatedAt', fromDate] }
+            ]
+          });
+        } else if (toDate) {
           // Solo fecha hasta
           dateConditions.push({
-            $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ]
+            $and: [
+              { $ne: ['$closedAt', null] },
+              { $lte: ['$closedAt', toDate] }
+            ]
+          });
+          dateConditions.push({
+            $and: [
+              { $eq: ['$closedAt', null] },
+              { $lte: ['$updatedAt', toDate] }
+            ]
           });
         }
+        
         if (dateConditions.length > 0) {
-          match.$expr = dateConditions.length === 1 ? dateConditions[0] : { $and: dateConditions };
+          match.$expr = { $or: dateConditions };
         }
       }
     }
