@@ -24,6 +24,11 @@ async function getPriceEntryCached(refId) {
   if (!refId) return null;
   const refIdStr = String(refId);
   
+  // Si ya sabemos que este PriceEntry no existe (error previo), retornar null inmediatamente
+  if (window.priceEntryErrors.has(refIdStr)) {
+    return null;
+  }
+  
   // Si ya está en cache, retornar inmediatamente
   if (window.priceEntryCache.has(refIdStr)) {
     return window.priceEntryCache.get(refIdStr);
@@ -47,11 +52,22 @@ async function getPriceEntryCached(refId) {
         window.priceEntryCache.set(refIdStr, pe);
         return pe;
       }
+      // Si no se encontró, guardar en el set de errores para no intentar de nuevo
+      window.priceEntryErrors.add(refIdStr);
       return null;
     } catch (err) {
-      // Los errores deben mostrarse para diagnóstico
-      // El problema real está en el backend, no aquí
-      console.error(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
+      // Si es un 404 (PriceEntry no existe), guardarlo en el set de errores y no mostrar error
+      // Solo mostrar error si no es un 404 (otros tipos de errores)
+      if (err?.message?.includes('404') || err?.message?.includes('not found') || err?.message?.includes('Not found')) {
+        window.priceEntryErrors.add(refIdStr);
+        // No mostrar error para 404s - es normal que algunos PriceEntry ya no existan
+        return null;
+      }
+      // Para otros errores, mostrar warning solo una vez
+      if (!window.priceEntryErrors.has(refIdStr)) {
+        console.warn(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err?.message || err);
+        window.priceEntryErrors.add(refIdStr);
+      }
       return null;
     } finally {
       // Limpiar la promesa pendiente
