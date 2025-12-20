@@ -3085,6 +3085,12 @@ async function renderSale(){
       btnComplete.style.cssText = 'padding:6px 12px;border-radius:4px;border:none;cursor:pointer;font-size:12px;';
       btnComplete.onclick = async () => {
         try {
+          // Validar que el slot tenga comboPriceId
+          if (!slot.comboPriceId) {
+            console.error('Slot sin comboPriceId:', slot);
+            alert('Error: El slot no tiene comboPriceId. Por favor, recarga la página.');
+            return;
+          }
           // Usar slot.slotIndex que es el índice real del slot en el combo, no el índice del array filtrado
           await completeOpenSlotWithQR(current._id, slot.slotIndex, slot);
         } catch (err) {
@@ -3659,6 +3665,11 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
       
       const parsed = parseInventoryCode(text);
       try {
+        // Validar que el slot tenga comboPriceId antes de hacer la llamada
+        if (!slot || !slot.comboPriceId) {
+          throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
+        }
+        
         let itemId = null;
         let sku = null;
         
@@ -3668,7 +3679,13 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
           sku = parsed.sku;
         }
         
-        const result = await API.sales.completeSlot(saleId, slotIndex, slot.comboPriceId, itemId, sku);
+        // Asegurar que comboPriceId sea un string (puede venir como ObjectId de MongoDB)
+        const comboPriceId = slot.comboPriceId ? String(slot.comboPriceId) : null;
+        if (!comboPriceId) {
+          throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
+        }
+        
+        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, itemId, sku);
         current = result.sale;
         syncCurrentIntoOpenList();
         await renderAll();

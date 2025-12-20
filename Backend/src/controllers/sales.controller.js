@@ -400,6 +400,16 @@ export const getSale = async (req, res) => {
   }));
   
   saleObj.items = enrichedItems;
+  
+  // Normalizar openSlots para asegurar que comboPriceId y completedItemId sean strings
+  if (saleObj.openSlots && Array.isArray(saleObj.openSlots)) {
+    saleObj.openSlots = saleObj.openSlots.map(slot => ({
+      ...slot,
+      comboPriceId: slot.comboPriceId ? String(slot.comboPriceId) : null,
+      completedItemId: slot.completedItemId ? String(slot.completedItemId) : null
+    }));
+  }
+  
   res.json(saleObj);
 };
 
