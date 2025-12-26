@@ -3195,34 +3195,187 @@ function openMarketplaceHelper(item){
     }
   }
 
+  // Función auxiliar: crear contenedor aislado para captura de stickers
+  function createIsolatedCaptureContainer(widthPx, heightPx) {
+    const root = document.createElement('div');
+    root.id = 'sticker-pdf-capture-root';
+    
+    // Aplicar estilos directamente sin depender de CSS global
+    Object.assign(root.style, {
+      position: 'fixed',
+      left: '-20000px',
+      top: '0',
+      width: `${widthPx}px`,
+      height: `${heightPx}px`,
+      overflow: 'visible',
+      zIndex: '-9999',
+      background: '#fff',
+      transform: 'none',
+      margin: '0',
+      padding: '0',
+      boxSizing: 'border-box',
+      display: 'block'
+    });
+    
+    // Forzar estilos con setProperty para máxima prioridad
+    root.style.setProperty('transform', 'none', 'important');
+    root.style.setProperty('zoom', '1', 'important');
+    root.style.setProperty('scale', '1', 'important');
+    root.style.setProperty('-webkit-transform', 'none', 'important');
+    root.style.setProperty('-moz-transform', 'none', 'important');
+    root.style.setProperty('-ms-transform', 'none', 'important');
+    root.style.setProperty('-o-transform', 'none', 'important');
+    
+    document.body.appendChild(root);
+    return root;
+  }
+
+  // Función auxiliar: crear box de sticker con dimensiones exactas
+  function createStickerBox(widthPx, heightPx) {
+    const box = document.createElement('div');
+    box.className = 'sticker-capture';
+    
+    Object.assign(box.style, {
+      position: 'relative',
+      width: `${widthPx}px`,
+      height: `${heightPx}px`,
+      overflow: 'hidden',
+      background: '#fff',
+      boxSizing: 'border-box',
+      margin: '0',
+      padding: '0',
+      transform: 'none',
+      display: 'block'
+    });
+    
+    box.style.setProperty('transform', 'none', 'important');
+    box.style.setProperty('zoom', '1', 'important');
+    box.style.setProperty('-webkit-transform', 'none', 'important');
+    
+    return box;
+  }
+
+  // Función auxiliar: generar CSS para sticker box
+  function generateStickerCaptureCSS(widthPx, heightPx) {
+    return `
+      .sticker-capture {
+        position: relative !important;
+        width: ${widthPx}px !important;
+        height: ${heightPx}px !important;
+        max-width: ${widthPx}px !important;
+        max-height: ${heightPx}px !important;
+        min-width: ${widthPx}px !important;
+        min-height: ${heightPx}px !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+        transform: none !important;
+        zoom: 1 !important;
+      }
+      .sticker-wrapper {
+        position: relative !important;
+        width: ${widthPx}px !important;
+        height: ${heightPx}px !important;
+        max-width: ${widthPx}px !important;
+        max-height: ${heightPx}px !important;
+        min-width: ${widthPx}px !important;
+        min-height: ${heightPx}px !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        left: 0 !important;
+        top: 0 !important;
+        transform: none !important;
+        zoom: 1 !important;
+      }
+      .st-el {
+        position: absolute !important;
+        box-sizing: border-box !important;
+      }
+      .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
+        overflow: hidden !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        box-sizing: border-box !important;
+      }
+      .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
+        overflow: hidden !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        box-sizing: border-box !important;
+        display: block !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        width: 100% !important;
+        min-height: 100% !important;
+        height: auto !important;
+      }
+      .st-el[data-id*="sku"] {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+      }
+      .st-el[data-id*="name"] {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+      }
+      .st-el[data-id*="qr"] {
+        z-index: 10 !important;
+        position: absolute !important;
+      }
+      .st-el[data-id*="qr"] img {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        display: block !important;
+      }
+      .st-el[type="image"]:not([data-id*="qr"]) {
+        z-index: 2 !important;
+        position: absolute !important;
+      }
+      .st-el[data-id*="sku"] *, .st-el[data-id*="name"] *, .st-el[data-id*="custom"] * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+    `;
+  }
+
   async function renderStickerPdf(list, filenameBase = 'stickers') {
     const tpl = await API.templates.active('sticker-qr').catch(() => null);
     const tplLayout = tpl?.meta?.layout || cloneStickerLayout();
-    // CRÍTICO: Forzar valores exactos (5cm y 3cm) independientemente de lo que venga del template
-    // Esto asegura que el PDF siempre tenga dimensiones exactas
-    const widthCm = 5; // Forzar exactamente 5cm
-    const heightCm = 3; // Forzar exactamente 3cm
-    // CRÍTICO: Asegurar que el layout tenga dimensiones exactas
+    
+    // Dimensiones exactas: 5cm x 3cm
+    const widthCm = 5;
+    const heightCm = 3;
     const layout = { 
       ...tplLayout, 
-      widthCm: widthCm, 
-      heightCm: heightCm 
+      widthCm, 
+      heightCm 
     };
 
+    // Obtener HTML renderizado del backend
     const tasks = [];
     list.forEach(({ it, count }) => {
       for (let i = 0; i < count; i++) {
         tasks.push(() => API.templates.preview({
           type: 'sticker-qr',
           layout,
-          // CRÍTICO: Enviar width y height como números exactos (5 y 3) en meta
-          // Esto asegura que el backend use valores exactos
           meta: { 
-            width: 5, // Forzar exactamente 5cm
-            height: 3, // Forzar exactamente 3cm
+            width: widthCm,
+            height: heightCm,
             layout 
           },
-          // CRÍTICO: Enviar el CSS del template para que se aplique correctamente
           contentCss: tpl?.contentCss || '',
           sampleId: it._id
         }));
@@ -3243,189 +3396,31 @@ function openMarketplaceHelper(item){
     const htmls = results.filter((h) => h && h.trim());
     if (!htmls.length) throw new Error('No se pudieron renderizar los stickers.');
 
-    // CRÍTICO: Calcular dimensiones exactas en píxeles y milímetros
-    // Asegurar que widthCm y heightCm sean exactamente 5 y 3 (redondear si es necesario)
-    const finalWidthCm = Math.round((widthCm || 5) * 100) / 100; // Redondear a 2 decimales
-    const finalHeightCm = Math.round((heightCm || 3) * 100) / 100;
-    // CRÍTICO: Forzar valores exactos (5cm y 3cm)
-    const exactWidthCm = 5;
-    const exactHeightCm = 3;
-    const widthPx = Math.round(exactWidthCm * STICKER_PX_PER_CM);
-    const heightPx = Math.round(exactHeightCm * STICKER_PX_PER_CM);
-    // Convertir cm a mm (1cm = 10mm) - usar valores exactos
-    const widthMm = exactWidthCm * 10; // 50mm para 5cm
-    const heightMm = exactHeightCm * 10; // 30mm para 3cm
+    // Calcular dimensiones exactas
+    const widthPx = Math.round(widthCm * STICKER_PX_PER_CM); // 189px
+    const heightPx = Math.round(heightCm * STICKER_PX_PER_CM); // 113px
+    const widthMm = widthCm * 10; // 50mm
+    const heightMm = heightCm * 10; // 30mm
     
-    console.log(`📐 Dimensiones calculadas: widthCm=${exactWidthCm}, heightCm=${exactHeightCm}, widthPx=${widthPx}, heightPx=${heightPx}, widthMm=${widthMm}, heightMm=${heightMm}`);
+    console.log(`📐 Dimensiones: ${widthCm}cm x ${heightCm}cm = ${widthPx}px x ${heightPx}px = ${widthMm}mm x ${heightMm}mm`);
 
     const html2canvas = await ensureHtml2Canvas();
     const jsPDF = await ensureJsPDF();
 
-    // CRÍTICO: Crear contenedor root con dimensiones adecuadas para evitar escalado
-    const root = document.createElement('div');
-    root.id = 'sticker-pdf-capture-root';
-    // CRÍTICO: El root debe tener dimensiones suficientes y forzar que NO se escale
-    // Usar valores absolutos y asegurar que no haya transform/zoom/scale
-    root.style.cssText = `position:fixed !important;left:-12000px !important;top:0 !important;width:${widthPx + 100}px !important;height:${heightPx + 100}px !important;overflow:visible !important;z-index:-1 !important;background:#fff !important;transform:none !important;zoom:1 !important;scale:1 !important;-webkit-transform:none !important;-moz-transform:none !important;-ms-transform:none !important;-o-transform:none !important;box-sizing:border-box !important;margin:0 !important;padding:0 !important;`;
-    document.body.appendChild(root);
-    
-    // CRÍTICO: Verificar y forzar dimensiones del root después de añadirlo al DOM
-    const rootRect = root.getBoundingClientRect();
-    const expectedRootWidth = widthPx + 100;
-    const expectedRootHeight = heightPx + 100;
-    if (Math.abs(rootRect.width - expectedRootWidth) > 1 || Math.abs(rootRect.height - expectedRootHeight) > 1) {
-      console.warn(`⚠️ Root tiene dimensiones incorrectas: ${rootRect.width}x${rootRect.height}px, esperado: ${expectedRootWidth}x${expectedRootHeight}px - Forzando...`);
-      root.style.setProperty('width', `${expectedRootWidth}px`, 'important');
-      root.style.setProperty('height', `${expectedRootHeight}px`, 'important');
-      root.style.setProperty('min-width', `${expectedRootWidth}px`, 'important');
-      root.style.setProperty('min-height', `${expectedRootHeight}px`, 'important');
-      root.style.setProperty('max-width', `${expectedRootWidth}px`, 'important');
-      root.style.setProperty('max-height', `${expectedRootHeight}px`, 'important');
-      root.style.setProperty('transform', 'none', 'important');
-      root.style.setProperty('zoom', '1', 'important');
-      root.style.setProperty('scale', '1', 'important');
-      void root.offsetHeight; // Forzar reflow
-    }
+    // Crear contenedor aislado
+    const root = createIsolatedCaptureContainer(widthPx, heightPx);
 
+    // Procesar cada sticker HTML
     const images = [];
     for (const html of htmls) {
-      // CRÍTICO: Usar dimensiones exactas sin compensación de zoom innecesaria
-      const box = document.createElement('div');
-      box.className = 'sticker-capture';
-      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; transform: none; -webkit-transform: none; -moz-transform: none; -ms-transform: none; -o-transform: none;`;
+      // Crear box con dimensiones exactas
+      const box = createStickerBox(widthPx, heightPx);
       
-      // CRÍTICO: Inyectar CSS para forzar límites estrictos
+      // Inyectar CSS
       const style = document.createElement('style');
-      style.textContent = `
-        .sticker-capture {
-          position: relative !important;
-          width: ${widthPx}px !important;
-          height: ${heightPx}px !important;
-          max-width: ${widthPx}px !important;
-          max-height: ${heightPx}px !important;
-          min-width: ${widthPx}px !important;
-          min-height: ${heightPx}px !important;
-          overflow: hidden !important;
-          box-sizing: border-box !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          display: block !important;
-          transform: none !important;
-          -webkit-transform: none !important;
-          -moz-transform: none !important;
-          -ms-transform: none !important;
-          -o-transform: none !important;
-        }
-        .sticker-wrapper {
-          position: relative !important;
-          width: ${widthPx}px !important;
-          height: ${heightPx}px !important;
-          max-width: ${widthPx}px !important;
-          max-height: ${heightPx}px !important;
-          min-width: ${widthPx}px !important;
-          min-height: ${heightPx}px !important;
-          overflow: hidden !important;
-          box-sizing: border-box !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          left: 0 !important;
-          top: 0 !important;
-          transform: none !important;
-          -webkit-transform: none !important;
-          -moz-transform: none !important;
-          -ms-transform: none !important;
-          -o-transform: none !important;
-        }
-        /* CRÍTICO: Forzar que los textos usen dimensiones ABSOLUTAS y NO se salgan */
-        .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
-          overflow: hidden !important;
-          white-space: normal !important;
-          word-wrap: break-word !important;
-          word-break: break-word !important;
-          overflow-wrap: break-word !important;
-          z-index: 1 !important;
-          box-sizing: border-box !important;
-          position: absolute !important;
-          /* CRÍTICO: NO permitir que se expanda más allá de sus límites definidos */
-          max-width: inherit !important;
-          max-height: inherit !important;
-          min-width: 0 !important;
-          min-height: 0 !important;
-          /* CRÍTICO: Asegurar que el posicionamiento sea correcto - NO sobrescribir left/top del layout */
-          /* Las coordenadas left y top vienen del layout y NO deben ser sobrescritas */
-        }
-        /* CRÍTICO: El div interno de texto también debe usar dimensiones absolutas y NO escaparse */
-        .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
-          overflow: hidden !important;
-          word-wrap: break-word !important;
-          word-break: break-word !important;
-          overflow-wrap: break-word !important;
-          box-sizing: border-box !important;
-          display: block !important;
-          /* CRÍTICO: El contenido interno NO puede exceder el tamaño del contenedor */
-          max-width: 100% !important;
-          max-height: 100% !important;
-          width: 100% !important;
-          /* CRÍTICO: NO usar height: 100% porque puede causar problemas de posicionamiento */
-          /* En su lugar, usar min-height para asegurar que ocupe el espacio, pero permitir que crezca */
-          min-height: 100% !important;
-          height: auto !important; /* Permitir que el contenido determine la altura */
-          /* CRÍTICO: Forzar que las letras no se amontonen */
-          letter-spacing: normal !important;
-          text-rendering: optimizeLegibility !important;
-          font-kerning: normal !important;
-          font-variant-ligatures: normal !important;
-          /* CRÍTICO: Asegurar que el texto se ajuste correctamente sin superposiciones */
-          hyphens: auto !important;
-          -webkit-hyphens: auto !important;
-          -moz-hyphens: auto !important;
-        }
-        /* CRÍTICO: Asegurar que SKU también tenga estructura flex si tiene wrap */
-        .st-el[data-id*="sku"] {
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: flex-start !important;
-          align-items: flex-start !important;
-        }
-        /* CRÍTICO: Asegurar que nombre también tenga estructura flex */
-        .st-el[data-id*="name"] {
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: flex-start !important;
-          align-items: flex-start !important;
-        }
-        /* CRÍTICO: QR debe estar POR ENCIMA de textos y tener posición absoluta */
-        .st-el[data-id*="qr"] {
-          z-index: 10 !important;
-          position: absolute !important;
-        }
-        .st-el[data-id*="qr"] img {
-          width: 100% !important;
-          height: 100% !important;
-          max-width: 100% !important;
-          max-height: 100% !important;
-          object-fit: contain !important;
-          display: block !important;
-        }
-        /* Otras imágenes también deben respetar límites */
-        .st-el[type="image"]:not([data-id*="qr"]) {
-          z-index: 2 !important;
-          position: absolute !important;
-        }
-        /* CRÍTICO: Todos los elementos deben tener position absolute explícita y NO expandirse */
-        .st-el {
-          position: absolute !important;
-          /* Asegurar que NO se expandan más allá de sus límites definidos */
-          box-sizing: border-box !important;
-        }
-        /* CRÍTICO: El contenido de texto NO puede escaparse del contenedor */
-        .st-el[data-id*="sku"] *, .st-el[data-id*="name"] *, .st-el[data-id*="custom"] * {
-          max-width: 100% !important;
-          box-sizing: border-box !important;
-        }
-      `;
+      style.textContent = generateStickerCaptureCSS(widthPx, heightPx);
       
-      // CRÍTICO: Insertar HTML después de crear el box y el style (como funcionaba antes)
+      // Insertar HTML
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html || '';
       const stickerNode = tempDiv.querySelector('.sticker-wrapper');
@@ -3439,34 +3434,46 @@ function openMarketplaceHelper(item){
         }
       }
       
-      // Agregar el style al final para que tenga prioridad
       box.appendChild(style);
       
-      // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS
+      // Asegurar dimensiones exactas del wrapper
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
-        wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; transform: none !important; -webkit-transform: none !important; -moz-transform: none !important; -ms-transform: none !important; -o-transform: none !important;`;
+        Object.assign(wrapper.style, {
+          position: 'relative',
+          width: `${widthPx}px`,
+          height: `${heightPx}px`,
+          maxWidth: `${widthPx}px`,
+          maxHeight: `${heightPx}px`,
+          minWidth: `${widthPx}px`,
+          minHeight: `${heightPx}px`,
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+          margin: '0',
+          padding: '0',
+          left: '0',
+          top: '0',
+          transform: 'none'
+        });
+        wrapper.style.setProperty('transform', 'none', 'important');
+        wrapper.style.setProperty('zoom', '1', 'important');
       }
       
-      // CRÍTICO: Añadir al DOM
       root.appendChild(box);
       
-      // Forzar reflow para asegurar que el contenido se renderice
+      // Esperar renderizado
       void box.offsetHeight;
-      
-      // Esperar un frame para que el navegador termine de renderizar
       await new Promise(resolve => requestAnimationFrame(resolve));
       
-      // Ahora ajustar textos (nombre, SKU, etc.) para que respeten sus cuadros antes de rasterizar
+      // Ajustar textos
       await autoFitStickerTexts(box);
-      
-      // Esperar otro frame después del ajuste para que los cambios se apliquen
       await new Promise(resolve => requestAnimationFrame(resolve));
       
+      // Esperar imágenes
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
       
-      // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
+      // Capturar con html2canvas
       const scale = 3;
       // eslint-disable-next-line no-await-in-loop
       const canvas = await html2canvas(box, {
@@ -3481,98 +3488,67 @@ function openMarketplaceHelper(item){
         logging: false
       });
       
-      // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
+      // Verificar dimensiones del canvas
       const expectedCanvasWidth = Math.round(widthPx * scale);
       const expectedCanvasHeight = Math.round(heightPx * scale);
-      
       if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
-        console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
+        console.warn(`⚠️ Canvas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
       }
       
-      // CRÍTICO: Forzar valores exactos para el PDF (50mm x 30mm)
-      const exactWidthMm = 50; // 5cm = 50mm exactos
-      const exactHeightMm = 30; // 3cm = 30mm exactos
-      console.log(`📐 PDF será: ${exactWidthMm}mm x ${exactHeightMm}mm (5cm x 3cm exactos)`);
-      
-      // CRÍTICO: Guardar la imagen con sus dimensiones reales
-      // La imagen tiene dimensiones canvas.width x canvas.height en píxeles
-      // Pero debe insertarse en el PDF con dimensiones exactas (50mm x 30mm)
       images.push({
         data: canvas.toDataURL('image/png'),
         width: canvas.width,
         height: canvas.height,
-        targetWidthMm: exactWidthMm, // Usar valores exactos
-        targetHeightMm: exactHeightMm // Usar valores exactos
+        targetWidthMm: widthMm,
+        targetHeightMm: heightMm
       });
+      
       root.removeChild(box);
     }
+    
     document.body.removeChild(root);
 
-    // CRÍTICO: Forzar valores exactos para el PDF (50mm x 30mm)
-    const exactWidthMm = 50; // 5cm = 50mm exactos
-    const exactHeightMm = 30; // 3cm = 30mm exactos
-    
-    // CRÍTICO: Crear PDF con dimensiones exactas, sin márgenes
+    // Crear PDF con dimensiones exactas
     const doc = new jsPDF({
-      orientation: exactWidthMm > exactHeightMm ? 'landscape' : 'portrait',
+      orientation: widthMm > heightMm ? 'landscape' : 'portrait',
       unit: 'mm',
-      format: [exactWidthMm, exactHeightMm],
+      format: [widthMm, heightMm],
       compress: false,
-      precision: 16 // Mayor precisión para dimensiones exactas
+      precision: 16
     });
     
-    // CRÍTICO: Forzar que no haya márgenes desde el inicio
-    if (doc.internal) {
-      if (doc.internal.pageMargins) {
-        doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
-      }
-      // Asegurar que las dimensiones de la página sean exactas
-      if (doc.internal.pageSize) {
-        doc.internal.pageSize.width = exactWidthMm;
-        doc.internal.pageSize.height = exactHeightMm;
-      }
-    }
-    
-    // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
-    doc.setPage(1);
-    if (doc.internal && doc.internal.pageSize) {
-      doc.internal.pageSize.setWidth(exactWidthMm);
-      doc.internal.pageSize.setHeight(exactHeightMm);
-    }
-    
-    // CRÍTICO: Eliminar márgenes de impresión también
-    if (doc.internal && doc.internal.pageMargins) {
+    // Eliminar márgenes
+    if (doc.internal?.pageMargins) {
       doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
     }
+    if (doc.internal?.pageSize) {
+      doc.internal.pageSize.width = widthMm;
+      doc.internal.pageSize.height = heightMm;
+    }
     
+    doc.setPage(1);
+    
+    // Insertar imágenes en el PDF
     images.forEach((imgData, idx) => {
       if (idx > 0) {
-        doc.addPage([exactWidthMm, exactHeightMm], exactWidthMm > exactHeightMm ? 'landscape' : 'portrait');
-        // Eliminar márgenes en páginas adicionales también
-        if (doc.internal && doc.internal.pageSize) {
-          doc.internal.pageSize.setWidth(exactWidthMm);
-          doc.internal.pageSize.setHeight(exactHeightMm);
+        doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
+        if (doc.internal?.pageSize) {
+          doc.internal.pageSize.width = widthMm;
+          doc.internal.pageSize.height = heightMm;
         }
-        if (doc.internal && doc.internal.pageMargins) {
+        if (doc.internal?.pageMargins) {
           doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
         }
       }
       
-      // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
-      // Usar valores exactos (50mm x 30mm) independientemente de lo que venga en imgData
       const src = typeof imgData === 'string' ? imgData : imgData.data;
-      const targetW = exactWidthMm; // Siempre usar valores exactos
-      const targetH = exactHeightMm; // Siempre usar valores exactos
+      doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'SLOW');
       
-      // CRÍTICO: Insertar la imagen ocupando TODO el espacio de la página
-      doc.addImage(src, 'PNG', 0, 0, targetW, targetH, undefined, 'SLOW');
-      
-      // Log para debugging
       if (idx === 0) {
-        console.log(`📄 Insertando imagen en PDF: ${targetW}mm x ${targetH}mm (${widthCm}cm x ${heightCm}cm)`);
-        console.log(`📐 Dimensiones del canvas capturado: ${typeof imgData === 'object' ? `${imgData.width}x${imgData.height}` : 'N/A'}px`);
+        console.log(`📄 PDF: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
       }
     });
+    
     doc.save(`${filenameBase}.pdf`);
   }
   async function generateStickersFromSelection(variant = 'qr') {
