@@ -6372,6 +6372,141 @@
           padding: 2px 3px !important;
         }
       `;
+    } else if (templateType === 'sticker' || templateType === 'sticker-qr' || templateType === 'sticker-brand') {
+      // CSS específico para stickers: asegurar que ocupen el 100% del espacio disponible
+      // Obtener dimensiones del canvas (por defecto 5cm x 3cm)
+      let stickerWidthCm = 5;
+      let stickerHeightCm = 3;
+      
+      const canvasWidthCm = canvas.getAttribute('data-canvas-width-cm');
+      const canvasHeightCm = canvas.getAttribute('data-canvas-height-cm');
+      
+      if (canvasWidthCm && !isNaN(parseFloat(canvasWidthCm))) {
+        stickerWidthCm = parseFloat(canvasWidthCm);
+      }
+      if (canvasHeightCm && !isNaN(parseFloat(canvasHeightCm))) {
+        stickerHeightCm = parseFloat(canvasHeightCm);
+      }
+      
+      // Convertir cm a mm para @page
+      const stickerWidthMm = stickerWidthCm * 10;
+      const stickerHeightMm = stickerHeightCm * 10;
+      
+      templateCss = `
+        /* CRÍTICO: CSS para stickers - asegurar que ocupen 100% del espacio disponible */
+        * {
+          box-sizing: border-box !important;
+        }
+        
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          background: #ffffff !important;
+        }
+        
+        /* CRÍTICO: El sticker-wrapper debe ocupar TODO el espacio disponible */
+        .sticker-wrapper {
+          position: relative !important;
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          min-width: 100% !important;
+          min-height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+          background: #ffffff !important;
+        }
+        
+        /* CRÍTICO: Asegurar que los elementos internos mantengan sus posiciones absolutas */
+        .st-el {
+          position: absolute !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* CRÍTICO: Configurar @page con dimensiones exactas y SIN márgenes */
+        @page {
+          size: ${stickerWidthMm}mm ${stickerHeightMm}mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        
+        /* CRÍTICO: Estilos de impresión - asegurar que ocupe 100% del espacio */
+        @media print {
+          * {
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            background: #ffffff !important;
+          }
+          
+          /* CRÍTICO: El sticker-wrapper debe ocupar TODO el espacio de la página */
+          .sticker-wrapper {
+            position: relative !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            min-width: 100% !important;
+            min-height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+            background: #ffffff !important;
+            transform: none !important;
+            zoom: 1 !important;
+            scale: 1 !important;
+          }
+          
+          /* CRÍTICO: Asegurar que los elementos internos mantengan sus posiciones */
+          .st-el {
+            position: absolute !important;
+            box-sizing: border-box !important;
+          }
+          
+          /* CRÍTICO: Asegurar que los textos no se salgan de sus contenedores */
+          .st-el[data-id*="sku"], 
+          .st-el[data-id*="name"], 
+          .st-el[data-id*="custom"] {
+            overflow: hidden !important;
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+          }
+          
+          /* CRÍTICO: Asegurar que las imágenes (QR) ocupen su espacio completo */
+          .st-el[data-id*="qr"] img,
+          .st-el img {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
+            display: block !important;
+          }
+        }
+      `;
     }
     
     // Obtener dimensiones del canvas para guardarlas en el template
@@ -6526,12 +6661,16 @@
       }
       
       const docTypeName = getDocumentTypeName(templateType);
+      // CRÍTICO: Para stickers, no usar contenedor con dimensiones fijas, usar el CSS del template directamente
+      const isSticker = templateType === 'sticker' || templateType === 'sticker-qr' || templateType === 'sticker-brand';
+      
       const previewHTML = `
         <!DOCTYPE html>
         <html lang="es">
           <head>
             <title>Vista Previa - ${docTypeName}</title>
             <meta charset="UTF-8">
+            ${isSticker ? '' : `
             <style>
               * { box-sizing: border-box; }
               body { 
@@ -6550,12 +6689,11 @@
               }
               .tpl-element { position: relative !important; }
             </style>
+            ` : ''}
             ${templateCss ? `<style>${templateCss}</style>` : ''}
           </head>
           <body>
-            <div class="preview-container">
-              ${renderedContent}
-            </div>
+            ${isSticker ? renderedContent : `<div class="preview-container">${renderedContent}</div>`}
           </body>
         </html>
       `;

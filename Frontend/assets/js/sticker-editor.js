@@ -924,11 +924,134 @@
       height: state.layout.heightCm || 3,
       layout: state.layout
     };
+    
+    // CRÍTICO: Generar CSS específico para stickers que asegure que ocupen el 100% del espacio
+    const stickerWidthCm = meta.width;
+    const stickerHeightCm = meta.height;
+    const stickerWidthMm = stickerWidthCm * 10;
+    const stickerHeightMm = stickerHeightCm * 10;
+    
+    const contentCss = `
+      /* CRÍTICO: CSS para stickers - asegurar que ocupen 100% del espacio disponible */
+      * {
+        box-sizing: border-box !important;
+      }
+      
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        background: #ffffff !important;
+      }
+      
+      /* CRÍTICO: El sticker-wrapper debe ocupar TODO el espacio disponible */
+      .sticker-wrapper {
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        min-width: 100% !important;
+        min-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+      }
+      
+      /* CRÍTICO: Asegurar que los elementos internos mantengan sus posiciones absolutas */
+      .st-el {
+        position: absolute !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* CRÍTICO: Configurar @page con dimensiones exactas y SIN márgenes */
+      @page {
+        size: ${stickerWidthMm}mm ${stickerHeightMm}mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* CRÍTICO: Estilos de impresión - asegurar que ocupe 100% del espacio */
+      @media print {
+        * {
+          box-sizing: border-box !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+          background: #ffffff !important;
+        }
+        
+        /* CRÍTICO: El sticker-wrapper debe ocupar TODO el espacio de la página */
+        .sticker-wrapper {
+          position: relative !important;
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          min-width: 100% !important;
+          min-height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+          background: #ffffff !important;
+          transform: none !important;
+          zoom: 1 !important;
+          scale: 1 !important;
+        }
+        
+        /* CRÍTICO: Asegurar que los elementos internos mantengan sus posiciones */
+        .st-el {
+          position: absolute !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* CRÍTICO: Asegurar que los textos no se salgan de sus contenedores */
+        .st-el[data-id*="sku"], 
+        .st-el[data-id*="name"], 
+        .st-el[data-id*="custom"] {
+          overflow: hidden !important;
+          white-space: normal !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+        }
+        
+        /* CRÍTICO: Asegurar que las imágenes (QR) ocupen su espacio completo */
+        .st-el[data-id*="qr"] img,
+        .st-el img {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain !important;
+          display: block !important;
+        }
+      }
+    `;
+    
     return {
       type: state.session.type,
       name: state.session.name || 'Sticker',
       contentHtml: '',
-      contentCss: '',
+      contentCss: contentCss,
       activate: true,
       meta,
       layout: state.layout
@@ -966,7 +1089,23 @@
         const doc = frame.contentDocument || frame.contentWindow?.document;
         if (doc) {
           doc.open();
-          doc.write(`<html><head><style>body{margin:0;padding:20px;display:flex;justify-content:center;align-items:center;background:#f8fafc;} .sticker-wrapper{box-shadow:0 0 0 1px #e2e8f0;}</style></head><body>${pv.rendered}</body></html>`);
+          // CRÍTICO: Usar el CSS del template (pv.css) para asegurar que el sticker ocupe el 100% del espacio
+          const templateCss = pv.css || '';
+          // CSS adicional para el preview en el editor (solo para visualización, no afecta impresión)
+          const previewCss = `
+            body {
+              margin: 0;
+              padding: 20px;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              background: #f8fafc;
+            }
+            .sticker-wrapper {
+              box-shadow: 0 0 0 1px #e2e8f0;
+            }
+          `;
+          doc.write(`<html><head><style>${templateCss}${previewCss}</style></head><body>${pv.rendered}</body></html>`);
           doc.close();
         }
       }
