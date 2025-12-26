@@ -3442,31 +3442,37 @@ function openMarketplaceHelper(item){
     const root = document.createElement('div');
     root.id = 'sticker-pdf-capture-root';
     
-    // Aplicar estilos directamente sin depender de CSS global
-    Object.assign(root.style, {
-      position: 'fixed',
-      left: '-20000px',
-      top: '0',
-      width: `${widthPx}px`,
-      height: `${heightPx}px`,
-      overflow: 'visible',
-      zIndex: '-9999',
-      background: '#fff',
-      transform: 'none',
-      margin: '0',
-      padding: '0',
-      boxSizing: 'border-box',
-      display: 'block'
-    });
+    // CRÍTICO: Limpiar cualquier estilo que pueda venir por defecto
+    root.removeAttribute('style');
+    root.style.cssText = ''; // Limpiar completamente
     
-    // Forzar estilos con setProperty para máxima prioridad
+    // Aplicar estilos directamente sin depender de CSS global
+    // Usar setProperty para máxima prioridad y sobrescribir cualquier CSS global
+    root.style.setProperty('position', 'fixed', 'important');
+    root.style.setProperty('left', '-20000px', 'important');
+    root.style.setProperty('top', '0', 'important');
+    root.style.setProperty('width', `${widthPx}px`, 'important');
+    root.style.setProperty('height', `${heightPx}px`, 'important');
+    root.style.setProperty('min-width', `${widthPx}px`, 'important');
+    root.style.setProperty('min-height', `${heightPx}px`, 'important');
+    root.style.setProperty('max-width', `${widthPx}px`, 'important');
+    root.style.setProperty('max-height', `${heightPx}px`, 'important');
+    root.style.setProperty('overflow', 'visible', 'important');
+    root.style.setProperty('z-index', '-9999', 'important');
+    root.style.setProperty('background', '#fff', 'important');
     root.style.setProperty('transform', 'none', 'important');
-    root.style.setProperty('zoom', '1', 'important');
-    root.style.setProperty('scale', '1', 'important');
     root.style.setProperty('-webkit-transform', 'none', 'important');
     root.style.setProperty('-moz-transform', 'none', 'important');
     root.style.setProperty('-ms-transform', 'none', 'important');
     root.style.setProperty('-o-transform', 'none', 'important');
+    root.style.setProperty('zoom', '1', 'important');
+    root.style.setProperty('scale', '1', 'important');
+    root.style.setProperty('margin', '0', 'important');
+    root.style.setProperty('padding', '0', 'important');
+    root.style.setProperty('box-sizing', 'border-box', 'important');
+    root.style.setProperty('display', 'block', 'important');
+    root.style.setProperty('float', 'none', 'important');
+    root.style.setProperty('clear', 'both', 'important');
     
     document.body.appendChild(root);
     return root;
@@ -3477,22 +3483,33 @@ function openMarketplaceHelper(item){
     const box = document.createElement('div');
     box.className = 'sticker-capture';
     
-    Object.assign(box.style, {
-      position: 'relative',
-      width: `${widthPx}px`,
-      height: `${heightPx}px`,
-      overflow: 'hidden',
-      background: '#fff',
-      boxSizing: 'border-box',
-      margin: '0',
-      padding: '0',
-      transform: 'none',
-      display: 'block'
-    });
+    // CRÍTICO: Limpiar cualquier estilo que pueda venir por defecto
+    box.removeAttribute('style');
+    box.style.cssText = ''; // Limpiar completamente
     
+    // Establecer TODOS los estilos necesarios con setProperty para máxima prioridad
+    box.style.setProperty('position', 'relative', 'important');
+    box.style.setProperty('width', `${widthPx}px`, 'important');
+    box.style.setProperty('height', `${heightPx}px`, 'important');
+    box.style.setProperty('min-width', `${widthPx}px`, 'important');
+    box.style.setProperty('min-height', `${heightPx}px`, 'important');
+    box.style.setProperty('max-width', `${widthPx}px`, 'important');
+    box.style.setProperty('max-height', `${heightPx}px`, 'important');
+    box.style.setProperty('overflow', 'hidden', 'important');
+    box.style.setProperty('background', '#fff', 'important');
+    box.style.setProperty('box-sizing', 'border-box', 'important');
+    box.style.setProperty('margin', '0', 'important');
+    box.style.setProperty('padding', '0', 'important');
     box.style.setProperty('transform', 'none', 'important');
-    box.style.setProperty('zoom', '1', 'important');
     box.style.setProperty('-webkit-transform', 'none', 'important');
+    box.style.setProperty('-moz-transform', 'none', 'important');
+    box.style.setProperty('-ms-transform', 'none', 'important');
+    box.style.setProperty('-o-transform', 'none', 'important');
+    box.style.setProperty('zoom', '1', 'important');
+    box.style.setProperty('scale', '1', 'important');
+    box.style.setProperty('display', 'block', 'important');
+    box.style.setProperty('float', 'none', 'important');
+    box.style.setProperty('clear', 'both', 'important');
     
     return box;
   }
@@ -3653,16 +3670,34 @@ function openMarketplaceHelper(item){
       // Crear box con dimensiones exactas
       const box = createStickerBox(widthPx, heightPx);
       
-      // CRÍTICO: Asegurar que el box tenga dimensiones ANTES de insertar contenido
+      // CRÍTICO: Limpiar y establecer dimensiones exactas del box ANTES de insertar contenido
+      box.removeAttribute('style');
+      box.style.cssText = ''; // Limpiar completamente
+      
+      // Establecer TODOS los estilos necesarios con setProperty para máxima prioridad
+      box.style.setProperty('position', 'relative', 'important');
       box.style.setProperty('width', `${widthPx}px`, 'important');
       box.style.setProperty('height', `${heightPx}px`, 'important');
       box.style.setProperty('min-width', `${widthPx}px`, 'important');
       box.style.setProperty('min-height', `${heightPx}px`, 'important');
       box.style.setProperty('max-width', `${widthPx}px`, 'important');
       box.style.setProperty('max-height', `${heightPx}px`, 'important');
+      box.style.setProperty('overflow', 'hidden', 'important');
+      box.style.setProperty('box-sizing', 'border-box', 'important');
+      box.style.setProperty('margin', '0', 'important');
+      box.style.setProperty('padding', '0', 'important');
+      box.style.setProperty('transform', 'none', 'important');
+      box.style.setProperty('-webkit-transform', 'none', 'important');
+      box.style.setProperty('-moz-transform', 'none', 'important');
+      box.style.setProperty('-ms-transform', 'none', 'important');
+      box.style.setProperty('-o-transform', 'none', 'important');
+      box.style.setProperty('zoom', '1', 'important');
+      box.style.setProperty('scale', '1', 'important');
       box.style.setProperty('display', 'block', 'important');
       box.style.setProperty('visibility', 'visible', 'important');
       box.style.setProperty('opacity', '1', 'important');
+      box.style.setProperty('float', 'none', 'important');
+      box.style.setProperty('clear', 'both', 'important');
       
       // Inyectar CSS
       const style = document.createElement('style');
@@ -3700,37 +3735,40 @@ function openMarketplaceHelper(item){
         throw new Error('No se encontró .sticker-wrapper');
       }
       
-      // CRÍTICO: Usar dimensiones exactas en píxeles para que coincida con el canvas
-      Object.assign(wrapper.style, {
-        position: 'relative',
-        width: `${widthPx}px`,
-        height: `${heightPx}px`,
-        maxWidth: `${widthPx}px`,
-        maxHeight: `${heightPx}px`,
-        minWidth: `${widthPx}px`,
-        minHeight: `${heightPx}px`,
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        margin: '0',
-        padding: '0',
-        left: '0',
-        top: '0',
-        transform: 'none',
-        display: 'block',
-        visibility: 'visible',
-        opacity: '1'
-      });
+      // CRÍTICO: Limpiar TODOS los estilos inline que puedan venir del backend
+      // y establecer dimensiones exactas desde cero
+      wrapper.removeAttribute('style');
+      wrapper.style.cssText = ''; // Limpiar completamente
+      
+      // CRÍTICO: Establecer TODOS los estilos necesarios con setProperty para máxima prioridad
+      // Esto sobrescribe cualquier estilo inline que venga del HTML del backend
+      wrapper.style.setProperty('position', 'relative', 'important');
       wrapper.style.setProperty('width', `${widthPx}px`, 'important');
       wrapper.style.setProperty('height', `${heightPx}px`, 'important');
       wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
       wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
       wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
       wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
+      wrapper.style.setProperty('overflow', 'hidden', 'important');
+      wrapper.style.setProperty('box-sizing', 'border-box', 'important');
+      wrapper.style.setProperty('margin', '0', 'important');
+      wrapper.style.setProperty('padding', '0', 'important');
+      wrapper.style.setProperty('left', '0', 'important');
+      wrapper.style.setProperty('top', '0', 'important');
+      wrapper.style.setProperty('right', 'auto', 'important');
+      wrapper.style.setProperty('bottom', 'auto', 'important');
       wrapper.style.setProperty('transform', 'none', 'important');
+      wrapper.style.setProperty('-webkit-transform', 'none', 'important');
+      wrapper.style.setProperty('-moz-transform', 'none', 'important');
+      wrapper.style.setProperty('-ms-transform', 'none', 'important');
+      wrapper.style.setProperty('-o-transform', 'none', 'important');
       wrapper.style.setProperty('zoom', '1', 'important');
+      wrapper.style.setProperty('scale', '1', 'important');
       wrapper.style.setProperty('display', 'block', 'important');
       wrapper.style.setProperty('visibility', 'visible', 'important');
       wrapper.style.setProperty('opacity', '1', 'important');
+      wrapper.style.setProperty('float', 'none', 'important');
+      wrapper.style.setProperty('clear', 'both', 'important');
       
       // CRÍTICO: Forzar múltiples reflows para asegurar que las dimensiones se apliquen
       void wrapper.offsetHeight;
