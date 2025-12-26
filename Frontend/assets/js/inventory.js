@@ -910,6 +910,102 @@ if (__ON_INV_PAGE__) {
     updateSelectionBar();
   }
 
+  // Declarar generateStickersFromSelection antes de usarla en updateSelectionBar
+  async function generateStickersFromSelection(variant = 'qr') {
+    if (!state.selected.size) return;
+    const ids = Array.from(state.selected);
+    const items = ids
+      .map((id) => state.itemCache.get(String(id)))
+      .filter(Boolean);
+    if (!items.length) {
+      alert("No se encontraron datos para los items seleccionados. Vuelve a mostrarlos en la lista antes de generar los stickers.");
+      return;
+    }
+    if (items.length !== ids.length) {
+      alert("Algunos items seleccionados no se pudieron cargar. Verificalos en la lista antes de generar los stickers.");
+    }
+
+    invOpenModal(
+      `<div class="w-full max-w-4xl mx-auto">
+         <div class="flex items-center justify-between mb-4">
+           <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Generar stickers</h3>
+         </div>
+         <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">Ajusta cuántos stickers imprimir por ítem (por defecto = stock actual).</p>
+         <div class="overflow-x-auto mb-6">
+           <table class="w-full border-collapse bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white rounded-lg overflow-hidden border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+             <thead>
+               <tr class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100">
+                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">SKU</th>
+                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Nombre</th>
+                 <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Stock</th>
+                 <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir</th>
+               </tr>
+             </thead>
+             <tbody id="stk-rows" class="divide-y divide-slate-700/50 dark:divide-slate-700/50 theme-light:divide-slate-200"></tbody>
+           </table>
+         </div>
+         <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+           <button id="stk-fill-stock" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Usar stock</button>
+           <button id="stk-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Poner 0</button>
+           <button id="stk-generate" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Generar PDF</button>
+         </div>
+       </div>`
+    );
+
+    const rows = document.getElementById("stk-rows");
+    rows.innerHTML = items
+      .map(
+        (it) => `
+        <tr data-id="${it._id}" class="hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-sm text-white dark:text-white theme-light:text-slate-900 font-mono">${it.sku || ""}</td>
+          <td class="px-4 py-3 text-sm text-white dark:text-white theme-light:text-slate-900">${it.name || ""}</td>
+          <td class="px-4 py-3 text-center text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">${it.stock ?? 0}</td>
+          <td class="px-4 py-3 text-center">
+            <input type="number" min="0" step="1" value="${parseInt(it.stock || 0, 10)}" class="qty w-24 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </td>
+        </tr>`
+      )
+      .join("");
+
+    document.getElementById("stk-fill-stock").onclick = () => {
+      rows.querySelectorAll("tr").forEach((tr) => {
+        const id = tr.dataset.id;
+        const it = items.find((x) => String(x._id) === String(id));
+        tr.querySelector(".qty").value = parseInt(it?.stock || 0, 10);
+      });
+    };
+
+    document.getElementById("stk-clear").onclick = () => {
+      rows.querySelectorAll(".qty").forEach((inp) => (inp.value = 0));
+    };
+
+    document.getElementById("stk-generate").onclick = async () => {
+      showBusy('Generando PDF de stickers...');
+      const list = [];
+      rows.querySelectorAll("tr").forEach((tr) => {
+        const id = tr.dataset.id;
+        const count = parseInt(tr.querySelector(".qty").value || "0", 10);
+        const it = items.find((x) => String(x._id) === String(id));
+        if (it && count > 0) list.push({ it, count });
+      });
+      if (!list.length) {
+        hideBusy();
+        alert("Coloca al menos 1 sticker.");
+        return;
+      }
+      try {
+        const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers';
+        await renderStickerPdf(list, `stickers-${base}`);
+        invCloseModal();
+        hideBusy();
+        showToast('Stickers generados');
+      } catch (err) {
+        hideBusy();
+        alert('Error generando stickers: ' + (err.message || err));
+      }
+    };
+  }
+
   function openBulkPublishModal(){
     const optionsIntakes = [
       `<option value="">(por selección actual o SKUs)</option>`,
@@ -3534,100 +3630,6 @@ function openMarketplaceHelper(item){
     });
     
     doc.save(`${filenameBase}.pdf`);
-  }
-  async function generateStickersFromSelection(variant = 'qr') {
-    if (!state.selected.size) return;
-    const ids = Array.from(state.selected);
-    const items = ids
-      .map((id) => state.itemCache.get(String(id)))
-      .filter(Boolean);
-    if (!items.length) {
-      alert("No se encontraron datos para los items seleccionados. Vuelve a mostrarlos en la lista antes de generar los stickers.");
-      return;
-    }
-    if (items.length !== ids.length) {
-      alert("Algunos items seleccionados no se pudieron cargar. Verificalos en la lista antes de generar los stickers.");
-    }
-
-    invOpenModal(
-      `<div class="w-full max-w-4xl mx-auto">
-         <div class="flex items-center justify-between mb-4">
-           <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Generar stickers</h3>
-         </div>
-         <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">Ajusta cuántos stickers imprimir por ítem (por defecto = stock actual).</p>
-         <div class="overflow-x-auto mb-6">
-           <table class="w-full border-collapse bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white rounded-lg overflow-hidden border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-             <thead>
-               <tr class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100">
-                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">SKU</th>
-                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Nombre</th>
-                 <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Stock</th>
-                 <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir</th>
-               </tr>
-             </thead>
-             <tbody id="stk-rows" class="divide-y divide-slate-700/50 dark:divide-slate-700/50 theme-light:divide-slate-200"></tbody>
-           </table>
-         </div>
-         <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-           <button id="stk-fill-stock" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Usar stock</button>
-           <button id="stk-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Poner 0</button>
-           <button id="stk-generate" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Generar PDF</button>
-         </div>
-       </div>`
-    );
-
-    const rows = document.getElementById("stk-rows");
-    rows.innerHTML = items
-      .map(
-        (it) => `
-        <tr data-id="${it._id}" class="hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-sm text-white dark:text-white theme-light:text-slate-900 font-mono">${it.sku || ""}</td>
-          <td class="px-4 py-3 text-sm text-white dark:text-white theme-light:text-slate-900">${it.name || ""}</td>
-          <td class="px-4 py-3 text-center text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">${it.stock ?? 0}</td>
-          <td class="px-4 py-3 text-center">
-            <input type="number" min="0" step="1" value="${parseInt(it.stock || 0, 10)}" class="qty w-24 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-          </td>
-        </tr>`
-      )
-      .join("");
-
-    document.getElementById("stk-fill-stock").onclick = () => {
-      rows.querySelectorAll("tr").forEach((tr) => {
-        const id = tr.dataset.id;
-        const it = items.find((x) => String(x._id) === String(id));
-        tr.querySelector(".qty").value = parseInt(it?.stock || 0, 10);
-      });
-    };
-
-    document.getElementById("stk-clear").onclick = () => {
-      rows.querySelectorAll(".qty").forEach((inp) => (inp.value = 0));
-    };
-
-    document.getElementById("stk-generate").onclick = async () => {
-      showBusy('Generando PDF de stickers...');
-      const list = [];
-      rows.querySelectorAll("tr").forEach((tr) => {
-        const id = tr.dataset.id;
-        const count = parseInt(tr.querySelector(".qty").value || "0", 10);
-        const it = items.find((x) => String(x._id) === String(id));
-        if (it && count > 0) list.push({ it, count });
-      });
-      if (!list.length) {
-        hideBusy();
-        alert("Coloca al menos 1 sticker.");
-        return;
-      }
-      try {
-        const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers';
-        await renderStickerPdf(list, `stickers-${base}`);
-        invCloseModal();
-        hideBusy();
-        showToast('Stickers generados');
-      } catch (err) {
-        hideBusy();
-        alert('Error generando stickers: ' + (err.message || err));
-      }
-    };
   }
 
   // ---- Publish management ----
