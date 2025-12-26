@@ -3775,3 +3775,6 @@ function openMarketplaceHelper(item){
   refreshIntakes();
   // Initial load: page 1, limit per page
   refreshItems({ page: 1, limit: state.paging.limit });
+}
+
+}
