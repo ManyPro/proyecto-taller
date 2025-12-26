@@ -1430,8 +1430,8 @@ if (__ON_INV_PAGE__) {
           alert('Error generando stickers: ' + (err.message || err));
           return;
         }
-      } catch (err) {
-        hideBusy();
+        } catch (err) {
+          hideBusy();
         alert('Error agregando stock: ' + (err.message || err));
       }
     };
@@ -2412,9 +2412,9 @@ function openMarketplaceHelper(item){
     const nameH = textAreaH - skuH - 4;
     
     return {
-      widthCm: 5,
-      heightCm: 3,
-      elements: [
+    widthCm: 5,
+    heightCm: 3,
+    elements: [
         // Logo de Casa Renault arriba a la izquierda
         { 
           id: 'logo', 
@@ -2988,13 +2988,13 @@ function openMarketplaceHelper(item){
     root.style.setProperty('overflow', 'visible', 'important');
     root.style.setProperty('z-index', '-9999', 'important');
     root.style.setProperty('background', '#fff', 'important');
-    root.style.setProperty('transform', 'none', 'important');
+      root.style.setProperty('transform', 'none', 'important');
     root.style.setProperty('-webkit-transform', 'none', 'important');
     root.style.setProperty('-moz-transform', 'none', 'important');
     root.style.setProperty('-ms-transform', 'none', 'important');
     root.style.setProperty('-o-transform', 'none', 'important');
-    root.style.setProperty('zoom', '1', 'important');
-    root.style.setProperty('scale', '1', 'important');
+      root.style.setProperty('zoom', '1', 'important');
+      root.style.setProperty('scale', '1', 'important');
     root.style.setProperty('margin', '0', 'important');
     root.style.setProperty('padding', '0', 'important');
     root.style.setProperty('box-sizing', 'border-box', 'important');
@@ -3008,8 +3008,8 @@ function openMarketplaceHelper(item){
 
   // Función auxiliar: crear box de sticker con dimensiones exactas
   function createStickerBox(widthPx, heightPx) {
-    const box = document.createElement('div');
-    box.className = 'sticker-capture';
+      const box = document.createElement('div');
+      box.className = 'sticker-capture';
     
     // CRÍTICO: Limpiar cualquier estilo que pueda venir por defecto
     box.removeAttribute('style');
@@ -3045,43 +3045,43 @@ function openMarketplaceHelper(item){
   // Función auxiliar: generar CSS para sticker box
   function generateStickerCaptureCSS(widthPx, heightPx) {
     return `
-      .sticker-capture {
-        position: relative !important;
+        .sticker-capture {
+          position: relative !important;
         width: ${widthPx}px !important;
         height: ${heightPx}px !important;
         max-width: ${widthPx}px !important;
         max-height: ${heightPx}px !important;
         min-width: ${widthPx}px !important;
         min-height: ${heightPx}px !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: block !important;
-        transform: none !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+          transform: none !important;
         zoom: 1 !important;
-      }
-      .sticker-wrapper {
-        position: relative !important;
+        }
+        .sticker-wrapper {
+          position: relative !important;
         width: ${widthPx}px !important;
         height: ${heightPx}px !important;
         max-width: ${widthPx}px !important;
         max-height: ${heightPx}px !important;
         min-width: ${widthPx}px !important;
         min-height: ${heightPx}px !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        left: 0 !important;
-        top: 0 !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          left: 0 !important;
+          top: 0 !important;
         right: auto !important;
         bottom: auto !important;
-        transform: none !important;
-        -webkit-transform: none !important;
-        -moz-transform: none !important;
-        -ms-transform: none !important;
-        -o-transform: none !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
         zoom: 1 !important;
         scale: 1 !important;
         display: block !important;
@@ -3107,60 +3107,60 @@ function openMarketplaceHelper(item){
         position: absolute !important;
         box-sizing: border-box !important;
       }
-      .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
-        overflow: hidden !important;
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        box-sizing: border-box !important;
+        .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
+          overflow: hidden !important;
+          white-space: normal !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          box-sizing: border-box !important;
       }
-      .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
-        overflow: hidden !important;
-        word-wrap: break-word !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        box-sizing: border-box !important;
-        display: block !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        width: 100% !important;
-        min-height: 100% !important;
+        .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
+          overflow: hidden !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          box-sizing: border-box !important;
+          display: block !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          width: 100% !important;
+          min-height: 100% !important;
         height: auto !important;
       }
-      .st-el[data-id*="sku"] {
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: flex-start !important;
-        align-items: flex-start !important;
-      }
-      .st-el[data-id*="name"] {
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: flex-start !important;
-        align-items: flex-start !important;
-      }
-      .st-el[data-id*="qr"] {
-        z-index: 10 !important;
-        position: absolute !important;
-      }
-      .st-el[data-id*="qr"] img {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        object-fit: contain !important;
-        display: block !important;
-      }
-      .st-el[type="image"]:not([data-id*="qr"]) {
-        z-index: 2 !important;
-        position: absolute !important;
-      }
-      .st-el[data-id*="sku"] *, .st-el[data-id*="name"] *, .st-el[data-id*="custom"] * {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-    `;
+        .st-el[data-id*="sku"] {
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: flex-start !important;
+          align-items: flex-start !important;
+        }
+        .st-el[data-id*="name"] {
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: flex-start !important;
+          align-items: flex-start !important;
+        }
+        .st-el[data-id*="qr"] {
+          z-index: 10 !important;
+          position: absolute !important;
+        }
+        .st-el[data-id*="qr"] img {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain !important;
+          display: block !important;
+        }
+        .st-el[type="image"]:not([data-id*="qr"]) {
+          z-index: 2 !important;
+          position: absolute !important;
+        }
+        .st-el[data-id*="sku"] *, .st-el[data-id*="name"] *, .st-el[data-id*="custom"] * {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+      `;
   }
 
   // Función para generar QR code usando el endpoint del backend
@@ -3296,7 +3296,7 @@ function openMarketplaceHelper(item){
       
       // CRÍTICO: Forzar dimensiones del wrapper inmediatamente después de insertar HTML
       const wrapper = box.querySelector('.sticker-wrapper');
-      if (wrapper) {
+        if (wrapper) {
         // El HTML ya tiene las dimensiones correctas, pero forzarlas nuevamente para asegurar
         wrapper.style.setProperty('width', `${widthPx}px`, 'important');
         wrapper.style.setProperty('height', `${heightPx}px`, 'important');
@@ -3320,8 +3320,8 @@ function openMarketplaceHelper(item){
       root.appendChild(box);
       
       // Esperar renderizado
-      void box.offsetHeight;
-      await new Promise(resolve => requestAnimationFrame(resolve));
+        void box.offsetHeight;
+        await new Promise(resolve => requestAnimationFrame(resolve));
       
       // Ajustar textos automáticamente para que quepan
       await autoFitStickerTexts(box);
@@ -3375,7 +3375,7 @@ function openMarketplaceHelper(item){
     // jsPDF tiene márgenes por defecto que debemos eliminar completamente
     if (doc.internal) {
       // Eliminar márgenes del objeto interno INMEDIATAMENTE
-      doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+        doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
       
       // Asegurar dimensiones exactas de la página
       if (doc.internal.pageSize) {
@@ -3412,7 +3412,7 @@ function openMarketplaceHelper(item){
         // Asegurar que no haya escalado que cause márgenes
         const scaleFactor = doc.internal.scaleFactor;
         // El área de dibujo debe ser exactamente widthMm x heightMm
-        if (doc.internal.pageSize) {
+      if (doc.internal.pageSize) {
           doc.internal.pageSize.width = widthMm;
           doc.internal.pageSize.height = heightMm;
         }
@@ -3620,7 +3620,7 @@ function openMarketplaceHelper(item){
   // PUBLISH MANAGEMENT START
   // Extend item actions with publish toggle & public edit
   // We locate after div.innerHTML build by selecting actions container
-  
+
   function openPublishToggle(it){
     invOpenModal(`<h3>${it.published ? 'Despublicar' : 'Publicar'} ítem</h3>
       <p class='muted'>${it.published ? 'Al despublicar el ítem dejará de aparecer en el catálogo público.' : 'Al publicar el ítem será visible en el catálogo público y se podrá comprar.'}</p>
