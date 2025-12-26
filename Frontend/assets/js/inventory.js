@@ -1189,6 +1189,11 @@ if (__ON_INV_PAGE__) {
       state.paging = { page: 1, pages: 1, total: state.items.length, limit: state.items.length || 15, truncated: false };
     }
 
+    if (!itemsList) {
+      console.error('❌ itemsList no encontrado en el DOM');
+      return;
+    }
+
     itemsList.innerHTML = "";
     state.items.forEach((it) => {
       const cacheKey = String(it._id);
@@ -3772,9 +3777,16 @@ function openMarketplaceHelper(item){
   // PUBLISH MANAGEMENT END
 
   // ---- Boot ----
-  refreshIntakes();
-  // Initial load: page 1, limit per page
-  refreshItems({ page: 1, limit: state.paging.limit });
+  // Asegurar que el DOM esté listo antes de inicializar
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshIntakes();
+      refreshItems({ page: 1, limit: state.paging.limit });
+    });
+  } else {
+    refreshIntakes();
+    refreshItems({ page: 1, limit: state.paging.limit });
+  }
 }
 
 }
