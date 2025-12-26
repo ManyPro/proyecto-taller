@@ -1469,21 +1469,6 @@ if (__ON_INV_PAGE__) {
             root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
             document.body.appendChild(root);
 
-            // Helper: wait for images to finish loading inside a container
-            async function waitForImages(rootEl, timeoutMs = 3000) {
-              const imgs = Array.from(rootEl.querySelectorAll('img'));
-              if (!imgs.length) return;
-              await Promise.all(imgs.map(img => new Promise((res) => {
-                if (img.complete && img.naturalWidth > 0) return res();
-                let done = false;
-                const clean = () => { if (done) return; done = true; img.removeEventListener('load', onLoad); img.removeEventListener('error', onErr); clearTimeout(t); res(); };
-                const onLoad = () => clean();
-                const onErr = () => clean();
-                const t = setTimeout(clean, timeoutMs);
-                img.addEventListener('load', onLoad, { once: true });
-                img.addEventListener('error', onErr, { once: true });
-              })));
-            }
 
             const images = [];
             for (const html of results) {
@@ -1769,7 +1754,7 @@ if (__ON_INV_PAGE__) {
                 })(box, widthPx, heightPx);
                 
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
-                try { await waitForImages(box, 4000); } catch(_) {}
+                try { await waitForImagesSafe(box, 4000); } catch(_) {}
                 // Capturar usando escala alta (3x) para mejor resolución en el PDF
                 const scale = 3; // Aumentado de 1 a 3 para mejor resolución
                 const canvas = await html2canvas(box, { 
@@ -3061,19 +3046,16 @@ function openMarketplaceHelper(item){
         const scrollHeight = target.scrollHeight;
         
         // CRÍTICO: Verificar que el contenido NO se salga del contenedor
-        // Usar tolerancia de 2px para evitar falsos positivos por redondeo
-        const overflowsVert = scrollHeight > targetHeight + 2;
-        const overflowsHoriz = scrollWidth > targetWidth + 2;
-        
-        // CRÍTICO: Verificar que el texto ocupe al menos el 90% del espacio vertical (reducido de 95% para ser más flexible)
-        const usesVerticalSpace = scrollHeight >= targetHeight * 0.90;
+        // Usar tolerancia de 1px para evitar falsos positivos por redondeo
+        const overflowsVert = scrollHeight > targetHeight + 1;
+        const overflowsHoriz = scrollWidth > targetWidth + 1;
         
         // CRÍTICO: Si hay overflow, NO cabe - esto es lo más importante
         if (overflowsVert || overflowsHoriz) {
           return false;
         }
         
-        // Si no hay overflow pero no usa suficiente espacio vertical, está bien (puede ser texto corto)
+        // Si no hay overflow, está bien
         return true;
       };
 
@@ -3090,16 +3072,18 @@ function openMarketplaceHelper(item){
       const targetRect = target.getBoundingClientRect();
       const scrollWidth = target.scrollWidth;
       const scrollHeight = target.scrollHeight;
-      const hasOverflow = scrollWidth > targetWidth + 2 || scrollHeight > targetHeight + 2;
-      const usesVerticalSpace = scrollHeight >= targetHeight * 0.90;
+      const hasOverflow = scrollWidth > targetWidth + 1 || scrollHeight > targetHeight + 1;
       
       // CRÍTICO: Si hay overflow, reducir fontSize INMEDIATAMENTE sin intentar expandir
       if (hasOverflow) {
         // Ir directamente al bucle de reducción de fontSize
-      } else if (usesVerticalSpace) {
-        // Si NO hay overflow Y el texto ocupa suficiente espacio vertical, está bien
-        return; // El texto ya está bien ajustado
       } else {
+        // Si NO hay overflow, está bien - no necesitamos verificar uso de espacio vertical
+        return; // El texto ya está bien ajustado
+      }
+      
+      // Código para expandir line-height (solo si no hay overflow y queremos usar más espacio)
+      if (false) {
         // Si NO hay overflow pero el texto NO ocupa suficiente espacio vertical, intentar expandir line-height
         // Calcular cuántas líneas de texto hay actualmente
         const currentLines = Math.ceil(scrollHeight / lineHeight) || 1;
@@ -3123,14 +3107,6 @@ function openMarketplaceHelper(item){
             target.style.setProperty('line-height', `${lineHeight}px`, 'important');
             void target.offsetHeight;
             // Continuar al bucle de reducción de fontSize
-          } else if (newScrollHeight < targetHeight * 0.90) {
-            // Si aún no ocupa suficiente espacio, aumentar más el line-height
-            const newTargetLineHeight = targetHeight / Math.ceil(newScrollHeight / lineHeight);
-            if (newTargetLineHeight > lineHeight && newTargetLineHeight <= fontSize * 2.5) {
-              lineHeight = newTargetLineHeight;
-              target.style.setProperty('line-height', `${lineHeight}px`, 'important');
-              void target.offsetHeight;
-            }
           }
         }
       }
@@ -3246,6 +3222,8 @@ function openMarketplaceHelper(item){
             height: 3, // Forzar exactamente 3cm
             layout 
           },
+          // CRÍTICO: Enviar el CSS del template para que se aplique correctamente
+          contentCss: tpl?.contentCss || '',
           sampleId: it._id
         }));
       }
@@ -3311,37 +3289,28 @@ function openMarketplaceHelper(item){
 
     const images = [];
     for (const html of htmls) {
-      // CRÍTICO: Usar el mismo enfoque simple que funcionaba antes (captureSingleBox)
-      // NOTA: Hay un CSS global que aplica zoom: 0.85 al html, lo que escala todo al 85%
-      // Necesitamos contrarrestar esto forzando zoom: 1 en el box
-      const htmlZoom = 0.85; // Zoom global aplicado al html
-      const compensatedBoxWidth = widthPx / htmlZoom;
-      const compensatedBoxHeight = heightPx / htmlZoom;
+      // CRÍTICO: Usar dimensiones exactas sin compensación de zoom innecesaria
       const box = document.createElement('div');
       box.className = 'sticker-capture';
-      // CRÍTICO: Usar dimensiones compensadas y zoom: 1 para contrarrestar el zoom global
-      box.style.cssText = `position: relative; width: ${compensatedBoxWidth}px; height: ${compensatedBoxHeight}px; overflow: hidden; background: #fff; box-sizing: border-box; zoom: ${1/htmlZoom}; transform: none; -webkit-transform: none; -moz-transform: none; -ms-transform: none; -o-transform: none;`;
+      box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; transform: none; -webkit-transform: none; -moz-transform: none; -ms-transform: none; -o-transform: none;`;
       
-      // CRÍTICO: Inyectar CSS agresivo para forzar límites estrictos ANTES de autoFit
-      // NOTA: Compensar el zoom global del html (0.85) usando dimensiones / 0.85 y zoom: 1/0.85
+      // CRÍTICO: Inyectar CSS para forzar límites estrictos
       const style = document.createElement('style');
       style.textContent = `
         .sticker-capture {
           position: relative !important;
-          width: ${compensatedBoxWidth}px !important;
-          height: ${compensatedBoxHeight}px !important;
-          max-width: ${compensatedBoxWidth}px !important;
-          max-height: ${compensatedBoxHeight}px !important;
-          min-width: ${compensatedBoxWidth}px !important;
-          min-height: ${compensatedBoxHeight}px !important;
+          width: ${widthPx}px !important;
+          height: ${heightPx}px !important;
+          max-width: ${widthPx}px !important;
+          max-height: ${heightPx}px !important;
+          min-width: ${widthPx}px !important;
+          min-height: ${heightPx}px !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
           margin: 0 !important;
           padding: 0 !important;
           display: block !important;
           transform: none !important;
-          zoom: ${1/htmlZoom} !important;
-          scale: 1 !important;
           -webkit-transform: none !important;
           -moz-transform: none !important;
           -ms-transform: none !important;
@@ -3349,12 +3318,12 @@ function openMarketplaceHelper(item){
         }
         .sticker-wrapper {
           position: relative !important;
-          width: ${compensatedBoxWidth}px !important;
-          height: ${compensatedBoxHeight}px !important;
-          max-width: ${compensatedBoxWidth}px !important;
-          max-height: ${compensatedBoxHeight}px !important;
-          min-width: ${compensatedBoxWidth}px !important;
-          min-height: ${compensatedBoxHeight}px !important;
+          width: ${widthPx}px !important;
+          height: ${heightPx}px !important;
+          max-width: ${widthPx}px !important;
+          max-height: ${heightPx}px !important;
+          min-width: ${widthPx}px !important;
+          min-height: ${heightPx}px !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
           margin: 0 !important;
@@ -3362,8 +3331,6 @@ function openMarketplaceHelper(item){
           left: 0 !important;
           top: 0 !important;
           transform: none !important;
-          zoom: ${1/htmlZoom} !important;
-          scale: 1 !important;
           -webkit-transform: none !important;
           -moz-transform: none !important;
           -ms-transform: none !important;
@@ -3476,13 +3443,9 @@ function openMarketplaceHelper(item){
       box.appendChild(style);
       
       // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS
-      // NOTA: El wrapper NO debe tener zoom porque el box ya lo tiene
-      // El wrapper debe tener las dimensiones compensadas pero SIN zoom adicional
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
-        // CRÍTICO: El wrapper debe tener las dimensiones compensadas pero SIN zoom
-        // porque el zoom ya está aplicado en el box
-        wrapper.style.cssText = `position: relative !important; width: ${compensatedBoxWidth}px !important; height: ${compensatedBoxHeight}px !important; max-width: ${compensatedBoxWidth}px !important; max-height: ${compensatedBoxHeight}px !important; min-width: ${compensatedBoxWidth}px !important; min-height: ${compensatedBoxHeight}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; transform: none !important; -webkit-transform: none !important; -moz-transform: none !important; -ms-transform: none !important; -o-transform: none !important; zoom: 1 !important;`;
+        wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important; transform: none !important; -webkit-transform: none !important; -moz-transform: none !important; -ms-transform: none !important; -o-transform: none !important;`;
       }
       
       // CRÍTICO: Añadir al DOM
@@ -3503,119 +3466,27 @@ function openMarketplaceHelper(item){
       // eslint-disable-next-line no-await-in-loop
       await waitForImagesSafe(box, 4000);
       
-      // CRÍTICO: Verificar dimensiones ANTES de capturar
-      const boxRectBefore = box.getBoundingClientRect();
-      const wrapperBefore = box.querySelector('.sticker-wrapper');
-      
-      // CRÍTICO: Verificar dimensiones del wrapper también
-      if (wrapperBefore) {
-        const wrapperRectBefore = wrapperBefore.getBoundingClientRect();
-        const expectedWrapperWidth = widthPx; // El wrapper debería verse como 189px visualmente
-        const expectedWrapperHeight = heightPx; // El wrapper debería verse como 113px visualmente
-        
-        console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado visual: ${widthPx}x${heightPx}px, compensado: ${compensatedBoxWidth.toFixed(2)}x${compensatedBoxHeight.toFixed(2)}px), Wrapper: ${wrapperRectBefore.width}x${wrapperRectBefore.height}px (esperado visual: ${expectedWrapperWidth}x${expectedWrapperHeight}px)`);
-        
-        // CRÍTICO: Si el wrapper tiene dimensiones incorrectas, forzar zoom: 1 y dimensiones exactas
-        if (Math.abs(wrapperRectBefore.width - expectedWrapperWidth) > 2 || Math.abs(wrapperRectBefore.height - expectedWrapperHeight) > 2) {
-          console.warn(`⚠️ Wrapper tiene dimensiones incorrectas. Forzando zoom: 1 y dimensiones exactas...`);
-          wrapperBefore.style.setProperty('zoom', '1', 'important');
-          wrapperBefore.style.setProperty('width', `${compensatedBoxWidth}px`, 'important');
-          wrapperBefore.style.setProperty('height', `${compensatedBoxHeight}px`, 'important');
-          wrapperBefore.style.setProperty('max-width', `${compensatedBoxWidth}px`, 'important');
-          wrapperBefore.style.setProperty('max-height', `${compensatedBoxHeight}px`, 'important');
-          wrapperBefore.style.setProperty('min-width', `${compensatedBoxWidth}px`, 'important');
-          wrapperBefore.style.setProperty('min-height', `${compensatedBoxHeight}px`, 'important');
-          void wrapperBefore.offsetHeight;
-          await new Promise(resolve => requestAnimationFrame(resolve));
-        }
-      } else {
-        console.log(`📐 ANTES de capturar - Box: ${boxRectBefore.width}x${boxRectBefore.height}px (esperado visual: ${widthPx}x${heightPx}px, compensado: ${compensatedBoxWidth.toFixed(2)}x${compensatedBoxHeight.toFixed(2)}px), Wrapper: no encontrado`);
-      }
-      
-      // CRÍTICO: NO aplicar transform: scale porque ya estamos compensando el zoom global
-      // El box tiene dimensiones compensadas (222.35px) que se ven como 189px debido al zoom: 1/0.85
-      // getBoundingClientRect devuelve las dimensiones visuales después del zoom
-      // Si el box tiene 222.35px y zoom 1/0.85, debería verse como ~189px
-      let needsScale = false;
-      
-      // Verificar si las dimensiones visuales son correctas (deberían ser ~189x113px)
-      // Si no, ajustar el zoom en lugar de usar transform: scale
-      const expectedVisualWidth = widthPx; // Esperamos que se vea como 189px
-      const expectedVisualHeight = heightPx; // Esperamos que se vea como 113px
-      
-      if (Math.abs(boxRectBefore.width - expectedVisualWidth) > 2 || Math.abs(boxRectBefore.height - expectedVisualHeight) > 2) {
-        // Si las dimensiones visuales no son correctas, ajustar el zoom
-        const scaleX = expectedVisualWidth / boxRectBefore.width;
-        const scaleY = expectedVisualHeight / boxRectBefore.height;
-        const newZoom = (1/htmlZoom) * scaleX;
-        console.warn(`⚠️ Box tiene dimensiones visuales incorrectas. Ajustando zoom de ${(1/htmlZoom).toFixed(3)} a ${newZoom.toFixed(3)}...`);
-        box.style.setProperty('zoom', `${newZoom}`, 'important');
-        // CRÍTICO: El wrapper NO debe tener zoom porque el box ya lo tiene
-        // Si el wrapper también tiene zoom, se aplica dos veces causando dimensiones incorrectas
-        if (wrapper) {
-          wrapper.style.setProperty('zoom', '1', 'important'); // Forzar zoom: 1 en el wrapper
-        }
-        void box.offsetHeight;
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        needsScale = false; // No usar transform: scale, solo ajustar zoom
-      }
-      
       // CRÍTICO: Capturar con dimensiones exactas y escala alta para mejor calidad
-      // Si usamos transform: scale, html2canvas capturará el tamaño físico del box
-      // pero el contenido visual será del tamaño correcto gracias al transform: scale
       const scale = 3;
       // eslint-disable-next-line no-await-in-loop
-      let canvas = await html2canvas(box, {
-        width: needsScale ? boxRectBefore.width : widthPx, // Si usamos scale, capturar tamaño original
-        height: needsScale ? boxRectBefore.height : heightPx,
+      const canvas = await html2canvas(box, {
+        width: widthPx,
+        height: heightPx,
         backgroundColor: '#ffffff',
         scale: scale,
-        windowWidth: needsScale ? boxRectBefore.width : widthPx,
-        windowHeight: needsScale ? boxRectBefore.height : heightPx,
+        windowWidth: widthPx,
+        windowHeight: heightPx,
         useCORS: true,
         allowTaint: false,
-        logging: false,
-        // CRÍTICO: Asegurar que no haya escalado adicional
-        scaleX: 1,
-        scaleY: 1
+        logging: false
       });
-      
-      // CRÍTICO: Si usamos transform: scale, el canvas capturado será del tamaño físico del box
-      // pero necesitamos escalarlo al tamaño visual correcto
-      if (needsScale) {
-        const expectedCanvasWidth = Math.round(widthPx * scale);
-        const expectedCanvasHeight = Math.round(heightPx * scale);
-        console.log(`📐 Canvas capturado con scale: ${canvas.width}x${canvas.height}px (box original: ${boxRectBefore.width}x${boxRectBefore.height}px, scale aplicado: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)})`);
-        console.log(`📐 Canvas esperado después de escalar: ${expectedCanvasWidth}x${expectedCanvasHeight}px`);
-        
-        // CRÍTICO: Escalar el canvas al tamaño correcto usando un canvas auxiliar
-        if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
-          const scaledCanvas = document.createElement('canvas');
-          scaledCanvas.width = expectedCanvasWidth;
-          scaledCanvas.height = expectedCanvasHeight;
-          const ctx = scaledCanvas.getContext('2d');
-          
-          // CRÍTICO: Usar imageSmoothingEnabled para mejor calidad al escalar
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          
-          // CRÍTICO: Dibujar el canvas original escalado al tamaño correcto
-          ctx.drawImage(canvas, 0, 0, expectedCanvasWidth, expectedCanvasHeight);
-          
-          console.log(`✅ Canvas escalado correctamente: ${scaledCanvas.width}x${scaledCanvas.height}px`);
-          canvas = scaledCanvas; // Reemplazar el canvas original con el escalado
-        }
-      }
       
       // CRÍTICO: Verificar que el canvas tenga las dimensiones esperadas
       const expectedCanvasWidth = Math.round(widthPx * scale);
       const expectedCanvasHeight = Math.round(heightPx * scale);
-      console.log(`📐 Canvas esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}px (widthPx=${widthPx}, heightPx=${heightPx}, scale=${scale})`);
       
       if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
         console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
-      } else {
-        console.log(`✅ Canvas capturado correctamente: ${canvas.width}x${canvas.height}px`);
       }
       
       // CRÍTICO: Forzar valores exactos para el PDF (50mm x 30mm)
@@ -3792,564 +3663,9 @@ function openMarketplaceHelper(item){
         invCloseModal();
         hideBusy();
         showToast('Stickers generados');
-        return;
       } catch (err) {
         hideBusy();
         alert('Error generando stickers: ' + (err.message || err));
-        return;
-      }
-      // Intentar usar la PLANTILLA ACTIVA del tipo seleccionado
-      const type = 'sticker-qr';
-      try {
-        const tpl = await API.templates.active(type);
-        if (tpl && tpl.contentHtml) {
-          // Construir copias por cantidad y renderizar con datos reales (sampleId)
-          const tasks = [];
-          list.forEach(({ it, count }) => {
-            for (let i = 0; i < count; i++) {
-              tasks.push(() => API.templates.preview({ type, contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: it._id }));
-            }
-          });
-
-          // Ejecutar en serie para evitar saturar el backend
-          const results = [];
-          for (const job of tasks) {
-            try {
-              // eslint-disable-next-line no-await-in-loop
-              const pv = await job();
-              results.push(pv && (pv.rendered || ''));
-            } catch (e) {
-              results.push('');
-            }
-          }
-
-          if (!results.length) throw new Error('No se pudieron renderizar los stickers.');
-
-          // Generar PDF descargable (50mm x 30mm por sticker) usando html2canvas + jsPDF
-          const html2canvas = await ensureHtml2Canvas();
-          const jsPDF = await ensureJsPDF();
-
-          // Asegurar que no haya selección activa ni foco que agregue bordes/handles
-          try {
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-              document.activeElement.blur();
-            }
-            const sel = window.getSelection && window.getSelection();
-            if (sel && sel.removeAllRanges) sel.removeAllRanges();
-          } catch (_) {}
-
-          const root = document.createElement('div');
-          root.id = 'sticker-capture-root';
-          root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
-          document.body.appendChild(root);
-
-          // Helper: wait for images to finish loading inside a container
-          async function waitForImages(rootEl, timeoutMs = 3000) {
-            const imgs = Array.from(rootEl.querySelectorAll('img'));
-            if (!imgs.length) return;
-            await Promise.all(imgs.map(img => new Promise((res) => {
-              if (img.complete && img.naturalWidth > 0) return res();
-              let done = false;
-              const clean = () => { if (done) return; done = true; img.removeEventListener('load', onLoad); img.removeEventListener('error', onErr); clearTimeout(t); res(); };
-              const onLoad = () => clean();
-              const onErr = () => clean();
-              const t = setTimeout(clean, timeoutMs);
-              img.addEventListener('load', onLoad, { once: true });
-              img.addEventListener('error', onErr, { once: true });
-            })));
-          }
-
-          const images = [];
-          for (const html of results) {
-            // Validar que el HTML tenga contenido
-            if (!html || !html.trim()) {
-              console.warn('⚠️ HTML renderizado vacío, saltando sticker');
-              continue;
-            }
-            
-            // Solo usar sticker-qr (sin páginas múltiples)
-            const tmp = document.createElement('div');
-            tmp.innerHTML = html || '';
-            
-            // Verificar que el contenido tenga elementos visibles
-            const hasContent = tmp.querySelector('*') !== null;
-            if (!hasContent) {
-              console.warn('⚠️ HTML renderizado no tiene elementos, saltando sticker');
-              continue;
-            }
-
-            // Obtener dimensiones del template (5cm x 3cm por defecto para stickers)
-            // Validar que las dimensiones sean numéricas antes de usarlas
-            let stickerWidthCm = 5; // Default: 5cm
-            let stickerHeightCm = 3; // Default: 3cm
-            
-            if (tpl.meta && tpl.meta.width) {
-              const parsedWidth = parseFloat(tpl.meta.width);
-              if (!isNaN(parsedWidth) && parsedWidth > 0) {
-                stickerWidthCm = parsedWidth;
-              }
-            }
-            
-            if (tpl.meta && tpl.meta.height) {
-              const parsedHeight = parseFloat(tpl.meta.height);
-              if (!isNaN(parsedHeight) && parsedHeight > 0) {
-                stickerHeightCm = parsedHeight;
-              }
-            }
-            const stickerWidthMm = stickerWidthCm * 10; // Convertir cm a mm
-            const stickerHeightMm = stickerHeightCm * 10;
-            
-            const captureSingleBox = async () => {
-              const box = document.createElement('div');
-              box.className = 'sticker-capture';
-              // CRÍTICO: Usar dimensiones EXACTAS del template (5cm x 3cm = 189px x 113px)
-              const widthPx = Math.round(stickerWidthCm * 37.795275591);
-              const heightPx = Math.round(stickerHeightCm * 37.795275591);
-              
-              // El box debe tener dimensiones EXACTAS y overflow hidden para que coincida con el canvas
-              box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; display: block; margin: 0; padding: 0;`;
-              
-              // Insertar únicamente el contenido relevante del HTML (preferir sticker-wrapper)
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = html || '';
-              const stickerNode = tempDiv.querySelector('.sticker-wrapper');
-              if (stickerNode) {
-                box.appendChild(stickerNode);
-              } else {
-                const bodyNode = tempDiv.querySelector('body');
-                const source = bodyNode || tempDiv;
-                while (source.firstChild) {
-                  box.appendChild(source.firstChild);
-                }
-              }
-              
-              // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS (no porcentajes)
-              const wrapper = box.querySelector('.sticker-wrapper');
-              if (wrapper) {
-                // Forzar dimensiones exactas en píxeles, iguales al box
-                wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;`;
-                console.log(`📐 Wrapper configurado con dimensiones exactas: ${widthPx}px x ${heightPx}px`);
-              } else {
-                // Si no hay wrapper, crear uno con dimensiones exactas
-                const newWrapper = document.createElement('div');
-                newWrapper.className = 'sticker-wrapper';
-                newWrapper.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0;`;
-                while (box.firstChild) {
-                  newWrapper.appendChild(box.firstChild);
-                }
-                box.appendChild(newWrapper);
-                console.log(`📐 Wrapper creado con dimensiones exactas: ${widthPx}px x ${heightPx}px`);
-              }
-              
-              // Limpiar elementos problemáticos
-              try {
-                box.querySelectorAll('[contenteditable]')
-                  .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
-                // Asegurar que todos los elementos sean visibles
-                box.querySelectorAll('[style*="display: none"]')
-                  .forEach(el => {
-                    const style = el.getAttribute('style') || '';
-                    el.setAttribute('style', style.replace(/display:\s*none/gi, 'display: block'));
-                  });
-              } catch(_) {}
-              
-              // ELIMINAR handles de rotación y otros elementos del editor del DOM
-              box.querySelectorAll('.rotate-handle, .drag-handle, .resize-handle, .selection-box, .ve-selected, .ce-selected').forEach(el => el.remove());
-              
-              // Agregar el style al final para que tenga prioridad
-              const style = document.createElement('style');
-              style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
-                `/* Ocultar handles y selección del editor durante el render */\n` +
-                `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected,.rotate-handle{display:none!important;visibility:hidden!important;opacity:0!important;}\n` +
-                `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
-                `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
-                `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
-                `/* CRÍTICO: Wrapper con dimensiones EXACTAS en píxeles (no porcentajes) */\n` +
-                `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
-                `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
-                `.sticker-capture [style*="position: absolute"], .sticker-wrapper [style*="position: absolute"]{position: absolute !important;}\n` +
-                `/* Texto: permitir salto de línea y ocupar el cuadro asignado */\n` +
-                `.st-el{white-space: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; box-sizing: border-box !important;}\n` +
-                `/* CRÍTICO: Prevenir superposiciones - asegurar que elementos de texto tengan suficiente espacio */\n` +
-                `.st-el[data-id*="sku"], .st-el[data-id*="name"]{overflow: hidden !important; white-space: normal !important; word-wrap: break-word !important; word-break: break-word !important; overflow-wrap: break-word !important;}\n` +
-                `/* CRÍTICO: Asegurar que el texto del nombre respete el cuadro definido en el layout (sin expandirse más allá) */\n` +
-                `.st-el[data-id*="name"]{display: flex !important; flex-direction: column !important; justify-content: flex-start !important; align-items: flex-start !important;}\n` +
-                `/* CRÍTICO: Asegurar que el QR ocupe TODO el espacio de su contenedor */\n` +
-                `.st-el[data-id*="qr"] img{width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 100% !important; min-height: 100% !important; object-fit: contain !important; display: block !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important;}\n` +
-                `/* Asegurar que el QR tenga prioridad visual */\n` +
-                `.st-el img[src*="data:image"]{z-index: 10 !important;}\n` +
-                `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
-                `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
-                `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
-                `.sticker-capture *{color: inherit !important;}\n` +
-                `.sticker-capture *:not([style*="color"]){color: #000000 !important;}`;
-              box.appendChild(style);
-              
-              // CRÍTICO: Ajustar posiciones de elementos de texto para evitar superposiciones
-              // Asegurar que los textos respeten sus dimensiones asignadas y no se superpongan
-              (function fixTextOverlaps(rootEl) {
-                const textElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="sku"], .st-el[data-id*="name"]'));
-                
-                // Ordenar por posición Y (top)
-                textElements.sort((a, b) => {
-                  const aStyle = a.getAttribute('style') || '';
-                  const bStyle = b.getAttribute('style') || '';
-                  const aTopMatch = aStyle.match(/top:\s*([\d.]+)px/);
-                  const bTopMatch = bStyle.match(/top:\s*([\d.]+)px/);
-                  const aTop = aTopMatch ? parseFloat(aTopMatch[1]) : parseFloat(window.getComputedStyle(a).top) || 0;
-                  const bTop = bTopMatch ? parseFloat(bTopMatch[1]) : parseFloat(window.getComputedStyle(b).top) || 0;
-                  return aTop - bTop;
-                });
-                
-                // Ajustar posiciones y dimensiones para evitar superposiciones
-                for (let i = 1; i < textElements.length; i++) {
-                  const prev = textElements[i - 1];
-                  const curr = textElements[i];
-                  
-                  // Obtener posiciones y dimensiones desde el estilo inline
-                  const prevStyle = prev.getAttribute('style') || '';
-                  const currStyle = curr.getAttribute('style') || '';
-                  
-                  const prevTopMatch = prevStyle.match(/top:\s*([\d.]+)px/);
-                  const prevHeightMatch = prevStyle.match(/height:\s*([\d.]+)px/);
-                  const currTopMatch = currStyle.match(/top:\s*([\d.]+)px/);
-                  
-                  let prevTop = prevTopMatch ? parseFloat(prevTopMatch[1]) : parseFloat(window.getComputedStyle(prev).top) || 0;
-                  let prevHeight = prevHeightMatch ? parseFloat(prevHeightMatch[1]) : prev.offsetHeight || parseFloat(window.getComputedStyle(prev).height) || 0;
-                  let currTop = currTopMatch ? parseFloat(currTopMatch[1]) : parseFloat(window.getComputedStyle(curr).top) || 0;
-                  
-                  // Si el elemento actual está muy cerca o superpuesto al anterior, ajustarlo
-                  const minSpacing = 6; // Espacio mínimo entre elementos en píxeles
-                  const newTop = Math.max(currTop, prevTop + prevHeight + minSpacing);
-                  
-                  if (newTop > currTop) {
-                    // Actualizar el estilo inline manteniendo el resto de propiedades
-                    const updatedStyle = currStyle.replace(/top:\s*[\d.]+px/, `top: ${newTop}px`);
-                    if (updatedStyle === currStyle) {
-                      // Si no había top en el estilo, agregarlo
-                      curr.setAttribute('style', `${currStyle}; top: ${newTop}px`.replace(/^;\s*/, ''));
-                    } else {
-                      curr.setAttribute('style', updatedStyle);
-                    }
-                    console.log(`📐 Ajustada posición de ${curr.dataset.id}: ${currTop}px -> ${newTop}px para evitar superposición`);
-                  }
-                  
-                  // Asegurar que el elemento tenga overflow hidden para que el texto no se salga
-                  const currComputed = window.getComputedStyle(curr);
-                  if (currComputed.overflow !== 'hidden') {
-                    const finalStyle = curr.getAttribute('style') || '';
-                    curr.setAttribute('style', `${finalStyle}; overflow: hidden !important`.replace(/^;\s*/, ''));
-                  }
-                }
-              })(box);
-              
-              root.appendChild(box);
-              
-              // CRÍTICO: Forzar que el texto del nombre se expanda y haga wrap correctamente
-              (function forceTextWrap(rootEl) {
-                const nameElements = Array.from(rootEl.querySelectorAll('.st-el[data-id*="name"]'));
-                nameElements.forEach((nameEl) => {
-                  const innerDiv = nameEl.querySelector('div');
-                  if (innerDiv) {
-                    // Obtener las dimensiones del contenedor
-                    const containerStyle = window.getComputedStyle(nameEl);
-                    const containerHeight = parseFloat(containerStyle.height) || nameEl.offsetHeight || 0;
-                    const containerWidth = parseFloat(containerStyle.width) || nameEl.offsetWidth || 0;
-                    
-                    // Forzar que el div interno ocupe todo el espacio
-                    innerDiv.style.setProperty('width', '100%', 'important');
-                    innerDiv.style.setProperty('max-width', '100%', 'important');
-                    innerDiv.style.setProperty('min-height', `${containerHeight}px`, 'important');
-                    innerDiv.style.setProperty('height', 'auto', 'important');
-                    innerDiv.style.setProperty('white-space', 'normal', 'important');
-                    innerDiv.style.setProperty('word-wrap', 'break-word', 'important');
-                    innerDiv.style.setProperty('word-break', 'break-word', 'important');
-                    innerDiv.style.setProperty('overflow-wrap', 'break-word', 'important');
-                    innerDiv.style.setProperty('overflow', 'visible', 'important');
-                    innerDiv.style.setProperty('display', 'block', 'important');
-                    
-                    // Asegurar que el contenedor tenga overflow hidden
-                    nameEl.style.setProperty('overflow', 'hidden', 'important');
-                    
-                    console.log(`📝 Texto del nombre forzado a expandirse: contenedor ${containerWidth}px x ${containerHeight}px`);
-                  }
-                });
-              })(box);
-              
-              // Forzar reflow y verificar dimensiones
-              box.offsetHeight;
-              const finalWrapper = box.querySelector('.sticker-wrapper');
-              console.log('🔍 Debug dimensiones finales:', {
-                boxWidth: box.offsetWidth,
-                boxHeight: box.offsetHeight,
-                wrapperWidth: finalWrapper ? finalWrapper.offsetWidth : 'N/A',
-                wrapperHeight: finalWrapper ? finalWrapper.offsetHeight : 'N/A',
-                expectedWidth: widthPx,
-                expectedHeight: heightPx
-              });
-
-              // CRÍTICO: Asegurar que el QR ocupe el espacio completo asignado en su contenedor
-              // Buscar imágenes QR y forzar que usen TODO el espacio disponible del contenedor
-              (function ensureQrFullSize(rootEl, stickerWidthPx, stickerHeightPx) {
-                // Buscar específicamente el contenedor del QR por su data-id
-                const qrContainer = rootEl.querySelector('.st-el[data-id*="qr"], .st-el[data-id="qr"]');
-                if (qrContainer) {
-                  const qrImg = qrContainer.querySelector('img');
-                  if (qrImg && qrImg.src && qrImg.src.startsWith('data:image')) {
-                    // Obtener dimensiones del contenedor desde el estilo inline
-                    const containerStyle = qrContainer.getAttribute('style') || '';
-                    const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
-                    const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
-                    
-                    let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
-                    let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
-                    
-                    // Si no se encontraron en el estilo, usar computed o offset
-                    if (!containerW || !containerH) {
-                      const computed = window.getComputedStyle(qrContainer);
-                      containerW = containerW || parseFloat(computed.width) || qrContainer.offsetWidth || 0;
-                      containerH = containerH || parseFloat(computed.height) || qrContainer.offsetHeight || 0;
-                    }
-                    
-                    // CRÍTICO: Forzar que el QR use TODO el espacio del contenedor
-                    if (containerW > 0 && containerH > 0) {
-                      // Usar el menor de los dos para mantener aspecto cuadrado del QR
-                      const qrSize = Math.min(containerW, containerH);
-                      
-                      // Aplicar estilos directamente al contenedor y a la imagen
-                      qrContainer.style.setProperty('overflow', 'hidden', 'important');
-                      qrImg.setAttribute('style', `
-                        width: ${qrSize}px !important;
-                        height: ${qrSize}px !important;
-                        max-width: ${qrSize}px !important;
-                        max-height: ${qrSize}px !important;
-                        min-width: ${qrSize}px !important;
-                        min-height: ${qrSize}px !important;
-                        object-fit: contain !important;
-                        display: block !important;
-                        margin: 0 auto !important;
-                        padding: 0 !important;
-                        box-sizing: border-box !important;
-                      `.replace(/\s+/g, ' ').trim());
-                      
-                      console.log(`📱 QR forzado a tamaño completo: ${qrSize}px x ${qrSize}px (contenedor asignado: ${containerW}px x ${containerH}px)`);
-                    }
-                  }
-                }
-                
-                // También buscar otras imágenes QR por si acaso
-                const allImgs = Array.from(rootEl.querySelectorAll('img[src^="data:image"]'));
-                allImgs.forEach((img) => {
-                  const container = img.closest('.st-el');
-                  if (container && container !== qrContainer) {
-                    const containerStyle = container.getAttribute('style') || '';
-                    const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
-                    const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
-                    
-                    let containerW = widthMatch ? parseFloat(widthMatch[1]) : 0;
-                    let containerH = heightMatch ? parseFloat(heightMatch[1]) : 0;
-                    
-                    if (!containerW || !containerH) {
-                      const computed = window.getComputedStyle(container);
-                      containerW = containerW || parseFloat(computed.width) || container.offsetWidth || 0;
-                      containerH = containerH || parseFloat(computed.height) || container.offsetHeight || 0;
-                    }
-                    
-                    if (containerW > 0 && containerH > 0) {
-                      const qrSize = Math.min(containerW, containerH);
-                      img.setAttribute('style', `
-                        width: ${qrSize}px !important;
-                        height: ${qrSize}px !important;
-                        max-width: ${qrSize}px !important;
-                        max-height: ${qrSize}px !important;
-                        object-fit: contain !important;
-                        display: block !important;
-                        margin: 0 auto !important;
-                        padding: 0 !important;
-                        box-sizing: border-box !important;
-                      `.replace(/\s+/g, ' ').trim());
-                    }
-                  }
-                });
-              })(box, widthPx, heightPx);
-              
-              // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
-              try { await waitForImages(box, 4000); } catch(_) {}
-              
-              // Capturar usando escala alta (3x) para mejor resolución en el PDF
-              // Esto genera una imagen de alta calidad que se inserta en el PDF sin escalado adicional
-              const scale = 3; // Aumentado de 1 a 3 para mejor resolución
-              const canvas = await html2canvas(box, { 
-                scale,
-                backgroundColor: '#ffffff', 
-                useCORS: true, 
-                allowTaint: true, 
-                imageTimeout: 4000,
-                width: widthPx,
-                height: heightPx,
-                windowWidth: widthPx,
-                windowHeight: heightPx,
-                logging: false,
-                onclone: (clonedDoc) => {
-                  // Asegurar que el clon también tenga las dimensiones correctas
-                  const clonedBox = clonedDoc.querySelector('.sticker-capture');
-                  if (clonedBox) {
-                    clonedBox.style.setProperty('width', widthPx + 'px', 'important');
-                    clonedBox.style.setProperty('height', heightPx + 'px', 'important');
-                    const clonedWrapper = clonedBox.querySelector('.sticker-wrapper');
-                    if (clonedWrapper) {
-                      clonedWrapper.style.setProperty('width', widthPx + 'px', 'important');
-                      clonedWrapper.style.setProperty('height', heightPx + 'px', 'important');
-                    }
-                  }
-                }
-              });
-              
-              // Verificar que el canvas tenga las dimensiones correctas
-              const expectedCanvasWidth = Math.round(widthPx * scale);
-              const expectedCanvasHeight = Math.round(heightPx * scale);
-              if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
-                console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
-              }
-              
-              // CRÍTICO: Guardar la imagen con sus dimensiones reales
-              // Obtener dimensiones del template antes de guardar
-              let stickerWidthCm = 5;
-              let stickerHeightCm = 3;
-              if (tpl.meta && tpl.meta.width) {
-                const parsedWidth = parseFloat(tpl.meta.width);
-                if (!isNaN(parsedWidth) && parsedWidth > 0) {
-                  stickerWidthCm = parsedWidth;
-                }
-              }
-              if (tpl.meta && tpl.meta.height) {
-                const parsedHeight = parseFloat(tpl.meta.height);
-                if (!isNaN(parsedHeight) && parsedHeight > 0) {
-                  stickerHeightCm = parsedHeight;
-                }
-              }
-              
-              images.push({
-                data: canvas.toDataURL('image/png'),
-                width: canvas.width,
-                height: canvas.height,
-                targetWidthMm: stickerWidthCm * 10,
-                targetHeightMm: stickerHeightCm * 10
-              });
-              root.removeChild(box);
-            };
-
-            // Capturar el sticker directamente (sin páginas múltiples)
-            await captureSingleBox();
-          }
-          document.body.removeChild(root);
-
-          if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
-
-          // Obtener dimensiones del template para el PDF (5cm x 3cm por defecto)
-          // Validar que las dimensiones sean numéricas antes de usarlas
-          let pdfWidthMm = 50; // Default: 5cm
-          let pdfHeightMm = 30; // Default: 3cm
-          let stickerWidthCm = 5; // Para el log
-          let stickerHeightCm = 3; // Para el log
-          
-          if (tpl.meta && tpl.meta.width) {
-            const parsedWidth = parseFloat(tpl.meta.width);
-            if (!isNaN(parsedWidth) && parsedWidth > 0) {
-              stickerWidthCm = parsedWidth;
-              pdfWidthMm = parsedWidth * 10; // Convertir cm a mm
-            }
-          }
-          
-          if (tpl.meta && tpl.meta.height) {
-            const parsedHeight = parseFloat(tpl.meta.height);
-            if (!isNaN(parsedHeight) && parsedHeight > 0) {
-              stickerHeightCm = parsedHeight;
-              pdfHeightMm = parsedHeight * 10; // Convertir cm a mm
-            }
-          }
-          
-          // CRÍTICO: Usar dimensiones EXACTAS del template para el PDF (sin escalado)
-          const doc = new jsPDF({ 
-            orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', 
-            unit: 'mm', 
-            format: [pdfWidthMm, pdfHeightMm],
-            compress: false
-          });
-          
-          // CRÍTICO: Eliminar márgenes por defecto y forzar dimensiones exactas
-          doc.setPage(1);
-          if (doc.internal && doc.internal.pageSize) {
-            doc.internal.pageSize.setWidth(pdfWidthMm);
-            doc.internal.pageSize.setHeight(pdfHeightMm);
-          }
-          
-          // CRÍTICO: Eliminar márgenes de impresión también
-          if (doc.internal && doc.internal.pageMargins) {
-            doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
-          }
-          
-          images.forEach((imgData, idx) => {
-            if (idx > 0) {
-              doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
-              // Eliminar márgenes en páginas adicionales también
-              if (doc.internal && doc.internal.pageSize) {
-                doc.internal.pageSize.setWidth(pdfWidthMm);
-                doc.internal.pageSize.setHeight(pdfHeightMm);
-              }
-              if (doc.internal && doc.internal.pageMargins) {
-                doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
-              }
-            }
-            
-            // CRÍTICO: Insertar imagen desde (0,0) ocupando TODO el espacio sin márgenes
-            // Si imgData es un objeto con dimensiones, usar esas dimensiones
-            const src = typeof imgData === 'string' ? imgData : imgData.data;
-            const targetW = typeof imgData === 'object' ? imgData.targetWidthMm : pdfWidthMm;
-            const targetH = typeof imgData === 'object' ? imgData.targetHeightMm : pdfHeightMm;
-            
-            // CRÍTICO: Insertar la imagen ocupando TODO el espacio de la página
-            doc.addImage(src, 'PNG', 0, 0, targetW, targetH, undefined, 'SLOW');
-            
-            // Log para debugging
-            if (idx === 0) {
-              console.log(`📄 Insertando imagen en PDF: ${targetW}mm x ${targetH}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
-              console.log(`📐 Dimensiones del canvas capturado: ${typeof imgData === 'object' ? `${imgData.width}x${imgData.height}` : 'N/A'}px`);
-            }
-          });
-          
-          console.log(`📄 PDF generado con dimensiones exactas: ${pdfWidthMm}mm x ${pdfHeightMm}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
-          doc.save(`stickers.pdf`);
-          invCloseModal();
-          hideBusy();
-          return; // hecho con plantilla (PDF descargado)
-        }
-      } catch (e) {
-        console.warn('Fallo plantilla activa; se usará el backend PDF por defecto:', e?.message || e);
-      }
-
-      // Fallback: backend PDF por variante (layout por defecto)
-      const payload = [];
-      list.forEach(({ it, count }) => {
-        for (let i = 0; i < count; i++) payload.push({ sku: it.sku, name: it.name });
-      });
-      try {
-        const base = API.base?.replace(/\/$/, '') || '';
-        const variantPath = '/api/v1/media/stickers/pdf/qr';
-        const endpoint = base + variantPath;
-        const headers = Object.assign({ 'Content-Type': 'application/json' }, authHeader());
-        const resp = await fetch(endpoint, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify({ items: payload }) });
-        if (!resp.ok) throw new Error('No se pudo generar PDF');
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = `stickers.pdf`; document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
-        invCloseModal();
-        hideBusy();
-      } catch (err) {
-        hideBusy();
-        alert('Error creando stickers: ' + (err.message || err));
       }
     };
   }
