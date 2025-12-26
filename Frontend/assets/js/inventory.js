@@ -3620,40 +3620,7 @@ function openMarketplaceHelper(item){
   // PUBLISH MANAGEMENT START
   // Extend item actions with publish toggle & public edit
   // We locate after div.innerHTML build by selecting actions container
-  (function(){
-    const originalRefreshItems = refreshItems;
-    refreshItems = async function(params={}){
-      await originalRefreshItems(params);
-      // After base rendering, augment each item row with publish controls
-      const rows = itemsList.querySelectorAll('.note');
-      rows.forEach(row => {
-        const checkbox = row.querySelector('input[type="checkbox"][data-id]');
-        const id = checkbox ? String(checkbox.dataset.id) : null;
-        if(!id) return;
-        const it = state.itemCache.get(id);
-        if(!it) return;
-        const actions = row.querySelector('.actions');
-        if(!actions) return;
-        if(!actions.querySelector(`[data-pub-toggle]`)){
-          const btnToggle = document.createElement('button');
-          btnToggle.className = 'secondary';
-          btnToggle.setAttribute('data-pub-toggle', id);
-          btnToggle.textContent = it.published ? 'Despublicar' : 'Publicar';
-          actions.appendChild(btnToggle);
-          btnToggle.onclick = () => openPublishToggle(it);
-        }
-        if(!actions.querySelector(`[data-pub-edit]`)){
-          const btnEditPub = document.createElement('button');
-          btnEditPub.className = 'secondary';
-          btnEditPub.setAttribute('data-pub-edit', id);
-          btnEditPub.textContent = 'Campos públicos';
-          actions.appendChild(btnEditPub);
-          btnEditPub.onclick = () => openEditPublicFields(it);
-        }
-      });
-    };
-  })();
-
+  
   function openPublishToggle(it){
     invOpenModal(`<h3>${it.published ? 'Despublicar' : 'Publicar'} ítem</h3>
       <p class='muted'>${it.published ? 'Al despublicar el ítem dejará de aparecer en el catálogo público.' : 'Al publicar el ítem será visible en el catálogo público y se podrá comprar.'}</p>
@@ -3767,6 +3734,41 @@ function openMarketplaceHelper(item){
       }
     };
   }
+
+  // Extend item actions with publish toggle & public edit
+  (function(){
+    const originalRefreshItems = refreshItems;
+    refreshItems = async function(params={}){
+      await originalRefreshItems(params);
+      // After base rendering, augment each item row with publish controls
+      const rows = itemsList.querySelectorAll('.note');
+      rows.forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"][data-id]');
+        const id = checkbox ? String(checkbox.dataset.id) : null;
+        if(!id) return;
+        const it = state.itemCache.get(id);
+        if(!it) return;
+        const actions = row.querySelector('.actions');
+        if(!actions) return;
+        if(!actions.querySelector(`[data-pub-toggle]`)){
+          const btnToggle = document.createElement('button');
+          btnToggle.className = 'secondary';
+          btnToggle.setAttribute('data-pub-toggle', id);
+          btnToggle.textContent = it.published ? 'Despublicar' : 'Publicar';
+          actions.appendChild(btnToggle);
+          btnToggle.onclick = () => openPublishToggle(it);
+        }
+        if(!actions.querySelector(`[data-pub-edit]`)){
+          const btnEditPub = document.createElement('button');
+          btnEditPub.className = 'secondary';
+          btnEditPub.setAttribute('data-pub-edit', id);
+          btnEditPub.textContent = 'Campos públicos';
+          actions.appendChild(btnEditPub);
+          btnEditPub.onclick = () => openEditPublicFields(it);
+        }
+      });
+    };
+  })();
   // PUBLISH MANAGEMENT END
 
   // ---- Boot ----
@@ -3775,4 +3777,3 @@ function openMarketplaceHelper(item){
   refreshItems({ page: 1, limit: state.paging.limit });
 
 }
-
