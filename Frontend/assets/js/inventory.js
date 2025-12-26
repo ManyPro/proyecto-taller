@@ -623,6 +623,11 @@ function getSelectedItems() {
 
 // Solo ejecutar la lógica de Inventario cuando estamos en esa página
 const __ON_INV_PAGE__ = (document.body?.dataset?.page === 'inventario');
+console.log('🔍 Verificando página de inventario:', { 
+  page: document.body?.dataset?.page, 
+  __ON_INV_PAGE__, 
+  readyState: document.readyState 
+});
 if (__ON_INV_PAGE__) {
   // Configurar handlers para pegar números con formato de miles en todos los campos numéricos
   document.addEventListener('DOMContentLoaded', () => {
@@ -1162,6 +1167,7 @@ if (__ON_INV_PAGE__) {
   }
 
   async function refreshItems(params = {}) {
+    console.log('🔄 refreshItems llamado con:', params);
     // Merge persisted paging with incoming params; reset to page 1 if filters changed
     const prev = state.lastItemsParams || {};
     const filters = { ...params };
@@ -1190,14 +1196,19 @@ if (__ON_INV_PAGE__) {
       state.paging = { page: 1, pages: 1, total: state.items.length, limit: state.items.length || 15, truncated: false };
     }
 
-    if (!itemsList) {
+    // Obtener itemsList cada vez que se ejecuta refreshItems (por si el DOM cambia)
+    const itemsListEl = document.getElementById("itemsList");
+    if (!itemsListEl) {
       console.error('❌ itemsList no encontrado en el DOM - reintentando en 100ms');
       setTimeout(() => refreshItems(params), 100);
       return;
     }
 
-    itemsList.innerHTML = "";
-    console.log(`📋 Renderizando ${state.items.length} items en itemsList`);
+    itemsListEl.innerHTML = "";
+    console.log(`📋 Renderizando ${state.items.length} items en itemsList`, { itemsList: !!itemsListEl, items: state.items.length });
+    if (state.items.length === 0) {
+      console.warn('⚠️ No hay items para renderizar. Verificando API...', { params: nextParams, meta });
+    }
     state.items.forEach((it) => {
       const cacheKey = String(it._id);
       state.itemCache.set(cacheKey, it);
@@ -1287,7 +1298,7 @@ if (__ON_INV_PAGE__) {
         openLightbox({ url, mimetype: type === "video" ? "video/*" : "image/*" });
       });
 
-      itemsList.appendChild(div);
+      itemsListEl.appendChild(div);
     });
 
     renderPaginationControls();
@@ -3780,8 +3791,10 @@ function openMarketplaceHelper(item){
   // PUBLISH MANAGEMENT END
 
   // ---- Boot ----
+  console.log('🚀 Inicializando inventario...', { paging: state.paging });
   refreshIntakes();
   // Initial load: page 1, limit per page
+  console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
 }
 
