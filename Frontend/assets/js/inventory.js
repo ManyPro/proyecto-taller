@@ -3776,10 +3776,3 @@ function openMarketplaceHelper(item){
 
 }
 
-
-
-
-
-
-
-
