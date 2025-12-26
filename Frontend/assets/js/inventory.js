@@ -3740,7 +3740,26 @@ function openMarketplaceHelper(item){
         windowHeight: heightPx,
         useCORS: true,
         allowTaint: false,
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // Asegurar que el clon también tenga las dimensiones correctas
+          const clonedBox = clonedDoc.querySelector('.sticker-capture');
+          if (clonedBox) {
+            clonedBox.style.setProperty('width', widthPx + 'px', 'important');
+            clonedBox.style.setProperty('height', heightPx + 'px', 'important');
+            clonedBox.style.setProperty('transform', 'none', 'important');
+            clonedBox.style.setProperty('zoom', '1', 'important');
+            clonedBox.style.setProperty('scale', '1', 'important');
+            const clonedWrapper = clonedBox.querySelector('.sticker-wrapper');
+            if (clonedWrapper) {
+              clonedWrapper.style.setProperty('width', widthPx + 'px', 'important');
+              clonedWrapper.style.setProperty('height', heightPx + 'px', 'important');
+              clonedWrapper.style.setProperty('transform', 'none', 'important');
+              clonedWrapper.style.setProperty('zoom', '1', 'important');
+              clonedWrapper.style.setProperty('scale', '1', 'important');
+            }
+          }
+        }
       });
       
       // Verificar dimensiones del canvas
@@ -3748,15 +3767,28 @@ function openMarketplaceHelper(item){
       const expectedCanvasHeight = Math.round(heightPx * scale);
       if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
         console.warn(`⚠️ Canvas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
+        // Si las dimensiones no coinciden, crear un canvas nuevo con las dimensiones correctas
+        const correctCanvas = document.createElement('canvas');
+        correctCanvas.width = expectedCanvasWidth;
+        correctCanvas.height = expectedCanvasHeight;
+        const ctx = correctCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, 0, expectedCanvasWidth, expectedCanvasHeight);
+        images.push({
+          data: correctCanvas.toDataURL('image/png'),
+          width: expectedCanvasWidth,
+          height: expectedCanvasHeight,
+          targetWidthMm: widthMm,
+          targetHeightMm: heightMm
+        });
+      } else {
+        images.push({
+          data: canvas.toDataURL('image/png'),
+          width: canvas.width,
+          height: canvas.height,
+          targetWidthMm: widthMm,
+          targetHeightMm: heightMm
+        });
       }
-      
-      images.push({
-        data: canvas.toDataURL('image/png'),
-        width: canvas.width,
-        height: canvas.height,
-        targetWidthMm: widthMm,
-        targetHeightMm: heightMm
-      });
       
       root.removeChild(box);
     }
@@ -3764,31 +3796,61 @@ function openMarketplaceHelper(item){
     document.body.removeChild(root);
 
     // CRÍTICO: Crear PDF con dimensiones exactas SIN márgenes
+    // Usar formato personalizado con dimensiones exactas en mm
     const doc = new jsPDF({
-      orientation: widthMm > heightMm ? 'landscape' : 'portrait',
       unit: 'mm',
-      format: [widthMm, heightMm],
+      format: [widthMm, heightMm], // 50mm x 30mm = 5cm x 3cm
       compress: false,
-      precision: 16
+      precision: 16,
+      putOnlyUsedFonts: true,
+      floatPrecision: 16
     });
     
-    // CRÍTICO: Eliminar TODOS los márgenes de forma agresiva
+    // CRÍTICO: Eliminar TODOS los márgenes de forma agresiva ANTES de cualquier operación
     // jsPDF tiene márgenes por defecto que debemos eliminar completamente
     if (doc.internal) {
-      // Eliminar márgenes del objeto interno
+      // Eliminar márgenes del objeto interno INMEDIATAMENTE
       doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
       
       // Asegurar dimensiones exactas de la página
       if (doc.internal.pageSize) {
         doc.internal.pageSize.width = widthMm;
         doc.internal.pageSize.height = heightMm;
-        doc.internal.pageSize.getWidth = () => widthMm;
-        doc.internal.pageSize.getHeight = () => heightMm;
+        // Sobrescribir métodos getWidth/getHeight para devolver valores exactos
+        if (typeof doc.internal.pageSize.getWidth === 'function') {
+          doc.internal.pageSize.getWidth = function() { return widthMm; };
+        }
+        if (typeof doc.internal.pageSize.getHeight === 'function') {
+          doc.internal.pageSize.getHeight = function() { return heightMm; };
+        }
       }
       
       // Eliminar márgenes de todas las formas posibles
       if (doc.internal.margins) {
         doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
+      
+      // CRÍTICO: Eliminar márgenes del objeto de página actual
+      if (doc.internal.getCurrentPageInfo) {
+        try {
+          const pageInfo = doc.internal.getCurrentPageInfo();
+          if (pageInfo && pageInfo.pageContext) {
+            pageInfo.pageContext.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+          }
+        } catch (e) {
+          // Ignorar si no está disponible
+        }
+      }
+      
+      // CRÍTICO: Forzar que el área de dibujo sea igual al tamaño de la página
+      if (doc.internal.scaleFactor) {
+        // Asegurar que no haya escalado que cause márgenes
+        const scaleFactor = doc.internal.scaleFactor;
+        // El área de dibujo debe ser exactamente widthMm x heightMm
+        if (doc.internal.pageSize) {
+          doc.internal.pageSize.width = widthMm;
+          doc.internal.pageSize.height = heightMm;
+        }
       }
     }
     
@@ -3800,6 +3862,22 @@ function openMarketplaceHelper(item){
       doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
       if (doc.internal.margins) {
         doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
+      // Forzar dimensiones exactas nuevamente después de setPage
+      if (doc.internal.pageSize) {
+        doc.internal.pageSize.width = widthMm;
+        doc.internal.pageSize.height = heightMm;
+      }
+      
+      // CRÍTICO: Verificar y forzar dimensiones después de setPage
+      const actualWidth = doc.internal.pageSize ? doc.internal.pageSize.getWidth() : widthMm;
+      const actualHeight = doc.internal.pageSize ? doc.internal.pageSize.getHeight() : heightMm;
+      if (Math.abs(actualWidth - widthMm) > 0.01 || Math.abs(actualHeight - heightMm) > 0.01) {
+        console.warn(`⚠️ Dimensiones de página después de setPage: ${actualWidth}mm x ${actualHeight}mm, forzando: ${widthMm}mm x ${heightMm}mm`);
+        if (doc.internal.pageSize) {
+          doc.internal.pageSize.width = widthMm;
+          doc.internal.pageSize.height = heightMm;
+        }
       }
     }
     
@@ -3826,22 +3904,56 @@ function openMarketplaceHelper(item){
       // Sin ningún margen, la imagen debe ocupar el 100% del espacio de la página
       const src = typeof imgData === 'string' ? imgData : imgData.data;
       
-      // Usar coordenadas exactas (0,0) y dimensiones exactas (widthMm, heightMm)
-      // Esto asegura que la imagen ocupe TODO el espacio disponible
+      // CRÍTICO: Obtener dimensiones reales de la página antes de insertar
+      let pageWidth = widthMm;
+      let pageHeight = heightMm;
+      if (doc.internal && doc.internal.pageSize) {
+        try {
+          pageWidth = doc.internal.pageSize.getWidth();
+          pageHeight = doc.internal.pageSize.getHeight();
+        } catch (e) {
+          // Si falla, usar las dimensiones exactas
+          pageWidth = widthMm;
+          pageHeight = heightMm;
+        }
+      }
+      
+      // CRÍTICO: Si las dimensiones no coinciden, forzar las correctas
+      if (Math.abs(pageWidth - widthMm) > 0.01 || Math.abs(pageHeight - heightMm) > 0.01) {
+        console.warn(`⚠️ Dimensiones de página antes de insertar: ${pageWidth}mm x ${pageHeight}mm, forzando: ${widthMm}mm x ${heightMm}mm`);
+        pageWidth = widthMm;
+        pageHeight = heightMm;
+        // Forzar dimensiones correctas
+        if (doc.internal && doc.internal.pageSize) {
+          doc.internal.pageSize.width = widthMm;
+          doc.internal.pageSize.height = heightMm;
+        }
+      }
+      
+      // CRÍTICO: Insertar imagen ocupando TODO el espacio desde (0,0)
+      // Usar las dimensiones exactas (widthMm, heightMm) para asegurar que ocupe 100%
       doc.addImage(
         src, 
         'PNG', 
-        0,  // x = 0 (sin margen izquierdo)
-        0,  // y = 0 (sin margen superior)
-        widthMm,  // ancho = 100% de la página
-        heightMm, // alto = 100% de la página
+        0,  // x = 0 (sin margen izquierdo, desde el borde)
+        0,  // y = 0 (sin margen superior, desde el borde)
+        widthMm,  // ancho = 50mm (5cm) - 100% de la página
+        heightMm, // alto = 30mm (3cm) - 100% de la página
         undefined, 
-        'SLOW'
+        'FAST' // Usar FAST para mejor calidad
       );
       
       if (idx === 0) {
-        console.log(`📄 PDF creado: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm) - Imagen ocupando 100% del espacio`);
+        console.log(`📄 PDF: Página ${idx + 1} - Dimensiones: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
         console.log(`📐 Imagen insertada en: (0, 0) con dimensiones: ${widthMm}mm x ${heightMm}mm`);
+        console.log(`✅ La imagen debe ocupar el 100% del espacio del PDF sin márgenes`);
+      }
+      
+      if (idx === 0) {
+        console.log(`📄 PDF creado: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
+        console.log(`📐 Dimensiones de página: ${pageWidth}mm x ${pageHeight}mm`);
+        console.log(`📐 Imagen insertada en: (0, 0) con dimensiones: ${widthMm}mm x ${heightMm}mm`);
+        console.log(`✅ Imagen debe ocupar 100% del espacio del PDF`);
       }
     });
     
