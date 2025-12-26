@@ -1175,6 +1175,7 @@ if (__ON_INV_PAGE__) {
     state.lastItemsParams = nextParams;
     const { data, meta } = await invAPI.listItems(nextParams);
     state.items = data || [];
+    console.log(`📦 refreshItems: Cargados ${state.items.length} items`, { params: nextParams, meta });
     // Update paging info if meta was returned
     if (meta && (meta.total != null || meta.pages != null || meta.page != null)) {
       state.paging = {
@@ -1190,11 +1191,13 @@ if (__ON_INV_PAGE__) {
     }
 
     if (!itemsList) {
-      console.error('❌ itemsList no encontrado en el DOM');
+      console.error('❌ itemsList no encontrado en el DOM - reintentando en 100ms');
+      setTimeout(() => refreshItems(params), 100);
       return;
     }
 
     itemsList.innerHTML = "";
+    console.log(`📋 Renderizando ${state.items.length} items en itemsList`);
     state.items.forEach((it) => {
       const cacheKey = String(it._id);
       state.itemCache.set(cacheKey, it);
@@ -3777,16 +3780,9 @@ function openMarketplaceHelper(item){
   // PUBLISH MANAGEMENT END
 
   // ---- Boot ----
-  // Asegurar que el DOM esté listo antes de inicializar
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      refreshIntakes();
-      refreshItems({ page: 1, limit: state.paging.limit });
-    });
-  } else {
-    refreshIntakes();
-    refreshItems({ page: 1, limit: state.paging.limit });
-  }
+  refreshIntakes();
+  // Initial load: page 1, limit per page
+  refreshItems({ page: 1, limit: state.paging?.limit || 15 });
 }
 
 }
