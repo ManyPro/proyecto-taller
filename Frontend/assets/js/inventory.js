@@ -3276,18 +3276,20 @@ function openMarketplaceHelper(item){
       }
       .sticker-wrapper {
         position: relative !important;
-        width: ${widthPx}px !important;
-        height: ${heightPx}px !important;
-        max-width: ${widthPx}px !important;
-        max-height: ${heightPx}px !important;
-        min-width: ${widthPx}px !important;
-        min-height: ${heightPx}px !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        min-width: 100% !important;
+        min-height: 100% !important;
         overflow: hidden !important;
         box-sizing: border-box !important;
         margin: 0 !important;
         padding: 0 !important;
         left: 0 !important;
         top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
         transform: none !important;
         zoom: 1 !important;
       }
@@ -3436,25 +3438,34 @@ function openMarketplaceHelper(item){
       
       box.appendChild(style);
       
-      // Asegurar dimensiones exactas del wrapper
+      // CRÍTICO: Asegurar que el wrapper ocupe el 100% del espacio disponible
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
+        // Forzar que ocupe el 100% del contenedor box
         Object.assign(wrapper.style, {
           position: 'relative',
-          width: `${widthPx}px`,
-          height: `${heightPx}px`,
-          maxWidth: `${widthPx}px`,
-          maxHeight: `${heightPx}px`,
-          minWidth: `${widthPx}px`,
-          minHeight: `${heightPx}px`,
+          width: '100%',
+          height: '100%',
+          maxWidth: '100%',
+          maxHeight: '100%',
+          minWidth: '100%',
+          minHeight: '100%',
           overflow: 'hidden',
           boxSizing: 'border-box',
           margin: '0',
           padding: '0',
           left: '0',
           top: '0',
+          right: '0',
+          bottom: '0',
           transform: 'none'
         });
+        wrapper.style.setProperty('width', '100%', 'important');
+        wrapper.style.setProperty('height', '100%', 'important');
+        wrapper.style.setProperty('max-width', '100%', 'important');
+        wrapper.style.setProperty('max-height', '100%', 'important');
+        wrapper.style.setProperty('min-width', '100%', 'important');
+        wrapper.style.setProperty('min-height', '100%', 'important');
         wrapper.style.setProperty('transform', 'none', 'important');
         wrapper.style.setProperty('zoom', '1', 'important');
       }
@@ -3508,7 +3519,7 @@ function openMarketplaceHelper(item){
     
     document.body.removeChild(root);
 
-    // Crear PDF con dimensiones exactas
+    // CRÍTICO: Crear PDF con dimensiones exactas SIN márgenes
     const doc = new jsPDF({
       orientation: widthMm > heightMm ? 'landscape' : 'portrait',
       unit: 'mm',
@@ -3517,35 +3528,76 @@ function openMarketplaceHelper(item){
       precision: 16
     });
     
-    // Eliminar márgenes
-    if (doc.internal?.pageMargins) {
+    // CRÍTICO: Eliminar TODOS los márgenes de forma agresiva
+    // jsPDF tiene márgenes por defecto que debemos eliminar completamente
+    if (doc.internal) {
+      // Eliminar márgenes del objeto interno
       doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
-    }
-    if (doc.internal?.pageSize) {
-      doc.internal.pageSize.width = widthMm;
-      doc.internal.pageSize.height = heightMm;
+      
+      // Asegurar dimensiones exactas de la página
+      if (doc.internal.pageSize) {
+        doc.internal.pageSize.width = widthMm;
+        doc.internal.pageSize.height = heightMm;
+        doc.internal.pageSize.getWidth = () => widthMm;
+        doc.internal.pageSize.getHeight = () => heightMm;
+      }
+      
+      // Eliminar márgenes de todas las formas posibles
+      if (doc.internal.margins) {
+        doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
     }
     
+    // Establecer página 1 y eliminar márgenes nuevamente
     doc.setPage(1);
     
-    // Insertar imágenes en el PDF
+    // Forzar eliminación de márgenes después de setPage
+    if (doc.internal) {
+      doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+      if (doc.internal.margins) {
+        doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+      }
+    }
+    
+    // Insertar imágenes ocupando TODO el espacio (0,0 hasta widthMm, heightMm)
     images.forEach((imgData, idx) => {
       if (idx > 0) {
+        // Agregar nueva página con dimensiones exactas
         doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
-        if (doc.internal?.pageSize) {
-          doc.internal.pageSize.width = widthMm;
-          doc.internal.pageSize.height = heightMm;
-        }
-        if (doc.internal?.pageMargins) {
+        
+        // Eliminar márgenes en la nueva página
+        if (doc.internal) {
           doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
+          if (doc.internal.margins) {
+            doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
+          }
+          if (doc.internal.pageSize) {
+            doc.internal.pageSize.width = widthMm;
+            doc.internal.pageSize.height = heightMm;
+          }
         }
       }
       
+      // CRÍTICO: Insertar imagen desde (0,0) ocupando EXACTAMENTE widthMm x heightMm
+      // Sin ningún margen, la imagen debe ocupar el 100% del espacio de la página
       const src = typeof imgData === 'string' ? imgData : imgData.data;
-      doc.addImage(src, 'PNG', 0, 0, widthMm, heightMm, undefined, 'SLOW');
+      
+      // Usar coordenadas exactas (0,0) y dimensiones exactas (widthMm, heightMm)
+      // Esto asegura que la imagen ocupe TODO el espacio disponible
+      doc.addImage(
+        src, 
+        'PNG', 
+        0,  // x = 0 (sin margen izquierdo)
+        0,  // y = 0 (sin margen superior)
+        widthMm,  // ancho = 100% de la página
+        heightMm, // alto = 100% de la página
+        undefined, 
+        'SLOW'
+      );
       
       if (idx === 0) {
-        console.log(`📄 PDF: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
+        console.log(`📄 PDF creado: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm) - Imagen ocupando 100% del espacio`);
+        console.log(`📐 Imagen insertada en: (0, 0) con dimensiones: ${widthMm}mm x ${heightMm}mm`);
       }
     });
     
