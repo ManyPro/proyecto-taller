@@ -2989,17 +2989,22 @@ function openMarketplaceHelper(item){
       // PERO permitir que el contenido haga wrap correctamente
       target.style.setProperty('width', `${targetWidth}px`, 'important');
       target.style.setProperty('max-width', `${targetWidth}px`, 'important');
-      target.style.setProperty('min-width', `${targetWidth}px`, 'important');
+      target.style.setProperty('min-width', '0', 'important'); // Permitir que se reduzca si es necesario
       // CRÍTICO: NO usar height fijo, usar max-height para permitir que el contenido crezca hasta el límite
       target.style.setProperty('max-height', `${targetHeight}px`, 'important');
       target.style.setProperty('min-height', '0', 'important');
+      target.style.setProperty('height', 'auto', 'important'); // Permitir que la altura se ajuste al contenido
       // CRÍTICO: Usar overflow: hidden para cortar contenido que se salga
       target.style.setProperty('overflow', 'hidden', 'important');
+      // CRÍTICO: Mejorar wrap de texto - forzar todas las propiedades necesarias
       target.style.setProperty('word-wrap', 'break-word', 'important');
       target.style.setProperty('word-break', 'break-word', 'important');
       target.style.setProperty('overflow-wrap', 'break-word', 'important');
+      target.style.setProperty('hyphens', 'auto', 'important');
+      target.style.setProperty('-webkit-hyphens', 'auto', 'important');
+      target.style.setProperty('-moz-hyphens', 'auto', 'important');
       target.style.setProperty('box-sizing', 'border-box', 'important');
-      target.style.setProperty('white-space', 'normal', 'important');
+      target.style.setProperty('white-space', 'normal', 'important'); // CRÍTICO: normal permite wrap
       target.style.setProperty('display', 'block', 'important');
       target.style.setProperty('margin', '0', 'important');
       target.style.setProperty('padding', '0', 'important');
@@ -3029,10 +3034,10 @@ function openMarketplaceHelper(item){
       }
       const lineHeightRatio = lineHeight / fontSize;
 
-      // CRÍTICO: Límites para el ajuste
-      const minFont = 4; // px
-      const minLineHeight = 5; // px
-      const maxIterations = 150;
+      // CRÍTICO: Límites para el ajuste - permitir fuentes muy pequeñas
+      const minFont = 2; // px - reducido para permitir textos muy pequeños
+      const minLineHeight = 3; // px - reducido proporcionalmente
+      const maxIterations = 200; // Aumentado para mejor ajuste
       let iter = 0;
 
       // CRÍTICO: Función para verificar si el texto cabe correctamente
@@ -3276,20 +3281,18 @@ function openMarketplaceHelper(item){
       }
       .sticker-wrapper {
         position: relative !important;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        min-width: 100% !important;
-        min-height: 100% !important;
+        width: ${widthPx}px !important;
+        height: ${heightPx}px !important;
+        max-width: ${widthPx}px !important;
+        max-height: ${heightPx}px !important;
+        min-width: ${widthPx}px !important;
+        min-height: ${heightPx}px !important;
         overflow: hidden !important;
         box-sizing: border-box !important;
         margin: 0 !important;
         padding: 0 !important;
         left: 0 !important;
         top: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
         transform: none !important;
         zoom: 1 !important;
       }
@@ -3438,36 +3441,45 @@ function openMarketplaceHelper(item){
       
       box.appendChild(style);
       
-      // CRÍTICO: Asegurar que el wrapper ocupe el 100% del espacio disponible
+      // CRÍTICO: Asegurar que el wrapper ocupe EXACTAMENTE el mismo espacio que en el canvas
+      // Usar dimensiones en píxeles exactas, no porcentajes, para que coincida con el canvas
       const wrapper = box.querySelector('.sticker-wrapper');
       if (wrapper) {
-        // Forzar que ocupe el 100% del contenedor box
+        // CRÍTICO: Usar dimensiones exactas en píxeles para que coincida con el canvas
         Object.assign(wrapper.style, {
           position: 'relative',
-          width: '100%',
-          height: '100%',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          minWidth: '100%',
-          minHeight: '100%',
+          width: `${widthPx}px`,
+          height: `${heightPx}px`,
+          maxWidth: `${widthPx}px`,
+          maxHeight: `${heightPx}px`,
+          minWidth: `${widthPx}px`,
+          minHeight: `${heightPx}px`,
           overflow: 'hidden',
           boxSizing: 'border-box',
           margin: '0',
           padding: '0',
           left: '0',
           top: '0',
-          right: '0',
-          bottom: '0',
           transform: 'none'
         });
-        wrapper.style.setProperty('width', '100%', 'important');
-        wrapper.style.setProperty('height', '100%', 'important');
-        wrapper.style.setProperty('max-width', '100%', 'important');
-        wrapper.style.setProperty('max-height', '100%', 'important');
-        wrapper.style.setProperty('min-width', '100%', 'important');
-        wrapper.style.setProperty('min-height', '100%', 'important');
+        wrapper.style.setProperty('width', `${widthPx}px`, 'important');
+        wrapper.style.setProperty('height', `${heightPx}px`, 'important');
+        wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
+        wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
+        wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
+        wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
         wrapper.style.setProperty('transform', 'none', 'important');
         wrapper.style.setProperty('zoom', '1', 'important');
+        
+        // CRÍTICO: Verificar dimensiones después de aplicar estilos
+        void wrapper.offsetHeight;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        if (Math.abs(wrapperRect.width - widthPx) > 1 || Math.abs(wrapperRect.height - heightPx) > 1) {
+          console.warn(`⚠️ Wrapper dimensiones incorrectas: ${wrapperRect.width}x${wrapperRect.height}px, esperado: ${widthPx}x${heightPx}px`);
+          // Forzar nuevamente con setProperty
+          wrapper.style.setProperty('width', `${widthPx}px`, 'important');
+          wrapper.style.setProperty('height', `${heightPx}px`, 'important');
+        }
       }
       
       root.appendChild(box);

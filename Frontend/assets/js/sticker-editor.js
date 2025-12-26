@@ -878,7 +878,7 @@
     bind('st-y', (e) => { el.y = Number(e.target.value) || 0; renderCanvas(); selectElement(el.id); });
     bind('st-w', (e) => { el.w = Math.max(10, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
     bind('st-h', (e) => { el.h = Math.max(10, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
-    bind('st-fs', (e) => { el.fontSize = Math.max(6, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
+    bind('st-fs', (e) => { el.fontSize = Math.max(2, Number(e.target.value) || 0); renderCanvas(); selectElement(el.id); });
     bind('st-fw', (e) => { el.fontWeight = String(e.target.value || '600'); renderCanvas(); selectElement(el.id); });
     bind('st-color', (e) => { el.color = e.target.value || '#000000'; renderCanvas(); selectElement(el.id); });
     bind('st-text', (e) => { el.text = e.target.value || ''; renderCanvas(); selectElement(el.id); });
