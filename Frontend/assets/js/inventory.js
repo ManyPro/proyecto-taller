@@ -4,6 +4,12 @@ import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
 import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
 
+// Export a no-op initializer to satisfy app.js imports
+// This must be at the top to ensure the file is recognized as an ES6 module
+export function initInventory() {
+  // The module already self-initializes on this page; keep this as a safe no-op.
+}
+
 const state = {
   intakes: [],
   lastItemsParams: {},
@@ -3768,11 +3774,6 @@ function openMarketplaceHelper(item){
   // Initial load: page 1, 10 per page
   refreshItems({ page: 1, limit: state.paging.limit });
 
-}
-
-// Export a no-op initializer to satisfy app.js imports
-export function initInventory() {
-  // The module already self-initializes on this page; keep this as a safe no-op.
 }
 
 
