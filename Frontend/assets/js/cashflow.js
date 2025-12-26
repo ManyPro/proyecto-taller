@@ -72,6 +72,7 @@ function connectLive() {
 function bind(){
   document.getElementById('cf-refresh')?.addEventListener('click', ()=>{ loadAccounts(); });
   document.getElementById('cf-add-account')?.addEventListener('click', openAddAccountModal);
+  document.getElementById('cf-bill-counter')?.addEventListener('click', openBillCounterModal);
   document.getElementById('cf-apply')?.addEventListener('click', ()=> loadMovements(true));
   document.getElementById('cf-prev')?.addEventListener('click', ()=>{ if(cfState.page>1){ cfState.page--; loadMovements(); } });
   document.getElementById('cf-next')?.addEventListener('click', ()=>{ if(cfState.page<cfState.pages){ cfState.page++; loadMovements(); } });
@@ -253,6 +254,163 @@ async function loadMovements(reset=false){
     if(summary) summary.textContent = e?.message||'Error';
     if(rowsBody) rowsBody.innerHTML='<tr><td colspan="7" class="px-4 py-6 text-center text-xs text-red-400">Error al cargar movimientos</td></tr>';
   }
+}
+
+function openBillCounterModal(){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  
+  const billValues = [
+    { value: 100000, image: 'assets/img/billete-100000.png', label: '100.000' },
+    { value: 50000, image: 'assets/img/billete-50000.png', label: '50.000' },
+    { value: 20000, image: 'assets/img/billete-20000.png', label: '20.000' },
+    { value: 10000, image: 'assets/img/billete-10000.png', label: '10.000' },
+    { value: 5000, image: 'assets/img/billete-5000.png', label: '5.000' },
+    { value: 2000, image: 'assets/img/billete-2000.png', label: '2.000' }
+  ];
+  
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-6">
+    <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2 text-center">💰 Contador de Billetes</h3>
+    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center mb-6">Ingresa la cantidad de billetes de cada denominación</p>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      ${billValues.map((bill, index) => `
+        <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-xl p-4 border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-200">
+          <div class="flex flex-col items-center space-y-3">
+            <div class="w-32 h-20 bg-slate-600/20 dark:bg-slate-600/20 theme-light:bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden border border-slate-500/30 dark:border-slate-500/30 theme-light:border-slate-300">
+              <img src="${bill.image}" alt="Billete ${bill.label}" class="max-w-full max-h-full object-contain" 
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div style="display:none;" class="w-full h-full items-center justify-center text-slate-400 dark:text-slate-400 theme-light:text-slate-500 text-xs">
+                ${bill.label}
+              </div>
+            </div>
+            <div class="text-center w-full">
+              <label class="block text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">$${bill.label}</label>
+              <div class="flex items-center justify-center gap-2">
+                <button type="button" data-bill-index="${index}" data-action="decrease" 
+                        class="w-8 h-8 flex items-center justify-center bg-red-600/50 dark:bg-red-600/50 theme-light:bg-red-100 hover:bg-red-600 dark:hover:bg-red-600 theme-light:hover:bg-red-200 text-white dark:text-white theme-light:text-red-700 rounded-lg font-bold transition-all duration-200 shadow-md hover:shadow-lg">
+                  −
+                </button>
+                <input type="number" 
+                       id="bill-count-${index}" 
+                       data-bill-value="${bill.value}"
+                       min="0" 
+                       step="1" 
+                       value="0"
+                       class="w-20 text-center p-2 border-2 border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200">
+                <button type="button" data-bill-index="${index}" data-action="increase" 
+                        class="w-8 h-8 flex items-center justify-center bg-green-600/50 dark:bg-green-600/50 theme-light:bg-green-100 hover:bg-green-600 dark:hover:bg-green-600 theme-light:hover:bg-green-200 text-white dark:text-white theme-light:text-green-700 rounded-lg font-bold transition-all duration-200 shadow-md hover:shadow-lg">
+                  +
+                </button>
+              </div>
+              <div class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                Subtotal: <span id="bill-subtotal-${index}" class="font-semibold text-emerald-400 dark:text-emerald-400 theme-light:text-emerald-600">$0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    
+    <div class="bg-gradient-to-r from-emerald-600/20 to-emerald-700/20 dark:from-emerald-600/20 dark:to-emerald-700/20 theme-light:from-emerald-50 theme-light:to-emerald-100 rounded-xl p-6 border-2 border-emerald-500/30 dark:border-emerald-500/30 theme-light:border-emerald-300 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Total Calculado</div>
+          <div id="bill-total" class="text-3xl font-bold text-emerald-400 dark:text-emerald-400 theme-light:text-emerald-700">$0</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total de billetes</div>
+          <div id="bill-count-total" class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900">0</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex gap-2 mt-6">
+      <button id='bill-counter-clear' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">🔄 Limpiar</button>
+      <button id='bill-counter-cancel' class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+  </div>`;
+  
+  body.innerHTML=''; 
+  body.appendChild(div); 
+  modal.classList.remove('hidden');
+  
+  // Función para calcular total
+  const calculateTotal = () => {
+    let total = 0;
+    let totalBills = 0;
+    billValues.forEach((bill, index) => {
+      const input = div.querySelector(`#bill-count-${index}`);
+      const count = Number(input?.value || 0);
+      const subtotal = count * bill.value;
+      total += subtotal;
+      totalBills += count;
+      
+      const subtotalEl = div.querySelector(`#bill-subtotal-${index}`);
+      if(subtotalEl) subtotalEl.textContent = money(subtotal);
+    });
+    
+    const totalEl = div.querySelector('#bill-total');
+    if(totalEl) totalEl.textContent = money(total);
+    
+    const countTotalEl = div.querySelector('#bill-count-total');
+    if(countTotalEl) countTotalEl.textContent = totalBills;
+  };
+  
+  // Bind eventos de incremento/decremento
+  billValues.forEach((bill, index) => {
+    const input = div.querySelector(`#bill-count-${index}`);
+    const decreaseBtn = div.querySelector(`[data-bill-index="${index}"][data-action="decrease"]`);
+    const increaseBtn = div.querySelector(`[data-bill-index="${index}"][data-action="increase"]`);
+    
+    if(input) {
+      input.addEventListener('input', calculateTotal);
+      input.addEventListener('change', calculateTotal);
+    }
+    
+    if(decreaseBtn) {
+      decreaseBtn.addEventListener('click', () => {
+        const current = Number(input?.value || 0);
+        if(current > 0) {
+          input.value = current - 1;
+          input.dispatchEvent(new Event('input'));
+        }
+      });
+    }
+    
+    if(increaseBtn) {
+      increaseBtn.addEventListener('click', () => {
+        const current = Number(input?.value || 0);
+        input.value = current + 1;
+        input.dispatchEvent(new Event('input'));
+      });
+    }
+  });
+  
+  // Botón limpiar
+  const clearBtn = div.querySelector('#bill-counter-clear');
+  if(clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      billValues.forEach((bill, index) => {
+        const input = div.querySelector(`#bill-count-${index}`);
+        if(input) input.value = 0;
+      });
+      calculateTotal();
+    });
+  }
+  
+  // Botón cancelar
+  const cancelBtn = div.querySelector('#bill-counter-cancel');
+  if(cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+  
+  // Calcular total inicial
+  calculateTotal();
 }
 
 function openAddAccountModal(){
