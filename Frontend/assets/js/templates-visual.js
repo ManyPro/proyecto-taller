@@ -92,9 +92,11 @@
     const formatId = urlParams.get('formatId');
     const formatName = urlParams.get('formatName');
 
-    // Nuevo: si es un formato de sticker, dejar que sticker-editor.js se encargue
+    // Stickers usan formato fijo de Casa Renault - no se pueden editar
     if (documentType && documentType.includes('sticker')) {
-      console.log('🎟️ Sticker detectado, delegando al sticker-editor y deteniendo templates-visual');
+      console.log('🎟️ Sticker detectado - formato fijo, no editable');
+      alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden editar.\n\nEl formato se genera automáticamente al imprimir stickers desde el inventario.');
+      window.location.href = 'template-selector.html';
       return;
     }
     

@@ -1425,18 +1425,13 @@ if (__ON_INV_PAGE__) {
           return;
         }
         
-        // Intentar usar la PLANTILLA ACTIVA del tipo QR
-        const type = 'sticker-qr';
+        // CÓDIGO ELIMINADO: renderStickerPdf ya se llama arriba y hace return
+        // Todo el código de abajo nunca se ejecutará, pero se mantiene como fallback por seguridad
         try {
-          const tpl = await API.templates.active(type);
-          if (tpl && tpl.contentHtml) {
-            // Construir copias por cantidad y renderizar con datos reales (sampleId)
-            const tasks = [];
-            list.forEach(({ it, count }) => {
-              for (let i = 0; i < count; i++) {
-                tasks.push(() => API.templates.preview({ type, contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: it._id }));
-              }
-            });
+          // Este código nunca se ejecutará porque renderStickerPdf ya se llamó arriba
+          const type = 'sticker-qr';
+          const tpl = await API.templates.active(type).catch(() => null);
+          if (false && tpl && tpl.contentHtml) {
 
             // Ejecutar en serie para evitar saturar el backend
             const results = [];
@@ -2858,6 +2853,248 @@ function openMarketplaceHelper(item){
     return JSON.parse(JSON.stringify(STICKER_DEFAULT_LAYOUT));
   }
 
+  // Layout fijo de Casa Renault - formato no editable
+  // Logo arriba a la izquierda, SKU y nombre debajo, QR a la derecha
+  function getCasaRenaultStickerLayout() {
+    const margin = 4; // Márgenes reducidos para ocupar más espacio
+    const logoSize = 35; // Tamaño del logo (arriba izquierda)
+    const logoX = margin;
+    const logoY = margin;
+    
+    // QR: a la derecha, ocupa la mayor parte del espacio vertical
+    const qrW = 90;
+    const qrH = 90;
+    const qrX = canvasWidth - qrW - margin;
+    const qrY = margin;
+    
+    // Área de texto a la izquierda (debajo del logo, sin superponerse con QR)
+    const textAreaX = margin;
+    const textAreaW = qrX - textAreaX - 4;
+    const textAreaY = logoY + logoSize + 6; // Debajo del logo con espacio
+    const textAreaH = canvasHeight - textAreaY - margin;
+    
+    // SKU: arriba del área de texto
+    const skuX = textAreaX;
+    const skuY = textAreaY;
+    const skuW = textAreaW;
+    const skuH = 22;
+    
+    // Nombre: debajo del SKU, ocupa el resto del espacio
+    const nameX = textAreaX;
+    const nameY = skuY + skuH + 4;
+    const nameW = textAreaW;
+    const nameH = textAreaH - skuH - 4;
+    
+    return {
+      widthCm: 5,
+      heightCm: 3,
+      elements: [
+        // Logo de Casa Renault arriba a la izquierda
+        { 
+          id: 'logo', 
+          type: 'image', 
+          source: 'company-logo', 
+          url: STICKER_LOGO_URLS.CASA_RENAULT, // Usar logo específico de stickers
+          x: logoX, 
+          y: logoY, 
+          w: logoSize, 
+          h: logoSize, 
+          fit: 'contain' 
+        },
+        // SKU debajo del logo
+        { 
+          id: 'sku', 
+          type: 'text', 
+          source: 'sku', 
+          x: skuX, 
+          y: skuY, 
+          w: skuW, 
+          h: skuH, 
+          fontSize: 11, 
+          fontWeight: '700', 
+          wrap: true, 
+          align: 'flex-start', 
+          vAlign: 'flex-start', 
+          lineHeight: 1.1 
+        },
+        // Nombre del producto debajo del SKU
+        { 
+          id: 'name', 
+          type: 'text', 
+          source: 'name', 
+          x: nameX, 
+          y: nameY, 
+          w: nameW, 
+          h: nameH, 
+          fontSize: 8, 
+          fontWeight: '600', 
+          wrap: true, 
+          align: 'flex-start', 
+          vAlign: 'flex-start', 
+          lineHeight: 1.2 
+        },
+        // QR code a la derecha
+        { 
+          id: 'qr', 
+          type: 'image', 
+          source: 'qr', 
+          x: qrX, 
+          y: qrY, 
+          w: qrW, 
+          h: qrH, 
+          fit: 'contain' 
+        }
+      ]
+    };
+  }
+
+  // Layout fijo de Serviteca Shelby - formato no editable
+  // Logo arriba a la izquierda, SKU y nombre debajo, QR a la derecha
+  // Mismo formato que Casa Renault pero con logo de Shelby
+  function getServitecaShelbyStickerLayout() {
+    const margin = 4; // Márgenes reducidos para ocupar más espacio
+    const logoSize = 35; // Tamaño del logo (arriba izquierda)
+    const logoX = margin;
+    const logoY = margin;
+    
+    // QR: a la derecha, ocupa la mayor parte del espacio vertical
+    const qrW = 90;
+    const qrH = 90;
+    const qrX = canvasWidth - qrW - margin;
+    const qrY = margin;
+    
+    // Área de texto a la izquierda (debajo del logo, sin superponerse con QR)
+    const textAreaX = margin;
+    const textAreaW = qrX - textAreaX - 4;
+    const textAreaY = logoY + logoSize + 6; // Debajo del logo con espacio
+    const textAreaH = canvasHeight - textAreaY - margin;
+    
+    // SKU: arriba del área de texto
+    const skuX = textAreaX;
+    const skuY = textAreaY;
+    const skuW = textAreaW;
+    const skuH = 22;
+    
+    // Nombre: debajo del SKU, ocupa el resto del espacio
+    const nameX = textAreaX;
+    const nameY = skuY + skuH + 4;
+    const nameW = textAreaW;
+    const nameH = textAreaH - skuH - 4;
+    
+    return {
+      widthCm: 5,
+      heightCm: 3,
+      elements: [
+        // Logo de Serviteca Shelby arriba a la izquierda
+        { 
+          id: 'logo', 
+          type: 'image', 
+          source: 'company-logo', 
+          url: STICKER_LOGO_URLS.SERVITECA_SHELBY, // Usar logo específico de stickers
+          x: logoX, 
+          y: logoY, 
+          w: logoSize, 
+          h: logoSize, 
+          fit: 'contain' 
+        },
+        // SKU debajo del logo
+        { 
+          id: 'sku', 
+          type: 'text', 
+          source: 'sku', 
+          x: skuX, 
+          y: skuY, 
+          w: skuW, 
+          h: skuH, 
+          fontSize: 11, 
+          fontWeight: '700', 
+          wrap: true, 
+          align: 'flex-start', 
+          vAlign: 'flex-start', 
+          lineHeight: 1.1 
+        },
+        // Nombre del producto debajo del SKU
+        { 
+          id: 'name', 
+          type: 'text', 
+          source: 'name', 
+          x: nameX, 
+          y: nameY, 
+          w: nameW, 
+          h: nameH, 
+          fontSize: 8, 
+          fontWeight: '600', 
+          wrap: true, 
+          align: 'flex-start', 
+          vAlign: 'flex-start', 
+          lineHeight: 1.2 
+        },
+        // QR code a la derecha
+        { 
+          id: 'qr', 
+          type: 'image', 
+          source: 'qr', 
+          x: qrX, 
+          y: qrY, 
+          w: qrW, 
+          h: qrH, 
+          fit: 'contain' 
+        }
+      ]
+    };
+  }
+
+  // IDs específicos de empresas configuradas para stickers
+  // Actualizar estos IDs con los IDs reales de MongoDB
+  const STICKER_COMPANY_IDS = {
+    CASA_RENAULT: null, // TODO: Reemplazar con ID real de Casa Renault
+    SERVITECA_SHELBY: null // TODO: Reemplazar con ID real de Serviteca Shelby
+  };
+
+  // URLs de los logos de stickers (se pueden usar desde assets o desde uploads/public)
+  const STICKER_LOGO_URLS = {
+    CASA_RENAULT: 'assets/img/stickersrenault.png', // Imagen: stickersrenault.png
+    SERVITECA_SHELBY: 'assets/img/stickersshelby.png' // Imagen: stickersshelby.png
+  };
+
+  // Función que detecta la empresa por ID y devuelve el layout correcto
+  async function getStickerLayoutForCompany() {
+    try {
+      // Obtener información de la empresa actual
+      const companyInfo = await API.companyMe().catch(() => null);
+      const companyId = companyInfo?.company?.id || companyInfo?.company?._id || '';
+      const companyName = (companyInfo?.company?.name || '').toLowerCase().trim();
+      
+      // Detectar empresa por ID (más preciso)
+      const companyIdStr = String(companyId);
+      
+      if (STICKER_COMPANY_IDS.SERVITECA_SHELBY && companyIdStr === String(STICKER_COMPANY_IDS.SERVITECA_SHELBY)) {
+        console.log('🏷️ Detectada Serviteca Shelby por ID - usando layout de Shelby');
+        return getServitecaShelbyStickerLayout();
+      } else if (STICKER_COMPANY_IDS.CASA_RENAULT && companyIdStr === String(STICKER_COMPANY_IDS.CASA_RENAULT)) {
+        console.log('🏷️ Detectada Casa Renault por ID - usando layout de Renault');
+        return getCasaRenaultStickerLayout();
+      }
+      
+      // Fallback: Detectar por nombre si los IDs no están configurados
+      if (companyName.includes('shelby')) {
+        console.log('🏷️ Detectada Serviteca Shelby por nombre - usando layout de Shelby');
+        return getServitecaShelbyStickerLayout();
+      } else if (companyName.includes('renault')) {
+        console.log('🏷️ Detectada Casa Renault por nombre - usando layout de Renault');
+        return getCasaRenaultStickerLayout();
+      }
+      
+      // Por defecto, usar layout de Casa Renault (compatibilidad)
+      console.log('🏷️ Empresa no reconocida, usando layout por defecto (Casa Renault)');
+      return getCasaRenaultStickerLayout();
+    } catch (error) {
+      console.warn('⚠️ Error detectando empresa, usando layout por defecto:', error);
+      // Por defecto, usar layout de Casa Renault
+      return getCasaRenaultStickerLayout();
+    }
+  }
+
   async function waitForImagesSafe(rootEl, timeoutMs = 4000) {
     const imgs = Array.from(rootEl.querySelectorAll('img'));
     if (!imgs.length) return;
@@ -3357,17 +3594,12 @@ function openMarketplaceHelper(item){
   }
 
   async function renderStickerPdf(list, filenameBase = 'stickers') {
-    const tpl = await API.templates.active('sticker-qr').catch(() => null);
-    const tplLayout = tpl?.meta?.layout || cloneStickerLayout();
+    // CRÍTICO: Detectar empresa y usar layout correcto (Casa Renault o Serviteca Shelby)
+    const layout = await getStickerLayoutForCompany();
     
     // Dimensiones exactas: 5cm x 3cm
     const widthCm = 5;
     const heightCm = 3;
-    const layout = { 
-      ...tplLayout, 
-      widthCm, 
-      heightCm 
-    };
 
     // Obtener HTML renderizado del backend
     const tasks = [];
@@ -3381,7 +3613,7 @@ function openMarketplaceHelper(item){
             height: heightCm,
             layout 
           },
-          contentCss: tpl?.contentCss || '',
+          contentCss: '', // No usar CSS del template, usar el generado automáticamente
           sampleId: it._id
         }));
       }

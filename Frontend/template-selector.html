@@ -412,10 +412,11 @@
           <p>Presupuesto detallado de servicios y productos</p>
         </div>
 
-        <div class="document-type-card" data-type="sticker-qr">
+        <!-- Sticker deshabilitado - formato fijo de Casa Renault -->
+        <div class="document-type-card" data-type="sticker-qr" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;" title="Los stickers usan un formato fijo de Casa Renault y no se pueden editar">
           <div class="icon">🏷️</div>
           <h3>Sticker</h3>
-          <p>Etiqueta compacta con QR y código SKU</p>
+          <p>Formato fijo de Casa Renault (no editable)</p>
         </div>
 
         <div class="document-type-card" data-type="payroll">
@@ -491,15 +492,17 @@
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir cotizaciones</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-qr">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-qr" style="opacity: 0.6;">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>🏷️</span>
-              <span>Formato de Sticker Activo (Solo QR)</span>
+              <span>Formato de Sticker - Casa Renault (Fijo)</span>
             </h4>
-            <select id="active-stickerqr-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
-              <option value="">Cargando formatos...</option>
-            </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se usará para imprimir stickers con solo QR y código</p>
+            <div class="p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-slate-900">
+              <p class="m-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">
+                Los stickers usan un formato fijo de Casa Renault con logo, SKU, nombre y QR code.<br>
+                El formato se genera automáticamente al imprimir stickers desde el inventario y no se puede editar.
+              </p>
+            </div>
           </div>
 
           <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice-factura">
@@ -631,6 +634,12 @@
       this.disabled = true;
       
       try {
+        // CRÍTICO: Bloquear creación/edición de stickers - formato fijo de Casa Renault
+        if (selectedDocumentType && selectedDocumentType.includes('sticker')) {
+          alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden crear ni editar.\n\nEl formato se genera automáticamente al imprimir stickers desde el inventario.');
+          return;
+        }
+        
         if (selectedFormat === 'new' || (selectedFormat && selectedFormat.action === 'new')) {
           console.log('➕ Creando nuevo formato en el backend...');
           
@@ -668,6 +677,12 @@
           
         } else {
           console.log('📝 Editando formato existente:', selectedFormat.id);
+          
+          // CRÍTICO: Bloquear edición de stickers
+          if (selectedDocumentType && selectedDocumentType.includes('sticker')) {
+            alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden editar.');
+            return;
+          }
           
           const params = new URLSearchParams();
           params.set('type', selectedDocumentType);
@@ -826,6 +841,12 @@
     async function duplicateFormat(formatId) {
       console.log('📋 Intentando duplicar formato:', formatId);
       
+      // CRÍTICO: Bloquear duplicación de stickers - formato fijo de Casa Renault
+      if (selectedDocumentType && selectedDocumentType.includes('sticker')) {
+        alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden duplicar.');
+        return;
+      }
+      
       try {
         const format = availableFormats.find(f => (f.id || f._id) === formatId);
         if (!format) {
@@ -860,6 +881,13 @@
     function editFormat(formatId, typeGuess, name) {
       try {
         const type = selectedDocumentType || typeGuess || 'invoice';
+        
+        // CRÍTICO: Bloquear edición de stickers - formato fijo de Casa Renault
+        if (type && type.includes('sticker')) {
+          alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden editar.');
+          return;
+        }
+        
         const params = new URLSearchParams();
         params.set('type', type);
         params.set('action', 'edit');
@@ -874,6 +902,12 @@
 
     async function deleteFormat(formatId) {
       console.log('🗑️ Intentando eliminar formato:', formatId);
+      
+      // CRÍTICO: Bloquear eliminación de stickers - formato fijo de Casa Renault
+      if (selectedDocumentType && selectedDocumentType.includes('sticker')) {
+        alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden eliminar.');
+        return;
+      }
       
       if (!confirm('¿Estás seguro de que quieres eliminar este formato?')) {
         console.log('❌ Eliminación cancelada por el usuario');
@@ -901,6 +935,12 @@
 
     async function activateFormat(formatId) {
       console.log('⭐ Intentando activar formato:', formatId);
+      
+      // CRÍTICO: Bloquear activación de stickers - formato fijo de Casa Renault
+      if (selectedDocumentType && selectedDocumentType.includes('sticker')) {
+        alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden activar/desactivar.\n\nEl formato se genera automáticamente al imprimir stickers desde el inventario.');
+        return;
+      }
       
       try {
         if (typeof API !== 'undefined') {

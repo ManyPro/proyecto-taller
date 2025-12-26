@@ -102,6 +102,9 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       if (source === 'qr') {
         // QR generado en buildContext sobre ctx.item.qr
         srcExpr = '{{item.qr}}';
+      } else if (source === 'company-logo' || source === 'logo') {
+        // Logo de la compañía
+        srcExpr = el.url ? safe(el.url) : '{{company.logoUrl}}';
       } else if (source === 'item-image') {
         // Imagen principal del item:
         //  - Si el layout trae una URL fija, usarla
