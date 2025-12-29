@@ -2495,69 +2495,92 @@ function openMarketplaceHelper(item){
   // STICKER_DEFAULT_LAYOUT y cloneStickerLayout eliminados - no se usan
 
   // Layout fijo de Casa Renault - formato no editable
-  // Imagen izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
+  // Logo izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
   function getCasaRenaultStickerLayout() {
     const margin = 2; // Márgenes mínimos para ocupar máximo espacio
+    
+    console.log('🏷️ [LAYOUT] Iniciando cálculo de layout Casa Renault');
+    console.log('🏷️ [LAYOUT] Canvas dimensions:', { canvasWidth, canvasHeight });
     
     // Altura del cuadro del nombre (abajo del todo)
     const nameH = 25; // Altura fija para el cuadro del nombre
     
     // Área disponible verticalmente (excluyendo el nombre y márgenes)
     const availableHeight = canvasHeight - nameH - (margin * 2) - 2; // -2 para pequeño espacio visual
+    console.log('🏷️ [LAYOUT] Altura disponible (sin nombre):', availableHeight);
     
     // Ancho del QR (derecha) - ajustado para ocupar mejor el espacio
     const qrW = Math.min(85, Math.floor(availableHeight * 0.9)); // 90% de la altura disponible o 85px máximo
     const qrH = qrW; // Cuadrado
+    console.log('🏷️ [LAYOUT] QR dimensions:', { qrW, qrH });
     
     // Calcular posiciones horizontales - asegurar que no haya superposiciones
     const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen
     const gap = 4; // Espacio entre columnas
+    console.log('🏷️ [LAYOUT] QR position X:', qrX);
     
-    // Calcular ancho de la columna izquierda (imagen)
+    // Calcular ancho de la columna izquierda (logo)
     const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
     const leftColW = Math.min(55, Math.floor(availableWidth * 0.35)); // 35% del espacio disponible o 55px máximo
     
     // Calcular ancho de la columna media (SKU) - el resto del espacio
     const middleColW = Math.max(20, availableWidth - leftColW - gap); // Ancho restante, mínimo 20px
+    console.log('🏷️ [LAYOUT] Column widths:', { leftColW, middleColW, availableWidth, qrW });
     
     // Posiciones de las columnas
     const leftColX = margin;
     const middleColX = leftColX + leftColW + gap;
+    console.log('🏷️ [LAYOUT] Column positions:', { leftColX, middleColX, qrX });
     
-    // Imagen: parte izquierda, desde arriba hasta justo antes del nombre
-    const imageX = leftColX;
-    const imageY = margin;
-    const imageW = leftColW;
-    const imageH = availableHeight; // Altura hasta antes del nombre
+    // Logo: parte izquierda, desde arriba hasta justo antes del nombre
+    const logoX = leftColX;
+    const logoY = margin;
+    const logoW = leftColW;
+    const logoH = availableHeight; // Altura hasta antes del nombre
+    console.log('🏷️ [LAYOUT] Logo dimensions:', { logoX, logoY, logoW, logoH });
     
     // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
     const skuH = 25; // Altura del SKU
     const skuX = middleColX;
     const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
     const skuW = middleColW;
+    console.log('🏷️ [LAYOUT] SKU dimensions:', { skuX, skuY, skuW, skuH });
     
-    // Nombre: abajo del todo, ocupando todo el ancho disponible (desde la izquierda hasta antes del QR)
-    const nameX = leftColX;
+    // Nombre: abajo del todo, ocupando TODO el ancho disponible (desde la izquierda hasta justo antes del QR)
+    const nameX = leftColX; // Comienza desde el margen izquierdo
     const nameY = canvasHeight - nameH - margin; // Abajo con margen
-    const nameW = qrX - leftColX - gap; // Ancho desde la izquierda hasta antes del QR (con gap)
+    // El nombre debe ocupar desde nameX hasta justo antes del QR (sin gap, para ocupar máximo espacio)
+    const nameW = qrX - nameX; // Ancho desde la izquierda hasta el inicio del QR (sin gap para ocupar todo)
+    console.log('🏷️ [LAYOUT] Name dimensions:', { nameX, nameY, nameW, nameH });
+    console.log('🏷️ [LAYOUT] Verificación - nameX + nameW:', nameX + nameW, 'debe ser =', qrX, '(inicio del QR)');
+    console.log('🏷️ [LAYOUT] Ancho total disponible:', canvasWidth, 'nameW:', nameW, 'porcentaje:', ((nameW / canvasWidth) * 100).toFixed(1) + '%');
     
     // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
     const qrX_pos = qrX;
     const qrY = margin + (availableHeight - qrH) / 2; // Centrado verticalmente en espacio disponible
+    console.log('🏷️ [LAYOUT] QR final position:', { qrX_pos, qrY, qrW, qrH });
+    
+    // Verificación final de superposiciones
+    console.log('🏷️ [LAYOUT] Verificación de superposiciones:');
+    console.log('  - Logo:', { x: logoX, y: logoY, w: logoW, h: logoH, right: logoX + logoW, bottom: logoY + logoH });
+    console.log('  - SKU:', { x: skuX, y: skuY, w: skuW, h: skuH, right: skuX + skuW, bottom: skuY + skuH });
+    console.log('  - Name:', { x: nameX, y: nameY, w: nameW, h: nameH, right: nameX + nameW, bottom: nameY + nameH });
+    console.log('  - QR:', { x: qrX_pos, y: qrY, w: qrW, h: qrH, right: qrX_pos + qrW, bottom: qrY + qrH });
     
     return {
     widthCm: 5,
     heightCm: 3,
     elements: [
-        // Imagen del item en la parte izquierda, ajustada uniformemente
+        // Logo de Casa Renault en la parte izquierda, ajustado uniformemente
         { 
-          id: 'image', 
+          id: 'logo', 
           type: 'image', 
-          source: 'item-image', 
-          x: imageX, 
-          y: imageY, 
-          w: imageW, 
-          h: imageH, 
+          source: 'company-logo', 
+          url: STICKER_LOGO_URLS.CASA_RENAULT, // Logo de Casa Renault
+          x: logoX, 
+          y: logoY, 
+          w: logoW, 
+          h: logoH, 
           fit: 'contain' 
         },
         // SKU en el medio, tamaño de fuente 7
@@ -2608,7 +2631,7 @@ function openMarketplaceHelper(item){
   }
 
   // Layout fijo de Serviteca Shelby - formato no editable
-  // Imagen izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
+  // Logo izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
   // Mismo formato que Casa Renault
   function getServitecaShelbyStickerLayout() {
     const margin = 2; // Márgenes mínimos para ocupar máximo espacio
@@ -2627,7 +2650,7 @@ function openMarketplaceHelper(item){
     const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen
     const gap = 4; // Espacio entre columnas
     
-    // Calcular ancho de la columna izquierda (imagen)
+    // Calcular ancho de la columna izquierda (logo)
     const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
     const leftColW = Math.min(55, Math.floor(availableWidth * 0.35)); // 35% del espacio disponible o 55px máximo
     
@@ -2638,11 +2661,11 @@ function openMarketplaceHelper(item){
     const leftColX = margin;
     const middleColX = leftColX + leftColW + gap;
     
-    // Imagen: parte izquierda, desde arriba hasta justo antes del nombre
-    const imageX = leftColX;
-    const imageY = margin;
-    const imageW = leftColW;
-    const imageH = availableHeight; // Altura hasta antes del nombre
+    // Logo: parte izquierda, desde arriba hasta justo antes del nombre
+    const logoX = leftColX;
+    const logoY = margin;
+    const logoW = leftColW;
+    const logoH = availableHeight; // Altura hasta antes del nombre
     
     // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
     const skuH = 25; // Altura del SKU
@@ -2650,10 +2673,11 @@ function openMarketplaceHelper(item){
     const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
     const skuW = middleColW;
     
-    // Nombre: abajo del todo, ocupando todo el ancho disponible (desde la izquierda hasta antes del QR)
-    const nameX = leftColX;
+    // Nombre: abajo del todo, ocupando TODO el ancho disponible (desde la izquierda hasta justo antes del QR)
+    const nameX = leftColX; // Comienza desde el margen izquierdo
     const nameY = canvasHeight - nameH - margin; // Abajo con margen
-    const nameW = qrX - leftColX - gap; // Ancho desde la izquierda hasta antes del QR (con gap)
+    // El nombre debe ocupar desde nameX hasta justo antes del QR (sin gap, para ocupar máximo espacio)
+    const nameW = qrX - nameX; // Ancho desde la izquierda hasta el inicio del QR (sin gap para ocupar todo)
     
     // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
     const qrX_pos = qrX;
@@ -2663,15 +2687,16 @@ function openMarketplaceHelper(item){
       widthCm: 5,
       heightCm: 3,
       elements: [
-        // Imagen del item en la parte izquierda, ajustada uniformemente
+        // Logo de Serviteca Shelby en la parte izquierda, ajustado uniformemente
         { 
-          id: 'image', 
+          id: 'logo', 
           type: 'image', 
-          source: 'item-image', 
-          x: imageX, 
-          y: imageY, 
-          w: imageW, 
-          h: imageH, 
+          source: 'company-logo', 
+          url: STICKER_LOGO_URLS.SERVITECA_SHELBY, // Logo de Serviteca Shelby
+          x: logoX, 
+          y: logoY, 
+          w: logoW, 
+          h: logoH, 
           fit: 'contain' 
         },
         // SKU en el medio, tamaño de fuente 7
@@ -3339,63 +3364,72 @@ function openMarketplaceHelper(item){
 
   // Función para crear HTML del sticker directamente en el frontend
   function createStickerHTML(item, layout, widthPx, heightPx) {
+    console.log('🏷️ [HTML] Creando HTML del sticker');
+    console.log('🏷️ [HTML] Dimensiones del sticker:', { widthPx, heightPx });
+    
     const sku = (item.sku || '').toUpperCase().trim();
     const name = (item.name || '').toUpperCase().trim();
-    const logoUrl = layout.elements.find(e => e.id === 'logo')?.url || '';
-    
-    // Obtener imagen del item (primera imagen del array images si existe)
-    let itemImageUrl = '';
-    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
-      itemImageUrl = item.images[0].url || '';
-    } else if (item.image) {
-      itemImageUrl = item.image;
-    } else if (item.imageUrl) {
-      itemImageUrl = item.imageUrl;
-    } else if (item.photo) {
-      itemImageUrl = item.photo;
-    }
+    console.log('🏷️ [HTML] Datos del item:', { sku, name });
     
     // Obtener posiciones del layout
     const logoEl = layout.elements.find(e => e.id === 'logo');
-    const imageEl = layout.elements.find(e => e.id === 'image');
     const skuEl = layout.elements.find(e => e.id === 'sku');
     const nameEl = layout.elements.find(e => e.id === 'name');
     const qrEl = layout.elements.find(e => e.id === 'qr');
     
+    console.log('🏷️ [HTML] Elementos encontrados:', {
+      logo: logoEl ? { x: logoEl.x, y: logoEl.y, w: logoEl.w, h: logoEl.h, url: logoEl.url } : null,
+      sku: skuEl ? { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuEl.fontSize } : null,
+      name: nameEl ? { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameEl.fontSize } : null,
+      qr: qrEl ? { x: qrEl.x, y: qrEl.y, w: qrEl.w, h: qrEl.h } : null
+    });
+    
+    const logoUrl = logoEl?.url || '';
+    
     const htmlParts = [];
     htmlParts.push(`<div class="sticker-wrapper" style="position:relative;width:${widthPx}px;height:${heightPx}px;max-width:${widthPx}px;max-height:${heightPx}px;min-width:${widthPx}px;min-height:${heightPx}px;box-sizing:border-box;overflow:hidden;background:#ffffff;margin:0;padding:0;">`);
     
-    // Logo (si existe)
+    // Logo de Casa Renault (si existe)
     if (logoEl && logoUrl) {
+      console.log('🏷️ [HTML] Agregando logo:', { url: logoUrl, x: logoEl.x, y: logoEl.y, w: logoEl.w, h: logoEl.h });
       htmlParts.push(`<div class="st-el" data-id="logo" style="position:absolute;left:${logoEl.x}px;top:${logoEl.y}px;width:${logoEl.w}px;height:${logoEl.h}px;box-sizing:border-box;z-index:2;"><img src="${logoUrl}" alt="Logo" style="width:100%;height:100%;object-fit:contain;display:block;margin:0;padding:0;" /></div>`);
-    }
-    
-    // Imagen del item (si existe)
-    if (imageEl && itemImageUrl) {
-      htmlParts.push(`<div class="st-el" data-id="image" style="position:absolute;left:${imageEl.x}px;top:${imageEl.y}px;width:${imageEl.w}px;height:${imageEl.h}px;box-sizing:border-box;z-index:2;"><img src="${itemImageUrl}" alt="Item" style="width:100%;height:100%;object-fit:contain;display:block;margin:0;padding:0;" /></div>`);
+    } else {
+      console.warn('🏷️ [HTML] Logo no encontrado o URL vacía');
     }
     
     // SKU
     if (skuEl) {
       const alignStyle = skuEl.align === 'center' ? 'center' : (skuEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = skuEl.vAlign === 'center' ? 'center' : (skuEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
+      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuEl.fontSize, text: sku });
       htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;max-width:${skuEl.w}px;max-height:${skuEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};"><div class="st-text-inner" style="font-size:${skuEl.fontSize}px;font-weight:${skuEl.fontWeight};line-height:${skuEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${skuEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;text-align:${alignStyle === 'center' ? 'center' : 'left'};"">${sku || ''}</div></div>`);
+    } else {
+      console.warn('🏷️ [HTML] SKU element no encontrado');
     }
     
-    // Nombre (con cuadro de fondo)
+    // Nombre (con cuadro de fondo) - debe ocupar todo el espacio disponible
     if (nameEl) {
       const alignStyle = nameEl.align === 'center' ? 'center' : (nameEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = nameEl.vAlign === 'center' ? 'center' : (nameEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
+      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameEl.fontSize, text: name });
+      console.log('🏷️ [HTML] Nombre ocupa desde', nameEl.x, 'hasta', nameEl.x + nameEl.w, 'de', widthPx, 'px totales');
       htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;max-width:${nameEl.w}px;max-height:${nameEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};background-color:#f0f0f0;border:1px solid #d0d0d0;"><div class="st-text-inner" style="font-size:${nameEl.fontSize}px;font-weight:${nameEl.fontWeight};line-height:${nameEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${nameEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;text-align:${alignStyle === 'center' ? 'center' : 'left'};"">${name || ''}</div></div>`);
+    } else {
+      console.warn('🏷️ [HTML] Name element no encontrado');
     }
     
     // QR (se agregará después cuando se genere)
     if (qrEl) {
+      console.log('🏷️ [HTML] Agregando QR placeholder:', { x: qrEl.x, y: qrEl.y, w: qrEl.w, h: qrEl.h });
       htmlParts.push(`<div class="st-el" data-id="qr" style="position:absolute;left:${qrEl.x}px;top:${qrEl.y}px;width:${qrEl.w}px;height:${qrEl.h}px;box-sizing:border-box;z-index:10;"><img class="qr-img" src="" alt="QR" style="width:100%;height:100%;object-fit:contain;display:block;margin:0;padding:0;" /></div>`);
+    } else {
+      console.warn('🏷️ [HTML] QR element no encontrado');
     }
     
     htmlParts.push('</div>');
-    return htmlParts.join('');
+    const html = htmlParts.join('');
+    console.log('🏷️ [HTML] HTML generado, longitud:', html.length);
+    return html;
   }
 
   async function renderStickerPdf(list, filenameBase = 'stickers') {
