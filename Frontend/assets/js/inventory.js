@@ -2961,7 +2961,7 @@ function openMarketplaceHelper(item){
         target.style.setProperty('height', `${targetHeight}px`, 'important'); // Altura fija para ocupar todo el espacio
         target.style.setProperty('max-height', `${targetHeight}px`, 'important');
         target.style.setProperty('min-height', `${targetHeight}px`, 'important'); // Altura mínima para ocupar todo
-        target.style.setProperty('overflow', 'visible', 'important'); // Visible para que el texto se vea
+        target.style.setProperty('overflow', 'hidden', 'important'); // Hidden para que el texto no se salga del contenedor
         target.style.setProperty('color', '#000000', 'important'); // Asegurar color negro
         target.style.setProperty('font-size', '4px', 'important'); // Forzar 4px
         target.style.setProperty('visibility', 'visible', 'important');
@@ -2972,15 +2972,22 @@ function openMarketplaceHelper(item){
         target.style.setProperty('word-break', 'break-word', 'important');
         target.style.setProperty('overflow-wrap', 'break-word', 'important');
         target.style.setProperty('hyphens', 'auto', 'important');
-        // CRÍTICO: Para nombre, usar block para permitir saltos de línea naturales
+        // CRÍTICO: Para nombre, asegurar que el contenedor padre use flex para centrar
+        // y el texto interno use block para permitir saltos de línea
+        const parent = target.parentElement;
+        if (parent && parent.classList.contains('st-el') && parent.getAttribute('data-id') === 'name') {
+          parent.style.setProperty('display', 'flex', 'important');
+          parent.style.setProperty('align-items', 'center', 'important');
+          parent.style.setProperty('justify-content', 'center', 'important');
+          parent.style.setProperty('flex-direction', 'column', 'important');
+        }
+        // El texto interno usa block para permitir múltiples líneas
         target.style.setProperty('display', 'block', 'important');
         target.style.setProperty('text-align', 'center', 'important');
-        // Asegurar que el texto ocupe todo el espacio vertical disponible
-        target.style.setProperty('padding-top', '0', 'important');
-        target.style.setProperty('padding-bottom', '0', 'important');
-        // Usar line-height para centrar verticalmente
-        const lineHeightValue = 4 * 1.4; // fontSize * line-height
-        target.style.setProperty('line-height', `${lineHeightValue}px`, 'important');
+        target.style.setProperty('line-height', '1.5', 'important');
+        target.style.setProperty('padding', '2px', 'important');
+        target.style.setProperty('width', '100%', 'important');
+        target.style.setProperty('max-width', '100%', 'important');
       } else {
         // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
         // PERO permitir que el contenido haga wrap correctamente
@@ -3508,8 +3515,15 @@ function openMarketplaceHelper(item){
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          flex-direction: column !important;
         }
-      /* CRÍTICO: Proteger nombre contra estilos globales - usar display:block para saltos de línea */
+      /* CRÍTICO: Proteger nombre contra estilos globales - contenedor flex, texto interno block */
+      #sticker-pdf-capture-root .st-el[data-id*="name"] {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex-direction: column !important;
+        }
       #sticker-pdf-capture-root .st-el[data-id*="name"] > div,
       #sticker-pdf-capture-root .st-el[data-id*="name"] .name-text-inner,
       .st-el[data-id*="name"] > div,
@@ -3522,14 +3536,14 @@ function openMarketplaceHelper(item){
           display: block !important;
           max-width: 100% !important;
           width: 100% !important;
-          height: 100% !important;
-          min-height: 100% !important;
+          padding: 2px !important;
+          margin: 0 !important;
           color: #000000 !important;
           visibility: visible !important;
           opacity: 1 !important;
           white-space: normal !important;
           text-align: center !important;
-          line-height: 1.4 !important;
+          line-height: 1.5 !important;
           font-size: 4px !important;
           font-weight: 600 !important;
           hyphens: auto !important;
@@ -3542,8 +3556,6 @@ function openMarketplaceHelper(item){
           -ms-transform: none !important;
           -o-transform: none !important;
           scale: 1 !important;
-          /* CRÍTICO: Asegurar que el texto se centre verticalmente usando padding-top */
-          padding-top: calc(50% - 0.7em) !important;
         }
         .st-el[data-id*="custom"] > div {
           overflow: visible !important;
@@ -3633,6 +3645,95 @@ function openMarketplaceHelper(item){
   }
 
   // Función para crear HTML del sticker directamente en el frontend
+  // Función para segmentar texto largo automáticamente, insertando espacios para legibilidad
+  function segmentTextForDisplay(text, maxCharsPerLine = 12) {
+    if (!text || text.length <= maxCharsPerLine) return text;
+    
+    // Intentar detectar patrones comunes y separarlos
+    let segmented = text;
+    
+    // Insertar espacios antes de números seguidos de letras (ej: "KIT04" -> "KIT 04")
+    segmented = segmented.replace(/([A-Z]+)(\d+)/g, '$1 $2');
+    // Insertar espacios después de números seguidos de letras (ej: "04KIT" -> "04 KIT")
+    segmented = segmented.replace(/(\d+)([A-Z]+)/g, '$1 $2');
+    
+    // Detectar transiciones de minúsculas a mayúsculas (si las hay)
+    segmented = segmented.replace(/([a-z])([A-Z])/g, '$1 $2');
+    
+    // Si el texto sigue siendo muy largo sin espacios, dividirlo inteligentemente
+    if (segmented.length > maxCharsPerLine && !segmented.includes(' ')) {
+      // Dividir en chunks de aproximadamente maxCharsPerLine caracteres
+      // Intentar dividir en puntos naturales (después de números, antes de letras mayúsculas consecutivas)
+      const chunks = [];
+      let currentChunk = '';
+      
+      for (let i = 0; i < segmented.length; i++) {
+        const char = segmented[i];
+        const nextChar = segmented[i + 1];
+        
+        currentChunk += char;
+        
+        // Si el chunk alcanza el tamaño máximo, o si encontramos un punto natural de división
+        if (currentChunk.length >= maxCharsPerLine) {
+          // Buscar un punto natural de división (número seguido de letra o viceversa)
+          if (i + 1 < segmented.length) {
+            const isNumber = /\d/.test(char);
+            const nextIsLetter = /[A-Z]/.test(nextChar);
+            const isLetter = /[A-Z]/.test(char);
+            const nextIsNumber = /\d/.test(nextChar);
+            
+            if ((isNumber && nextIsLetter) || (isLetter && nextIsNumber)) {
+              // Este es un buen punto para dividir
+              chunks.push(currentChunk);
+              currentChunk = '';
+            } else if (currentChunk.length >= maxCharsPerLine + 2) {
+              // Forzar división si es muy largo
+              chunks.push(currentChunk);
+              currentChunk = '';
+            }
+          } else {
+            chunks.push(currentChunk);
+            currentChunk = '';
+          }
+        }
+      }
+      
+      if (currentChunk) chunks.push(currentChunk);
+      segmented = chunks.join(' ');
+    } else if (segmented.length > maxCharsPerLine) {
+      // Si tiene espacios pero es muy largo, dividir en líneas
+      const words = segmented.split(/\s+/);
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        if (word.length > maxCharsPerLine) {
+          // Si una palabra es muy larga, dividirla
+          if (currentLine) {
+            lines.push(currentLine.trim());
+            currentLine = '';
+          }
+          // Dividir la palabra larga en chunks
+          for (let i = 0; i < word.length; i += maxCharsPerLine) {
+            const chunk = word.substring(i, i + maxCharsPerLine);
+            if (chunk) lines.push(chunk);
+          }
+        } else {
+          if (currentLine.length + word.length + 1 <= maxCharsPerLine) {
+            currentLine += (currentLine ? ' ' : '') + word;
+          } else {
+            if (currentLine) lines.push(currentLine.trim());
+            currentLine = word;
+          }
+        }
+      }
+      if (currentLine) lines.push(currentLine.trim());
+      segmented = lines.join(' ');
+    }
+    
+    return segmented;
+  }
+
   function createStickerHTML(item, layout, widthPx, heightPx) {
     console.log('🏷️ [HTML] Creando HTML del sticker');
     console.log('🏷️ [HTML] Dimensiones del sticker:', { widthPx, heightPx });
@@ -3640,7 +3741,11 @@ function openMarketplaceHelper(item){
     
     // Obtener datos del item - verificar múltiples posibles nombres de propiedades
     const sku = String(item.sku || item.SKU || item.code || '').toUpperCase().trim();
-    const name = String(item.name || item.nombre || item.description || '').toUpperCase().trim();
+    let name = String(item.name || item.nombre || item.description || '').toUpperCase().trim();
+    
+    // CRÍTICO: Segmentar el nombre automáticamente para que sea legible
+    name = segmentTextForDisplay(name, 12); // Máximo 12 caracteres por línea aproximadamente
+    console.log('🏷️ [HTML] Nombre segmentado:', { original: item.name || item.nombre || item.description, segmented: name });
     console.log('🏷️ [HTML] Datos extraídos del item:', { 
       sku, 
       name, 
@@ -3707,8 +3812,9 @@ function openMarketplaceHelper(item){
       // Fondo gris más tenue (#f8f8f8) - asegurar que se vea
       // CRÍTICO: Asegurar que el texto ocupe TODO el espacio disponible y haga wrap correctamente
       const innerPadding = 2;
-      // CRÍTICO: Simplificar completamente - usar display:block para saltos de línea naturales
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:${innerPadding}px;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;max-width:100% !important;height:100% !important;min-height:100% !important;padding:0 !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.4 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameEscaped}</div></div>`);
+      // CRÍTICO: Usar un contenedor flex para centrar verticalmente, pero permitir saltos de línea en el texto interno
+      // El contenedor externo usa flex para centrar, el interno usa block para permitir múltiples líneas
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:${innerPadding}px;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;max-width:100% !important;padding:2px !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.5 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameEscaped}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] Name element no encontrado en layout');
     }
