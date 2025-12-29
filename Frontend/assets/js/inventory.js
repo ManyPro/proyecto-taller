@@ -2954,24 +2954,29 @@ function openMarketplaceHelper(item){
       
       // CRÍTICO: Para elementos de nombre, usar configuración especial para asegurar visibilidad y wrap
       if (elementId === 'name') {
-        // Para nombre, asegurar que el texto sea visible, haga wrap y ocupe el espacio disponible
+        // Para nombre, asegurar que el texto sea visible, haga wrap y ocupe TODO el espacio disponible
         target.style.setProperty('width', `${targetWidth}px`, 'important');
         target.style.setProperty('max-width', `${targetWidth}px`, 'important');
-        target.style.setProperty('min-width', '0', 'important');
-        target.style.setProperty('height', 'auto', 'important'); // Altura auto para permitir múltiples líneas
-        target.style.setProperty('max-height', `${targetHeight}px`, 'important'); // Máximo altura disponible
-        target.style.setProperty('min-height', '0', 'important');
-        target.style.setProperty('overflow', 'hidden', 'important'); // Hidden para cortar si excede
+        target.style.setProperty('min-width', `${targetWidth}px`, 'important'); // Ancho mínimo para ocupar todo
+        target.style.setProperty('height', `${targetHeight}px`, 'important'); // Altura fija para ocupar todo el espacio
+        target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+        target.style.setProperty('min-height', `${targetHeight}px`, 'important'); // Altura mínima para ocupar todo
+        target.style.setProperty('overflow', 'visible', 'important'); // Visible para que el texto se vea
         target.style.setProperty('color', '#000000', 'important'); // Asegurar color negro
         target.style.setProperty('font-size', '4px', 'important'); // Forzar 4px
         target.style.setProperty('visibility', 'visible', 'important');
         target.style.setProperty('opacity', '1', 'important');
-        // CRÍTICO: Asegurar que el texto haga wrap correctamente
+        // CRÍTICO: Asegurar que el texto haga wrap correctamente y ocupe todo el espacio
         target.style.setProperty('white-space', 'normal', 'important');
         target.style.setProperty('word-wrap', 'break-word', 'important');
         target.style.setProperty('word-break', 'break-word', 'important');
         target.style.setProperty('overflow-wrap', 'break-word', 'important');
         target.style.setProperty('hyphens', 'auto', 'important');
+        // CRÍTICO: Usar flex para centrar y permitir múltiples líneas
+        target.style.setProperty('display', 'flex', 'important');
+        target.style.setProperty('align-items', 'center', 'important');
+        target.style.setProperty('justify-content', 'center', 'important');
+        target.style.setProperty('flex-wrap', 'wrap', 'important');
       } else {
         // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
         // PERO permitir que el contenido haga wrap correctamente
@@ -2994,11 +2999,8 @@ function openMarketplaceHelper(item){
       target.style.setProperty('-moz-hyphens', 'auto', 'important');
       target.style.setProperty('box-sizing', 'border-box', 'important');
       target.style.setProperty('white-space', 'normal', 'important'); // CRÍTICO: normal permite wrap
-      // Para nombre, usar block para permitir saltos de línea naturales
-      if (elementId === 'name') {
-        target.style.setProperty('display', 'block', 'important'); // Block para permitir múltiples líneas
-        target.style.setProperty('text-align', 'center', 'important'); // Centrar texto
-      } else {
+      // Para nombre, el display ya se configuró arriba como flex con wrap
+      if (elementId !== 'name') {
         target.style.setProperty('display', 'block', 'important');
       }
       target.style.setProperty('margin', '0', 'important');
@@ -3331,6 +3333,29 @@ function openMarketplaceHelper(item){
   // Función auxiliar: generar CSS para sticker box
   function generateStickerCaptureCSS(widthPx, heightPx) {
     return `
+      /* CRÍTICO: Proteger contra estilos globales - Reset completo para el contenedor de stickers */
+      #sticker-pdf-capture-root {
+        zoom: 1 !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        -moz-transform: none !important;
+        -ms-transform: none !important;
+        -o-transform: none !important;
+        scale: 1 !important;
+        font-size: 16px !important; /* Reset font-size para evitar escalado */
+      }
+      
+      /* CRÍTICO: Proteger contra zoom global del HTML */
+      #sticker-pdf-capture-root * {
+        zoom: 1 !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        -moz-transform: none !important;
+        -ms-transform: none !important;
+        -o-transform: none !important;
+        scale: 1 !important;
+      }
+      
         .sticker-capture {
           position: relative !important;
         width: ${widthPx}px !important;
@@ -3346,6 +3371,8 @@ function openMarketplaceHelper(item){
           display: block !important;
           transform: none !important;
         zoom: 1 !important;
+        scale: 1 !important;
+        font-size: 16px !important; /* Reset font-size */
         }
         .sticker-wrapper {
           position: relative !important;
@@ -3377,9 +3404,32 @@ function openMarketplaceHelper(item){
         clear: both !important;
       }
       
-      /* CRÍTICO: Asegurar que ningún CSS global afecte las dimensiones */
+      /* CRÍTICO: Asegurar que ningún CSS global afecte las dimensiones y colores */
       #sticker-pdf-capture-root * {
         box-sizing: border-box !important;
+        zoom: 1 !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        -moz-transform: none !important;
+        -ms-transform: none !important;
+        -o-transform: none !important;
+        scale: 1 !important;
+      }
+      
+      /* CRÍTICO: Proteger contra estilos de tema claro que cambian colores */
+      #sticker-pdf-capture-root .st-el[data-id*="sku"] *,
+      #sticker-pdf-capture-root .st-el[data-id*="name"] * {
+        color: #000000 !important;
+        background-color: inherit !important;
+      }
+      
+      /* CRÍTICO: Proteger contra font-size global que cambia según viewport */
+      #sticker-pdf-capture-root .st-el[data-id*="sku"] {
+        font-size: inherit !important;
+      }
+      
+      #sticker-pdf-capture-root .st-el[data-id*="name"] {
+        font-size: inherit !important;
       }
       
       #sticker-pdf-capture-root .sticker-capture,
@@ -3389,19 +3439,44 @@ function openMarketplaceHelper(item){
         zoom: 1 !important;
         scale: 1 !important;
       }
+      /* CRÍTICO: Proteger elementos del sticker contra estilos globales */
+      #sticker-pdf-capture-root .st-el,
       .st-el {
         position: absolute !important;
         box-sizing: border-box !important;
+        zoom: 1 !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        -moz-transform: none !important;
+        -ms-transform: none !important;
+        -o-transform: none !important;
+        scale: 1 !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
-        .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
+      /* CRÍTICO: Proteger elementos de texto contra estilos globales */
+      #sticker-pdf-capture-root .st-el[data-id*="sku"],
+      #sticker-pdf-capture-root .st-el[data-id*="name"],
+      #sticker-pdf-capture-root .st-el[data-id*="custom"],
+      .st-el[data-id*="sku"], .st-el[data-id*="name"], .st-el[data-id*="custom"] {
           overflow: hidden !important;
           white-space: normal !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           box-sizing: border-box !important;
+          zoom: 1 !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
+          scale: 1 !important;
+          margin: 0 !important;
       }
-        .st-el[data-id*="sku"] > div {
+      /* CRÍTICO: Proteger SKU contra estilos globales */
+      #sticker-pdf-capture-root .st-el[data-id*="sku"] > div,
+      .st-el[data-id*="sku"] > div {
           overflow: visible !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
@@ -3417,25 +3492,37 @@ function openMarketplaceHelper(item){
           opacity: 1 !important;
           text-align: center !important;
           line-height: inherit !important;
+          zoom: 1 !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
+          scale: 1 !important;
         }
         .st-el[data-id*="name"] {
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
         }
-        .st-el[data-id*="name"] > div,
-        .st-el[data-id*="name"] .name-text-inner {
-          overflow: hidden !important;
+      /* CRÍTICO: Proteger nombre contra estilos globales */
+      #sticker-pdf-capture-root .st-el[data-id*="name"] > div,
+      #sticker-pdf-capture-root .st-el[data-id*="name"] .name-text-inner,
+      .st-el[data-id*="name"] > div,
+      .st-el[data-id*="name"] .name-text-inner {
+          overflow: visible !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           box-sizing: border-box !important;
-          display: block !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex-wrap: wrap !important;
           max-width: 100% !important;
           width: 100% !important;
-          height: auto !important;
-          min-height: 0 !important;
-          max-height: 100% !important;
+          height: 100% !important;
+          min-height: 100% !important;
           color: #000000 !important;
           visibility: visible !important;
           opacity: 1 !important;
@@ -3447,6 +3534,13 @@ function openMarketplaceHelper(item){
           hyphens: auto !important;
           -webkit-hyphens: auto !important;
           -moz-hyphens: auto !important;
+          zoom: 1 !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+          -moz-transform: none !important;
+          -ms-transform: none !important;
+          -o-transform: none !important;
+          scale: 1 !important;
         }
         .st-el[data-id*="custom"] > div {
           overflow: visible !important;
@@ -3608,10 +3702,11 @@ function openMarketplaceHelper(item){
       // Escapar HTML
       const nameEscaped = nameText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       // Fondo gris más tenue (#f8f8f8) - asegurar que se vea
-      // CRÍTICO: Simplificar HTML y asegurar que el texto sea visible con 4px y haga wrap correctamente
-      const innerPadding = 3;
-      // CRÍTICO: Usar display:block para permitir saltos de línea naturales
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:0;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:calc(100% - ${innerPadding * 2}px) !important;max-width:calc(100% - ${innerPadding * 2}px) !important;height:auto !important;min-height:0 !important;max-height:100% !important;padding:${innerPadding}px !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.3 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameEscaped}</div></div>`);
+      // CRÍTICO: Asegurar que el texto ocupe TODO el espacio disponible y haga wrap correctamente
+      const innerPadding = 2;
+      // CRÍTICO: El contenedor debe usar todo el espacio y el texto interno debe hacer wrap
+      // CRÍTICO: El contenedor debe ocupar TODO el espacio y el texto debe hacer wrap dentro
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:${innerPadding}px;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;max-width:100% !important;height:100% !important;min-height:100% !important;padding:0 !important;margin:0 !important;display:flex !important;align-items:center !important;justify-content:center !important;flex-wrap:wrap !important;text-align:center !important;line-height:1.3 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:visible !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameEscaped}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] Name element no encontrado en layout');
     }
