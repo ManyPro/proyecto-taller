@@ -2495,54 +2495,72 @@ function openMarketplaceHelper(item){
   // STICKER_DEFAULT_LAYOUT y cloneStickerLayout eliminados - no se usan
 
   // Layout fijo de Casa Renault - formato no editable
-  // Logo arriba a la izquierda, SKU y nombre debajo, QR a la derecha
+  // Imagen izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
   function getCasaRenaultStickerLayout() {
-    const margin = 4; // Márgenes reducidos para ocupar más espacio
-    const logoSize = 35; // Tamaño del logo (arriba izquierda)
-    const logoX = margin;
-    const logoY = margin;
+    const margin = 2; // Márgenes mínimos para ocupar máximo espacio
     
-    // QR: a la derecha, ocupa la mayor parte del espacio vertical
-    const qrW = 90;
-    const qrH = 90;
-    const qrX = canvasWidth - qrW - margin;
-    const qrY = margin;
+    // Altura del cuadro del nombre (abajo del todo)
+    const nameH = 25; // Altura fija para el cuadro del nombre
     
-    // Área de texto a la izquierda (debajo del logo, sin superponerse con QR)
-    const textAreaX = margin;
-    const textAreaW = qrX - textAreaX - 4;
-    const textAreaY = logoY + logoSize + 6; // Debajo del logo con espacio
-    const textAreaH = canvasHeight - textAreaY - margin;
+    // Área disponible verticalmente (excluyendo el nombre y márgenes)
+    const availableHeight = canvasHeight - nameH - (margin * 2) - 2; // -2 para pequeño espacio visual
     
-    // SKU: arriba del área de texto
-    const skuX = textAreaX;
-    const skuY = textAreaY;
-    const skuW = textAreaW;
-    const skuH = 22;
+    // Ancho del QR (derecha) - ajustado para ocupar mejor el espacio
+    const qrW = Math.min(85, Math.floor(availableHeight * 0.9)); // 90% de la altura disponible o 85px máximo
+    const qrH = qrW; // Cuadrado
     
-    // Nombre: debajo del SKU, ocupa el resto del espacio
-    const nameX = textAreaX;
-    const nameY = skuY + skuH + 4;
-    const nameW = textAreaW;
-    const nameH = textAreaH - skuH - 4;
+    // Calcular posiciones horizontales - asegurar que no haya superposiciones
+    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen
+    const gap = 4; // Espacio entre columnas
+    
+    // Calcular ancho de la columna izquierda (imagen)
+    const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
+    const leftColW = Math.min(55, Math.floor(availableWidth * 0.35)); // 35% del espacio disponible o 55px máximo
+    
+    // Calcular ancho de la columna media (SKU) - el resto del espacio
+    const middleColW = Math.max(20, availableWidth - leftColW - gap); // Ancho restante, mínimo 20px
+    
+    // Posiciones de las columnas
+    const leftColX = margin;
+    const middleColX = leftColX + leftColW + gap;
+    
+    // Imagen: parte izquierda, desde arriba hasta justo antes del nombre
+    const imageX = leftColX;
+    const imageY = margin;
+    const imageW = leftColW;
+    const imageH = availableHeight; // Altura hasta antes del nombre
+    
+    // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
+    const skuH = 25; // Altura del SKU
+    const skuX = middleColX;
+    const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
+    const skuW = middleColW;
+    
+    // Nombre: abajo del todo, ocupando todo el ancho disponible (desde la izquierda hasta antes del QR)
+    const nameX = leftColX;
+    const nameY = canvasHeight - nameH - margin; // Abajo con margen
+    const nameW = qrX - leftColX - gap; // Ancho desde la izquierda hasta antes del QR (con gap)
+    
+    // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
+    const qrX_pos = qrX;
+    const qrY = margin + (availableHeight - qrH) / 2; // Centrado verticalmente en espacio disponible
     
     return {
     widthCm: 5,
     heightCm: 3,
     elements: [
-        // Logo de Casa Renault arriba a la izquierda
+        // Imagen del item en la parte izquierda, ajustada uniformemente
         { 
-          id: 'logo', 
+          id: 'image', 
           type: 'image', 
-          source: 'company-logo', 
-          url: STICKER_LOGO_URLS.CASA_RENAULT, // Usar logo específico de stickers
-          x: logoX, 
-          y: logoY, 
-          w: logoSize, 
-          h: logoSize, 
+          source: 'item-image', 
+          x: imageX, 
+          y: imageY, 
+          w: imageW, 
+          h: imageH, 
           fit: 'contain' 
         },
-        // SKU debajo del logo
+        // SKU en el medio, tamaño de fuente 7
         { 
           id: 'sku', 
           type: 'text', 
@@ -2551,14 +2569,14 @@ function openMarketplaceHelper(item){
           y: skuY, 
           w: skuW, 
           h: skuH, 
-          fontSize: 11, 
+          fontSize: 7, 
           fontWeight: '700', 
           wrap: true, 
-          align: 'flex-start', 
-          vAlign: 'flex-start', 
+          align: 'center', 
+          vAlign: 'center', 
           lineHeight: 1.1 
         },
-        // Nombre del producto debajo del SKU
+        // Nombre del producto abajo del todo, en cuadro, tamaño de fuente 4
         { 
           id: 'name', 
           type: 'text', 
@@ -2567,19 +2585,19 @@ function openMarketplaceHelper(item){
           y: nameY, 
           w: nameW, 
           h: nameH, 
-          fontSize: 8, 
+          fontSize: 4, 
           fontWeight: '600', 
           wrap: true, 
-          align: 'flex-start', 
-          vAlign: 'flex-start', 
+          align: 'center', 
+          vAlign: 'center', 
           lineHeight: 1.2 
         },
-        // QR code a la derecha
+        // QR code a la derecha, centrado
         { 
           id: 'qr', 
           type: 'image', 
           source: 'qr', 
-          x: qrX, 
+          x: qrX_pos, 
           y: qrY, 
           w: qrW, 
           h: qrH, 
@@ -2590,55 +2608,73 @@ function openMarketplaceHelper(item){
   }
 
   // Layout fijo de Serviteca Shelby - formato no editable
-  // Logo arriba a la izquierda, SKU y nombre debajo, QR a la derecha
-  // Mismo formato que Casa Renault pero con logo de Shelby
+  // Imagen izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
+  // Mismo formato que Casa Renault
   function getServitecaShelbyStickerLayout() {
-    const margin = 4; // Márgenes reducidos para ocupar más espacio
-    const logoSize = 35; // Tamaño del logo (arriba izquierda)
-    const logoX = margin;
-    const logoY = margin;
+    const margin = 2; // Márgenes mínimos para ocupar máximo espacio
     
-    // QR: a la derecha, ocupa la mayor parte del espacio vertical
-    const qrW = 90;
-    const qrH = 90;
-    const qrX = canvasWidth - qrW - margin;
-    const qrY = margin;
+    // Altura del cuadro del nombre (abajo del todo)
+    const nameH = 25; // Altura fija para el cuadro del nombre
     
-    // Área de texto a la izquierda (debajo del logo, sin superponerse con QR)
-    const textAreaX = margin;
-    const textAreaW = qrX - textAreaX - 4;
-    const textAreaY = logoY + logoSize + 6; // Debajo del logo con espacio
-    const textAreaH = canvasHeight - textAreaY - margin;
+    // Área disponible verticalmente (excluyendo el nombre y márgenes)
+    const availableHeight = canvasHeight - nameH - (margin * 2) - 2; // -2 para pequeño espacio visual
     
-    // SKU: arriba del área de texto
-    const skuX = textAreaX;
-    const skuY = textAreaY;
-    const skuW = textAreaW;
-    const skuH = 22;
+    // Ancho del QR (derecha) - ajustado para ocupar mejor el espacio
+    const qrW = Math.min(85, Math.floor(availableHeight * 0.9)); // 90% de la altura disponible o 85px máximo
+    const qrH = qrW; // Cuadrado
     
-    // Nombre: debajo del SKU, ocupa el resto del espacio
-    const nameX = textAreaX;
-    const nameY = skuY + skuH + 4;
-    const nameW = textAreaW;
-    const nameH = textAreaH - skuH - 4;
+    // Calcular posiciones horizontales - asegurar que no haya superposiciones
+    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen
+    const gap = 4; // Espacio entre columnas
+    
+    // Calcular ancho de la columna izquierda (imagen)
+    const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
+    const leftColW = Math.min(55, Math.floor(availableWidth * 0.35)); // 35% del espacio disponible o 55px máximo
+    
+    // Calcular ancho de la columna media (SKU) - el resto del espacio
+    const middleColW = Math.max(20, availableWidth - leftColW - gap); // Ancho restante, mínimo 20px
+    
+    // Posiciones de las columnas
+    const leftColX = margin;
+    const middleColX = leftColX + leftColW + gap;
+    
+    // Imagen: parte izquierda, desde arriba hasta justo antes del nombre
+    const imageX = leftColX;
+    const imageY = margin;
+    const imageW = leftColW;
+    const imageH = availableHeight; // Altura hasta antes del nombre
+    
+    // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
+    const skuH = 25; // Altura del SKU
+    const skuX = middleColX;
+    const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
+    const skuW = middleColW;
+    
+    // Nombre: abajo del todo, ocupando todo el ancho disponible (desde la izquierda hasta antes del QR)
+    const nameX = leftColX;
+    const nameY = canvasHeight - nameH - margin; // Abajo con margen
+    const nameW = qrX - leftColX - gap; // Ancho desde la izquierda hasta antes del QR (con gap)
+    
+    // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
+    const qrX_pos = qrX;
+    const qrY = margin + (availableHeight - qrH) / 2; // Centrado verticalmente en espacio disponible
     
     return {
       widthCm: 5,
       heightCm: 3,
       elements: [
-        // Logo de Serviteca Shelby arriba a la izquierda
+        // Imagen del item en la parte izquierda, ajustada uniformemente
         { 
-          id: 'logo', 
+          id: 'image', 
           type: 'image', 
-          source: 'company-logo', 
-          url: STICKER_LOGO_URLS.SERVITECA_SHELBY, // Usar logo específico de stickers
-          x: logoX, 
-          y: logoY, 
-          w: logoSize, 
-          h: logoSize, 
+          source: 'item-image', 
+          x: imageX, 
+          y: imageY, 
+          w: imageW, 
+          h: imageH, 
           fit: 'contain' 
         },
-        // SKU debajo del logo
+        // SKU en el medio, tamaño de fuente 7
         { 
           id: 'sku', 
           type: 'text', 
@@ -2647,14 +2683,14 @@ function openMarketplaceHelper(item){
           y: skuY, 
           w: skuW, 
           h: skuH, 
-          fontSize: 11, 
+          fontSize: 7, 
           fontWeight: '700', 
           wrap: true, 
-          align: 'flex-start', 
-          vAlign: 'flex-start', 
+          align: 'center', 
+          vAlign: 'center', 
           lineHeight: 1.1 
         },
-        // Nombre del producto debajo del SKU
+        // Nombre del producto abajo del todo, en cuadro, tamaño de fuente 4
         { 
           id: 'name', 
           type: 'text', 
@@ -2663,19 +2699,19 @@ function openMarketplaceHelper(item){
           y: nameY, 
           w: nameW, 
           h: nameH, 
-          fontSize: 8, 
+          fontSize: 4, 
           fontWeight: '600', 
           wrap: true, 
-          align: 'flex-start', 
-          vAlign: 'flex-start', 
+          align: 'center', 
+          vAlign: 'center', 
           lineHeight: 1.2 
         },
-        // QR code a la derecha
+        // QR code a la derecha, centrado
         { 
           id: 'qr', 
           type: 'image', 
           source: 'qr', 
-          x: qrX, 
+          x: qrX_pos, 
           y: qrY, 
           w: qrW, 
           h: qrH, 
@@ -3307,8 +3343,21 @@ function openMarketplaceHelper(item){
     const name = (item.name || '').toUpperCase().trim();
     const logoUrl = layout.elements.find(e => e.id === 'logo')?.url || '';
     
+    // Obtener imagen del item (primera imagen del array images si existe)
+    let itemImageUrl = '';
+    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+      itemImageUrl = item.images[0].url || '';
+    } else if (item.image) {
+      itemImageUrl = item.image;
+    } else if (item.imageUrl) {
+      itemImageUrl = item.imageUrl;
+    } else if (item.photo) {
+      itemImageUrl = item.photo;
+    }
+    
     // Obtener posiciones del layout
     const logoEl = layout.elements.find(e => e.id === 'logo');
+    const imageEl = layout.elements.find(e => e.id === 'image');
     const skuEl = layout.elements.find(e => e.id === 'sku');
     const nameEl = layout.elements.find(e => e.id === 'name');
     const qrEl = layout.elements.find(e => e.id === 'qr');
@@ -3316,19 +3365,28 @@ function openMarketplaceHelper(item){
     const htmlParts = [];
     htmlParts.push(`<div class="sticker-wrapper" style="position:relative;width:${widthPx}px;height:${heightPx}px;max-width:${widthPx}px;max-height:${heightPx}px;min-width:${widthPx}px;min-height:${heightPx}px;box-sizing:border-box;overflow:hidden;background:#ffffff;margin:0;padding:0;">`);
     
-    // Logo
+    // Logo (si existe)
     if (logoEl && logoUrl) {
       htmlParts.push(`<div class="st-el" data-id="logo" style="position:absolute;left:${logoEl.x}px;top:${logoEl.y}px;width:${logoEl.w}px;height:${logoEl.h}px;box-sizing:border-box;z-index:2;"><img src="${logoUrl}" alt="Logo" style="width:100%;height:100%;object-fit:contain;display:block;margin:0;padding:0;" /></div>`);
     }
     
-    // SKU
-    if (skuEl) {
-      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;max-width:${skuEl.w}px;max-height:${skuEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;"><div class="st-text-inner" style="font-size:${skuEl.fontSize}px;font-weight:${skuEl.fontWeight};line-height:${skuEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${skuEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;">${sku || ''}</div></div>`);
+    // Imagen del item (si existe)
+    if (imageEl && itemImageUrl) {
+      htmlParts.push(`<div class="st-el" data-id="image" style="position:absolute;left:${imageEl.x}px;top:${imageEl.y}px;width:${imageEl.w}px;height:${imageEl.h}px;box-sizing:border-box;z-index:2;"><img src="${itemImageUrl}" alt="Item" style="width:100%;height:100%;object-fit:contain;display:block;margin:0;padding:0;" /></div>`);
     }
     
-    // Nombre
+    // SKU
+    if (skuEl) {
+      const alignStyle = skuEl.align === 'center' ? 'center' : (skuEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
+      const justifyStyle = skuEl.vAlign === 'center' ? 'center' : (skuEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
+      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;max-width:${skuEl.w}px;max-height:${skuEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};"><div class="st-text-inner" style="font-size:${skuEl.fontSize}px;font-weight:${skuEl.fontWeight};line-height:${skuEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${skuEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;text-align:${alignStyle === 'center' ? 'center' : 'left'};"">${sku || ''}</div></div>`);
+    }
+    
+    // Nombre (con cuadro de fondo)
     if (nameEl) {
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;max-width:${nameEl.w}px;max-height:${nameEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;"><div class="st-text-inner" style="font-size:${nameEl.fontSize}px;font-weight:${nameEl.fontWeight};line-height:${nameEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${nameEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;">${name || ''}</div></div>`);
+      const alignStyle = nameEl.align === 'center' ? 'center' : (nameEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
+      const justifyStyle = nameEl.vAlign === 'center' ? 'center' : (nameEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;max-width:${nameEl.w}px;max-height:${nameEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};background-color:#f0f0f0;border:1px solid #d0d0d0;"><div class="st-text-inner" style="font-size:${nameEl.fontSize}px;font-weight:${nameEl.fontWeight};line-height:${nameEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${nameEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;text-align:${alignStyle === 'center' ? 'center' : 'left'};"">${name || ''}</div></div>`);
     }
     
     // QR (se agregará después cuando se genere)
