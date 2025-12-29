@@ -2509,23 +2509,34 @@ function openMarketplaceHelper(item){
     const availableHeight = canvasHeight - nameH - margin; // Altura disponible sin el nombre
     console.log('🏷️ [LAYOUT] Altura disponible (sin nombre):', availableHeight);
     
-    // Ancho del QR (derecha) - más grande y visible
-    const qrW = Math.floor(availableHeight * 0.95); // 95% de la altura disponible para máximo tamaño
+    // Dividir el ancho en dos mitades: izquierda (logo + SKU) y derecha (QR)
+    // IMPORTANTE: La mitad izquierda debe tener espacio completo sin ser afectada por el QR
+    const mitadAncho = canvasWidth / 2;
+    console.log('🏷️ [LAYOUT] Mitad del ancho:', mitadAncho);
+    
+    // Ancho del QR (derecha) - más grande y visible, pero ajustado para que quepa en la mitad derecha
+    // El QR debe estar completamente dentro de la mitad derecha sin invadir la izquierda
+    const qrMaxW = mitadAncho - (margin * 2); // Espacio disponible en la mitad derecha menos márgenes
+    const qrW = Math.min(Math.floor(availableHeight * 0.9), qrMaxW); // El menor entre 90% de altura y el espacio disponible
     const qrH = qrW; // Cuadrado
-    console.log('🏷️ [LAYOUT] QR dimensions:', { qrW, qrH });
+    console.log('🏷️ [LAYOUT] QR dimensions:', { qrW, qrH, qrMaxW });
     
-    // Calcular posiciones horizontales - asegurar que no haya superposiciones
-    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen mínimo
+    // Calcular posiciones horizontales - QR CENTRADO en la mitad derecha
+    // El QR debe empezar DESPUÉS de la mitad para no afectar la parte izquierda
+    const qrX = mitadAncho + (mitadAncho - qrW) / 2; // Centrado horizontalmente en la mitad derecha
     const gap = 3; // Espacio mínimo entre columnas
-    console.log('🏷️ [LAYOUT] QR position X:', qrX);
+    console.log('🏷️ [LAYOUT] QR position X (centrado en mitad derecha):', qrX, 'mitad:', mitadAncho);
+    console.log('🏷️ [LAYOUT] Verificación - QR empieza en:', qrX, 'debe ser >= mitad:', mitadAncho);
     
-    // Calcular ancho de la columna izquierda (logo) - más grande para mejor visibilidad
-    const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
-    const leftColW = Math.floor(availableWidth * 0.4); // 40% del espacio disponible para el logo (más grande)
+    // Calcular ancho de la columna izquierda (logo) - IMPORTANTE: usar solo la mitad izquierda
+    // El contenido izquierdo debe estar completamente dentro de la mitad izquierda
+    const leftMaxWidth = mitadAncho - margin - gap; // Máximo ancho disponible en la mitad izquierda
+    const leftColW = Math.floor(leftMaxWidth * 0.4); // 40% del espacio disponible para el logo (más grande)
     
-    // Calcular ancho de la columna media (SKU) - el resto del espacio
-    const middleColW = availableWidth - leftColW - gap; // Ancho restante para SKU
-    console.log('🏷️ [LAYOUT] Column widths:', { leftColW, middleColW, availableWidth, qrW });
+    // Calcular ancho de la columna media (SKU) - el resto del espacio en la mitad izquierda
+    const middleColW = leftMaxWidth - leftColW - gap; // Ancho restante para SKU en la mitad izquierda
+    console.log('🏷️ [LAYOUT] Column widths (mitad izquierda):', { leftColW, middleColW, leftMaxWidth, qrW });
+    console.log('🏷️ [LAYOUT] Verificación - leftColW + gap + middleColW:', leftColW + gap + middleColW, 'debe ser <= mitad:', mitadAncho);
     
     // Posiciones de las columnas
     const leftColX = margin;
@@ -2555,17 +2566,38 @@ function openMarketplaceHelper(item){
     console.log('🏷️ [LAYOUT] Verificación - nameX + nameW:', nameX + nameW, 'debe ser =', qrX, '(inicio del QR)');
     console.log('🏷️ [LAYOUT] Ancho total disponible:', canvasWidth, 'nameW:', nameW, 'porcentaje:', ((nameW / canvasWidth) * 100).toFixed(1) + '%');
     
-    // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
+    // QR: parte derecha, CENTRADO verticalmente en toda la altura disponible (excluyendo el nombre)
     const qrX_pos = qrX;
+    // Centrar verticalmente en el espacio disponible (desde arriba hasta antes del nombre)
+    // El QR debe estar en el centro exacto de la mitad derecha vertical
     const qrY = margin + (availableHeight - qrH) / 2; // Centrado verticalmente en espacio disponible
     console.log('🏷️ [LAYOUT] QR final position:', { qrX_pos, qrY, qrW, qrH });
+    console.log('🏷️ [LAYOUT] QR centrado - availableHeight:', availableHeight, 'qrH:', qrH, 'centro Y:', qrY);
+    console.log('🏷️ [LAYOUT] QR verificación centrado - qrY + qrH/2 debe estar en:', margin + availableHeight / 2);
     
-    // Verificación final de superposiciones
+    // Verificación final de superposiciones y protección del contenido izquierdo
     console.log('🏷️ [LAYOUT] Verificación de superposiciones:');
     console.log('  - Logo:', { x: logoX, y: logoY, w: logoW, h: logoH, right: logoX + logoW, bottom: logoY + logoH });
     console.log('  - SKU:', { x: skuX, y: skuY, w: skuW, h: skuH, right: skuX + skuW, bottom: skuY + skuH });
     console.log('  - Name:', { x: nameX, y: nameY, w: nameW, h: nameH, right: nameX + nameW, bottom: nameY + nameH });
     console.log('  - QR:', { x: qrX_pos, y: qrY, w: qrW, h: qrH, right: qrX_pos + qrW, bottom: qrY + qrH });
+    
+    // Verificaciones críticas para proteger el contenido izquierdo
+    const logoRight = logoX + logoW;
+    const skuRight = skuX + skuW;
+    const maxLeftContent = Math.max(logoRight, skuRight);
+    console.log('🏷️ [LAYOUT] Verificación protección contenido izquierdo:');
+    console.log('  - Logo termina en:', logoRight, 'debe ser <= mitad:', mitadAncho);
+    console.log('  - SKU termina en:', skuRight, 'debe ser <= mitad:', mitadAncho);
+    console.log('  - Contenido izquierdo máximo:', maxLeftContent, 'debe ser <= mitad:', mitadAncho);
+    console.log('  - QR empieza en:', qrX_pos, 'debe ser >= mitad:', mitadAncho);
+    
+    if (maxLeftContent > mitadAncho) {
+      console.warn('⚠️ [LAYOUT] ADVERTENCIA: El contenido izquierdo se extiende más allá de la mitad!');
+    }
+    if (qrX_pos < mitadAncho) {
+      console.warn('⚠️ [LAYOUT] ADVERTENCIA: El QR está invadiendo la mitad izquierda!');
+    }
     
     return {
     widthCm: 5,
