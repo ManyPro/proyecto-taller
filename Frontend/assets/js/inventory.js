@@ -2992,7 +2992,14 @@ function openMarketplaceHelper(item){
       const lineHeightRatio = lineHeight / fontSize;
 
       // CRÍTICO: Límites para el ajuste - permitir fuentes muy pequeñas
-      const minFont = 2; // px - reducido para permitir textos muy pequeños
+      // Determinar tamaño mínimo de fuente según el tipo de elemento
+      const elementId = wrapper.getAttribute('data-id') || '';
+      let minFont = 2; // px - mínimo general
+      if (elementId === 'sku') {
+        minFont = 8; // SKU debe tener mínimo 8px para ser visible
+      } else if (elementId === 'name') {
+        minFont = 4; // Nombre debe tener mínimo 4px para ser visible
+      }
       const minLineHeight = 3; // px - reducido proporcionalmente
       const maxIterations = 200; // Aumentado para mejor ajuste
       let iter = 0;
@@ -3308,29 +3315,37 @@ function openMarketplaceHelper(item){
           box-sizing: border-box !important;
       }
         .st-el[data-id*="sku"] > div, .st-el[data-id*="name"] > div, .st-el[data-id*="custom"] > div {
-          overflow: hidden !important;
+          overflow: visible !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           box-sizing: border-box !important;
-          display: block !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
           max-width: 100% !important;
-          max-height: 100% !important;
           width: 100% !important;
+          height: 100% !important;
           min-height: 100% !important;
-        height: auto !important;
+          color: #000000 !important;
+          visibility: visible !important;
+          opacity: 1 !important;
       }
         .st-el[data-id*="sku"] {
           display: flex !important;
           flex-direction: column !important;
-          justify-content: flex-start !important;
-          align-items: flex-start !important;
+          justify-content: center !important;
+          align-items: center !important;
+          overflow: visible !important;
+          z-index: 5 !important;
         }
         .st-el[data-id*="name"] {
           display: flex !important;
           flex-direction: column !important;
-          justify-content: flex-start !important;
-          align-items: flex-start !important;
+          justify-content: center !important;
+          align-items: center !important;
+          overflow: visible !important;
+          z-index: 5 !important;
         }
         .st-el[data-id*="qr"] {
           z-index: 10 !important;
@@ -3415,23 +3430,27 @@ function openMarketplaceHelper(item){
       console.warn('🏷️ [HTML] Logo no encontrado o URL vacía');
     }
     
-    // SKU
+    // SKU - asegurar que sea visible
     if (skuEl) {
       const alignStyle = skuEl.align === 'center' ? 'center' : (skuEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = skuEl.vAlign === 'center' ? 'center' : (skuEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
-      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuEl.fontSize, text: sku });
-      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;max-width:${skuEl.w}px;max-height:${skuEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};"><div class="st-text-inner" style="font-size:${skuEl.fontSize}px;font-weight:${skuEl.fontWeight};line-height:${skuEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${skuEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;text-align:${alignStyle === 'center' ? 'center' : 'left'};"">${sku || ''}</div></div>`);
+      // Asegurar tamaño mínimo de fuente visible (mínimo 8px)
+      const skuFontSize = Math.max(8, skuEl.fontSize || 8);
+      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuFontSize, text: sku });
+      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;max-width:${skuEl.w}px;max-height:${skuEl.h}px;box-sizing:border-box;overflow:visible;padding:4px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};z-index:5;"><div class="st-text-inner" style="font-size:${skuFontSize}px !important;font-weight:${skuEl.fontWeight || '700'} !important;line-height:${skuEl.lineHeight || 1.2} !important;color:#000000 !important;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:100%;min-height:100%;box-sizing:border-box;margin:0;padding:0;display:flex;align-items:center;justify-content:center;text-align:${alignStyle === 'center' ? 'center' : 'left'};overflow:visible;">${sku || ''}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] SKU element no encontrado');
     }
     
-    // Nombre (con cuadro de fondo) - debe ocupar todo el espacio disponible
+    // Nombre (con cuadro de fondo) - asegurar que sea visible
     if (nameEl) {
       const alignStyle = nameEl.align === 'center' ? 'center' : (nameEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = nameEl.vAlign === 'center' ? 'center' : (nameEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
-      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameEl.fontSize, text: name });
+      // Asegurar tamaño mínimo de fuente visible (mínimo 4px)
+      const nameFontSize = Math.max(4, nameEl.fontSize || 4);
+      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameFontSize, text: name });
       console.log('🏷️ [HTML] Nombre ocupa desde', nameEl.x, 'hasta', nameEl.x + nameEl.w, 'de', widthPx, 'px totales');
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;max-width:${nameEl.w}px;max-height:${nameEl.h}px;box-sizing:border-box;overflow:hidden;padding:2px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};background-color:#f0f0f0;border:1px solid #d0d0d0;"><div class="st-text-inner" style="font-size:${nameEl.fontSize}px;font-weight:${nameEl.fontWeight};line-height:${nameEl.lineHeight};color:#000000;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:auto;min-height:0;max-height:${nameEl.h - 4}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;display:block;text-align:${alignStyle === 'center' ? 'center' : 'left'};"">${name || ''}</div></div>`);
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;max-width:${nameEl.w}px;max-height:${nameEl.h}px;box-sizing:border-box;overflow:visible;padding:3px;margin:0;display:flex;flex-direction:column;align-items:${alignStyle};justify-content:${justifyStyle};background-color:#f0f0f0 !important;border:1px solid #d0d0d0 !important;z-index:5;"><div class="st-text-inner" style="font-size:${nameFontSize}px !important;font-weight:${nameEl.fontWeight || '600'} !important;line-height:${nameEl.lineHeight || 1.2} !important;color:#000000 !important;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;width:100%;max-width:100%;height:100%;min-height:100%;box-sizing:border-box;margin:0;padding:2px;display:flex;align-items:center;justify-content:center;text-align:${alignStyle === 'center' ? 'center' : 'left'};overflow:visible;">${name || ''}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] Name element no encontrado');
     }
