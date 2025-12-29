@@ -2497,34 +2497,34 @@ function openMarketplaceHelper(item){
   // Layout fijo de Casa Renault - formato no editable
   // Logo izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
   function getCasaRenaultStickerLayout() {
-    const margin = 2; // Márgenes mínimos para ocupar máximo espacio
+    const margin = 1; // Márgenes mínimos para ocupar máximo espacio
     
     console.log('🏷️ [LAYOUT] Iniciando cálculo de layout Casa Renault');
     console.log('🏷️ [LAYOUT] Canvas dimensions:', { canvasWidth, canvasHeight });
     
-    // Altura del cuadro del nombre (abajo del todo)
-    const nameH = 25; // Altura fija para el cuadro del nombre
+    // Altura del cuadro del nombre (abajo del todo) - más grande para mejor legibilidad
+    const nameH = 28; // Altura aumentada para el cuadro del nombre
     
     // Área disponible verticalmente (excluyendo el nombre y márgenes)
-    const availableHeight = canvasHeight - nameH - (margin * 2) - 2; // -2 para pequeño espacio visual
+    const availableHeight = canvasHeight - nameH - margin; // Altura disponible sin el nombre
     console.log('🏷️ [LAYOUT] Altura disponible (sin nombre):', availableHeight);
     
-    // Ancho del QR (derecha) - ajustado para ocupar mejor el espacio
-    const qrW = Math.min(85, Math.floor(availableHeight * 0.9)); // 90% de la altura disponible o 85px máximo
+    // Ancho del QR (derecha) - más grande y visible
+    const qrW = Math.floor(availableHeight * 0.95); // 95% de la altura disponible para máximo tamaño
     const qrH = qrW; // Cuadrado
     console.log('🏷️ [LAYOUT] QR dimensions:', { qrW, qrH });
     
     // Calcular posiciones horizontales - asegurar que no haya superposiciones
-    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen
-    const gap = 4; // Espacio entre columnas
+    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen mínimo
+    const gap = 3; // Espacio mínimo entre columnas
     console.log('🏷️ [LAYOUT] QR position X:', qrX);
     
-    // Calcular ancho de la columna izquierda (logo)
+    // Calcular ancho de la columna izquierda (logo) - más grande para mejor visibilidad
     const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
-    const leftColW = Math.min(55, Math.floor(availableWidth * 0.35)); // 35% del espacio disponible o 55px máximo
+    const leftColW = Math.floor(availableWidth * 0.4); // 40% del espacio disponible para el logo (más grande)
     
     // Calcular ancho de la columna media (SKU) - el resto del espacio
-    const middleColW = Math.max(20, availableWidth - leftColW - gap); // Ancho restante, mínimo 20px
+    const middleColW = availableWidth - leftColW - gap; // Ancho restante para SKU
     console.log('🏷️ [LAYOUT] Column widths:', { leftColW, middleColW, availableWidth, qrW });
     
     // Posiciones de las columnas
@@ -2540,17 +2540,17 @@ function openMarketplaceHelper(item){
     console.log('🏷️ [LAYOUT] Logo dimensions:', { logoX, logoY, logoW, logoH });
     
     // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
-    const skuH = 25; // Altura del SKU
+    const skuH = 30; // Altura aumentada del SKU
     const skuX = middleColX;
     const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
     const skuW = middleColW;
     console.log('🏷️ [LAYOUT] SKU dimensions:', { skuX, skuY, skuW, skuH });
     
     // Nombre: abajo del todo, ocupando TODO el ancho disponible (desde la izquierda hasta justo antes del QR)
-    const nameX = leftColX; // Comienza desde el margen izquierdo
-    const nameY = canvasHeight - nameH - margin; // Abajo con margen
-    // El nombre debe ocupar desde nameX hasta justo antes del QR (sin gap, para ocupar máximo espacio)
-    const nameW = qrX - nameX; // Ancho desde la izquierda hasta el inicio del QR (sin gap para ocupar todo)
+    const nameX = 0; // Comienza desde el borde izquierdo (sin margen para ocupar máximo espacio)
+    const nameY = canvasHeight - nameH; // Abajo sin margen
+    // El nombre debe ocupar desde nameX hasta justo antes del QR
+    const nameW = qrX; // Ancho desde la izquierda hasta el inicio del QR
     console.log('🏷️ [LAYOUT] Name dimensions:', { nameX, nameY, nameW, nameH });
     console.log('🏷️ [LAYOUT] Verificación - nameX + nameW:', nameX + nameW, 'debe ser =', qrX, '(inicio del QR)');
     console.log('🏷️ [LAYOUT] Ancho total disponible:', canvasWidth, 'nameW:', nameW, 'porcentaje:', ((nameW / canvasWidth) * 100).toFixed(1) + '%');
@@ -2634,28 +2634,28 @@ function openMarketplaceHelper(item){
   // Logo izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
   // Mismo formato que Casa Renault
   function getServitecaShelbyStickerLayout() {
-    const margin = 2; // Márgenes mínimos para ocupar máximo espacio
+    const margin = 1; // Márgenes mínimos para ocupar máximo espacio
     
-    // Altura del cuadro del nombre (abajo del todo)
-    const nameH = 25; // Altura fija para el cuadro del nombre
+    // Altura del cuadro del nombre (abajo del todo) - más grande para mejor legibilidad
+    const nameH = 28; // Altura aumentada para el cuadro del nombre
     
     // Área disponible verticalmente (excluyendo el nombre y márgenes)
-    const availableHeight = canvasHeight - nameH - (margin * 2) - 2; // -2 para pequeño espacio visual
+    const availableHeight = canvasHeight - nameH - margin; // Altura disponible sin el nombre
     
-    // Ancho del QR (derecha) - ajustado para ocupar mejor el espacio
-    const qrW = Math.min(85, Math.floor(availableHeight * 0.9)); // 90% de la altura disponible o 85px máximo
+    // Ancho del QR (derecha) - más grande y visible
+    const qrW = Math.floor(availableHeight * 0.95); // 95% de la altura disponible para máximo tamaño
     const qrH = qrW; // Cuadrado
     
     // Calcular posiciones horizontales - asegurar que no haya superposiciones
-    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen
-    const gap = 4; // Espacio entre columnas
+    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen mínimo
+    const gap = 3; // Espacio mínimo entre columnas
     
-    // Calcular ancho de la columna izquierda (logo)
+    // Calcular ancho de la columna izquierda (logo) - más grande para mejor visibilidad
     const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
-    const leftColW = Math.min(55, Math.floor(availableWidth * 0.35)); // 35% del espacio disponible o 55px máximo
+    const leftColW = Math.floor(availableWidth * 0.4); // 40% del espacio disponible para el logo (más grande)
     
     // Calcular ancho de la columna media (SKU) - el resto del espacio
-    const middleColW = Math.max(20, availableWidth - leftColW - gap); // Ancho restante, mínimo 20px
+    const middleColW = availableWidth - leftColW - gap; // Ancho restante para SKU
     
     // Posiciones de las columnas
     const leftColX = margin;
@@ -2668,16 +2668,16 @@ function openMarketplaceHelper(item){
     const logoH = availableHeight; // Altura hasta antes del nombre
     
     // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
-    const skuH = 25; // Altura del SKU
+    const skuH = 30; // Altura aumentada del SKU
     const skuX = middleColX;
     const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
     const skuW = middleColW;
     
     // Nombre: abajo del todo, ocupando TODO el ancho disponible (desde la izquierda hasta justo antes del QR)
-    const nameX = leftColX; // Comienza desde el margen izquierdo
-    const nameY = canvasHeight - nameH - margin; // Abajo con margen
-    // El nombre debe ocupar desde nameX hasta justo antes del QR (sin gap, para ocupar máximo espacio)
-    const nameW = qrX - nameX; // Ancho desde la izquierda hasta el inicio del QR (sin gap para ocupar todo)
+    const nameX = 0; // Comienza desde el borde izquierdo (sin margen para ocupar máximo espacio)
+    const nameY = canvasHeight - nameH; // Abajo sin margen
+    // El nombre debe ocupar desde nameX hasta justo antes del QR
+    const nameW = qrX; // Ancho desde la izquierda hasta el inicio del QR
     
     // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
     const qrX_pos = qrX;
