@@ -3344,8 +3344,8 @@ function openMarketplaceHelper(item){
     try {
       // Usar el endpoint existente del backend para obtener el QR
       const qrPath = buildQrPath(itemId, 600);
-      const response = await fetch(`${API.base}${qrPath}`, {
-        headers: API.http?.headers ? API.http.headers() : {}
+      const response = await fetch(`${apiBase}${qrPath}`, {
+        headers: { ...authHeader() }
       });
       if (response.ok) {
         const blob = await response.blob();
@@ -3354,10 +3354,12 @@ function openMarketplaceHelper(item){
           reader.onloadend = () => resolve(reader.result);
           reader.readAsDataURL(blob);
         });
+      } else {
+        console.error('🏷️ [QR] Error al obtener QR:', response.status, response.statusText);
+        return '';
       }
-      return '';
     } catch (e) {
-      console.warn('Error generando QR:', e);
+      console.error('🏷️ [QR] Error generando QR:', e);
       return '';
     }
   }
