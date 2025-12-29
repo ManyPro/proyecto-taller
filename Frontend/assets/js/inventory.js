@@ -3006,7 +3006,7 @@ function openMarketplaceHelper(item){
       if (elementId === 'sku') {
         minFont = 8; // SKU debe tener mínimo 8px para ser visible
       } else if (elementId === 'name') {
-        minFont = 4; // Nombre debe tener mínimo 4px para ser visible
+        minFont = 5; // Nombre debe tener mínimo 5px para ser visible (aumentado de 4px)
       }
       const minLineHeight = 3; // px - reducido proporcionalmente
       const maxIterations = 200; // Aumentado para mejor ajuste
@@ -3339,8 +3339,14 @@ function openMarketplaceHelper(item){
           text-align: center !important;
           line-height: inherit !important;
         }
-        .st-el[data-id*="name"] > div {
-          overflow: hidden !important;
+        .st-el[data-id*="name"] {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        .st-el[data-id*="name"] > div,
+        .st-el[data-id*="name"] .name-text-inner {
+          overflow: visible !important;
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
@@ -3348,14 +3354,15 @@ function openMarketplaceHelper(item){
           display: block !important;
           max-width: 100% !important;
           width: 100% !important;
-          height: 100% !important;
-          min-height: 100% !important;
+          height: auto !important;
+          min-height: auto !important;
           color: #000000 !important;
           visibility: visible !important;
           opacity: 1 !important;
           white-space: normal !important;
           text-align: center !important;
-          line-height: 1.3 !important;
+          line-height: 1.4 !important;
+          font-size: inherit !important;
         }
         .st-el[data-id*="custom"] > div {
           overflow: visible !important;
@@ -3509,16 +3516,19 @@ function openMarketplaceHelper(item){
     if (nameEl) {
       const alignStyle = nameEl.align === 'center' ? 'center' : (nameEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = nameEl.vAlign === 'center' ? 'center' : (nameEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
-      // Asegurar tamaño mínimo de fuente visible (mínimo 4px)
-      const nameFontSize = Math.max(4, nameEl.fontSize || 4);
+      // Asegurar tamaño mínimo de fuente visible (mínimo 6px para que sea claramente visible)
+      const nameFontSize = Math.max(6, nameEl.fontSize || 6);
       const nameText = name || 'NO NAME'; // Mostrar placeholder si está vacío
-      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameFontSize, text: nameText, original: name });
+      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameFontSize, text: nameText, original: name, textLength: nameText.length });
       console.log('🏷️ [HTML] Nombre ocupa desde', nameEl.x, 'hasta', nameEl.x + nameEl.w, 'de', widthPx, 'px totales');
       // Escapar HTML
       const nameEscaped = nameText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       // Fondo gris más tenue (#f8f8f8 en lugar de #f0f0f0)
       // Simplificar HTML y asegurar visibilidad - usar display:block para múltiples líneas
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:4px;margin:0;z-index:15;background-color:#f8f8f8;border:1px solid #e0e0e0;overflow:hidden;"><div style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;height:100% !important;display:block !important;text-align:center !important;line-height:1.3 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;">${nameEscaped}</div></div>`);
+      // CRÍTICO: Asegurar que el texto sea visible con padding interno y altura mínima
+      const innerPadding = 4;
+      const innerHeight = nameEl.h - (innerPadding * 2);
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:0;margin:0;z-index:15;background-color:#f8f8f8;border:1px solid #e0e0e0;overflow:hidden;display:flex;align-items:center;justify-content:center;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:calc(100% - ${innerPadding * 2}px) !important;max-width:calc(100% - ${innerPadding * 2}px) !important;height:auto !important;min-height:${innerHeight}px !important;padding:${innerPadding}px !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.4 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:visible !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;">${nameEscaped}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] Name element no encontrado en layout');
     }
