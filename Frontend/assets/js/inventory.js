@@ -2952,17 +2952,33 @@ function openMarketplaceHelper(item){
         target.style.setProperty('overflow-wrap', 'break-word', 'important');
       }
       
-      // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
-      // PERO permitir que el contenido haga wrap correctamente
-      target.style.setProperty('width', `${targetWidth}px`, 'important');
-      target.style.setProperty('max-width', `${targetWidth}px`, 'important');
-      target.style.setProperty('min-width', '0', 'important'); // Permitir que se reduzca si es necesario
-      // CRÍTICO: NO usar height fijo, usar max-height para permitir que el contenido crezca hasta el límite
-      target.style.setProperty('max-height', `${targetHeight}px`, 'important');
-      target.style.setProperty('min-height', '0', 'important');
-      target.style.setProperty('height', 'auto', 'important'); // Permitir que la altura se ajuste al contenido
-      // CRÍTICO: Usar overflow: hidden para cortar contenido que se salga
-      target.style.setProperty('overflow', 'hidden', 'important');
+      // CRÍTICO: Para elementos de nombre, usar configuración especial para asegurar visibilidad
+      if (elementId === 'name') {
+        // Para nombre, asegurar que el texto sea visible y ocupe todo el espacio
+        target.style.setProperty('width', `${targetWidth}px`, 'important');
+        target.style.setProperty('max-width', `${targetWidth}px`, 'important');
+        target.style.setProperty('min-width', '0', 'important');
+        target.style.setProperty('height', `${targetHeight}px`, 'important'); // Altura fija para nombre
+        target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+        target.style.setProperty('min-height', `${targetHeight}px`, 'important');
+        target.style.setProperty('overflow', 'visible', 'important'); // Visible para nombre
+        target.style.setProperty('color', '#000000', 'important'); // Asegurar color negro
+        target.style.setProperty('font-size', '4px', 'important'); // Forzar 4px
+        target.style.setProperty('visibility', 'visible', 'important');
+        target.style.setProperty('opacity', '1', 'important');
+      } else {
+        // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
+        // PERO permitir que el contenido haga wrap correctamente
+        target.style.setProperty('width', `${targetWidth}px`, 'important');
+        target.style.setProperty('max-width', `${targetWidth}px`, 'important');
+        target.style.setProperty('min-width', '0', 'important'); // Permitir que se reduzca si es necesario
+        // CRÍTICO: NO usar height fijo, usar max-height para permitir que el contenido crezca hasta el límite
+        target.style.setProperty('max-height', `${targetHeight}px`, 'important');
+        target.style.setProperty('min-height', '0', 'important');
+        target.style.setProperty('height', 'auto', 'important'); // Permitir que la altura se ajuste al contenido
+        // CRÍTICO: Usar overflow: hidden para cortar contenido que se salga
+        target.style.setProperty('overflow', 'hidden', 'important');
+      }
       // CRÍTICO: Mejorar wrap de texto - forzar todas las propiedades necesarias
       target.style.setProperty('word-wrap', 'break-word', 'important');
       target.style.setProperty('word-break', 'break-word', 'important');
@@ -2972,9 +2988,19 @@ function openMarketplaceHelper(item){
       target.style.setProperty('-moz-hyphens', 'auto', 'important');
       target.style.setProperty('box-sizing', 'border-box', 'important');
       target.style.setProperty('white-space', 'normal', 'important'); // CRÍTICO: normal permite wrap
-      target.style.setProperty('display', 'block', 'important');
+      // Para nombre, usar flex para centrar mejor el texto
+      if (elementId === 'name') {
+        target.style.setProperty('display', 'flex', 'important');
+        target.style.setProperty('align-items', 'center', 'important');
+        target.style.setProperty('justify-content', 'center', 'important');
+      } else {
+        target.style.setProperty('display', 'block', 'important');
+      }
       target.style.setProperty('margin', '0', 'important');
-      target.style.setProperty('padding', '0', 'important');
+      // Para nombre, mantener el padding que viene del HTML
+      if (elementId !== 'name') {
+        target.style.setProperty('padding', '0', 'important');
+      }
       
       // CRÍTICO: El overflow del wrapper ya se configuró arriba según el tipo de elemento (SKU/name: visible, otros: hidden)
       // No sobrescribir aquí para mantener la configuración correcta
@@ -2988,7 +3014,17 @@ function openMarketplaceHelper(item){
       const targetStyle = window.getComputedStyle(target);
       let fontSize = parseFloat(targetStyle.fontSize || '0');
       if (!fontSize || fontSize <= 0) {
-        fontSize = 12; // Default
+        // Para nombre, usar 4px por defecto
+        if (elementId === 'name') {
+          fontSize = 4;
+        } else {
+          fontSize = 12; // Default para otros elementos
+        }
+      }
+      // CRÍTICO: Para nombre, asegurar que el fontSize sea exactamente 4px
+      if (elementId === 'name') {
+        fontSize = 4;
+        target.style.setProperty('font-size', '4px', 'important');
       }
       
       // Obtener line-height inicial
@@ -3037,7 +3073,16 @@ function openMarketplaceHelper(item){
       };
 
       // Aplicar fontSize y lineHeight iniciales
-      target.style.setProperty('font-size', `${fontSize}px`, 'important');
+      // CRÍTICO: Para nombre, asegurar que siempre sea 4px y visible
+      if (elementId === 'name') {
+        fontSize = 4;
+        target.style.setProperty('font-size', '4px', 'important');
+        target.style.setProperty('color', '#000000', 'important');
+        target.style.setProperty('visibility', 'visible', 'important');
+        target.style.setProperty('opacity', '1', 'important');
+      } else {
+        target.style.setProperty('font-size', `${fontSize}px`, 'important');
+      }
       target.style.setProperty('line-height', `${lineHeight}px`, 'important');
       
       // Forzar reflow inicial
@@ -3090,7 +3135,18 @@ function openMarketplaceHelper(item){
 
       // CRÍTICO: Si hay overflow, reducir fontSize hasta que quepa
       // Este bucle es CRÍTICO para evitar que el texto se salga del contenedor
+      // PERO para nombre, no reducir por debajo de 4px y asegurar visibilidad
       while (!fits() && fontSize > minFont && iter < maxIterations) {
+        // CRÍTICO: Para nombre, no reducir más si ya está en 4px
+        if (elementId === 'name' && fontSize <= 4) {
+          // Asegurar que el texto sea visible incluso si hay overflow
+          target.style.setProperty('color', '#000000', 'important');
+          target.style.setProperty('visibility', 'visible', 'important');
+          target.style.setProperty('opacity', '1', 'important');
+          target.style.setProperty('overflow', 'visible', 'important');
+          break; // Salir del bucle para nombre en 4px
+        }
+        
         const currentScrollWidth = target.scrollWidth;
         const currentScrollHeight = target.scrollHeight;
         
@@ -3114,7 +3170,16 @@ function openMarketplaceHelper(item){
         // Ajustar line-height proporcionalmente manteniendo el ratio
         lineHeight = Math.max(minLineHeight, fontSize * lineHeightRatio);
         
-        target.style.setProperty('font-size', `${fontSize}px`, 'important');
+        // CRÍTICO: Para nombre, asegurar que siempre sea 4px y visible
+        if (elementId === 'name') {
+          fontSize = 4;
+          target.style.setProperty('font-size', '4px', 'important');
+          target.style.setProperty('color', '#000000', 'important');
+          target.style.setProperty('visibility', 'visible', 'important');
+          target.style.setProperty('opacity', '1', 'important');
+        } else {
+          target.style.setProperty('font-size', `${fontSize}px`, 'important');
+        }
         target.style.setProperty('line-height', `${lineHeight}px`, 'important');
         iter += 1;
         
@@ -3129,6 +3194,15 @@ function openMarketplaceHelper(item){
       }
       
       // CRÍTICO: Después de reducir, verificar que NO haya overflow
+      // CRÍTICO: Para nombre, asegurar que siempre sea visible al final
+      if (elementId === 'name') {
+        target.style.setProperty('font-size', '4px', 'important');
+        target.style.setProperty('color', '#000000', 'important');
+        target.style.setProperty('visibility', 'visible', 'important');
+        target.style.setProperty('opacity', '1', 'important');
+        target.style.setProperty('overflow', 'visible', 'important');
+      }
+      
       void target.offsetHeight;
       void wrapper.offsetHeight;
       const finalScrollWidth = target.scrollWidth;
