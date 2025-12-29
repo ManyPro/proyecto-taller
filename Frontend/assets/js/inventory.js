@@ -2915,8 +2915,11 @@ function openMarketplaceHelper(item){
       wrapper.style.setProperty('max-height', `${wrapperHeight}px`, 'important');
       wrapper.style.setProperty('min-width', `${wrapperWidth}px`, 'important');
       wrapper.style.setProperty('min-height', `${wrapperHeight}px`, 'important');
-      // Para SKU y nombre, usar overflow visible para que el texto se vea
+      
+      // Obtener ID del elemento una sola vez para usar en toda la función
       const elementId = wrapper.getAttribute('data-id') || '';
+      
+      // Para SKU y nombre, usar overflow visible para que el texto se vea
       if (elementId === 'sku' || elementId === 'name') {
         wrapper.style.setProperty('overflow', 'visible', 'important');
         wrapper.style.setProperty('z-index', elementId === 'sku' ? '20' : '15', 'important');
@@ -2973,9 +2976,8 @@ function openMarketplaceHelper(item){
       target.style.setProperty('margin', '0', 'important');
       target.style.setProperty('padding', '0', 'important');
       
-      // CRÍTICO: Asegurar que el wrapper también tenga overflow hidden para evitar superposiciones
-      wrapper.style.setProperty('overflow', 'hidden', 'important');
-      wrapper.style.setProperty('clip', 'auto', 'important');
+      // CRÍTICO: El overflow del wrapper ya se configuró arriba según el tipo de elemento (SKU/name: visible, otros: hidden)
+      // No sobrescribir aquí para mantener la configuración correcta
       
       // Forzar reflow para que el navegador calcule las dimensiones correctamente
       void target.offsetHeight;
@@ -2999,8 +3001,7 @@ function openMarketplaceHelper(item){
       const lineHeightRatio = lineHeight / fontSize;
 
       // CRÍTICO: Límites para el ajuste - permitir fuentes muy pequeñas
-      // Determinar tamaño mínimo de fuente según el tipo de elemento
-      const elementId = wrapper.getAttribute('data-id') || '';
+      // Determinar tamaño mínimo de fuente según el tipo de elemento (elementId ya está declarado arriba)
       let minFont = 2; // px - mínimo general
       if (elementId === 'sku') {
         minFont = 8; // SKU debe tener mínimo 8px para ser visible
