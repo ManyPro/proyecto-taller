@@ -3328,9 +3328,7 @@ function openMarketplaceHelper(item){
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           box-sizing: border-box !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
+          display: block !important;
           max-width: 100% !important;
           width: 100% !important;
           height: 100% !important;
@@ -3338,6 +3336,8 @@ function openMarketplaceHelper(item){
           color: #000000 !important;
           visibility: visible !important;
           opacity: 1 !important;
+          text-align: center !important;
+          line-height: inherit !important;
         }
         .st-el[data-id*="name"] > div {
           overflow: hidden !important;
@@ -3348,13 +3348,14 @@ function openMarketplaceHelper(item){
           display: block !important;
           max-width: 100% !important;
           width: 100% !important;
-          height: auto !important;
+          height: 100% !important;
           min-height: 100% !important;
           color: #000000 !important;
           visibility: visible !important;
           opacity: 1 !important;
           white-space: normal !important;
-          text-overflow: ellipsis !important;
+          text-align: center !important;
+          line-height: 1.3 !important;
         }
         .st-el[data-id*="custom"] > div {
           overflow: visible !important;
@@ -3447,10 +3448,18 @@ function openMarketplaceHelper(item){
   function createStickerHTML(item, layout, widthPx, heightPx) {
     console.log('🏷️ [HTML] Creando HTML del sticker');
     console.log('🏷️ [HTML] Dimensiones del sticker:', { widthPx, heightPx });
+    console.log('🏷️ [HTML] Item completo:', item);
     
-    const sku = (item.sku || '').toUpperCase().trim();
-    const name = (item.name || '').toUpperCase().trim();
-    console.log('🏷️ [HTML] Datos del item:', { sku, name });
+    // Obtener datos del item - verificar múltiples posibles nombres de propiedades
+    const sku = String(item.sku || item.SKU || item.code || '').toUpperCase().trim();
+    const name = String(item.name || item.nombre || item.description || '').toUpperCase().trim();
+    console.log('🏷️ [HTML] Datos extraídos del item:', { 
+      sku, 
+      name, 
+      'item.sku': item.sku,
+      'item.name': item.name,
+      'item completo keys': Object.keys(item)
+    });
     
     // Obtener posiciones del layout
     const logoEl = layout.elements.find(e => e.id === 'logo');
@@ -3479,33 +3488,39 @@ function openMarketplaceHelper(item){
     }
     
     // SKU - asegurar que sea visible y esté al frente
-    if (skuEl && sku) {
+    // Mostrar siempre el elemento SKU, incluso si está vacío (para debugging)
+    if (skuEl) {
       const alignStyle = skuEl.align === 'center' ? 'center' : (skuEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = skuEl.vAlign === 'center' ? 'center' : (skuEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
       // Asegurar tamaño mínimo de fuente visible (mínimo 8px)
       const skuFontSize = Math.max(8, skuEl.fontSize || 8);
-      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuFontSize, text: sku });
-      // Simplificar HTML y asegurar visibilidad
-      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;box-sizing:border-box;padding:2px;margin:0;z-index:20;background:transparent;"><div style="font-size:${skuFontSize}px;font-weight:bold;color:#000000;width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.2;">${sku}</div></div>`);
+      const skuText = sku || 'NO SKU'; // Mostrar placeholder si está vacío
+      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuFontSize, text: skuText, original: sku });
+      // Escapar HTML y asegurar visibilidad
+      const skuEscaped = skuText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      // Simplificar HTML y asegurar visibilidad - usar display:block para texto
+      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;box-sizing:border-box;padding:2px;margin:0;z-index:20;background:transparent;overflow:visible;"><div style="font-size:${skuFontSize}px !important;font-weight:bold !important;color:#000000 !important;width:100% !important;height:100% !important;display:block !important;text-align:center !important;line-height:${skuEl.h}px !important;vertical-align:middle !important;visibility:visible !important;opacity:1 !important;">${skuEscaped}</div></div>`);
     } else {
-      if (!skuEl) console.warn('🏷️ [HTML] SKU element no encontrado');
-      if (!sku) console.warn('🏷️ [HTML] SKU text vacío');
+      console.warn('🏷️ [HTML] SKU element no encontrado en layout');
     }
     
     // Nombre (con cuadro de fondo más tenue) - asegurar que ocupe todo el espacio sin sobreponerse
-    if (nameEl && name) {
+    // Mostrar siempre el elemento nombre, incluso si está vacío (para debugging)
+    if (nameEl) {
       const alignStyle = nameEl.align === 'center' ? 'center' : (nameEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = nameEl.vAlign === 'center' ? 'center' : (nameEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
       // Asegurar tamaño mínimo de fuente visible (mínimo 4px)
       const nameFontSize = Math.max(4, nameEl.fontSize || 4);
-      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameFontSize, text: name });
+      const nameText = name || 'NO NAME'; // Mostrar placeholder si está vacío
+      console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameFontSize, text: nameText, original: name });
       console.log('🏷️ [HTML] Nombre ocupa desde', nameEl.x, 'hasta', nameEl.x + nameEl.w, 'de', widthPx, 'px totales');
+      // Escapar HTML
+      const nameEscaped = nameText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       // Fondo gris más tenue (#f8f8f8 en lugar de #f0f0f0)
-      // Simplificar HTML y asegurar visibilidad
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:4px;margin:0;z-index:15;background-color:#f8f8f8;border:1px solid #e0e0e0;overflow:hidden;"><div style="font-size:${nameFontSize}px;font-weight:600;color:#000000;width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.3;white-space:normal;word-wrap:break-word;word-break:break-word;overflow-wrap:break-word;overflow:hidden;">${name}</div></div>`);
+      // Simplificar HTML y asegurar visibilidad - usar display:block para múltiples líneas
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:4px;margin:0;z-index:15;background-color:#f8f8f8;border:1px solid #e0e0e0;overflow:hidden;"><div style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;height:100% !important;display:block !important;text-align:center !important;line-height:1.3 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;">${nameEscaped}</div></div>`);
     } else {
-      if (!nameEl) console.warn('🏷️ [HTML] Name element no encontrado');
-      if (!name) console.warn('🏷️ [HTML] Name text vacío');
+      console.warn('🏷️ [HTML] Name element no encontrado en layout');
     }
     
     // QR (se agregará después cuando se genere)
