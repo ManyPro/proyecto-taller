@@ -2952,20 +2952,26 @@ function openMarketplaceHelper(item){
         target.style.setProperty('overflow-wrap', 'break-word', 'important');
       }
       
-      // CRÍTICO: Para elementos de nombre, usar configuración especial para asegurar visibilidad
+      // CRÍTICO: Para elementos de nombre, usar configuración especial para asegurar visibilidad y wrap
       if (elementId === 'name') {
-        // Para nombre, asegurar que el texto sea visible y ocupe todo el espacio
+        // Para nombre, asegurar que el texto sea visible, haga wrap y ocupe el espacio disponible
         target.style.setProperty('width', `${targetWidth}px`, 'important');
         target.style.setProperty('max-width', `${targetWidth}px`, 'important');
         target.style.setProperty('min-width', '0', 'important');
-        target.style.setProperty('height', `${targetHeight}px`, 'important'); // Altura fija para nombre
-        target.style.setProperty('max-height', `${targetHeight}px`, 'important');
-        target.style.setProperty('min-height', `${targetHeight}px`, 'important');
-        target.style.setProperty('overflow', 'visible', 'important'); // Visible para nombre
+        target.style.setProperty('height', 'auto', 'important'); // Altura auto para permitir múltiples líneas
+        target.style.setProperty('max-height', `${targetHeight}px`, 'important'); // Máximo altura disponible
+        target.style.setProperty('min-height', '0', 'important');
+        target.style.setProperty('overflow', 'hidden', 'important'); // Hidden para cortar si excede
         target.style.setProperty('color', '#000000', 'important'); // Asegurar color negro
         target.style.setProperty('font-size', '4px', 'important'); // Forzar 4px
         target.style.setProperty('visibility', 'visible', 'important');
         target.style.setProperty('opacity', '1', 'important');
+        // CRÍTICO: Asegurar que el texto haga wrap correctamente
+        target.style.setProperty('white-space', 'normal', 'important');
+        target.style.setProperty('word-wrap', 'break-word', 'important');
+        target.style.setProperty('word-break', 'break-word', 'important');
+        target.style.setProperty('overflow-wrap', 'break-word', 'important');
+        target.style.setProperty('hyphens', 'auto', 'important');
       } else {
         // CRÍTICO: Forzar dimensiones EXACTAS en el target para que ocupe TODO el espacio disponible
         // PERO permitir que el contenido haga wrap correctamente
@@ -2988,11 +2994,10 @@ function openMarketplaceHelper(item){
       target.style.setProperty('-moz-hyphens', 'auto', 'important');
       target.style.setProperty('box-sizing', 'border-box', 'important');
       target.style.setProperty('white-space', 'normal', 'important'); // CRÍTICO: normal permite wrap
-      // Para nombre, usar flex para centrar mejor el texto
+      // Para nombre, usar block para permitir saltos de línea naturales
       if (elementId === 'name') {
-        target.style.setProperty('display', 'flex', 'important');
-        target.style.setProperty('align-items', 'center', 'important');
-        target.style.setProperty('justify-content', 'center', 'important');
+        target.style.setProperty('display', 'block', 'important'); // Block para permitir múltiples líneas
+        target.style.setProperty('text-align', 'center', 'important'); // Centrar texto
       } else {
         target.style.setProperty('display', 'block', 'important');
       }
@@ -3425,21 +3430,23 @@ function openMarketplaceHelper(item){
           word-break: break-word !important;
           overflow-wrap: break-word !important;
           box-sizing: border-box !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
+          display: block !important;
           max-width: 100% !important;
           width: 100% !important;
-          height: 100% !important;
-          min-height: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: 100% !important;
           color: #000000 !important;
           visibility: visible !important;
           opacity: 1 !important;
           white-space: normal !important;
           text-align: center !important;
-          line-height: 1.2 !important;
+          line-height: 1.3 !important;
           font-size: 4px !important;
           font-weight: 600 !important;
+          hyphens: auto !important;
+          -webkit-hyphens: auto !important;
+          -moz-hyphens: auto !important;
         }
         .st-el[data-id*="custom"] > div {
           overflow: visible !important;
@@ -3601,9 +3608,10 @@ function openMarketplaceHelper(item){
       // Escapar HTML
       const nameEscaped = nameText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       // Fondo gris más tenue (#f8f8f8) - asegurar que se vea
-      // CRÍTICO: Simplificar HTML y asegurar que el texto sea visible con 4px
+      // CRÍTICO: Simplificar HTML y asegurar que el texto sea visible con 4px y haga wrap correctamente
       const innerPadding = 3;
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:0;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:calc(100% - ${innerPadding * 2}px) !important;max-width:calc(100% - ${innerPadding * 2}px) !important;height:100% !important;min-height:100% !important;padding:${innerPadding}px !important;margin:0 !important;display:flex !important;align-items:center !important;justify-content:center !important;text-align:center !important;line-height:1.2 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;">${nameEscaped}</div></div>`);
+      // CRÍTICO: Usar display:block para permitir saltos de línea naturales
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:0;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:calc(100% - ${innerPadding * 2}px) !important;max-width:calc(100% - ${innerPadding * 2}px) !important;height:auto !important;min-height:0 !important;max-height:100% !important;padding:${innerPadding}px !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.3 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameEscaped}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] Name element no encontrado en layout');
     }
