@@ -16,46 +16,121 @@ const state = {
   filteredCompanies: []
 };
 
-// Clave para localStorage del taller favorito
-const FAVORITE_COMPANY_KEY = 'cliente_favorite_company';
+// Clave base para localStorage del taller favorito (por placa)
+const FAVORITE_COMPANY_KEY_PREFIX = 'cliente_favorite_company_';
+// Clave base para localStorage del kilometraje (por placa)
+const MILEAGE_KEY_PREFIX = 'cliente_mileage_';
 
-// Obtener taller favorito de localStorage
-function getFavoriteCompany() {
+// Obtener clave de favorito para una placa específica
+function getFavoriteKey(plate) {
+  if (!plate) return null;
+  return `${FAVORITE_COMPANY_KEY_PREFIX}${String(plate).trim().toUpperCase()}`;
+}
+
+// Obtener clave de kilometraje para una placa específica
+function getMileageKey(plate) {
+  if (!plate) return null;
+  return `${MILEAGE_KEY_PREFIX}${String(plate).trim().toUpperCase()}`;
+}
+
+// Guardar kilometraje en localStorage por placa
+function saveMileage(plate, mileage) {
   try {
-    const favorite = localStorage.getItem(FAVORITE_COMPANY_KEY);
+    const key = getMileageKey(plate);
+    if (!key) return;
+    localStorage.setItem(key, String(mileage));
+  } catch (err) {
+    console.error('Error guardando kilometraje:', err);
+  }
+}
+
+// Obtener kilometraje guardado por placa
+function getSavedMileage(plate) {
+  try {
+    const key = getMileageKey(plate);
+    if (!key) return null;
+    const mileage = localStorage.getItem(key);
+    return mileage ? Number(mileage) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Obtener taller favorito de localStorage por placa
+function getFavoriteCompany(plate) {
+  try {
+    const key = getFavoriteKey(plate);
+    if (!key) return null;
+    const favorite = localStorage.getItem(key);
     return favorite ? JSON.parse(favorite) : null;
   } catch {
     return null;
   }
 }
 
-// Guardar taller favorito en localStorage
-function saveFavoriteCompany(company) {
+// Guardar taller favorito en localStorage por placa
+function saveFavoriteCompany(company, plate) {
   try {
-    localStorage.setItem(FAVORITE_COMPANY_KEY, JSON.stringify(company));
+    const key = getFavoriteKey(plate);
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(company));
   } catch (err) {
     console.error('Error guardando taller favorito:', err);
   }
 }
 
-// Eliminar taller favorito
-function removeFavoriteCompany() {
+// Eliminar taller favorito por placa
+function removeFavoriteCompany(plate) {
   try {
-    localStorage.removeItem(FAVORITE_COMPANY_KEY);
+    const key = getFavoriteKey(plate);
+    if (!key) return;
+    localStorage.removeItem(key);
   } catch (err) {
     console.error('Error eliminando taller favorito:', err);
   }
 }
 
-// Obtener companyId de la URL, favorito o input
-function getCompanyId() {
+// Obtener clave de kilometraje para una placa específica
+function getMileageKey(plate) {
+  if (!plate) return null;
+  return `${MILEAGE_KEY_PREFIX}${String(plate).trim().toUpperCase()}`;
+}
+
+// Guardar kilometraje en localStorage por placa
+function saveMileage(plate, mileage) {
+  try {
+    const key = getMileageKey(plate);
+    if (!key) return;
+    localStorage.setItem(key, String(mileage));
+  } catch (err) {
+    console.error('Error guardando kilometraje:', err);
+  }
+}
+
+// Obtener kilometraje guardado por placa
+function getSavedMileage(plate) {
+  try {
+    const key = getMileageKey(plate);
+    if (!key) return null;
+    const mileage = localStorage.getItem(key);
+    return mileage ? Number(mileage) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Obtener companyId de la URL, favorito (por placa) o input
+function getCompanyId(plate = null) {
   const urlParams = new URLSearchParams(window.location.search);
   const urlCompanyId = urlParams.get('companyId');
   
   if (urlCompanyId) return urlCompanyId;
   
-  const favorite = getFavoriteCompany();
-  if (favorite) return favorite.id;
+  // Si hay placa, buscar favorito por placa
+  if (plate) {
+    const favorite = getFavoriteCompany(plate);
+    if (favorite) return favorite.id;
+  }
   
   const input = document.getElementById('companyId');
   return input?.value?.trim() || null;
@@ -386,9 +461,27 @@ function renderSchedule(schedule) {
 
   if (!container) return;
 
-  if (!schedule || !schedule.services || schedule.services.length === 0) {
+  // Si no hay schedule o servicios, mostrar mensaje apropiado
+  if (!schedule) {
     container.innerHTML = '';
     if (noSchedule) noSchedule.classList.remove('hidden');
+    return;
+  }
+
+  if (!schedule.services || schedule.services.length === 0) {
+    container.innerHTML = `
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-lg p-8 text-center">
+        <svg class="w-16 h-16 mx-auto mb-4 text-slate-500 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <p class="text-slate-300 font-medium text-lg mb-2">No hay servicios programados</p>
+        <p class="text-slate-500 text-sm">Los servicios se configurarán cuando se realicen mantenimientos en el taller.</p>
+        ${schedule.currentMileage ? `
+          <p class="text-slate-400 text-xs mt-4">Kilometraje actual: ${formatNumber(schedule.currentMileage)} km</p>
+        ` : ''}
+      </div>
+    `;
+    if (noSchedule) noSchedule.classList.add('hidden');
     return;
   }
 
@@ -707,6 +800,9 @@ async function updateMileage(newMileage) {
     const mileageInput = document.getElementById('currentMileageInput');
     if (mileageInput) mileageInput.value = newMileage;
     
+    // Guardar kilometraje en localStorage para autocompletar después
+    saveMileage(state.plate, newMileage);
+    
     // Recargar planilla para recalcular estados
     await loadSchedule();
     
@@ -860,10 +956,19 @@ async function loadSchedule() {
     state.schedule = data.schedule || null;
     
     // Actualizar kilometraje en la información del vehículo si cambió
-    if (state.schedule?.currentMileage) {
-      const mileageInput = document.getElementById('currentMileageInput');
-      if (mileageInput && !mileageInput.value) {
+    const mileageInput = document.getElementById('currentMileageInput');
+    if (mileageInput) {
+      // Prioridad: 1) schedule actual, 2) kilometraje guardado, 3) vacío
+      if (state.schedule?.currentMileage) {
         mileageInput.value = state.schedule.currentMileage;
+        // Guardar en localStorage para autocompletar después
+        saveMileage(state.plate, state.schedule.currentMileage);
+      } else {
+        // Intentar cargar desde localStorage
+        const savedMileage = getSavedMileage(state.plate);
+        if (savedMileage) {
+          mileageInput.value = savedMileage;
+        }
       }
     }
     
@@ -1000,7 +1105,8 @@ function renderCompanyDropdown(companies) {
     btn.addEventListener('click', () => {
       const companyId = btn.dataset.companyId;
       const companyName = btn.dataset.companyName;
-      selectCompany(companyId, companyName);
+      const plate = document.getElementById('plate')?.value?.trim().toUpperCase() || null;
+      selectCompany(companyId, companyName, plate);
     });
   });
   
@@ -1008,7 +1114,7 @@ function renderCompanyDropdown(companies) {
 }
 
 // Seleccionar un taller
-function selectCompany(companyId, companyName) {
+function selectCompany(companyId, companyName, plate = null) {
   const companyIdInput = document.getElementById('companyId');
   const searchInput = document.getElementById('companySearch');
   const dropdown = document.getElementById('companyDropdown');
@@ -1023,9 +1129,12 @@ function selectCompany(companyId, companyName) {
     if (selectedName) selectedName.textContent = companyName;
   }
   
-  // Guardar como favorito automáticamente
-  saveFavoriteCompany({ id: companyId, name: companyName });
-  showFavoriteIndicator();
+  // Guardar como favorito automáticamente (asociado a la placa si está disponible)
+  const plateToUse = plate || document.getElementById('plate')?.value?.trim().toUpperCase() || null;
+  if (plateToUse) {
+    saveFavoriteCompany({ id: companyId, name: companyName }, plateToUse);
+    showFavoriteIndicator();
+  }
 }
 
 // Mostrar indicador de favorito
@@ -1072,13 +1181,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Cargar lista de talleres
   await loadCompanies();
   
-  // Verificar si hay taller favorito
-  const favorite = getFavoriteCompany();
-  if (favorite) {
-    selectCompany(favorite.id, favorite.name);
-    showFavoriteIndicator();
-  }
-  
   // Verificar si hay companyId en la URL
   const urlParams = new URLSearchParams(window.location.search);
   const urlCompanyId = urlParams.get('companyId');
@@ -1086,11 +1188,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Buscar el nombre del taller
     const company = state.companies.find(c => c.id === urlCompanyId);
     if (company) {
-      selectCompany(company.id, company.name);
+      const plate = document.getElementById('plate')?.value?.trim().toUpperCase() || null;
+      selectCompany(company.id, company.name, plate);
     } else {
       // Si no está en la lista, solo establecer el ID
       const companyIdInput = document.getElementById('companyId');
       if (companyIdInput) companyIdInput.value = urlCompanyId;
+    }
+  }
+  
+  // Listener para autocompletar taller y kilometraje cuando se ingresa la placa
+  const plateInput = document.getElementById('plate');
+  if (plateInput) {
+    // Función para verificar y autocompletar taller y kilometraje por placa
+    const checkAndAutocomplete = (plate) => {
+      const plateUpper = plate.trim().toUpperCase();
+      if (plateUpper && plateUpper.length >= 3) {
+        // Buscar favorito para esta placa
+        const favorite = getFavoriteCompany(plateUpper);
+        if (favorite) {
+          // Autocompletar el taller
+          selectCompany(favorite.id, favorite.name, plateUpper);
+        } else {
+          // Si no hay favorito, ocultar el indicador
+          hideFavoriteIndicator();
+          // Limpiar selección si no hay favorito (solo si no hay companyId en URL)
+          if (!urlCompanyId) {
+            const selectedDiv = document.getElementById('selectedCompany');
+            if (selectedDiv) selectedDiv.classList.add('hidden');
+            const companyIdInput = document.getElementById('companyId');
+            if (companyIdInput) companyIdInput.value = '';
+          }
+        }
+        
+        // Autocompletar kilometraje guardado
+        const savedMileage = getSavedMileage(plateUpper);
+        if (savedMileage) {
+          // No autocompletamos el kilometraje en el login, solo lo guardamos para después
+          // Se autocompletará cuando se cargue la información del vehículo
+        }
+      } else {
+        // Si la placa es muy corta, ocultar indicador
+        hideFavoriteIndicator();
+        // Limpiar selección si la placa es muy corta (solo si no hay companyId en URL)
+        if (!urlCompanyId && plateUpper.length === 0) {
+          const selectedDiv = document.getElementById('selectedCompany');
+          if (selectedDiv) selectedDiv.classList.add('hidden');
+          const companyIdInput = document.getElementById('companyId');
+          if (companyIdInput) companyIdInput.value = '';
+        }
+      }
+    };
+    
+    // Verificar al escribir
+    plateInput.addEventListener('input', (e) => {
+      checkAndAutocomplete(e.target.value);
+    });
+    
+    // También verificar al hacer focus si ya hay placa
+    plateInput.addEventListener('focus', () => {
+      checkAndAutocomplete(plateInput.value);
+    });
+    
+    // Verificar al cargar la página si ya hay una placa (por ejemplo, desde URL)
+    if (plateInput.value) {
+      checkAndAutocomplete(plateInput.value);
     }
   }
 
@@ -1143,8 +1305,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const removeFavoriteBtn = document.getElementById('removeFavorite');
   if (removeFavoriteBtn) {
     removeFavoriteBtn.addEventListener('click', () => {
-      removeFavoriteCompany();
-      hideFavoriteIndicator();
+      const plate = document.getElementById('plate')?.value?.trim().toUpperCase();
+      if (plate) {
+        removeFavoriteCompany(plate);
+        hideFavoriteIndicator();
+        // Limpiar selección
+        const selectedDiv = document.getElementById('selectedCompany');
+        if (selectedDiv) selectedDiv.classList.add('hidden');
+        const companyIdInput = document.getElementById('companyId');
+        if (companyIdInput) companyIdInput.value = '';
+      }
     });
   }
 });
