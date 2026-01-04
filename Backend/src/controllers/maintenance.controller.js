@@ -194,31 +194,32 @@ export const generateOilChangeSticker = async (req, res) => {
 
     // ===== COLUMNA IZQUIERDA: DATOS =====
     let currentY = vy;
-    const lineHeight = 0.35 * CM;
-    const fontSize = 8;
-    const fontSizeSmall = 7;
+    const lineHeight = 0.3 * CM;
+    const fontSize = 7;
+    const fontSizeSmall = 6;
+    const fontSizeKm = 6; // Fuente más pequeña para números de 6-7 cifras
     
     // Fuente sobria (Helvetica)
     doc.font('Helvetica');
     
     // Placa (sin etiqueta)
-    doc.fontSize(fontSize + 1)
+    doc.fontSize(fontSize)
        .font('Helvetica-Bold')
        .fillColor('#000000')
        .text(String(plate || '').toUpperCase(), leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });
-    currentY += lineHeight * 1.2;
+    currentY += lineHeight * 1.1;
     
     // Aceite utilizado (sin etiqueta)
-    doc.fontSize(fontSize)
+    doc.fontSize(fontSizeSmall)
        .font('Helvetica')
        .text(String(oilType || ''), leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });
-    currentY += lineHeight * 1.3;
+    currentY += lineHeight * 1.2;
     
     // Actual KM: [valor]
     doc.fontSize(fontSizeSmall)
@@ -227,14 +228,14 @@ export const generateOilChangeSticker = async (req, res) => {
          width: leftColW,
          align: 'left'
        });
-    currentY += lineHeight * 0.9;
-    doc.fontSize(fontSize)
+    currentY += lineHeight * 0.8;
+    doc.fontSize(fontSizeKm)
        .font('Helvetica-Bold')
        .text(Number(mileage).toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });
-    currentY += lineHeight * 1.2;
+    currentY += lineHeight * 1.1;
     
     // Proximo KM: [valor]
     doc.fontSize(fontSizeSmall)
@@ -243,8 +244,8 @@ export const generateOilChangeSticker = async (req, res) => {
          width: leftColW,
          align: 'left'
        });
-    currentY += lineHeight * 0.9;
-    doc.fontSize(fontSize)
+    currentY += lineHeight * 0.8;
+    doc.fontSize(fontSizeKm)
        .font('Helvetica-Bold')
        .text(Number(nextServiceMileage).toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
