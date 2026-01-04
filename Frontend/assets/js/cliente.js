@@ -191,34 +191,40 @@ async function getVehicleSchedule(companyId, plate, phonePassword) {
 }
 
 // Renderizar información del vehículo
-function renderVehicleInfo(vehicle) {
+function renderVehicleInfo(vehicle, plate) {
   const container = document.getElementById('vehicleInfo');
   if (!container) return;
+
+  const currentMileage = vehicle?.currentMileage || state.schedule?.currentMileage || null;
 
   const infoCards = [
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`,
       label: 'Placa',
-      value: vehicle.plate || '-',
-      color: 'blue'
+      value: plate || vehicle?.plate || '-',
+      color: 'blue',
+      editable: false
     },
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`,
       label: 'Marca',
-      value: vehicle.brand || '-',
-      color: 'purple'
+      value: vehicle?.brand || '-',
+      color: 'purple',
+      editable: false
     },
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
       label: 'Línea',
-      value: vehicle.line || '-',
-      color: 'green'
+      value: vehicle?.line || '-',
+      color: 'green',
+      editable: false
     },
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>`,
       label: 'Kilometraje',
-      value: vehicle.currentMileage ? formatNumber(vehicle.currentMileage) + ' km' : '-',
-      color: 'yellow'
+      value: currentMileage,
+      color: 'yellow',
+      editable: true
     }
   ];
 
@@ -230,9 +236,58 @@ function renderVehicleInfo(vehicle) {
         </div>
         <p class="text-xs text-slate-400 uppercase tracking-wide">${card.label}</p>
       </div>
-      <p class="text-xl font-bold text-white">${card.value}</p>
+      ${card.editable ? `
+        <div class="flex items-center gap-2">
+          <input
+            type="number"
+            id="currentMileageInput"
+            value="${card.value || ''}"
+            placeholder="Ingresar km"
+            class="flex-1 text-xl font-bold text-white bg-transparent border-b-2 border-${card.color}-500/50 focus:border-${card.color}-500 focus:outline-none px-1 py-1"
+            min="0"
+            step="1"
+          />
+          <span class="text-xl font-bold text-white">km</span>
+          <button
+            id="updateMileageBtn"
+            class="px-3 py-1 bg-${card.color}-600 hover:bg-${card.color}-700 text-white text-xs font-semibold rounded-lg transition-colors"
+            title="Actualizar kilometraje"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </button>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Actualiza para calcular servicios próximos</p>
+      ` : `
+        <p class="text-xl font-bold text-white">${card.value}</p>
+      `}
     </div>
   `).join('');
+
+  // Event listener para actualizar kilometraje
+  const updateBtn = document.getElementById('updateMileageBtn');
+  const mileageInput = document.getElementById('currentMileageInput');
+  
+  if (updateBtn && mileageInput) {
+    updateBtn.addEventListener('click', async () => {
+      const newMileage = Number(mileageInput.value);
+      if (!newMileage || newMileage < 0) {
+        showError('Por favor ingresa un kilometraje válido');
+        return;
+      }
+      await updateMileage(newMileage);
+    });
+    
+    mileageInput.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter') {
+        const newMileage = Number(mileageInput.value);
+        if (newMileage && newMileage >= 0) {
+          await updateMileage(newMileage);
+        }
+      }
+    });
+  }
 }
 
 // Renderizar historial de servicios
@@ -391,6 +446,49 @@ function renderSchedule(schedule) {
       `;
     }
 
+    // Botones de acción solo si no está completado
+    const actionButtons = service.status !== 'completed' ? `
+      <div class="flex gap-2 mt-4 pt-4 border-t border-slate-700/50">
+        <button
+          type="button"
+          class="service-action-btn flex-1 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/50 text-green-400 font-semibold rounded-lg transition-all text-sm"
+          data-service-id="${service.id}"
+          data-action="completed"
+          title="Marcar como realizado"
+        >
+          <span class="flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Ya realizado
+          </span>
+        </button>
+        <button
+          type="button"
+          class="service-action-btn flex-1 px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/50 text-yellow-400 font-semibold rounded-lg transition-all text-sm"
+          data-service-id="${service.id}"
+          data-action="skipped"
+          title="Saltar este servicio"
+        >
+          <span class="flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Saltar
+          </span>
+        </button>
+      </div>
+    ` : `
+      <div class="mt-4 pt-4 border-t border-slate-700/50">
+        <p class="text-xs text-green-400 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Servicio completado
+        </p>
+      </div>
+    `;
+
     return `
       <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 rounded-xl p-5 border border-slate-700/50 hover:border-slate-600 transition-all service-card">
         <div class="flex justify-between items-start mb-4">
@@ -454,6 +552,7 @@ function renderSchedule(schedule) {
           ` : ''}
         </div>
         ${progressHTML}
+        ${actionButtons}
       </div>
     `;
   };
@@ -549,6 +648,134 @@ function renderSchedule(schedule) {
   }
 
   container.innerHTML = html;
+  
+  // Event listeners para botones de acción
+  container.querySelectorAll('.service-action-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const serviceId = btn.dataset.serviceId;
+      const action = btn.dataset.action;
+      
+      if (!serviceId || !action) return;
+      
+      // Si es "completed", pedir el kilometraje
+      if (action === 'completed') {
+        const service = schedule.services.find(s => s.id === serviceId);
+        const mileage = prompt(`Ingresa el kilometraje en el que se realizó el servicio "${service?.serviceName || 'este servicio'}":`);
+        if (!mileage) return;
+        
+        const mileageNum = Number(mileage.replace(/[^0-9]/g, ''));
+        if (!mileageNum || mileageNum < 0) {
+          alert('Por favor ingresa un kilometraje válido');
+          return;
+        }
+        
+        await updateServiceStatus(serviceId, action, mileageNum);
+      } else {
+        await updateServiceStatus(serviceId, action);
+      }
+    });
+  });
+}
+
+// Actualizar kilometraje
+async function updateMileage(newMileage) {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/v1/public/customer/${state.companyId}/schedule?plate=${encodeURIComponent(state.plate)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Phone-Password': state.phonePassword
+        },
+        body: JSON.stringify({ mileage: newMileage })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al actualizar kilometraje');
+    }
+
+    // Actualizar estado local
+    if (data.schedule) {
+      state.schedule = data.schedule;
+    }
+    
+    // Actualizar kilometraje en la información del vehículo
+    const mileageInput = document.getElementById('currentMileageInput');
+    if (mileageInput) mileageInput.value = newMileage;
+    
+    // Recargar planilla para recalcular estados
+    await loadSchedule();
+    
+    // Mostrar mensaje de éxito
+    const errorDiv = document.getElementById('loginError');
+    if (errorDiv) {
+      errorDiv.textContent = 'Kilometraje actualizado correctamente';
+      errorDiv.classList.remove('hidden', 'text-red-400');
+      errorDiv.classList.add('text-green-400');
+      setTimeout(() => {
+        errorDiv.classList.add('hidden');
+      }, 3000);
+    }
+  } catch (error) {
+    console.error('Error actualizando kilometraje:', error);
+    showError(error.message || 'Error al actualizar kilometraje');
+  }
+}
+
+// Actualizar estado de un servicio
+async function updateServiceStatus(serviceId, action, mileage = null) {
+  try {
+    const services = [{
+      serviceId,
+      action,
+      mileage: mileage || state.schedule?.currentMileage || null
+    }];
+
+    const response = await fetch(
+      `${API_BASE}/api/v1/public/customer/${state.companyId}/schedule?plate=${encodeURIComponent(state.plate)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Phone-Password': state.phonePassword
+        },
+        body: JSON.stringify({ services })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al actualizar servicio');
+    }
+
+    // Actualizar estado local
+    if (data.schedule) {
+      state.schedule = data.schedule;
+    }
+    
+    // Recargar planilla
+    await loadSchedule();
+    
+    // Mostrar mensaje de éxito
+    const errorDiv = document.getElementById('loginError');
+    if (errorDiv) {
+      const actionText = action === 'completed' ? 'completado' : 'saltado';
+      errorDiv.textContent = `Servicio ${actionText} correctamente`;
+      errorDiv.classList.remove('hidden', 'text-red-400');
+      errorDiv.classList.add('text-green-400');
+      setTimeout(() => {
+        errorDiv.classList.add('hidden');
+      }, 3000);
+    }
+  } catch (error) {
+    console.error('Error actualizando servicio:', error);
+    showError(error.message || 'Error al actualizar servicio');
+  }
 }
 
 // Manejar login
@@ -590,8 +817,8 @@ async function handleLogin(e) {
     if (loginSection) loginSection.classList.add('hidden');
     if (contentSection) contentSection.classList.remove('hidden');
 
-    // Renderizar información del vehículo
-    renderVehicleInfo(state.customer.vehicle);
+    // Renderizar información del vehículo (incluyendo placa)
+    renderVehicleInfo(state.customer.vehicle, state.plate);
 
     // Cargar servicios
     await loadServices();
@@ -631,6 +858,15 @@ async function loadSchedule() {
   try {
     const data = await getVehicleSchedule(state.companyId, state.plate, state.phonePassword);
     state.schedule = data.schedule || null;
+    
+    // Actualizar kilometraje en la información del vehículo si cambió
+    if (state.schedule?.currentMileage) {
+      const mileageInput = document.getElementById('currentMileageInput');
+      if (mileageInput && !mileageInput.value) {
+        mileageInput.value = state.schedule.currentMileage;
+      }
+    }
+    
     renderSchedule(state.schedule);
   } catch (error) {
     console.error('Error loading schedule:', error);

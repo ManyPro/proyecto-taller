@@ -320,3 +320,142 @@ export const getVehicleServiceSchedule = async (req, res) => {
   }
 };
 
+/**
+ * Actualizar planilla de servicios desde el cliente
+ * PUT /api/v1/public/customer/:companyId/schedule?plate=ABC123
+ * body: { mileage, services: [{ serviceId, action: 'completed'|'skipped', mileage }] }
+ * header: X-Phone-Password: primeros 6 dígitos del teléfono
+ */
+export const updateVehicleServiceSchedule = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { mileage, services = [] } = req.body;
+    const { plate } = req.query;
+    const phonePassword = req.headers['x-phone-password'];
+
+    if (!plate || !phonePassword) {
+      return res.status(400).json({ error: 'Placa y contraseña son requeridos' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ error: 'companyId inválido' });
+    }
+
+    const plateUpper = String(plate).trim().toUpperCase();
+    const phonePasswordStr = String(phonePassword).trim();
+
+    // Verificar autenticación
+    const profile = await CustomerProfile.findOne({
+      companyId,
+      plate: plateUpper
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: 'Vehículo no encontrado' });
+    }
+
+    const customerPhone = String(profile.customer?.phone || '').trim();
+    if (!customerPhone || customerPhone.length < 6) {
+      return res.status(401).json({ error: 'Teléfono no registrado' });
+    }
+
+    const phoneFirst6 = customerPhone.substring(0, 6);
+    if (phoneFirst6 !== phonePasswordStr) {
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
+    }
+
+    // Buscar planilla
+    let schedule = await VehicleServiceSchedule.findOne({
+      companyId,
+      plate: plateUpper
+    });
+
+    if (!schedule) {
+      schedule = await VehicleServiceSchedule.create({
+        companyId,
+        plate: plateUpper,
+        customerProfileId: profile._id,
+        currentMileage: mileage || profile.vehicle?.mileage || null,
+        services: []
+      });
+    }
+
+    // Actualizar kilometraje si se proporciona
+    if (mileage !== null && mileage !== undefined) {
+      const newMileage = Number(mileage);
+      if (newMileage >= 0 && (schedule.currentMileage === null || newMileage > schedule.currentMileage)) {
+        schedule.updateMileage(newMileage);
+      }
+    }
+
+    // Procesar actualizaciones de servicios
+    for (const serviceUpdate of services) {
+      const { serviceId, action, mileage: serviceMileage } = serviceUpdate;
+      
+      if (!serviceId) continue;
+
+      const service = schedule.services.id(serviceId);
+      if (!service) {
+        logger.warn('[updateVehicleServiceSchedule] Servicio no encontrado', { serviceId });
+        continue;
+      }
+
+      if (action === 'completed') {
+        const serviceMileageNum = serviceMileage ? Number(serviceMileage) : schedule.currentMileage;
+        if (serviceMileageNum && serviceMileageNum > 0) {
+          service.lastPerformedMileage = serviceMileageNum;
+          service.lastPerformedDate = new Date();
+          service.nextDueMileage = serviceMileageNum + service.mileageInterval;
+          service.status = 'completed';
+          
+          // Si el kilometraje del servicio es mayor al actual, actualizar
+          if (schedule.currentMileage === null || serviceMileageNum > schedule.currentMileage) {
+            schedule.currentMileage = serviceMileageNum;
+            schedule.mileageUpdatedAt = new Date();
+          }
+        }
+      } else if (action === 'skipped') {
+        // Marcar como saltado: recalcular próximo servicio basado en el kilometraje actual
+        if (schedule.currentMileage) {
+          // Si ya tiene un último servicio realizado, calcular desde ahí
+          if (service.lastPerformedMileage) {
+            service.nextDueMileage = service.lastPerformedMileage + service.mileageInterval;
+          } else {
+            // Si nunca se ha realizado, calcular desde el kilometraje actual
+            service.nextDueMileage = schedule.currentMileage + service.mileageInterval;
+          }
+          // Mantener el estado según el kilometraje (se recalculará abajo con updateMileage)
+        }
+      }
+    }
+
+    // Recalcular estados de todos los servicios
+    if (schedule.currentMileage !== null) {
+      schedule.updateMileage(schedule.currentMileage);
+    }
+
+    await schedule.save();
+
+    res.json({
+      success: true,
+      schedule: {
+        currentMileage: schedule.currentMileage,
+        mileageUpdatedAt: schedule.mileageUpdatedAt,
+        services: schedule.services.map(s => ({
+          id: s._id,
+          serviceName: s.serviceName,
+          serviceKey: s.serviceKey,
+          mileageInterval: s.mileageInterval,
+          lastPerformedMileage: s.lastPerformedMileage,
+          lastPerformedDate: s.lastPerformedDate,
+          nextDueMileage: s.nextDueMileage,
+          status: s.status
+        }))
+      }
+    });
+  } catch (error) {
+    logger.error('[customer.public.updateSchedule] Error', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Error al actualizar planilla de servicios' });
+  }
+};
+

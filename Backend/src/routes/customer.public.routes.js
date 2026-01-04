@@ -3,7 +3,8 @@ import {
   listCompanies,
   authenticateCustomer,
   getVehicleServices,
-  getVehicleServiceSchedule
+  getVehicleServiceSchedule,
+  updateVehicleServiceSchedule
 } from '../controllers/customer.public.controller.js';
 
 const router = Router();
@@ -19,6 +20,9 @@ router.get('/:companyId/services', getVehicleServices);
 
 // Obtener planilla de servicios por kilometraje
 router.get('/:companyId/schedule', getVehicleServiceSchedule);
+
+// Actualizar planilla de servicios por kilometraje
+router.put('/:companyId/schedule', updateVehicleServiceSchedule);
 
 export default router;
 
