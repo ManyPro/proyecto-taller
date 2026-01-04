@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consulta de Servicios - Cliente</title>
+  <meta name="description" content="Consulta el historial de servicios realizados a tu vehículo" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Suprimir warning de producción para Tailwind CDN
+    if(typeof console !== 'undefined' && console.warn) {
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        originalWarn.apply(console, args);
+      };
+    }
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #e0f2fe, #dbeafe, #e0f2fe) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(224, 242, 254, 0.9) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #e0f2fe !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-300,
+    body.theme-light .text-slate-400,
+    body.theme-light .text-slate-500,
+    body.theme-light .text-slate-600,
+    body.theme-light .text-slate-700,
+    body.theme-light .text-slate-800 {
+      color: #000000 !important;
+    }
+    body.theme-light input,
+    body.theme-light textarea,
+    body.theme-light select {
+      color: #000000 !important;
+      background-color: #ffffff !important;
+    }
+    body.theme-light input::placeholder,
+    body.theme-light textarea::placeholder {
+      color: #666666 !important;
+    }
+    
+    /* Animaciones suaves */
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Efecto hover en cards */
+    .service-card {
+      transition: all 0.2s ease;
+    }
+    .service-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Scrollbar personalizado */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(51, 65, 85, 0.3);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 min-h-screen">
+  <script src="assets/js/config.js"></script>
+  
+  <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <!-- Header Mejorado -->
+    <div class="text-center mb-8 fade-in">
+      <div class="inline-block p-4 bg-blue-600/20 rounded-full mb-4">
+        <svg class="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+        </svg>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-bold text-white mb-3">Consulta de Servicios</h1>
+      <p class="text-slate-300 text-lg">Ingresa tu placa y contraseña para ver el historial completo de servicios de tu vehículo</p>
+    </div>
+
+    <!-- Login Form Mejorado -->
+    <div id="loginSection" class="max-w-md mx-auto fade-in">
+      <div class="bg-slate-800/70 backdrop-blur-sm rounded-xl shadow-2xl p-8 border border-slate-700/50">
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-bold text-white mb-2">🔐 Acceso Seguro</h2>
+          <p class="text-sm text-slate-400">Consulta tu información de manera segura</p>
+        </div>
+        <form id="loginForm" class="space-y-5">
+          <div>
+            <label for="companyId" class="block text-sm font-medium text-slate-300 mb-2">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                ID de Taller (opcional)
+              </span>
+            </label>
+            <input
+              type="text"
+              id="companyId"
+              name="companyId"
+              placeholder="Dejar vacío para usar el predeterminado"
+              class="w-full px-4 py-3 bg-slate-900/70 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+            <p class="text-xs text-slate-400 mt-1.5">Si no conoces el ID, déjalo vacío</p>
+          </div>
+          <div>
+            <label for="plate" class="block text-sm font-medium text-slate-300 mb-2">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Placa del Vehículo
+              </span>
+            </label>
+            <input
+              type="text"
+              id="plate"
+              name="plate"
+              required
+              placeholder="ABC123"
+              maxlength="6"
+              class="w-full px-4 py-3 bg-slate-900/70 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase font-semibold tracking-wider"
+              style="text-transform: uppercase;"
+            />
+          </div>
+          <div>
+            <label for="phonePassword" class="block text-sm font-medium text-slate-300 mb-2">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                Contraseña
+              </span>
+            </label>
+            <input
+              type="password"
+              id="phonePassword"
+              name="phonePassword"
+              required
+              placeholder="123456"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              class="w-full px-4 py-3 bg-slate-900/70 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center text-2xl tracking-widest font-mono"
+            />
+            <p class="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Ingresa los primeros 6 dígitos de tu número de celular registrado
+            </p>
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3.5 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+          >
+            <span class="flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Consultar Servicios
+            </span>
+          </button>
+        </form>
+        <div id="loginError" class="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm text-center hidden fade-in"></div>
+      </div>
+    </div>
+
+    <!-- Content Section (hidden initially) -->
+    <div id="contentSection" class="hidden">
+      <!-- Vehicle Info Card Mejorado -->
+      <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-xl shadow-2xl p-6 mb-6 border border-slate-700/50 fade-in">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-2 bg-blue-600/20 rounded-lg">
+            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-white">Información del Vehículo</h2>
+        </div>
+        <div id="vehicleInfo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Vehicle info will be populated here -->
+        </div>
+      </div>
+
+      <!-- Tabs Mejorados -->
+      <div class="mb-6 fade-in">
+        <div class="flex space-x-1 bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
+          <button
+            id="tabServices"
+            class="tab-button flex-1 px-6 py-3 font-medium text-slate-300 bg-blue-600 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            Historial de Servicios
+          </button>
+          <button
+            id="tabSchedule"
+            class="tab-button flex-1 px-6 py-3 font-medium text-slate-400 hover:text-slate-300 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            Planilla por Kilometraje
+          </button>
+        </div>
+      </div>
+
+      <!-- Services History Tab Mejorado -->
+      <div id="servicesTab" class="tab-content fade-in">
+        <div class="bg-slate-800/70 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-slate-700/50">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="p-2 bg-blue-600/20 rounded-lg">
+              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white">Servicios Realizados</h3>
+          </div>
+          <div id="servicesList" class="space-y-4 custom-scrollbar">
+            <!-- Services will be populated here -->
+          </div>
+          <div id="noServices" class="text-center py-12 text-slate-400 hidden">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <p class="text-lg font-medium">No se encontraron servicios registrados</p>
+            <p class="text-sm mt-2">Este vehículo aún no tiene servicios registrados en el sistema.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Tab Mejorado -->
+      <div id="scheduleTab" class="tab-content hidden fade-in">
+        <div class="bg-slate-800/70 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-slate-700/50">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="p-2 bg-green-600/20 rounded-lg">
+              <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white">Planilla de Servicios por Kilometraje</h3>
+          </div>
+          <div id="scheduleInfo" class="mb-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600/20 rounded-lg">
+                  <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-400">Kilometraje actual</p>
+                  <p class="text-lg font-bold text-white"><span id="currentMileage">-</span></p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-slate-600/20 rounded-lg">
+                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-400">Última actualización</p>
+                  <p class="text-sm font-medium text-slate-300"><span id="mileageUpdatedAt">-</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="scheduleList" class="space-y-4 custom-scrollbar">
+            <!-- Schedule items will be populated here -->
+          </div>
+          <div id="noSchedule" class="text-center py-12 text-slate-400 hidden">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            <p class="text-lg font-medium">No hay servicios programados</p>
+            <p class="text-sm mt-2">Esta funcionalidad se configurará próximamente.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logout Button Mejorado -->
+      <div class="text-center mt-8 fade-in">
+        <button
+          id="logoutBtn"
+          class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 mx-auto"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/cliente.js"></script>
+</body>
+</html>

@@ -1590,6 +1590,120 @@ export const closeSale = async (req, res) => {
       
       // Asignar empresa a la venta (ya se asignó arriba si se encontró)
 
+  // === Procesar servicios de mantenimiento (antes de datos de pago) ===
+      const completedMaintenanceServices = Array.isArray(req.body?.completedMaintenanceServices) ? 
+        req.body.completedMaintenanceServices : [];
+      const saleMileage = req.body?.mileage ? Number(req.body.mileage) : (sale.vehicle?.mileage || null);
+      
+      if (completedMaintenanceServices.length > 0 && sale.vehicle?.plate && saleMileage) {
+        try {
+          const VehicleServiceSchedule = (await import('../models/VehicleServiceSchedule.js')).default;
+          const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
+          const plateUpper = String(sale.vehicle.plate).trim().toUpperCase();
+          
+          // Buscar o crear planilla
+          let schedule = await VehicleServiceSchedule.findOne({
+            companyId: req.companyId,
+            plate: plateUpper
+          }).session(session);
+          
+          if (!schedule) {
+            // Buscar perfil del cliente
+            const profile = await CustomerProfile.findOne({
+              companyId: req.companyId,
+              plate: plateUpper
+            }).session(session);
+            
+            schedule = await VehicleServiceSchedule.create([{
+              companyId: req.companyId,
+              plate: plateUpper,
+              customerProfileId: profile?._id || null,
+              currentMileage: saleMileage,
+              services: []
+            }], { session });
+            schedule = schedule[0];
+          }
+          
+          // Actualizar kilometraje si es mayor
+          if (saleMileage && (schedule.currentMileage === null || saleMileage > schedule.currentMileage)) {
+            schedule.updateMileage(saleMileage);
+          }
+          
+          // Procesar cada servicio seleccionado
+          for (const serviceId of completedMaintenanceServices) {
+            // Buscar plantilla de mantenimiento
+            const template = await MaintenanceTemplate.findOne({
+              companyId: req.companyId,
+              serviceId: String(serviceId).trim().toUpperCase(),
+              active: true
+            }).session(session);
+            
+            if (!template) {
+              logger.warn('[closeSale] Plantilla de mantenimiento no encontrada', { serviceId });
+              continue;
+            }
+            
+            // Buscar si ya existe el servicio en la planilla
+            let scheduleService = schedule.services.find(s => 
+              s.serviceKey === template.serviceId || 
+              s.serviceName === template.serviceName
+            );
+            
+            if (!scheduleService) {
+              // Crear nuevo servicio en la planilla
+              scheduleService = {
+                serviceName: template.serviceName,
+                serviceKey: template.serviceId,
+                mileageInterval: template.mileageInterval || 10000, // Default si no tiene
+                lastPerformedMileage: null,
+                lastPerformedDate: null,
+                nextDueMileage: null,
+                status: 'pending'
+              };
+              schedule.services.push(scheduleService);
+            }
+            
+            // Marcar como completado
+            scheduleService.lastPerformedMileage = saleMileage;
+            scheduleService.lastPerformedDate = sale.closedAt || new Date();
+            scheduleService.nextDueMileage = saleMileage + (scheduleService.mileageInterval || 10000);
+            scheduleService.status = 'completed';
+          }
+          
+          // Recalcular estados de todos los servicios
+          schedule.updateMileage(schedule.currentMileage || saleMileage);
+          await schedule.save({ session });
+          
+          logger.info('[closeSale] Planilla de servicios actualizada', {
+            saleId: sale._id,
+            plate: plateUpper,
+            servicesCount: completedMaintenanceServices.length,
+            mileage: saleMileage
+          });
+        } catch (error) {
+          // No fallar el cierre si hay error en la planilla
+          logger.error('[closeSale] Error actualizando planilla de servicios', {
+            error: error.message,
+            stack: error.stack,
+            saleId: sale._id
+          });
+        }
+      }
+      
+      // Actualizar kilometraje en CustomerProfile si se proporciona
+      if (saleMileage && sale.vehicle?.plate) {
+        try {
+          const plateUpper = String(sale.vehicle.plate).trim().toUpperCase();
+          await CustomerProfile.updateOne(
+            { companyId: req.companyId, plate: plateUpper },
+            { $set: { 'vehicle.mileage': saleMileage } },
+            { session }
+          );
+        } catch (error) {
+          logger.warn('[closeSale] Error actualizando kilometraje en perfil', { error: error.message });
+        }
+      }
+
   // === Datos de cierre adicionales (pago / mano de obra) ===
       const pm = String(req.body?.paymentMethod || '').trim();
       const technician = String(req.body?.technician || sale.technician || '').trim().toUpperCase();

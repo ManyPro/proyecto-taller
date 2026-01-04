@@ -1564,6 +1564,240 @@ async function ensureCompanyData(){
   }
 }
 
+// ========================
+// MODAL DE SERVICIOS DE MANTENIMIENTO
+// ========================
+
+async function openMaintenanceServicesModal() {
+  return new Promise((resolve, reject) => {
+    const modal = document.getElementById('modal');
+    const body = document.getElementById('modalBody');
+    if (!modal || !body) {
+      reject(new Error('Modal no encontrado'));
+      return;
+    }
+
+    if (!current?.vehicle) {
+      // Si no hay vehículo, continuar sin modal de servicios
+      resolve();
+      return;
+    }
+
+    const vehicleId = current.vehicle.vehicleId;
+    const plate = current.vehicle.plate || '';
+    const currentMileage = current.vehicle.mileage || null;
+
+    // Cargar servicios de mantenimiento
+    const loadTemplates = async () => {
+      try {
+        const params = {};
+        if (vehicleId) params.vehicleId = vehicleId;
+        params.commonOnly = 'true'; // Mostrar solo comunes por defecto
+        
+        const data = await API.maintenance.getTemplates(params);
+        return data.templates || [];
+      } catch (err) {
+        console.error('Error cargando plantillas de mantenimiento:', err);
+        return [];
+      }
+    };
+
+    loadTemplates().then(templates => {
+      // Construir HTML del modal
+      const mileageValue = currentMileage || '';
+      const mileageInput = `
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Kilometraje actual del vehículo</label>
+          <input 
+            type="number" 
+            id="maintenance-mileage" 
+            value="${mileageValue}" 
+            placeholder="Ej: 50000"
+            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white"
+          />
+          <p class="text-xs text-slate-400 mt-1">Ingresa el kilometraje actual para actualizar la planilla</p>
+        </div>
+      `;
+
+      // Separar servicios comunes y otros
+      const commonServices = templates.filter(t => t.isCommon || t.priority <= 10);
+      const otherServices = templates.filter(t => !t.isCommon && t.priority > 10);
+      
+      // Ordenar: cambio de aceite primero
+      commonServices.sort((a, b) => {
+        if (a.priority === 1) return -1;
+        if (b.priority === 1) return 1;
+        return (a.priority || 100) - (b.priority || 100);
+      });
+
+      const servicesHTML = `
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Servicios realizados</label>
+          <div class="max-h-96 overflow-y-auto border border-slate-600 rounded p-3 bg-slate-900/50">
+            ${commonServices.length > 0 ? `
+              <div class="mb-3">
+                <p class="text-xs text-slate-400 mb-2 font-semibold">SERVICIOS COMUNES</p>
+                ${commonServices.map(t => `
+                  <label class="flex items-start gap-2 p-2 hover:bg-slate-800 rounded cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      value="${t.serviceId}" 
+                      class="mt-1 maintenance-service-checkbox"
+                      ${t.priority === 1 ? 'checked' : ''}
+                    />
+                    <div class="flex-1">
+                      <div class="font-medium">${escapeHtml(t.serviceName)}</div>
+                      <div class="text-xs text-slate-400">
+                        ${t.system} • ${t.mileageInterval ? `Cada ${t.mileageInterval.toLocaleString()} km` : ''} ${t.monthsInterval ? `o ${t.monthsInterval} meses` : ''}
+                      </div>
+                      ${t.notes ? `<div class="text-xs text-slate-500 mt-1">${escapeHtml(t.notes)}</div>` : ''}
+                    </div>
+                  </label>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${otherServices.length > 0 ? `
+              <div>
+                <p class="text-xs text-slate-400 mb-2 font-semibold">OTROS SERVICIOS</p>
+                <div class="space-y-1">
+                  ${otherServices.map(t => `
+                    <label class="flex items-start gap-2 p-2 hover:bg-slate-800 rounded cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        value="${t.serviceId}" 
+                        class="mt-1 maintenance-service-checkbox"
+                      />
+                      <div class="flex-1">
+                        <div class="font-medium">${escapeHtml(t.serviceName)}</div>
+                        <div class="text-xs text-slate-400">
+                          ${t.system} • ${t.mileageInterval ? `Cada ${t.mileageInterval.toLocaleString()} km` : ''} ${t.monthsInterval ? `o ${t.monthsInterval} meses` : ''}
+                        </div>
+                      </div>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+            ${templates.length === 0 ? `
+              <div class="text-center py-8 text-slate-400">
+                <p>No hay servicios de mantenimiento configurados para este vehículo.</p>
+                <p class="text-xs mt-2">Puedes continuar sin seleccionar servicios.</p>
+              </div>
+            ` : ''}
+          </div>
+          <p class="text-xs text-slate-400 mt-2">Selecciona los servicios que se realizaron en esta venta</p>
+        </div>
+      `;
+
+      const modalHTML = `
+        <div class="p-6">
+          <h2 class="text-2xl font-bold mb-4">Servicios de Mantenimiento</h2>
+          <p class="text-slate-400 mb-4">Selecciona los servicios realizados para actualizar la planilla de mantenimiento</p>
+          
+          ${mileageInput}
+          ${servicesHTML}
+          
+          <div class="flex gap-3 mt-6">
+            <button 
+              id="maintenance-skip" 
+              class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded"
+            >
+              Omitir
+            </button>
+            <button 
+              id="maintenance-continue" 
+              class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
+      `;
+
+      body.innerHTML = modalHTML;
+      modal.classList.remove('hidden');
+
+      // Event listeners
+      document.getElementById('maintenance-skip')?.addEventListener('click', () => {
+        selectedMaintenanceServices = [];
+        saleMileage = null;
+        modal.classList.add('hidden');
+        // Continuar con el modal de pago después de un pequeño delay
+        setTimeout(() => resolve(), 100);
+      });
+
+      document.getElementById('maintenance-continue')?.addEventListener('click', async () => {
+        // Obtener servicios seleccionados
+        const checkboxes = body.querySelectorAll('.maintenance-service-checkbox:checked');
+        selectedMaintenanceServices = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Obtener kilometraje
+        const mileageInput = document.getElementById('maintenance-mileage');
+        const mileageValue = mileageInput ? Number(mileageInput.value) : null;
+        saleMileage = Number.isFinite(mileageValue) && mileageValue > 0 ? mileageValue : null;
+        
+        // Si se seleccionó cambio de aceite (prioridad 1), generar sticker
+        const oilChangeService = templates.find(t => t.priority === 1 && selectedMaintenanceServices.includes(t.serviceId));
+        if (oilChangeService && saleMileage) {
+          try {
+            // Calcular próximo servicio (kilometraje actual + intervalo)
+            const nextServiceMileage = saleMileage + (oilChangeService.mileageInterval || 10000);
+            
+            // Generar sticker PDF
+            const stickerData = {
+              saleId: current._id,
+              vehicleId: current.vehicle?.vehicleId || null,
+              mileage: saleMileage,
+              nextServiceMileage: nextServiceMileage,
+              oilType: '', // TODO: Obtener del formulario cuando se implemente
+              ...current.vehicle // Pasar datos del vehículo
+            };
+            
+            // Llamar al endpoint para generar PDF
+            const apiBase = API.base || '';
+            const token = API.token.get();
+            const response = await fetch(`${apiBase}/api/v1/maintenance/generate-oil-change-sticker`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              },
+              body: JSON.stringify(stickerData)
+            });
+            
+            if (response.ok) {
+              // Descargar PDF
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `sticker-cambio-aceite-${Date.now()}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            } else {
+              console.warn('Error generando sticker:', await response.text());
+            }
+          } catch (err) {
+            console.error('Error generando sticker de cambio de aceite:', err);
+            // No bloquear el flujo si falla la generación del sticker
+          }
+        }
+        
+        modal.classList.add('hidden');
+        // Continuar con el modal de pago después de un pequeño delay
+        setTimeout(() => resolve(), 100);
+      });
+    }).catch(err => {
+      console.error('Error cargando plantillas de mantenimiento:', err);
+      // Si hay error, resolver igualmente para continuar con el flujo normal
+      // Mostrar modal vacío o continuar directamente
+      setTimeout(() => resolve(), 100);
+    });
+  });
+}
+
 function buildCloseModalContent(){
   const total = current?.total || 0;
   const wrap = document.createElement('div');
@@ -1684,14 +1918,36 @@ function buildCloseModalContent(){
   return wrap;
 }
 
+// Estado para servicios de mantenimiento seleccionados
+let selectedMaintenanceServices = [];
+let saleMileage = null;
+
 function openCloseModal(){
   const modal = document.getElementById('modal');
   const body = document.getElementById('modalBody');
   if(!modal||!body) return;
-  ensureCompanyData().then(()=>{
+  ensureCompanyData().then(async ()=>{
     // Asegurar que techConfig esté cargado
     console.log('techConfig después de ensureCompanyData:', techConfig);
     console.log('laborKinds disponibles:', techConfig?.laborKinds);
+    
+    // Resetear estado
+    selectedMaintenanceServices = [];
+    saleMileage = null;
+    
+    // Si la venta tiene vehículo, mostrar primero modal de servicios de mantenimiento
+    if (current?.vehicle?.vehicleId || current?.vehicle?.plate) {
+      try {
+        await openMaintenanceServicesModal();
+        // El modal resuelve cuando el usuario hace "Omitir" o "Continuar"
+        // Continuar con el modal de pago normalmente (no hay return aquí)
+      } catch (err) {
+        console.error('Error en modal de servicios de mantenimiento:', err);
+        // Continuar con el modal de pago si hay error
+      }
+    }
+    
+    // Mostrar modal de pago normal (siempre se ejecuta después del modal de mantenimiento)
     body.innerHTML='';
     const content = buildCloseModalContent();
     body.appendChild(content);
@@ -2666,7 +2922,10 @@ function fillCloseModal(){
         laborCommissions: comm,
         paymentReceiptUrl: receiptUrl,
         investment: investmentAmount > 0 ? investmentAmount : undefined,
-        total: total // Enviar el total para que el backend pueda validarlo
+        total: total, // Enviar el total para que el backend pueda validarlo
+        // Servicios de mantenimiento seleccionados
+        completedMaintenanceServices: selectedMaintenanceServices || [],
+        mileage: saleMileage || null
       };
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');

@@ -31,12 +31,14 @@ import templatesRouter from './routes/templates.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
 import payrollRouter from './routes/payroll.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
+import customerPublicRouter from './routes/customer.public.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import adminCompanyRouter from './routes/admin.company.routes.js';
 import vehiclesRouter from './routes/vehicles.routes.js';
 import receivablesRouter from './routes/receivables.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
 import chatsRouter from './routes/chats.routes.js';
+import maintenanceRouter from './routes/maintenance.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 
 const app = express();
@@ -202,6 +204,7 @@ app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/sales', salesStreamRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
 app.use('/api/v1/public/catalog', publicCatalogRouter);
+app.use('/api/v1/public/customer', customerPublicRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/admin/company', adminCompanyRouter);
 
@@ -305,6 +308,7 @@ app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
 app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
+app.use('/api/v1/maintenance', authCompany, withCompanyDefaults, maintenanceRouter);
 app.use('/api/v1/vehicles', authCompany, vehiclesRouter); // Global, sin companyId
 
 app.use((err, _req, res, _next) => {

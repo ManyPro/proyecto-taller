@@ -365,8 +365,14 @@ const API = {
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
-  techReport: (params = {}) => http.get(`/api/v1/sales/technicians/report${toQuery(params)}`),
+    techReport: (params = {}) => http.get(`/api/v1/sales/technicians/report${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
+  },
+
+  // --- Mantenimiento ---
+  maintenance: {
+    getTemplates: (params = {}) => http.get(`/api/v1/maintenance/templates${toQuery(params)}`),
+    getTemplate: (serviceId) => http.get(`/api/v1/maintenance/templates/${serviceId}`),
     profileByPlate: (plate, opts = {}) => {
       const params = {};
       if (opts.fuzzy) params.fuzzy = 'true';
