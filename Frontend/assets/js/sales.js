@@ -1786,7 +1786,7 @@ async function openMaintenanceServicesModal() {
             </svg>
           </div>
           
-          <div class="max-h-[600px] overflow-y-auto custom-scrollbar pr-2" id="maintenance-services-container">
+          <div class="max-h-[500px] overflow-y-auto custom-scrollbar pr-2" id="maintenance-services-container">
             ${commonServices.length > 0 ? `
               <div class="mb-4">
                 <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -1833,23 +1833,26 @@ async function openMaintenanceServicesModal() {
       `;
 
       const modalHTML = `
-        <div class="p-6">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="p-2 bg-blue-600/20 rounded-lg">
-              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
+        <div class="p-6 flex flex-col h-full max-h-[90vh]">
+          <div class="flex-1 overflow-y-auto">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="p-2 bg-blue-600/20 rounded-lg">
+                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
+                <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
+              </div>
             </div>
-            <div>
-              <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
-              <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
-            </div>
+            
+            ${mileageInput}
+            ${servicesHTML}
           </div>
           
-          ${mileageInput}
-          ${servicesHTML}
-          
-          <div class="flex gap-3 mt-6 pt-4 border-t border-slate-700/50">
+          <!-- Botones siempre visibles en la parte inferior -->
+          <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700/50 flex-shrink-0 bg-slate-800 sticky bottom-0 pb-2">
             <button 
               id="maintenance-skip" 
               class="flex-1 px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500"
@@ -1919,8 +1922,16 @@ async function openMaintenanceServicesModal() {
         
         // Si se seleccionó cambio de aceite (prioridad 1), preguntar aceite y generar sticker
         const oilChangeService = templates.find(t => t.priority === 1 && selectedMaintenanceServices.includes(t.serviceId));
-        if (oilChangeService && saleMileage) {
+        if (oilChangeService) {
           try {
+            // Usar el kilometraje de la venta o el del vehículo actual
+            const finalMileage = saleMileage || current.vehicle?.mileage || null;
+            
+            if (!finalMileage) {
+              alert('Por favor ingresa el kilometraje actual para generar el sticker de cambio de aceite.');
+              return; // No cerrar el modal, permitir que el usuario ingrese el kilometraje
+            }
+            
             // Preguntar aceite utilizado antes de generar PDF
             const oilType = await showOilTypeModal();
             if (oilType === null) {
@@ -1931,7 +1942,7 @@ async function openMaintenanceServicesModal() {
             }
             
             // Obtener próximo kilometraje desde la planilla o calcular
-            let nextServiceMileage = saleMileage + (oilChangeService.mileageInterval || 10000);
+            let nextServiceMileage = finalMileage + (oilChangeService.mileageInterval || 10000);
             
             // Intentar obtener desde la planilla si está disponible
             try {
@@ -1944,7 +1955,7 @@ async function openMaintenanceServicesModal() {
                 const scheduleData = await scheduleResponse.json();
                 const serviceInSchedule = scheduleData.templates?.find(t => t.serviceId === oilChangeService.serviceId);
                 if (serviceInSchedule && serviceInSchedule.mileageInterval) {
-                  nextServiceMileage = saleMileage + serviceInSchedule.mileageInterval;
+                  nextServiceMileage = finalMileage + serviceInSchedule.mileageInterval;
                 }
               }
             } catch (err) {
@@ -1956,7 +1967,7 @@ async function openMaintenanceServicesModal() {
               saleId: current._id,
               vehicleId: current.vehicle?.vehicleId || null,
               plate: current.vehicle?.plate || '',
-              mileage: saleMileage,
+              mileage: finalMileage,
               nextServiceMileage: nextServiceMileage,
               oilType: oilType,
               ...current.vehicle // Pasar datos del vehículo
@@ -1986,10 +1997,13 @@ async function openMaintenanceServicesModal() {
               document.body.removeChild(a);
               window.URL.revokeObjectURL(url);
             } else {
-              console.warn('Error generando sticker:', await response.text());
+              const errorText = await response.text();
+              console.warn('Error generando sticker:', errorText);
+              alert('Error al generar el sticker. Por favor, intenta nuevamente.');
             }
           } catch (err) {
             console.error('Error generando sticker de cambio de aceite:', err);
+            alert('Error al generar el sticker. Por favor, intenta nuevamente.');
             // No bloquear el flujo si falla la generación del sticker
           }
         }
