@@ -1608,7 +1608,8 @@ async function openMaintenanceServicesModal() {
       try {
         const params = {};
         if (vehicleId) params.vehicleId = vehicleId;
-        params.commonOnly = 'true'; // Mostrar solo comunes por defecto
+        // No filtrar solo comunes, traer todos para poder buscar
+        // params.commonOnly = 'true'; // Comentado para mostrar más servicios
         
         const data = await API.maintenance.getTemplates(params);
         return data.templates || [];
@@ -1635,9 +1636,9 @@ async function openMaintenanceServicesModal() {
         </div>
       `;
 
-      // Separar servicios comunes y otros
-      const commonServices = templates.filter(t => t.isCommon || t.priority <= 10);
-      const otherServices = templates.filter(t => !t.isCommon && t.priority > 10);
+      // Separar servicios comunes y otros (mostrar más servicios)
+      const commonServices = templates.filter(t => t.isCommon || t.priority <= 20); // Mostrar más comunes
+      const otherServices = templates.filter(t => !t.isCommon && t.priority > 20);
       
       // Ordenar: cambio de aceite primero
       commonServices.sort((a, b) => {
@@ -1645,6 +1646,75 @@ async function openMaintenanceServicesModal() {
         if (b.priority === 1) return 1;
         return (a.priority || 100) - (b.priority || 100);
       });
+      
+      // Estado para búsqueda y filtrado
+      let filteredTemplates = templates;
+      let searchTerm = '';
+      
+      const filterTemplates = (term) => {
+        searchTerm = term.toLowerCase().trim();
+        if (!searchTerm) {
+          filteredTemplates = templates;
+        } else {
+          filteredTemplates = templates.filter(t => 
+            t.serviceName.toLowerCase().includes(searchTerm) ||
+            (t.system || '').toLowerCase().includes(searchTerm) ||
+            (t.notes || '').toLowerCase().includes(searchTerm) ||
+            (t.serviceId || '').toLowerCase().includes(searchTerm)
+          );
+        }
+        
+        // Re-renderizar servicios
+        const servicesContainer = document.getElementById('maintenance-services-container');
+        if (servicesContainer) {
+          const filteredCommon = filteredTemplates.filter(t => t.isCommon || t.priority <= 20);
+          const filteredOther = filteredTemplates.filter(t => !t.isCommon && t.priority > 20);
+          
+          filteredCommon.sort((a, b) => {
+            if (a.priority === 1) return -1;
+            if (b.priority === 1) return 1;
+            return (a.priority || 100) - (b.priority || 100);
+          });
+          
+          servicesContainer.innerHTML = `
+            ${filteredCommon.length > 0 ? `
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  SERVICIOS COMUNES
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${filteredCommon.map(t => renderServiceCard(t, true)).join('')}
+                </div>
+              </div>
+            ` : ''}
+            ${filteredOther.length > 0 ? `
+              <div class="mt-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                  </svg>
+                  OTROS SERVICIOS
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${filteredOther.map(t => renderServiceCard(t, false)).join('')}
+                </div>
+              </div>
+            ` : ''}
+            ${filteredTemplates.length === 0 ? `
+              <div class="text-center py-12 text-slate-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <p class="font-medium">No se encontraron servicios</p>
+                <p class="text-xs mt-2">Intenta con otros términos de búsqueda.</p>
+              </div>
+            ` : ''}
+          `;
+        }
+      };
 
       // Función para resumir texto
       const summarizeText = (text, maxLength = 60) => {
@@ -1697,10 +1767,95 @@ async function openMaintenanceServicesModal() {
         `;
       };
 
+      // Estado para búsqueda y filtrado
+      let filteredTemplates = templates;
+      let searchTerm = '';
+      
+      const filterTemplates = (term) => {
+        searchTerm = term.toLowerCase().trim();
+        if (!searchTerm) {
+          filteredTemplates = templates;
+        } else {
+          filteredTemplates = templates.filter(t => 
+            t.serviceName.toLowerCase().includes(searchTerm) ||
+            (t.system || '').toLowerCase().includes(searchTerm) ||
+            (t.notes || '').toLowerCase().includes(searchTerm) ||
+            (t.serviceId || '').toLowerCase().includes(searchTerm)
+          );
+        }
+        
+        // Re-renderizar servicios
+        const servicesContainer = document.getElementById('maintenance-services-container');
+        if (servicesContainer) {
+          const filteredCommon = filteredTemplates.filter(t => t.isCommon || t.priority <= 20);
+          const filteredOther = filteredTemplates.filter(t => !t.isCommon && t.priority > 20);
+          
+          filteredCommon.sort((a, b) => {
+            if (a.priority === 1) return -1;
+            if (b.priority === 1) return 1;
+            return (a.priority || 100) - (b.priority || 100);
+          });
+          
+          servicesContainer.innerHTML = `
+            ${filteredCommon.length > 0 ? `
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  SERVICIOS COMUNES
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${filteredCommon.map(t => renderServiceCard(t, true)).join('')}
+                </div>
+              </div>
+            ` : ''}
+            ${filteredOther.length > 0 ? `
+              <div class="mt-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                  </svg>
+                  OTROS SERVICIOS
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${filteredOther.map(t => renderServiceCard(t, false)).join('')}
+                </div>
+              </div>
+            ` : ''}
+            ${filteredTemplates.length === 0 ? `
+              <div class="text-center py-12 text-slate-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <p class="font-medium">No se encontraron servicios</p>
+                <p class="text-xs mt-2">Intenta con otros términos de búsqueda.</p>
+              </div>
+            ` : ''}
+          `;
+        }
+      };
+      
       const servicesHTML = `
         <div class="mb-4">
-          <label class="block text-sm font-semibold text-white mb-3">Servicios realizados</label>
-          <div class="max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-semibold text-white">Servicios realizados</label>
+          </div>
+          
+          <!-- Barra de búsqueda -->
+          <div class="mb-4 relative">
+            <input 
+              type="text" 
+              id="maintenance-search" 
+              placeholder="Buscar servicio..." 
+              class="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+            />
+            <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          
+          <div class="max-h-[600px] overflow-y-auto custom-scrollbar pr-2" id="maintenance-services-container">
             ${commonServices.length > 0 ? `
               <div class="mb-4">
                 <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -1803,6 +1958,15 @@ async function openMaintenanceServicesModal() {
         document.head.appendChild(style);
       }
 
+      // Event listener para búsqueda
+      const searchInput = document.getElementById('maintenance-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          const term = e.target.value.trim();
+          filterTemplates(term);
+        });
+      }
+      
       // Event listeners
       document.getElementById('maintenance-skip')?.addEventListener('click', () => {
         selectedMaintenanceServices = [];
@@ -1822,20 +1986,48 @@ async function openMaintenanceServicesModal() {
         const mileageValue = mileageInput ? Number(mileageInput.value) : null;
         saleMileage = Number.isFinite(mileageValue) && mileageValue > 0 ? mileageValue : null;
         
-        // Si se seleccionó cambio de aceite (prioridad 1), generar sticker
+        // Si se seleccionó cambio de aceite (prioridad 1), preguntar aceite y generar sticker
         const oilChangeService = templates.find(t => t.priority === 1 && selectedMaintenanceServices.includes(t.serviceId));
         if (oilChangeService && saleMileage) {
           try {
-            // Calcular próximo servicio (kilometraje actual + intervalo)
-            const nextServiceMileage = saleMileage + (oilChangeService.mileageInterval || 10000);
+            // Preguntar aceite utilizado antes de generar PDF
+            const oilType = await showOilTypeModal();
+            if (oilType === null) {
+              // Usuario canceló, continuar sin generar sticker
+              modal.classList.add('hidden');
+              setTimeout(() => resolve(), 100);
+              return;
+            }
+            
+            // Obtener próximo kilometraje desde la planilla o calcular
+            let nextServiceMileage = saleMileage + (oilChangeService.mileageInterval || 10000);
+            
+            // Intentar obtener desde la planilla si está disponible
+            try {
+              const scheduleResponse = await fetch(`${API.base || ''}/api/v1/maintenance/templates?vehicleId=${current.vehicle?.vehicleId || ''}`, {
+                headers: {
+                  'Authorization': API.token.get() ? `Bearer ${API.token.get()}` : ''
+                }
+              });
+              if (scheduleResponse.ok) {
+                const scheduleData = await scheduleResponse.json();
+                const serviceInSchedule = scheduleData.templates?.find(t => t.serviceId === oilChangeService.serviceId);
+                if (serviceInSchedule && serviceInSchedule.mileageInterval) {
+                  nextServiceMileage = saleMileage + serviceInSchedule.mileageInterval;
+                }
+              }
+            } catch (err) {
+              console.warn('No se pudo obtener intervalo desde planilla, usando valor por defecto');
+            }
             
             // Generar sticker PDF
             const stickerData = {
               saleId: current._id,
               vehicleId: current.vehicle?.vehicleId || null,
+              plate: current.vehicle?.plate || '',
               mileage: saleMileage,
               nextServiceMileage: nextServiceMileage,
-              oilType: '', // TODO: Obtener del formulario cuando se implemente
+              oilType: oilType,
               ...current.vehicle // Pasar datos del vehículo
             };
             
@@ -3210,6 +3402,107 @@ function setupInvestmentSection() {
 }
 
 // Función helper para escapar HTML
+// Función para mostrar modal de tipo de aceite
+function showOilTypeModal() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+    overlay.style.zIndex = '10000';
+    
+    const modal = document.createElement('div');
+    modal.className = 'bg-slate-800 rounded-xl shadow-2xl border border-slate-700/50 w-full max-w-md transform transition-all';
+    
+    modal.innerHTML = `
+      <div class="p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-2 bg-yellow-600/20 rounded-lg">
+            <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white">Tipo de Aceite</h3>
+        </div>
+        
+        <p class="text-slate-300 mb-4">
+          Ingresa el tipo de aceite utilizado en el cambio:
+        </p>
+        
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-400 mb-2">
+            Aceite utilizado
+          </label>
+          <input
+            type="text"
+            id="oilTypeInput"
+            placeholder="Ej: 5W-30, 10W-40, etc."
+            class="w-full px-4 py-3 bg-slate-900/70 border-2 border-slate-600 rounded-lg text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all"
+            autofocus
+          />
+        </div>
+        
+        <div class="flex gap-3">
+          <button
+            id="cancelOilBtn"
+            class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            id="confirmOilBtn"
+            class="flex-1 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Confirmar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    const input = modal.querySelector('#oilTypeInput');
+    const confirmBtn = modal.querySelector('#confirmOilBtn');
+    const cancelBtn = modal.querySelector('#cancelOilBtn');
+    
+    const close = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+    
+    confirmBtn.addEventListener('click', () => {
+      const value = input.value.trim();
+      if (value) {
+        close(value);
+      } else {
+        input.focus();
+        input.classList.add('border-red-500');
+        setTimeout(() => input.classList.remove('border-red-500'), 2000);
+      }
+    });
+    
+    cancelBtn.addEventListener('click', () => close(null));
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        close(null);
+      }
+    });
+    
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        confirmBtn.click();
+      } else if (e.key === 'Escape') {
+        cancelBtn.click();
+      }
+    });
+    
+    setTimeout(() => input.focus(), 100);
+  });
+}
+
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');

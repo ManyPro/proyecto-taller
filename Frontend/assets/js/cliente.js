@@ -148,6 +148,118 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Mostrar modal para ingresar kilometraje del servicio
+function showMileageInputModal(serviceName) {
+  return new Promise((resolve) => {
+    // Crear overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+    overlay.style.zIndex = '9999';
+    
+    // Crear modal
+    const modal = document.createElement('div');
+    modal.className = 'bg-slate-800 rounded-xl shadow-2xl border border-slate-700/50 w-full max-w-md transform transition-all';
+    
+    modal.innerHTML = `
+      <div class="p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-2 bg-blue-600/20 rounded-lg">
+            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white">Kilometraje del Servicio</h3>
+        </div>
+        
+        <p class="text-slate-300 mb-4">
+          Ingresa el kilometraje en el que se realizó el servicio:
+        </p>
+        
+        <p class="text-blue-400 font-semibold mb-6 text-lg">
+          "${escapeHtml(serviceName)}"
+        </p>
+        
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-400 mb-2">
+            Kilometraje (km)
+          </label>
+          <input
+            type="number"
+            id="serviceMileageInput"
+            placeholder="Ej: 150000"
+            class="w-full px-4 py-3 bg-slate-900/70 border-2 border-slate-600 rounded-lg text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            min="0"
+            step="1"
+            autofocus
+          />
+        </div>
+        
+        <div class="flex gap-3">
+          <button
+            id="cancelMileageBtn"
+            class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            id="confirmMileageBtn"
+            class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Confirmar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    const input = modal.querySelector('#serviceMileageInput');
+    const confirmBtn = modal.querySelector('#confirmMileageBtn');
+    const cancelBtn = modal.querySelector('#cancelMileageBtn');
+    
+    // Función para cerrar y resolver
+    const close = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+    
+    // Event listeners
+    confirmBtn.addEventListener('click', () => {
+      const value = input.value.trim();
+      if (value) {
+        close(value);
+      } else {
+        input.focus();
+        input.classList.add('border-red-500');
+        setTimeout(() => input.classList.remove('border-red-500'), 2000);
+      }
+    });
+    
+    cancelBtn.addEventListener('click', () => close(null));
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        close(null);
+      }
+    });
+    
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        confirmBtn.click();
+      } else if (e.key === 'Escape') {
+        cancelBtn.click();
+      }
+    });
+    
+    // Focus en el input
+    setTimeout(() => input.focus(), 100);
+  });
+}
+
 // Mostrar error
 function showError(message) {
   const errorDiv = document.getElementById('loginError');
@@ -300,28 +412,35 @@ function renderVehicleInfo(vehicle, plate) {
         <p class="text-xs text-slate-400 uppercase tracking-wide">${card.label}</p>
       </div>
       ${card.editable ? `
-        <div class="flex items-center gap-2">
-          <input
-            type="number"
-            id="currentMileageInput"
-            value="${card.value || ''}"
-            placeholder="Ingresar km"
-            class="flex-1 text-xl font-bold text-white bg-transparent border-b-2 ${card.borderColorClass} ${card.borderFocusClass} focus:outline-none px-1 py-1"
-            min="0"
-            step="1"
-          />
-          <span class="text-xl font-bold text-white">km</span>
+        <div class="flex items-center gap-3">
+          <div class="flex-1 relative">
+            <input
+              type="number"
+              id="currentMileageInput"
+              value="${card.value || ''}"
+              placeholder="Ingresar km"
+              class="w-full text-2xl font-bold text-white bg-slate-800/50 border-2 ${card.borderColorClass} ${card.borderFocusClass} focus:outline-none focus:ring-2 focus:ring-yellow-500/50 rounded-lg px-4 py-3 transition-all"
+              min="0"
+              step="1"
+            />
+          </div>
+          <span class="text-xl font-bold text-white whitespace-nowrap">km</span>
           <button
             id="updateMileageBtn"
-            class="px-3 py-1 ${card.buttonBgClass} ${card.buttonHoverClass} text-white text-xs font-semibold rounded-lg transition-colors"
+            class="px-4 py-3 ${card.buttonBgClass} ${card.buttonHoverClass} text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center min-w-[48px]"
             title="Actualizar kilometraje"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </button>
         </div>
-        <p class="text-xs text-slate-500 mt-1">Actualiza para calcular servicios próximos</p>
+        <p class="text-xs text-slate-400 mt-2 flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Actualiza para calcular servicios próximos
+        </p>
       ` : `
         <p class="text-xl font-bold text-white">${escapeHtml(String(card.value))}</p>
       `}
@@ -738,15 +857,15 @@ function renderSchedule(schedule) {
       
       if (!serviceId || !action) return;
       
-      // Si es "completed", pedir el kilometraje
+      // Si es "completed", pedir el kilometraje con modal personalizado
       if (action === 'completed') {
         const service = schedule.services.find(s => s.id === serviceId);
-        const mileage = prompt(`Ingresa el kilometraje en el que se realizó el servicio "${service?.serviceName || 'este servicio'}":`);
-        if (!mileage) return;
+        const mileage = await showMileageInputModal(service?.serviceName || 'este servicio');
+        if (mileage === null) return; // Usuario canceló
         
         const mileageNum = Number(mileage.replace(/[^0-9]/g, ''));
         if (!mileageNum || mileageNum < 0) {
-          alert('Por favor ingresa un kilometraje válido');
+          showError('Por favor ingresa un kilometraje válido');
           return;
         }
         
