@@ -24,6 +24,11 @@ async function getPriceEntryCached(refId) {
   if (!refId) return null;
   const refIdStr = String(refId);
   
+  // Si ya sabemos que este PriceEntry no existe (error previo), retornar null inmediatamente
+  if (window.priceEntryErrors.has(refIdStr)) {
+    return null;
+  }
+  
   // Si ya está en cache, retornar inmediatamente
   if (window.priceEntryCache.has(refIdStr)) {
     return window.priceEntryCache.get(refIdStr);
@@ -47,11 +52,22 @@ async function getPriceEntryCached(refId) {
         window.priceEntryCache.set(refIdStr, pe);
         return pe;
       }
+      // Si no se encontró (null), guardar en el set de errores para no intentar de nuevo
+      window.priceEntryErrors.add(refIdStr);
       return null;
     } catch (err) {
-      // Los errores deben mostrarse para diagnóstico
-      // El problema real está en el backend, no aquí
-      console.error(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
+      // API.prices.get ahora retorna null para 404s, pero por si acaso manejamos otros errores
+      // Si es un 404 (PriceEntry no existe), guardarlo en el set de errores y no mostrar error
+      if (err?.message?.includes('404') || err?.message?.includes('not found') || err?.message?.includes('Not found')) {
+        window.priceEntryErrors.add(refIdStr);
+        // No mostrar error para 404s - es normal que algunos PriceEntry ya no existan
+        return null;
+      }
+      // Para otros errores, mostrar warning solo una vez
+      if (!window.priceEntryErrors.has(refIdStr)) {
+        console.warn(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err?.message || err);
+        window.priceEntryErrors.add(refIdStr);
+      }
       return null;
     } finally {
       // Limpiar la promesa pendiente
@@ -3344,6 +3360,12 @@ async function renderSale(){
       btnComplete.style.cssText = 'padding:6px 12px;border-radius:4px;border:none;cursor:pointer;font-size:12px;';
       btnComplete.onclick = async () => {
         try {
+          // Validar que el slot tenga comboPriceId
+          if (!slot.comboPriceId) {
+            console.error('Slot sin comboPriceId:', slot);
+            alert('Error: El slot no tiene comboPriceId. Por favor, recarga la página.');
+            return;
+          }
           // Usar slot.slotIndex que es el índice real del slot en el combo, no el índice del array filtrado
           await completeOpenSlotWithQR(current._id, slot.slotIndex, slot);
         } catch (err) {
@@ -3918,6 +3940,11 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
       
       const parsed = parseInventoryCode(text);
       try {
+        // Validar que el slot tenga comboPriceId antes de hacer la llamada
+        if (!slot || !slot.comboPriceId) {
+          throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
+        }
+        
         let itemId = null;
         let sku = null;
         
@@ -3927,7 +3954,13 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
           sku = parsed.sku;
         }
         
-        const result = await API.sales.completeSlot(saleId, slotIndex, itemId, sku);
+        // Asegurar que comboPriceId sea un string (puede venir como ObjectId de MongoDB)
+        const comboPriceId = slot.comboPriceId ? String(slot.comboPriceId) : null;
+        if (!comboPriceId) {
+          throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
+        }
+        
+        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, itemId, sku);
         current = result.sale;
         syncCurrentIntoOpenList();
         await renderAll();
@@ -10024,35 +10057,34 @@ async function loadHistorial(forceRefresh = false) {
     const params = {
       status: 'closed',
       limit: historialPageSize,
-      page: historialCurrentPage
+      page: historialCurrentPage // SIEMPRE usar la página actual, incluso sin filtros
     };
 
-    // Si hay filtros de fecha, placa o técnico, usarlos; si no, cargar últimas 20
-    if (historialDateFrom || historialDateTo || historialPlate || historialTechnician) {
-      if (historialDateFrom) params.from = historialDateFrom;
-      if (historialDateTo) params.to = historialDateTo;
-      if (historialPlate) params.plate = historialPlate;
-      if (historialTechnician) params.technician = historialTechnician;
-    } else {
-      // Sin filtros: cargar últimas 20 ventas
-      params.limit = 20;
-      params.page = 1;
-    }
+    // Agregar filtros si existen
+    if (historialDateFrom) params.from = historialDateFrom;
+    if (historialDateTo) params.to = historialDateTo;
+    if (historialPlate) params.plate = historialPlate;
+    // NOTA: El filtro de técnico se envía al backend, no se filtra en frontend
+    // El backend no soporta filtro por técnico en listSales, así que lo mantenemos en frontend por ahora
+    // pero sin afectar la paginación
 
-    // Generar clave de cache
+    // Generar clave de cache (incluye página para evitar conflictos)
     const cacheKey = JSON.stringify(params);
     
     // Usar cache si está disponible y no se fuerza refresh
     if (!forceRefresh && historialCache && historialCacheKey === cacheKey) {
       const sales = historialCache;
       renderHistorialSales(sales);
+      updateHistorialPagination();
       return;
     }
 
     const res = await API.sales.list(params);
     let sales = Array.isArray(res?.items) ? res.items : [];
     
-    // Filtrar por técnico en el frontend si está especificado
+    // Filtrar por técnico en el frontend si está especificado (solo para visualización)
+    // NOTA: Esto puede causar que se muestren menos items de los esperados por página
+    // pero es necesario porque el backend no soporta filtro por técnico en listSales
     if (historialTechnician) {
       sales = sales.filter(sale => {
         const tech = sale?.technician || sale?.closingTechnician || sale?.initialTechnician || '';
@@ -10064,16 +10096,19 @@ async function loadHistorial(forceRefresh = false) {
     historialCache = sales;
     historialCacheKey = cacheKey;
     
-    // Ajustar totales si se filtró por técnico
-    if (historialTechnician) {
-      historialTotal = sales.length;
-      historialTotalPages = Math.ceil(historialTotal / historialPageSize);
-    } else {
-      historialTotal = res?.total || sales.length;
-      historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+    // Actualizar totales desde la respuesta del backend
+    historialTotal = res?.total || sales.length;
+    historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+    
+    // Si se filtró por técnico en frontend, ajustar totales (pero mantener paginación del backend)
+    // Esto es un workaround hasta que el backend soporte filtro por técnico
+    if (historialTechnician && res?.total) {
+      // El total del backend no refleja el filtro de técnico, pero mantenemos la paginación
+      // para evitar problemas de navegación
     }
 
     renderHistorialSales(sales);
+    updateHistorialPagination();
 
   } catch (err) {
     console.error('Error loading historial:', err);
@@ -12593,21 +12628,15 @@ async function generateTechnicianReport(fechaDesde, fechaHasta, tecnico) {
   document.body.appendChild(loadingDiv);
   
   try {
-    // Obtener todas las ventas cerradas en el rango de fechas
-    const salesData = await API.sales.list({ 
-      status: 'closed', 
+    // Usar el endpoint específico de reporte de técnicos que ya filtra por fecha y técnico
+    const salesData = await API.sales.techReport({ 
       from: fechaDesde, 
       to: fechaHasta, 
+      technician: tecnico,
       limit: 10000 
     });
     
-    const allSales = Array.isArray(salesData?.items) ? salesData.items : [];
-    
-    // Filtrar ventas donde el técnico participó
-    const technicianSales = allSales.filter(sale => {
-      const saleTechnician = sale.technician || sale.closingTechnician || '';
-      return saleTechnician.toLowerCase() === tecnico.toLowerCase();
-    });
+    const technicianSales = Array.isArray(salesData?.items) ? salesData.items : [];
     
     // Mostrar reporte
     showTechnicianReport(technicianSales, fechaDesde, fechaHasta, tecnico);
@@ -12685,11 +12714,13 @@ async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
   viewHistorial.innerHTML = '';
   viewHistorial.appendChild(reportContainer);
   
-  // Renderizar ventas
+  // Renderizar ventas y guardar referencia a las tarjetas para poder restaurar posiciones
   const salesListContainer = document.getElementById('technician-sales-list');
+  
   if (salesListContainer && sales.length > 0) {
-    for (const sale of sales) {
-      const saleCard = await createTechnicianReportSaleCard(sale);
+    for (let i = 0; i < sales.length; i++) {
+      const sale = sales[i];
+      const saleCard = await createTechnicianReportSaleCard(sale, i, salesListContainer);
       salesListContainer.appendChild(saleCard);
     }
   }
@@ -12704,10 +12735,12 @@ async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
   });
 }
 
-async function createTechnicianReportSaleCard(sale) {
+async function createTechnicianReportSaleCard(sale, originalIndex, container) {
   const card = document.createElement('div');
   card.className = 'technician-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 cursor-pointer transition-all duration-200 hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-sky-100';
   card.dataset.saleId = sale._id;
+  card.dataset.originalIndex = originalIndex;
+  card.dataset.isHidden = 'false';
   
   const plate = sale?.vehicle?.plate || 'Sin placa';
   const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
@@ -12748,7 +12781,10 @@ async function createTechnicianReportSaleCard(sale) {
           <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(total)}</div>
         </div>
       </div>
-      <div class="flex-shrink-0">
+      <div class="flex-shrink-0 flex gap-2">
+        <button class="btn-tech-toggle-visibility px-3 py-2 text-xs bg-slate-600/50 dark:bg-slate-600/50 hover:bg-slate-600 dark:hover:bg-slate-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-500/50 dark:border-slate-500/50" data-sale-id="${sale._id}" title="Ocultar/Mostrar">
+          👁️
+        </button>
         <button class="btn-tech-view-detail px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
           👁️ Ver Detalle
         </button>
@@ -12759,7 +12795,7 @@ async function createTechnicianReportSaleCard(sale) {
     </div>
   `;
   
-  // Event listener para expandir/colapsar
+  // Event listener para expandir/colapsar detalle
   const viewBtn = card.querySelector('.btn-tech-view-detail');
   const detailDiv = card.querySelector(`#tech-sale-detail-${sale._id}`);
   
@@ -12785,6 +12821,68 @@ async function createTechnicianReportSaleCard(sale) {
       // Colapsar
       detailDiv.classList.add('hidden');
       viewBtn.textContent = '👁️ Ver Detalle';
+    }
+  });
+  
+  // Event listener para toggle de visibilidad (botón de ojo)
+  const toggleBtn = card.querySelector('.btn-tech-toggle-visibility');
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    
+    const isHidden = card.dataset.isHidden === 'true';
+    const salesListContainer = container || document.getElementById('technician-sales-list');
+    if (!salesListContainer) return;
+    
+    if (isHidden) {
+      // Mostrar: restaurar a posición original
+      card.dataset.isHidden = 'false';
+      card.style.display = '';
+      toggleBtn.textContent = '👁️';
+      toggleBtn.title = 'Ocultar';
+      
+      const cardOriginalIndex = parseInt(card.dataset.originalIndex || '0');
+      const allCards = Array.from(salesListContainer.querySelectorAll('.technician-sale-card'));
+      const visibleCards = allCards.filter(c => c !== card && c.dataset.isHidden === 'false');
+      
+      // Ordenar las tarjetas visibles por índice original
+      visibleCards.sort((a, b) => {
+        const idxA = parseInt(a.dataset.originalIndex || '0');
+        const idxB = parseInt(b.dataset.originalIndex || '0');
+        return idxA - idxB;
+      });
+      
+      // Encontrar la posición correcta basada en el índice original
+      let insertBefore = null;
+      for (const otherCard of visibleCards) {
+        const otherIndex = parseInt(otherCard.dataset.originalIndex || '0');
+        if (otherIndex > cardOriginalIndex) {
+          insertBefore = otherCard;
+          break;
+        }
+      }
+      
+      if (insertBefore) {
+        salesListContainer.insertBefore(card, insertBefore);
+      } else {
+        // Si no hay ninguna tarjeta después, agregar al final de las visibles
+        const lastVisible = visibleCards[visibleCards.length - 1];
+        if (lastVisible && lastVisible.nextSibling) {
+          salesListContainer.insertBefore(card, lastVisible.nextSibling);
+        } else {
+          // Si no hay tarjetas visibles después, agregar al final
+          salesListContainer.appendChild(card);
+        }
+      }
+    } else {
+      // Ocultar: mover al final y ocultar
+      card.dataset.isHidden = 'true';
+      toggleBtn.textContent = '👁️‍🗨️';
+      toggleBtn.title = 'Mostrar';
+      
+      // Mover al final de la lista primero
+      salesListContainer.appendChild(card);
+      // Luego ocultar
+      card.style.display = 'none';
     }
   });
   

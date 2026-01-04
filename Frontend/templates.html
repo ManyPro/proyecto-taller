@@ -141,7 +141,6 @@
     body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
       background-color: #ffffff !important;
     }
-    body.theme-light #modal .bg-slate-800/50,
     body.theme-light #modal [class*="bg-slate-800/50"] {
       background-color: rgba(255, 255, 255, 0.95) !important;
     }
@@ -413,9 +412,16 @@
     (function loadEditorScript(){
       const params = new URLSearchParams(window.location.search);
       const type = params.get('type') || '';
+      
+      // Bloquear acceso al editor de stickers - formato fijo de Casa Renault
+      if (type.includes('sticker')) {
+        alert('⚠️ Los stickers usan un formato fijo de Casa Renault y no se pueden editar.\n\nEl formato se genera automáticamente al imprimir stickers desde el inventario.');
+        window.location.href = 'template-selector.html';
+        return;
+      }
+      
       const script = document.createElement('script');
-      // Cargar solo el editor necesario para reducir peso y tiempos
-      script.src = type.includes('sticker') ? 'assets/js/sticker-editor.js' : 'assets/js/templates-visual.js';
+      script.src = 'assets/js/templates-visual.js';
       document.currentScript.parentNode.insertBefore(script, document.currentScript.nextSibling);
     })();
   </script>

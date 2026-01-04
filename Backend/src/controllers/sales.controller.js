@@ -400,6 +400,16 @@ export const getSale = async (req, res) => {
   }));
   
   saleObj.items = enrichedItems;
+  
+  // Normalizar openSlots para asegurar que comboPriceId y completedItemId sean strings
+  if (saleObj.openSlots && Array.isArray(saleObj.openSlots)) {
+    saleObj.openSlots = saleObj.openSlots.map(slot => ({
+      ...slot,
+      comboPriceId: slot.comboPriceId ? String(slot.comboPriceId) : null,
+      completedItemId: slot.completedItemId ? String(slot.completedItemId) : null
+    }));
+  }
+  
   res.json(saleObj);
 };
 
@@ -2492,10 +2502,14 @@ export const deleteSalesBulk = async (req, res) => {
 // ===== Completar slot abierto mediante QR =====
 export const completeOpenSlot = async (req, res) => {
   const { id } = req.params; // saleId
-  const { slotIndex, itemId, sku } = req.body || {};
+  const { slotIndex, comboPriceId, itemId, sku } = req.body || {};
   
   if (slotIndex === undefined || slotIndex === null) {
     return res.status(400).json({ error: 'slotIndex requerido' });
+  }
+  
+  if (!comboPriceId) {
+    return res.status(400).json({ error: 'comboPriceId requerido' });
   }
   
   const companyFilter = getSaleQueryCompanyFilter(req);
@@ -2508,10 +2522,15 @@ export const completeOpenSlot = async (req, res) => {
     return res.status(400).json({ error: 'Esta venta no tiene slots abiertos' });
   }
   
-  // Buscar el slot por su slotIndex (índice en el combo), no por el índice del array
-  const slot = sale.openSlots.find(s => s.slotIndex === slotIndex);
+  // CRÍTICO: Buscar el slot usando slotIndex Y comboPriceId para identificar de forma única
+  // Esto evita conflictos cuando múltiples combos tienen slots con el mismo índice
+  const slot = sale.openSlots.find(s => 
+    s.slotIndex === slotIndex && 
+    s.comboPriceId && 
+    String(s.comboPriceId) === String(comboPriceId)
+  );
   if (!slot) {
-    return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} no encontrado` });
+    return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} y comboPriceId ${comboPriceId} no encontrado` });
   }
   
   if (slot.completed) {
@@ -3076,27 +3095,31 @@ export const technicianReport = async (req, res) => {
   try {
     let { from, to, technician, page = 1, limit = 100 } = req.query || {};
     const pg = Math.max(1, Number(page || 1));
-    const lim = Math.max(1, Math.min(500, Number(limit || 100)));
+    // Permitir límites más altos para reportes (hasta 50000)
+    const lim = Math.max(1, Math.min(50000, Number(limit || 100)));
     const tech = technician ? String(technician).trim().toUpperCase() : '';
 
     // Base match: ventas cerradas
     const match = { companyId: req.companyId, status: 'closed' };
 
-    // Rango de fechas sobre closedAt (fallback updatedAt) usando $expr
+    // Preparar fechas para el filtro (se aplicará después en el pipeline)
+    let fromDate = null;
+    let toDate = null;
     if (from || to) {
       const dateRange = createDateRange(from, to);
-      const gte = dateRange.from;
-      const lte = dateRange.to;
-      if (gte || lte) {
-        match.$expr = {
-          $and: [
-            gte ? { $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ] } : { $gte: [0,0] },
-            lte ? { $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ] } : { $gte: [0,0] }
-          ]
-        };
-      }
+      fromDate = dateRange.from;
+      toDate = dateRange.to;
+      
+      // Log para debugging
+      logger.info('technicianReport date filter', { 
+        from, 
+        to, 
+        fromDate: fromDate ? fromDate.toISOString() : null, 
+        toDate: toDate ? toDate.toISOString() : null 
+      });
     }
 
+    // Filtro de técnico (aplicado en el $match inicial)
     if (tech) {
       match.$or = [
         { technician: tech },
@@ -3107,6 +3130,16 @@ export const technicianReport = async (req, res) => {
 
     const skip = (pg - 1) * lim;
 
+    // Log del match antes de ejecutar la agregación
+    logger.info('technicianReport match filter', { 
+      match: JSON.stringify(match, (key, value) => {
+        if (value instanceof Date) {
+          return value.toISOString();
+        }
+        return value;
+      })
+    });
+    
     const pipeline = [
       { $match: match },
       { $addFields: {
@@ -3127,6 +3160,16 @@ export const technicianReport = async (req, res) => {
       },
       // Filtrar solo las que tengan participaciÃ³n > 0
       { $match: { _laborShareCalc: { $gt: 0 } } },
+      // Aplicar filtro de fechas DESPUÉS de calcular _reportDate (más preciso y evita problemas de serialización)
+      ...(fromDate || toDate ? [{
+        $match: {
+          _reportDate: fromDate && toDate 
+            ? { $gte: fromDate, $lte: toDate }
+            : fromDate 
+            ? { $gte: fromDate }
+            : { $lte: toDate }
+        }
+      }] : []),
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
           rows: [ { $skip: skip }, { $limit: lim }, { $project: {
@@ -3145,6 +3188,24 @@ export const technicianReport = async (req, res) => {
     const rows = pack.rows || [];
     const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
     const totalDocs = totalsRaw.count || 0;
+    
+    // Log de resultados para debugging
+    logger.info('technicianReport results', { 
+      totalDocs, 
+      rowsReturned: rows.length,
+      fromDate: fromDate ? fromDate.toISOString() : null,
+      toDate: toDate ? toDate.toISOString() : null,
+      sampleDates: rows.slice(0, 5).map(r => ({
+        _id: r._id,
+        number: r.number,
+        closedAt: r.closedAt ? new Date(r.closedAt).toISOString() : null,
+        updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : null,
+        _reportDate: r._reportDate ? new Date(r._reportDate).toISOString() : null,
+        inRange: fromDate && toDate && r._reportDate 
+          ? (new Date(r._reportDate) >= fromDate && new Date(r._reportDate) <= toDate)
+          : null
+      }))
+    });
 
     // Fallback simple si no se obtuvieron filas pero deberÃ­an existir (debug)
     if (!rows.length) {

@@ -282,7 +282,19 @@ const API = {
   // --- Lista de precios ---
   prices: {
     list: (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),
-    get: (id) => http.get(`/api/v1/prices/${id}`),
+    get: async (id) => {
+      // Manejar 404 de forma silenciosa para PriceEntry que ya no existen
+      try {
+        return await http.get(`/api/v1/prices/${id}`);
+      } catch (err) {
+        // Si es un 404, retornar null silenciosamente (no lanzar error)
+        if (err?.message?.includes('404') || err?.message?.includes('not found') || err?.message?.includes('Not found')) {
+          return null;
+        }
+        // Para otros errores, lanzar normalmente
+        throw err;
+      }
+    },
     create: (payload) => http.post('/api/v1/prices', payload),
     update: (id, body) => http.put(`/api/v1/prices/${id}`, body),
     delete: (id) => http.del(`/api/v1/prices/${id}`),
@@ -360,8 +372,8 @@ const API = {
     addByQR: (saleId, payload) =>
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
 
-    completeSlot: (id, slotIndex, itemId, sku) =>
-      http.post(`/api/v1/sales/${id}/complete-slot`, { slotIndex, itemId, sku }),
+    completeSlot: (id, slotIndex, comboPriceId, itemId, sku) =>
+      http.post(`/api/v1/sales/${id}/complete-slot`, { slotIndex, comboPriceId, itemId, sku }),
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),

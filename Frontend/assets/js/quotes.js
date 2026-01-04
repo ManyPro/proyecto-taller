@@ -931,7 +931,7 @@ export function initQuotes({ getCompanyEmail }) {
         '',
         'Items:'
       ];
-      readRows().forEach(r => {
+      (window._tempModalReadRows ? window._tempModalReadRows() : readRows()).forEach(r => {
         linesOut.push('- ' + (r.qty || 0) + ' x ' + (r.desc || '') + ' (' + money((r.qty>0?r.qty:1)*(r.price||0)) + ')');
       });
       const txt = linesOut.join('\n');
@@ -1036,7 +1036,8 @@ export function initQuotes({ getCompanyEmail }) {
           const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
           
           // Preparar datos de la cotización desde la UI
-          const quoteData = {
+          // Si hay datos temporales del modal, usarlos; sino usar datos de la UI principal
+          const quoteData = window._tempModalQuoteData || {
             number: iNumber.value || '',
             date: iDatetime.value || todayIso(),
             customer: {
@@ -1052,7 +1053,7 @@ export function initQuotes({ getCompanyEmail }) {
               displacement: iCc.value || ''
             },
             validity: iValidDays.value || '',
-            items: readRows().map(r => ({
+            items: (window._tempModalReadRows ? window._tempModalReadRows() : readRows()).map(r => ({
               description: r.desc || '',
               qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
               unitPrice: Number(r.price || 0),
@@ -1071,6 +1072,15 @@ export function initQuotes({ getCompanyEmail }) {
           
           // Si hay una cotización guardada, usar su ID para obtener datos reales
           const sampleId = currentQuoteId || undefined;
+          
+          // Log para debugging
+          console.log('[exportPDF] Enviando datos al preview:', {
+            sampleId: sampleId || 'none',
+            quoteDataItemsCount: (quoteData.items || []).length,
+            quoteDataItems: (quoteData.items || []).slice(0, 3).map(i => ({ desc: i.description, qty: i.qty, price: i.unitPrice })),
+            quoteDataTotal: quoteData.totals?.total,
+            hasQuoteData: !!quoteData
+          });
           
           // Enviar a endpoint preview con datos de la UI
           return API.templates.preview({ 
@@ -2916,9 +2926,71 @@ export function initQuotes({ getCompanyEmail }) {
         window.open(`https://wa.me/?text=${encodedText}`, '_blank');
       }
     });
-    q('#m-pdf')?.addEventListener('click',()=>{
-      // Usar exportPDF que ya maneja templates correctamente
-      exportPDF().catch(e=>alert(e?.message||'Error generando PDF'));
+    q('#m-pdf')?.addEventListener('click', async ()=>{
+      try {
+        // Preparar datos del modal para impresión
+        const modalRows = readRows();
+        const modalQuoteData = {
+          number: iNumber.value || '',
+          date: iDatetime.value || todayIso(),
+          customer: {
+            name: iName.value || '',
+            phone: iPhone.value || '',
+            email: iEmail.value || ''
+          },
+          vehicle: {
+            plate: iPlate.value || '',
+            make: iBrand.value || '',
+            line: iLine.value || '',
+            modelYear: iYear.value || '',
+            displacement: iCc.value || ''
+          },
+          validity: iValid.value || '',
+          items: modalRows.map(r => ({
+            description: r.desc || '',
+            qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
+            unitPrice: Number(r.price || 0),
+            subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
+            sku: r.sku || '',
+            kind: r.type || 'SERVICIO',
+            source: r.source || undefined,
+            refId: r.refId || undefined,
+            comboParent: r.comboParent || undefined
+          })),
+          totals: {
+            total: parseMoney(lblT?.textContent) || 0
+          },
+          ivaEnabled: false
+        };
+        
+        // Guardar contexto temporal para que exportPDF use los datos del modal
+        const originalReadRows = window._tempModalReadRows;
+        const originalQuoteData = window._tempModalQuoteData;
+        const originalCurrentQuoteId = currentQuoteId;
+        
+        window._tempModalReadRows = () => modalRows;
+        window._tempModalQuoteData = modalQuoteData;
+        currentQuoteId = doc?._id || null;
+        
+        try {
+          await exportPDF();
+        } finally {
+          // Restaurar contexto original
+          if (originalReadRows !== undefined) {
+            window._tempModalReadRows = originalReadRows;
+          } else {
+            delete window._tempModalReadRows;
+          }
+          if (originalQuoteData !== undefined) {
+            window._tempModalQuoteData = originalQuoteData;
+          } else {
+            delete window._tempModalQuoteData;
+          }
+          currentQuoteId = originalCurrentQuoteId;
+        }
+      } catch(e) {
+        alert(e?.message||'Error generando PDF');
+      }
     });
     q('#m-save')?.addEventListener('click', async ()=>{
       try{
@@ -2973,6 +3045,10 @@ export function initQuotes({ getCompanyEmail }) {
               base.refId = r.refId.trim();
             }
             if(r.sku) base.sku=r.sku;
+            // Incluir comboParent si existe (para items anidados de combos)
+            if(r.comboParent) {
+              base.comboParent = String(r.comboParent).trim();
+            }
             return base;
           }).filter(item => {
             // Filtrar solo items completamente vacíos
@@ -3090,10 +3166,68 @@ export function initQuotes({ getCompanyEmail }) {
       setUIFromQuote(d);
       
       // Esperar un momento para que la UI se actualice
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Usar exportPDF que ya maneja templates correctamente
-      await exportPDF();
+      // CRÍTICO: Preparar quoteData directamente desde el documento para asegurar que los items se pasen correctamente
+      // Esto es necesario porque cuando se imprime desde el historial, los items pueden no estar cargados correctamente en la UI
+      const quoteDataFromDoc = {
+        number: d?.number || '',
+        date: d?.createdAt ? new Date(d.createdAt).toISOString().slice(0, 16) : todayIso(),
+        customer: {
+          name: d?.customer?.name || '',
+          phone: d?.customer?.phone || '',
+          email: d?.customer?.email || ''
+        },
+        vehicle: {
+          plate: d?.vehicle?.plate || '',
+          make: d?.vehicle?.make || '',
+          line: d?.vehicle?.line || '',
+          modelYear: d?.vehicle?.modelYear || '',
+          displacement: d?.vehicle?.displacement || '',
+          mileage: d?.vehicle?.mileage || ''
+        },
+        validity: d?.validity || '',
+        items: (d?.items || []).map(item => ({
+          description: item.description || '',
+          qty: item.qty === null || item.qty === undefined || item.qty === '' ? null : Number(item.qty),
+          unitPrice: Number(item.unitPrice || 0),
+          subtotal: (item.qty > 0 ? item.qty : 1) * (item.unitPrice || 0),
+          sku: item.sku || '',
+          kind: item.kind || 'SERVICIO',
+          source: item.source || undefined,
+          refId: item.refId || undefined,
+          comboParent: item.comboParent || undefined
+        })),
+        totals: {
+          total: d?.total || 0
+        },
+        ivaEnabled: d?.ivaEnabled || false,
+        discount: d?.discount || null
+      };
+      
+      // Log para debugging
+      console.log('[exportPDFFromDoc] QuoteData preparado desde documento:', {
+        itemsCount: quoteDataFromDoc.items?.length || 0,
+        items: quoteDataFromDoc.items?.slice(0, 3).map(i => ({ desc: i.description, qty: i.qty, price: i.unitPrice })),
+        total: quoteDataFromDoc.totals?.total,
+        docId: d._id
+      });
+      
+      // Guardar quoteData temporalmente para que exportPDF lo use
+      const originalQuoteData = window._tempModalQuoteData;
+      window._tempModalQuoteData = quoteDataFromDoc;
+      
+      try {
+        // Usar exportPDF que ya maneja templates correctamente
+        await exportPDF();
+      } finally {
+        // Restaurar quoteData original
+        if (originalQuoteData !== undefined) {
+          window._tempModalQuoteData = originalQuoteData;
+        } else {
+          delete window._tempModalQuoteData;
+        }
+      }
     } catch(e) {
       console.error('[exportPDFFromDoc] Error:', e);
       alert(e?.message || 'Error generando PDF');

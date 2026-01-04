@@ -26,14 +26,29 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
   const layout = rawLayout && typeof rawLayout === 'object' ? rawLayout : {};
   const elements = Array.isArray(layout.elements) ? layout.elements : [];
 
-  const widthCm = Number(rawMeta.width) || Number(layout.widthCm) || Number(layout.width) || 5;
-  const heightCm = Number(rawMeta.height) || Number(layout.heightCm) || Number(layout.height) || 3;
+  // CRÍTICO: Forzar valores exactos (5cm y 3cm) para evitar problemas de precisión
+  // Si viene width/height en meta, usarlos, pero siempre redondear a valores exactos
+  let widthCm = Number(rawMeta.width) || Number(layout.widthCm) || Number(layout.width) || 5;
+  let heightCm = Number(rawMeta.height) || Number(layout.heightCm) || Number(layout.height) || 3;
+  
+  // CRÍTICO: Forzar valores exactos (5cm y 3cm) redondeando a 2 decimales y luego forzando valores exactos
+  widthCm = Math.round(widthCm * 100) / 100; // Redondear a 2 decimales
+  heightCm = Math.round(heightCm * 100) / 100;
+  // Si está cerca de 5 o 3, forzar exactamente 5 o 3
+  if (Math.abs(widthCm - 5) < 0.01) widthCm = 5;
+  if (Math.abs(heightCm - 3) < 0.01) heightCm = 3;
+
+  // Convertir cm a px para el wrapper (1cm = 37.795275591px)
+  const PX_PER_CM = 37.795275591;
+  const widthPx = Math.round(widthCm * PX_PER_CM);
+  const heightPx = Math.round(heightCm * PX_PER_CM);
 
   const safe = (v) => (v === undefined || v === null ? '' : String(v));
 
   const htmlParts = [];
+  // CRÍTICO: Usar píxeles en lugar de cm para que coincida exactamente con el canvas
   htmlParts.push(
-    `<div class="sticker-wrapper" style="position:relative;width:${widthCm}cm;height:${heightCm}cm;box-sizing:border-box;overflow:hidden;background:#ffffff;">`
+    `<div class="sticker-wrapper" style="position:relative;width:${widthPx}px;height:${heightPx}px;max-width:${widthPx}px;max-height:${heightPx}px;min-width:${widthPx}px;min-height:${heightPx}px;box-sizing:border-box;overflow:hidden;background:#ffffff;">`
   );
 
   for (const el of elements) {
@@ -87,6 +102,9 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       if (source === 'qr') {
         // QR generado en buildContext sobre ctx.item.qr
         srcExpr = '{{item.qr}}';
+      } else if (source === 'company-logo' || source === 'logo') {
+        // Logo de la compañía
+        srcExpr = el.url ? safe(el.url) : '{{company.logoUrl}}';
       } else if (source === 'item-image') {
         // Imagen principal del item:
         //  - Si el layout trae una URL fija, usarla
@@ -113,21 +131,29 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
       else if (source === 'custom') textExpr = safe(el.text || 'Texto');
       else textExpr = safe(el.text || '');
 
+      // CRÍTICO: Usar dimensiones ABSOLUTAS en píxeles, NO porcentajes
+      // El contenedor ya tiene width y height en px desde baseStyle, así que el contenido interno
+      // debe usar esas mismas dimensiones absolutas, no 100%
+      const innerWidth = w - 4; // Restar padding
+      const innerHeight = h - 4; // Restar padding
+      
       // Para texto con wrap: usar estructura con contenedor interno que se expande verticalmente
       if (wrap) {
-        // Con wrap: contenedor flex column con elemento interno que permite wrap y se expande verticalmente
+        // Con wrap: contenedor flex column con elemento interno que permite wrap
         const containerStyles = [
           'display:flex',
           'flex-direction:column',
           `align-items:${align === 'flex-end' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'}`,
-          // Para el nombre, usar flex-start en justify-content para que el texto comience arriba pero se expanda
-          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'flex-start' : 'flex-start'}`,
+          `justify-content:${vAlign === 'flex-end' ? 'flex-end' : vAlign === 'center' ? 'center' : 'flex-start'}`, // CRÍTICO: Usar flex-start para que el texto empiece desde arriba
           'padding:2px',
           'margin:0',
-          'width:100%',
-          'height:100%',
-          'box-sizing:border-box',
+          `width:${w}px`,
+          `height:${h}px`,
+          `max-width:${w}px`,
+          `max-height:${h}px`,
+          'min-width:0',
           'min-height:0',
+          'box-sizing:border-box',
           'overflow:hidden'
         ];
         const textInnerStyles = [
@@ -140,25 +166,23 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'word-break:break-word !important',
           'overflow-wrap:break-word !important',
           'hyphens:auto',
-          'width:100% !important',
-          'max-width:100% !important',
-          'flex:1 1 0%',
-          'min-height:100%',
-          'height:100%',
+          `width:${innerWidth}px !important`,
+          `max-width:${innerWidth}px !important`,
+          'height:100% !important', // CRÍTICO: Usar 100% para ocupar TODO el espacio vertical
+          `max-height:${innerHeight}px !important`, // Pero limitar con max-height
           'margin:0',
           'padding:0',
           'box-sizing:border-box',
-          'overflow:visible',
+          'overflow:hidden !important',
           'display:block',
-          'min-width:0',
-          'text-align:left'
+          'text-align:left',
+          'flex:1 1 0% !important' // CRÍTICO: Permitir que se expanda verticalmente
         ];
         htmlParts.push(
           `<div class="st-el" data-id="${id}" style="${baseStyle.join(';')};${containerStyles.join(';')}"><div style="${textInnerStyles.join(';')}">${textExpr}</div></div>`
         );
       } else {
         // Sin wrap explícito en el layout, pero PERMITIR wrap si el texto es largo
-        // para que el texto use todo el alto/ancho disponible sin desbordarse
         const textStyles = [
           'display:block',
           `font-size:${fontSize}px !important`,
@@ -173,8 +197,10 @@ function buildStickerHtmlFromLayout(rawLayout = {}, rawMeta = {}) {
           'text-overflow:clip',
           'padding:2px',
           'margin:0',
-          'width:100% !important',
-          'height:100% !important',
+          `width:${innerWidth}px !important`,
+          `max-width:${innerWidth}px !important`,
+          `height:${innerHeight}px !important`,
+          `max-height:${innerHeight}px !important`,
           'box-sizing:border-box',
           'text-align:left'
         ];
@@ -1923,23 +1949,43 @@ export async function previewTemplate(req, res) {
     }
   }
   
-  // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
-  // O si hay quoteData y los items del contexto están vacíos, usar quoteData
+  // Si se proporcionan datos de cotización directamente (desde UI sin guardar o desde historial), sobrescribir el contexto
+  // IMPORTANTE: Siempre usar quoteData cuando se proporciona, ya que son los datos más actualizados de la UI
   if (quoteData && type === 'quote') {
     const hasItemsInData = (quoteData.items || []).length > 0;
     const hasItemsInContext = (ctx.quote?.items || []).length > 0;
+    const contextItemsAreValid = hasItemsInContext && (ctx.quote?.itemsGrouped?.hasProducts || ctx.quote?.itemsGrouped?.hasServices || ctx.quote?.itemsGrouped?.hasCombos);
     
     if (debug) {
       console.log('[previewTemplate] QuoteData check:', {
         hasItemsInData,
         hasItemsInContext,
-        quoteDataItemsCount: (quoteData.items || []).length
+        contextItemsAreValid,
+        quoteDataItemsCount: (quoteData.items || []).length,
+        contextItemsCount: (ctx.quote?.items || []).length,
+        hasProducts: ctx.quote?.itemsGrouped?.hasProducts,
+        hasServices: ctx.quote?.itemsGrouped?.hasServices,
+        hasCombos: ctx.quote?.itemsGrouped?.hasCombos,
+        sampleId: sampleId || 'none'
       });
     }
     
-    // Usar quoteData si no hay sampleId o si los items del contexto están vacíos pero quoteData tiene items
-    if (!sampleId || (!hasItemsInContext && hasItemsInData)) {
-      if (debug) console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
+    // CRÍTICO: SIEMPRE usar quoteData cuando se proporciona Y tiene items
+    // Esto asegura que los datos de la UI (que pueden tener cambios no guardados) o del historial se usen para la impresión
+    // La única excepción es si quoteData NO tiene items Y el contexto SÍ tiene items válidos (usar contexto en ese caso)
+    // Pero en la práctica, si quoteData se proporciona, siempre debe usarse porque viene de la UI o del historial
+    if (hasItemsInData || !contextItemsAreValid) {
+      if (debug) {
+        console.log('[previewTemplate] ✅ Usando quoteData para sobrescribir contexto (items actualizados de la UI/historial)', {
+          hasItemsInData,
+          hasItemsInContext,
+          contextItemsAreValid,
+          quoteDataItemsCount: (quoteData.items || []).length,
+          contextItemsCount: (ctx.quote?.items || []).length,
+          willUseQuoteData: true,
+          reason: hasItemsInData ? 'quoteData tiene items' : 'contexto no tiene items válidos'
+        });
+      }
       
       // Procesar items y crear estructura agrupada (igual que en buildContext)
       // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
@@ -2172,7 +2218,21 @@ export async function previewTemplate(req, res) {
         };
       }
       
-      if (debug) console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0, 'ivaEnabled:', ivaEnabled);
+      if (debug) {
+        console.log('[previewTemplate] ✅ Quote context actualizado con items:', {
+          itemsCount: ctx.quote.items?.length || 0,
+          itemsGrouped: {
+            hasProducts: ctx.quote.itemsGrouped?.hasProducts,
+            hasServices: ctx.quote.itemsGrouped?.hasServices,
+            hasCombos: ctx.quote.itemsGrouped?.hasCombos,
+            productsCount: ctx.quote.itemsGrouped?.products?.length || 0,
+            servicesCount: ctx.quote.itemsGrouped?.services?.length || 0,
+            combosCount: ctx.quote.itemsGrouped?.combos?.length || 0
+          },
+          ivaEnabled: ivaEnabled,
+          total: ctx.quote.total
+        });
+      }
     }
   }
   
