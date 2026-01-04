@@ -144,8 +144,25 @@ export const generateOilChangeSticker = async (req, res) => {
     }
 
     // Validar datos requeridos
-    if (!mileage || !nextServiceMileage || !plate || !oilType) {
-      return res.status(400).json({ error: 'Placa, kilometraje actual, próximo servicio y tipo de aceite son requeridos' });
+    const plateStr = String(plate || '').trim().toUpperCase();
+    const mileageNum = Number(mileage);
+    const nextServiceMileageNum = Number(nextServiceMileage);
+    const oilTypeStr = String(oilType || '').trim();
+    
+    if (!plateStr || plateStr === '') {
+      return res.status(400).json({ error: 'Placa es requerida' });
+    }
+    
+    if (!mileageNum || mileageNum <= 0 || !Number.isFinite(mileageNum)) {
+      return res.status(400).json({ error: 'Kilometraje actual es requerido y debe ser un número válido' });
+    }
+    
+    if (!nextServiceMileageNum || nextServiceMileageNum <= 0 || !Number.isFinite(nextServiceMileageNum)) {
+      return res.status(400).json({ error: 'Kilometraje del próximo servicio es requerido y debe ser un número válido' });
+    }
+    
+    if (!oilTypeStr || oilTypeStr === '') {
+      return res.status(400).json({ error: 'Tipo de aceite es requerido' });
     }
 
     // Obtener información de la compañía para el logo
@@ -206,7 +223,7 @@ export const generateOilChangeSticker = async (req, res) => {
     doc.fontSize(fontSize)
        .font('Helvetica-Bold')
        .fillColor('#000000')
-       .text(String(plate || '').toUpperCase(), leftColX, currentY, {
+       .text(plateStr, leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });
@@ -215,7 +232,7 @@ export const generateOilChangeSticker = async (req, res) => {
     // Aceite utilizado (sin etiqueta)
     doc.fontSize(fontSizeSmall)
        .font('Helvetica')
-       .text(String(oilType || ''), leftColX, currentY, {
+       .text(oilTypeStr, leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });
@@ -231,7 +248,7 @@ export const generateOilChangeSticker = async (req, res) => {
     currentY += lineHeight * 0.8;
     doc.fontSize(fontSizeKm)
        .font('Helvetica-Bold')
-       .text(Number(mileage).toLocaleString('es-CO'), leftColX, currentY, {
+       .text(mileageNum.toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });
@@ -247,7 +264,7 @@ export const generateOilChangeSticker = async (req, res) => {
     currentY += lineHeight * 0.8;
     doc.fontSize(fontSizeKm)
        .font('Helvetica-Bold')
-       .text(Number(nextServiceMileage).toLocaleString('es-CO'), leftColX, currentY, {
+       .text(nextServiceMileageNum.toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
          align: 'left'
        });

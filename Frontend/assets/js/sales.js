@@ -1872,7 +1872,7 @@ async function openMaintenanceServicesModal() {
       body.innerHTML = modalHTML;
       modal.classList.remove('hidden');
       
-      // Agregar estilos CSS para los checkboxes personalizados si no existen
+      // Agregar estilos CSS para los checkboxes personalizados y scrollbars si no existen
       if (!document.getElementById('maintenance-checkbox-styles')) {
         const style = document.createElement('style');
         style.id = 'maintenance-checkbox-styles';
@@ -1887,6 +1887,32 @@ async function openMaintenanceServicesModal() {
           }
           .maintenance-service-card:hover .w-6 {
             border-color: rgb(96, 165, 250) !important;
+          }
+          
+          /* Estilos personalizados para scrollbars */
+          #maintenance-services-container::-webkit-scrollbar {
+            width: 8px;
+          }
+          
+          #maintenance-services-container::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 10px;
+          }
+          
+          #maintenance-services-container::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.6);
+            border-radius: 10px;
+            border: 2px solid rgba(30, 41, 59, 0.5);
+          }
+          
+          #maintenance-services-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.8);
+          }
+          
+          /* Para Firefox */
+          #maintenance-services-container {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 116, 139, 0.6) rgba(30, 41, 59, 0.5);
           }
         `;
         document.head.appendChild(style);
@@ -1962,16 +1988,49 @@ async function openMaintenanceServicesModal() {
               console.warn('No se pudo obtener intervalo desde planilla, usando valor por defecto');
             }
             
+            // Obtener placa del vehículo (puede estar en diferentes lugares)
+            let vehiclePlate = '';
+            if (current.vehicle?.plate) {
+              vehiclePlate = current.vehicle.plate;
+            } else if (current.vehicle?.vehicleId) {
+              // Intentar obtener desde el vehículo completo si está disponible
+              try {
+                const vehicleResponse = await fetch(`${API.base || ''}/api/v1/vehicles/${current.vehicle.vehicleId}`, {
+                  headers: {
+                    'Authorization': API.token.get() ? `Bearer ${API.token.get()}` : ''
+                  }
+                });
+                if (vehicleResponse.ok) {
+                  const vehicleData = await vehicleResponse.json();
+                  vehiclePlate = vehicleData.vehicle?.plate || vehicleData.plate || '';
+                }
+              } catch (err) {
+                console.warn('No se pudo obtener placa desde vehículo:', err);
+              }
+            }
+            
+            // Validar que tengamos todos los datos necesarios
+            if (!vehiclePlate) {
+              alert('No se pudo obtener la placa del vehículo. Por favor, verifica que la venta tenga un vehículo asociado.');
+              return;
+            }
+            
+            if (!oilType || !oilType.trim()) {
+              alert('Por favor ingresa el tipo de aceite utilizado.');
+              return;
+            }
+            
             // Generar sticker PDF
             const stickerData = {
               saleId: current._id,
               vehicleId: current.vehicle?.vehicleId || null,
-              plate: current.vehicle?.plate || '',
-              mileage: finalMileage,
-              nextServiceMileage: nextServiceMileage,
-              oilType: oilType,
-              ...current.vehicle // Pasar datos del vehículo
+              plate: vehiclePlate.trim().toUpperCase(),
+              mileage: Number(finalMileage),
+              nextServiceMileage: Number(nextServiceMileage),
+              oilType: oilType.trim()
             };
+            
+            console.log('Datos del sticker a enviar:', stickerData);
             
             // Llamar al endpoint para generar PDF
             const apiBase = API.base || '';
