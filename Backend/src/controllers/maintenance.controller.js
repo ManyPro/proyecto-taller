@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { logger } from '../lib/logger.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -327,12 +327,14 @@ export const generateOilChangeSticker = async (req, res) => {
       }
     }
     
+    // Calcular posición del QR primero (se usa para posicionar la imagen Renault)
+    const qrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
+    const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3);
+    const qrX = rightColX + (rightColW - qrSize) / 2;
+    
     // Imagen de Renault (encima del QR, centrada)
     try {
       // Construir ruta relativa desde Backend/src/controllers/ hasta Frontend/assets/img/
-      // __dirname = Backend/src/controllers/
-      // Necesitamos subir 3 niveles: controllers -> src -> Backend -> raíz
-      // Luego bajar a Frontend/assets/img/
       let renaultImagePath = join(__dirname, '../../../Frontend/assets/img/stickersrenault.png');
       
       // Si no existe, intentar ruta alternativa desde process.cwd()
@@ -342,7 +344,6 @@ export const generateOilChangeSticker = async (req, res) => {
       
       // Si aún no existe, intentar ruta absoluta desde la raíz del proyecto
       if (!existsSync(renaultImagePath)) {
-        // Desde Backend/src/controllers/ subir 3 niveles
         const projectRoot = join(__dirname, '../../..');
         renaultImagePath = join(projectRoot, 'Frontend/assets/img/stickersrenault.png');
       }
@@ -350,38 +351,57 @@ export const generateOilChangeSticker = async (req, res) => {
       if (existsSync(renaultImagePath)) {
         const renaultImageBuffer = readFileSync(renaultImagePath);
         
-        // Calcular posición: encima del QR
-        // Primero calcular dónde estará el QR (abajo) - usar el mismo cálculo que más abajo
-        const qrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
-        const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3);
-        
-        // Tamaño de la imagen Renault (proporcional, visible pero no muy grande)
-        const renaultImageWidth = Math.min(rightColW * 0.65, qrSize * 0.85);
-        const renaultImageHeight = renaultImageWidth * 0.35; // Proporción más ancha que alta
+        // Tamaño de la imagen Renault (proporcional, visible y bien dimensionada)
+        const renaultImageWidth = Math.min(rightColW * 0.75, qrSize * 0.95);
+        const renaultImageHeight = renaultImageWidth * 0.45; // Proporción más ancha que alta
         const renaultImageX = rightColX + (rightColW - renaultImageWidth) / 2; // Centrar horizontalmente
-        const renaultImageY = qrY - renaultImageHeight - (verticalSpacing * 1.5); // Posicionar encima del QR con más espacio
+        const renaultImageY = qrY - renaultImageHeight - (verticalSpacing * 1.5); // Posicionar encima del QR con espacio adecuado
         
-        doc.image(renaultImageBuffer, renaultImageX, renaultImageY, {
-          width: renaultImageWidth,
-          height: renaultImageHeight,
-          fit: [renaultImageWidth, renaultImageHeight]
+        logger.info('[generateOilChangeSticker] Calculando posición imagen Renault:', {
+          renaultImageWidth,
+          renaultImageHeight,
+          renaultImageX,
+          renaultImageY,
+          qrY,
+          qrSize,
+          rightColY,
+          rightColH
         });
         
-        logger.info('[generateOilChangeSticker] Imagen Renault posicionada:', {
-          x: renaultImageX,
-          y: renaultImageY,
-          width: renaultImageWidth,
-          height: renaultImageHeight,
-          qrY: qrY,
-          qrSize: qrSize
-        });
-        
-        logger.info('[generateOilChangeSticker] Imagen Renault cargada desde:', renaultImagePath);
+        // Asegurar que la imagen no se salga del área disponible
+        if (renaultImageY >= rightColY) {
+          doc.image(renaultImageBuffer, renaultImageX, renaultImageY, {
+            width: renaultImageWidth,
+            height: renaultImageHeight,
+            fit: [renaultImageWidth, renaultImageHeight]
+          });
+          
+          logger.info('[generateOilChangeSticker] Imagen Renault cargada y posicionada:', {
+            path: renaultImagePath,
+            x: renaultImageX,
+            y: renaultImageY,
+            width: renaultImageWidth,
+            height: renaultImageHeight,
+            qrY: qrY,
+            qrSize: qrSize
+          });
+        } else {
+          logger.warn('[generateOilChangeSticker] Imagen Renault fuera de rango, ajustando posición');
+          // Ajustar posición si se sale del área
+          const adjustedY = rightColY + verticalSpacing;
+          doc.image(renaultImageBuffer, renaultImageX, adjustedY, {
+            width: renaultImageWidth,
+            height: renaultImageHeight,
+            fit: [renaultImageWidth, renaultImageHeight]
+          });
+        }
       } else {
         logger.warn('[generateOilChangeSticker] Imagen Renault no encontrada. Rutas intentadas:', {
           path1: join(__dirname, '../../../Frontend/assets/img/stickersrenault.png'),
           path2: join(process.cwd(), 'Frontend/assets/img/stickersrenault.png'),
-          path3: join(join(__dirname, '../../..'), 'Frontend/assets/img/stickersrenault.png')
+          path3: join(join(__dirname, '../../..'), 'Frontend/assets/img/stickersrenault.png'),
+          cwd: process.cwd(),
+          __dirname: __dirname
         });
       }
     } catch (err) {
@@ -390,11 +410,6 @@ export const generateOilChangeSticker = async (req, res) => {
     
     // QR Code (abajo, centrado)
     try {
-      // Calcular espacio disponible para el QR
-      const availableHeight = rightColH - rightCurrentY;
-      const qrSize = Math.min(rightColW * 0.75, availableHeight * 0.9); // Tamaño del QR
-      const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3); // Alineado abajo con pequeño margen
-      const qrX = rightColX + (rightColW - qrSize) / 2; // Centrado horizontalmente
       
       // Convertir puntos a píxeles para QR (300 DPI)
       const DPI = 300;
