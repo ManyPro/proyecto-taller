@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import {
+  listCompanies,
   authenticateCustomer,
   getVehicleServices,
   getVehicleServiceSchedule
 } from '../controllers/customer.public.controller.js';
 
 const router = Router();
+
+// Listar talleres disponibles (público, sin companyId)
+router.get('/companies', listCompanies);
 
 // Autenticación de cliente
 router.post('/:companyId/auth', authenticateCustomer);

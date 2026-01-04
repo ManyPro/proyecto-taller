@@ -11,16 +11,54 @@ const state = {
   phonePassword: null,
   customer: null,
   servicesHistory: [],
-  schedule: null
+  schedule: null,
+  companies: [],
+  filteredCompanies: []
 };
 
-// Obtener companyId de la URL o usar predeterminado
+// Clave para localStorage del taller favorito
+const FAVORITE_COMPANY_KEY = 'cliente_favorite_company';
+
+// Obtener taller favorito de localStorage
+function getFavoriteCompany() {
+  try {
+    const favorite = localStorage.getItem(FAVORITE_COMPANY_KEY);
+    return favorite ? JSON.parse(favorite) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Guardar taller favorito en localStorage
+function saveFavoriteCompany(company) {
+  try {
+    localStorage.setItem(FAVORITE_COMPANY_KEY, JSON.stringify(company));
+  } catch (err) {
+    console.error('Error guardando taller favorito:', err);
+  }
+}
+
+// Eliminar taller favorito
+function removeFavoriteCompany() {
+  try {
+    localStorage.removeItem(FAVORITE_COMPANY_KEY);
+  } catch (err) {
+    console.error('Error eliminando taller favorito:', err);
+  }
+}
+
+// Obtener companyId de la URL, favorito o input
 function getCompanyId() {
   const urlParams = new URLSearchParams(window.location.search);
-  const companyId = urlParams.get('companyId') || 
-                   document.getElementById('companyId')?.value?.trim() || 
-                   null;
-  return companyId;
+  const urlCompanyId = urlParams.get('companyId');
+  
+  if (urlCompanyId) return urlCompanyId;
+  
+  const favorite = getFavoriteCompany();
+  if (favorite) return favorite.id;
+  
+  const input = document.getElementById('companyId');
+  return input?.value?.trim() || null;
 }
 
 // Formatear fecha
@@ -675,8 +713,113 @@ function handleLogout() {
   if (form) form.reset();
 }
 
+// Cargar lista de talleres
+async function loadCompanies() {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/public/customer/companies`);
+    const data = await response.json();
+    state.companies = data.companies || [];
+    state.filteredCompanies = state.companies;
+    return state.companies;
+  } catch (error) {
+    console.error('Error cargando talleres:', error);
+    return [];
+  }
+}
+
+// Renderizar lista de talleres en el dropdown
+function renderCompanyDropdown(companies) {
+  const dropdown = document.getElementById('companyDropdown');
+  if (!dropdown) return;
+  
+  if (companies.length === 0) {
+    dropdown.innerHTML = `
+      <div class="p-4 text-center text-slate-400 text-sm">
+        No se encontraron talleres
+      </div>
+    `;
+    dropdown.classList.remove('hidden');
+    return;
+  }
+  
+  dropdown.innerHTML = companies.map(company => `
+    <button
+      type="button"
+      class="w-full text-left px-4 py-3 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-0 flex items-center justify-between group"
+      data-company-id="${company.id}"
+      data-company-name="${escapeHtml(company.name)}"
+    >
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-white truncate">${escapeHtml(company.name)}</div>
+        <div class="text-xs text-slate-400 truncate">${escapeHtml(company.email)}</div>
+      </div>
+      <svg class="w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </button>
+  `).join('');
+  
+  // Event listeners para seleccionar taller
+  dropdown.querySelectorAll('button[data-company-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const companyId = btn.dataset.companyId;
+      const companyName = btn.dataset.companyName;
+      selectCompany(companyId, companyName);
+    });
+  });
+  
+  dropdown.classList.remove('hidden');
+}
+
+// Seleccionar un taller
+function selectCompany(companyId, companyName) {
+  const companyIdInput = document.getElementById('companyId');
+  const searchInput = document.getElementById('companySearch');
+  const dropdown = document.getElementById('companyDropdown');
+  const selectedDiv = document.getElementById('selectedCompany');
+  const selectedName = document.getElementById('selectedCompanyName');
+  
+  if (companyIdInput) companyIdInput.value = companyId;
+  if (searchInput) searchInput.value = '';
+  if (dropdown) dropdown.classList.add('hidden');
+  if (selectedDiv) {
+    selectedDiv.classList.remove('hidden');
+    if (selectedName) selectedName.textContent = companyName;
+  }
+  
+  // Guardar como favorito automáticamente
+  saveFavoriteCompany({ id: companyId, name: companyName });
+  showFavoriteIndicator();
+}
+
+// Mostrar indicador de favorito
+function showFavoriteIndicator() {
+  const favoriteDiv = document.getElementById('favoriteCompany');
+  if (favoriteDiv) favoriteDiv.classList.remove('hidden');
+}
+
+// Ocultar indicador de favorito
+function hideFavoriteIndicator() {
+  const favoriteDiv = document.getElementById('favoriteCompany');
+  if (favoriteDiv) favoriteDiv.classList.add('hidden');
+}
+
+// Filtrar talleres por búsqueda
+function filterCompanies(searchTerm) {
+  if (!searchTerm) {
+    state.filteredCompanies = state.companies;
+  } else {
+    const term = searchTerm.toLowerCase();
+    state.filteredCompanies = state.companies.filter(c => 
+      c.name.toLowerCase().includes(term) || 
+      c.email.toLowerCase().includes(term)
+    );
+  }
+  renderCompanyDropdown(state.filteredCompanies);
+}
+
 // Inicializar
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const loginForm = document.getElementById('loginForm');
   const logoutBtn = document.getElementById('logoutBtn');
 
@@ -690,14 +833,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setupTabs();
 
-  // Obtener companyId de la URL si está disponible
-  const urlCompanyId = getCompanyId();
+  // Cargar lista de talleres
+  await loadCompanies();
+  
+  // Verificar si hay taller favorito
+  const favorite = getFavoriteCompany();
+  if (favorite) {
+    selectCompany(favorite.id, favorite.name);
+    showFavoriteIndicator();
+  }
+  
+  // Verificar si hay companyId en la URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlCompanyId = urlParams.get('companyId');
   if (urlCompanyId) {
-    const companyIdInput = document.getElementById('companyId');
-    if (companyIdInput) {
-      companyIdInput.value = urlCompanyId;
-      companyIdInput.disabled = true;
+    // Buscar el nombre del taller
+    const company = state.companies.find(c => c.id === urlCompanyId);
+    if (company) {
+      selectCompany(company.id, company.name);
+    } else {
+      // Si no está en la lista, solo establecer el ID
+      const companyIdInput = document.getElementById('companyId');
+      if (companyIdInput) companyIdInput.value = urlCompanyId;
     }
+  }
+
+  // Event listeners para búsqueda
+  const companySearch = document.getElementById('companySearch');
+  if (companySearch) {
+    companySearch.addEventListener('input', (e) => {
+      const term = e.target.value.trim();
+      if (term) {
+        filterCompanies(term);
+      } else {
+        const dropdown = document.getElementById('companyDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+      }
+    });
+    
+    companySearch.addEventListener('focus', () => {
+      if (companySearch.value.trim()) {
+        filterCompanies(companySearch.value.trim());
+      } else {
+        renderCompanyDropdown(state.companies);
+      }
+    });
+  }
+  
+  // Click fuera del dropdown para cerrarlo
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('companyDropdown');
+    const searchInput = document.getElementById('companySearch');
+    if (dropdown && !dropdown.contains(e.target) && e.target !== searchInput) {
+      dropdown.classList.add('hidden');
+    }
+  });
+  
+  // Botón para limpiar selección
+  const clearCompanyBtn = document.getElementById('clearCompany');
+  if (clearCompanyBtn) {
+    clearCompanyBtn.addEventListener('click', () => {
+      const companyIdInput = document.getElementById('companyId');
+      const searchInput = document.getElementById('companySearch');
+      const selectedDiv = document.getElementById('selectedCompany');
+      
+      if (companyIdInput) companyIdInput.value = '';
+      if (searchInput) searchInput.value = '';
+      if (selectedDiv) selectedDiv.classList.add('hidden');
+    });
+  }
+  
+  // Botón para eliminar favorito
+  const removeFavoriteBtn = document.getElementById('removeFavorite');
+  if (removeFavoriteBtn) {
+    removeFavoriteBtn.addEventListener('click', () => {
+      removeFavoriteCompany();
+      hideFavoriteIndicator();
+    });
   }
 });
 

@@ -2,7 +2,47 @@ import mongoose from 'mongoose';
 import CustomerProfile from '../models/CustomerProfile.js';
 import Sale from '../models/Sale.js';
 import VehicleServiceSchedule from '../models/VehicleServiceSchedule.js';
+import Company from '../models/Company.js';
 import { logger } from '../lib/logger.js';
+
+/**
+ * Listar talleres/empresas disponibles (público)
+ * GET /api/v1/public/customer/companies?search=...
+ */
+export const listCompanies = async (req, res) => {
+  try {
+    const { search = '' } = req.query;
+    const searchTerm = String(search).trim().toLowerCase();
+    
+    // Construir query
+    const query = { active: true };
+    
+    if (searchTerm) {
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+    
+    // Obtener empresas activas (solo nombre, email, id)
+    const companies = await Company.find(query)
+      .select('_id name email')
+      .sort({ name: 1 })
+      .limit(100)
+      .lean();
+    
+    res.json({
+      companies: companies.map(c => ({
+        id: c._id.toString(),
+        name: c.name || '',
+        email: c.email || ''
+      }))
+    });
+  } catch (error) {
+    logger.error('[customer.public.listCompanies] Error', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Error al obtener lista de talleres' });
+  }
+};
 
 /**
  * Autenticación de cliente por placa y primeros 6 dígitos del teléfono

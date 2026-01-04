@@ -1646,83 +1646,133 @@ async function openMaintenanceServicesModal() {
         return (a.priority || 100) - (b.priority || 100);
       });
 
+      // Función para resumir texto
+      const summarizeText = (text, maxLength = 60) => {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength).trim() + '...';
+      };
+
+      // Función para formatear intervalo
+      const formatInterval = (t) => {
+        const parts = [];
+        if (t.mileageInterval) parts.push(`${t.mileageInterval.toLocaleString()} km`);
+        if (t.monthsInterval) parts.push(`${t.monthsInterval} meses`);
+        return parts.join(' / ') || 'Por inspección';
+      };
+
+      const renderServiceCard = (t, isCommon = true) => {
+        const isChecked = t.priority === 1;
+        const shortNotes = summarizeText(t.notes || '', 50);
+        return `
+          <label class="maintenance-service-card block relative cursor-pointer group">
+            <input 
+              type="checkbox" 
+              value="${t.serviceId}" 
+              class="maintenance-service-checkbox absolute opacity-0 w-0 h-0 peer"
+              ${isChecked ? 'checked' : ''}
+            />
+            <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-slate-700/50 rounded-xl p-4 transition-all duration-200 peer-checked:border-blue-500 peer-checked:bg-blue-900/20 peer-checked:shadow-lg peer-checked:shadow-blue-500/20 hover:border-slate-600 hover:shadow-md h-full">
+              <div class="flex items-start gap-3">
+                <!-- Checkbox personalizado -->
+                <div class="flex-shrink-0 mt-0.5">
+                  <div class="w-6 h-6 rounded-md border-2 border-slate-600 bg-slate-700/50 flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400">
+                    <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
+                </div>
+                <!-- Contenido -->
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-white mb-1 text-sm leading-tight">${escapeHtml(t.serviceName)}</div>
+                  <div class="flex items-center gap-2 mb-1.5">
+                    <span class="px-2 py-0.5 bg-slate-700/50 rounded text-xs text-slate-300">${escapeHtml(t.system || 'General')}</span>
+                    <span class="text-xs text-slate-400">${formatInterval(t)}</span>
+                  </div>
+                  ${shortNotes ? `<div class="text-xs text-slate-500 leading-relaxed">${escapeHtml(shortNotes)}</div>` : ''}
+                </div>
+              </div>
+            </div>
+          </label>
+        `;
+      };
+
       const servicesHTML = `
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Servicios realizados</label>
-          <div class="max-h-96 overflow-y-auto border border-slate-600 rounded p-3 bg-slate-900/50">
+          <label class="block text-sm font-semibold text-white mb-3">Servicios realizados</label>
+          <div class="max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
             ${commonServices.length > 0 ? `
-              <div class="mb-3">
-                <p class="text-xs text-slate-400 mb-2 font-semibold">SERVICIOS COMUNES</p>
-                ${commonServices.map(t => `
-                  <label class="flex items-start gap-2 p-2 hover:bg-slate-800 rounded cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      value="${t.serviceId}" 
-                      class="mt-1 maintenance-service-checkbox"
-                      ${t.priority === 1 ? 'checked' : ''}
-                    />
-                    <div class="flex-1">
-                      <div class="font-medium">${escapeHtml(t.serviceName)}</div>
-                      <div class="text-xs text-slate-400">
-                        ${t.system} • ${t.mileageInterval ? `Cada ${t.mileageInterval.toLocaleString()} km` : ''} ${t.monthsInterval ? `o ${t.monthsInterval} meses` : ''}
-                      </div>
-                      ${t.notes ? `<div class="text-xs text-slate-500 mt-1">${escapeHtml(t.notes)}</div>` : ''}
-                    </div>
-                  </label>
-                `).join('')}
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  SERVICIOS COMUNES
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${commonServices.map(t => renderServiceCard(t, true)).join('')}
+                </div>
               </div>
             ` : ''}
             ${otherServices.length > 0 ? `
-              <div>
-                <p class="text-xs text-slate-400 mb-2 font-semibold">OTROS SERVICIOS</p>
-                <div class="space-y-1">
-                  ${otherServices.map(t => `
-                    <label class="flex items-start gap-2 p-2 hover:bg-slate-800 rounded cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        value="${t.serviceId}" 
-                        class="mt-1 maintenance-service-checkbox"
-                      />
-                      <div class="flex-1">
-                        <div class="font-medium">${escapeHtml(t.serviceName)}</div>
-                        <div class="text-xs text-slate-400">
-                          ${t.system} • ${t.mileageInterval ? `Cada ${t.mileageInterval.toLocaleString()} km` : ''} ${t.monthsInterval ? `o ${t.monthsInterval} meses` : ''}
-                        </div>
-                      </div>
-                    </label>
-                  `).join('')}
+              <div class="mt-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                  </svg>
+                  OTROS SERVICIOS
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${otherServices.map(t => renderServiceCard(t, false)).join('')}
                 </div>
               </div>
             ` : ''}
             ${templates.length === 0 ? `
-              <div class="text-center py-8 text-slate-400">
-                <p>No hay servicios de mantenimiento configurados para este vehículo.</p>
+              <div class="text-center py-12 text-slate-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <p class="font-medium">No hay servicios configurados</p>
                 <p class="text-xs mt-2">Puedes continuar sin seleccionar servicios.</p>
               </div>
             ` : ''}
           </div>
-          <p class="text-xs text-slate-400 mt-2">Selecciona los servicios que se realizaron en esta venta</p>
+          <p class="text-xs text-slate-400 mt-3 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Selecciona los servicios que se realizaron en esta venta
+          </p>
         </div>
       `;
 
       const modalHTML = `
         <div class="p-6">
-          <h2 class="text-2xl font-bold mb-4">Servicios de Mantenimiento</h2>
-          <p class="text-slate-400 mb-4">Selecciona los servicios realizados para actualizar la planilla de mantenimiento</p>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 bg-blue-600/20 rounded-lg">
+              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
+              <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
+            </div>
+          </div>
           
           ${mileageInput}
           ${servicesHTML}
           
-          <div class="flex gap-3 mt-6">
+          <div class="flex gap-3 mt-6 pt-4 border-t border-slate-700/50">
             <button 
               id="maintenance-skip" 
-              class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded"
+              class="flex-1 px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500"
             >
               Omitir
             </button>
             <button 
               id="maintenance-continue" 
-              class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+              class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Continuar
             </button>
@@ -1732,6 +1782,26 @@ async function openMaintenanceServicesModal() {
 
       body.innerHTML = modalHTML;
       modal.classList.remove('hidden');
+      
+      // Agregar estilos CSS para los checkboxes personalizados si no existen
+      if (!document.getElementById('maintenance-checkbox-styles')) {
+        const style = document.createElement('style');
+        style.id = 'maintenance-checkbox-styles';
+        style.textContent = `
+          .maintenance-service-card input[type="checkbox"]:checked ~ div {
+            border-color: rgb(59, 130, 246) !important;
+            background: rgba(30, 58, 138, 0.2) !important;
+          }
+          .maintenance-service-card input[type="checkbox"]:checked ~ div .w-6 {
+            background-color: rgb(37, 99, 235) !important;
+            border-color: rgb(37, 99, 235) !important;
+          }
+          .maintenance-service-card:hover .w-6 {
+            border-color: rgb(96, 165, 250) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
 
       // Event listeners
       document.getElementById('maintenance-skip')?.addEventListener('click', () => {
