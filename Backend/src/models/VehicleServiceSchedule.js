@@ -7,15 +7,19 @@ import mongoose from 'mongoose';
 const ServiceScheduleItemSchema = new mongoose.Schema({
   serviceName: { type: String, required: true, trim: true }, // Nombre del servicio (ej: "Cambio de aceite")
   serviceKey: { type: String, trim: true }, // Key del servicio si está vinculado
+  system: { type: String, trim: true }, // Sistema al que pertenece (ej: Motor, Filtración)
   mileageInterval: { type: Number, required: true }, // Intervalo en km (ej: 10000)
+  monthsInterval: { type: Number, default: 0 }, // Intervalo en meses
   lastPerformedMileage: { type: Number, default: null }, // Último kilometraje en que se realizó
   lastPerformedDate: { type: Date, default: null }, // Última fecha en que se realizó
   nextDueMileage: { type: Number, default: null }, // Próximo kilometraje en que debe realizarse
+  nextDueDate: { type: Date, default: null }, // Próxima fecha en que debe realizarse
   status: {
     type: String,
     enum: ['pending', 'due', 'overdue', 'completed'],
     default: 'pending'
-  }
+  },
+  notes: { type: String, trim: true, default: '' } // Notas adicionales
 }, { _id: true });
 
 const VehicleServiceScheduleSchema = new mongoose.Schema({
@@ -56,24 +60,56 @@ VehicleServiceScheduleSchema.index({ companyId: 1, 'services.status': 1 });
  * Actualiza el kilometraje actual y recalcula los servicios pendientes
  */
 VehicleServiceScheduleSchema.methods.updateMileage = function(newMileage) {
+  if (newMileage === null || newMileage === undefined) return;
+  
+  const oldMileage = this.currentMileage;
   this.currentMileage = newMileage;
   this.mileageUpdatedAt = new Date();
   
   // Recalcular estado de cada servicio
   this.services.forEach(service => {
+    // Si el servicio ya está completado, no recalcular
+    if (service.status === 'completed') return;
+    
+    // Si no tiene un intervalo definido, no se puede calcular
+    if (!service.mileageInterval || service.mileageInterval <= 0) {
+      service.status = 'pending';
+      return;
+    }
+    
+    // Calcular próximo vencimiento por kilometraje
     if (service.lastPerformedMileage !== null) {
+      // Si ya se realizó, calcular desde el último realizado
       service.nextDueMileage = service.lastPerformedMileage + service.mileageInterval;
-      
+    } else {
+      // Si nunca se ha realizado, calcular desde el kilometraje actual
+      service.nextDueMileage = newMileage + service.mileageInterval;
+    }
+    
+    // Calcular próximo vencimiento por fecha (si aplica)
+    if (service.monthsInterval > 0) {
+      if (service.lastPerformedDate) {
+        const nextDate = new Date(service.lastPerformedDate);
+        nextDate.setMonth(nextDate.getMonth() + service.monthsInterval);
+        service.nextDueDate = nextDate;
+      } else {
+        const nextDate = new Date();
+        nextDate.setMonth(nextDate.getMonth() + service.monthsInterval);
+        service.nextDueDate = nextDate;
+      }
+    }
+    
+    // Determinar estado basado en kilometraje
+    if (service.nextDueMileage !== null) {
       if (newMileage >= service.nextDueMileage) {
         service.status = 'overdue';
       } else if (newMileage >= service.nextDueMileage - (service.mileageInterval * 0.1)) {
-        // 10% antes del intervalo = "due"
+        // 10% antes del intervalo = "due" (próximo)
         service.status = 'due';
       } else {
         service.status = 'pending';
       }
     } else {
-      // Si nunca se ha realizado, está pendiente
       service.status = 'pending';
     }
   });

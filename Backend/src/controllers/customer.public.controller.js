@@ -290,6 +290,68 @@ export const getVehicleServiceSchedule = async (req, res) => {
       }
     }
 
+    // Si la planilla está vacía o tiene pocos servicios, inicializar con plantillas de mantenimiento
+    if (!schedule.services || schedule.services.length === 0) {
+      const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
+      
+      // Obtener información del vehículo para filtrar plantillas
+      const vehicleBrand = profile.vehicle?.brand?.toUpperCase() || '';
+      const vehicleLine = profile.vehicle?.line?.toUpperCase() || '';
+      
+      // Buscar plantillas de mantenimiento aplicables
+      // Mostrar servicios comunes primero, luego otros
+      const templateQuery = {
+        companyId,
+        active: { $ne: false }, // Solo servicios activos
+        mileageInterval: { $gt: 0 } // Solo servicios con intervalo de kilometraje
+      };
+      
+      // Si hay marca, intentar filtrar por marca (opcional)
+      if (vehicleBrand) {
+        // Buscar servicios que apliquen a esta marca o sean genéricos
+        templateQuery.$or = [
+          { makes: { $in: [vehicleBrand] } },
+          { makes: { $size: 0 } }, // Sin marca específica = genérico
+          { makes: { $exists: false } } // Sin campo makes = genérico
+        ];
+      }
+      
+      // Traer servicios comunes primero, luego otros, ordenados por prioridad
+      const templates = await MaintenanceTemplate.find(templateQuery)
+        .sort({ isCommon: -1, priority: 1, serviceName: 1 })
+        .limit(50) // Limitar a 50 servicios más comunes
+        .lean();
+      
+      // Convertir plantillas a servicios de la planilla
+      const currentMileage = schedule.currentMileage || 0;
+      
+      schedule.services = templates.map(template => {
+        return {
+          serviceName: template.serviceName,
+          serviceKey: template.serviceId,
+          system: template.system || '',
+          mileageInterval: template.mileageInterval || 0,
+          monthsInterval: template.monthsInterval || 0,
+          lastPerformedMileage: null,
+          lastPerformedDate: null,
+          nextDueMileage: null, // Se calculará con updateMileage
+          nextDueDate: null,
+          status: 'pending',
+          notes: template.notes || ''
+        };
+      });
+      
+      // Recalcular estados basados en el kilometraje actual
+      if (schedule.currentMileage !== null && schedule.currentMileage > 0) {
+        schedule.updateMileage(schedule.currentMileage);
+      } else if (currentMileage > 0) {
+        schedule.currentMileage = currentMileage;
+        schedule.updateMileage(currentMileage);
+      }
+      
+      await schedule.save();
+    }
+
     res.json({
       vehicle: {
         plate: profile.plate,
@@ -305,11 +367,15 @@ export const getVehicleServiceSchedule = async (req, res) => {
           id: s._id,
           serviceName: s.serviceName,
           serviceKey: s.serviceKey,
+          system: s.system || '',
           mileageInterval: s.mileageInterval,
+          monthsInterval: s.monthsInterval || 0,
           lastPerformedMileage: s.lastPerformedMileage,
           lastPerformedDate: s.lastPerformedDate,
           nextDueMileage: s.nextDueMileage,
-          status: s.status
+          nextDueDate: s.nextDueDate,
+          status: s.status,
+          notes: s.notes || ''
         })),
         notes: schedule.notes
       }
@@ -378,6 +444,46 @@ export const updateVehicleServiceSchedule = async (req, res) => {
         currentMileage: mileage || profile.vehicle?.mileage || null,
         services: []
       });
+    }
+    
+    // Si la planilla está vacía, inicializar con plantillas de mantenimiento
+    if (!schedule.services || schedule.services.length === 0) {
+      const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
+      
+      const vehicleBrand = profile.vehicle?.brand?.toUpperCase() || '';
+      
+      const templateQuery = {
+        companyId,
+        active: { $ne: false },
+        mileageInterval: { $gt: 0 }
+      };
+      
+      if (vehicleBrand) {
+        templateQuery.$or = [
+          { makes: { $in: [vehicleBrand] } },
+          { makes: { $size: 0 } },
+          { makes: { $exists: false } }
+        ];
+      }
+      
+      const templates = await MaintenanceTemplate.find(templateQuery)
+        .sort({ isCommon: -1, priority: 1, serviceName: 1 })
+        .limit(50)
+        .lean();
+      
+      schedule.services = templates.map(template => ({
+        serviceName: template.serviceName,
+        serviceKey: template.serviceId,
+        system: template.system || '',
+        mileageInterval: template.mileageInterval || 0,
+        monthsInterval: template.monthsInterval || 0,
+        lastPerformedMileage: null,
+        lastPerformedDate: null,
+        nextDueMileage: null,
+        nextDueDate: null,
+        status: 'pending',
+        notes: template.notes || ''
+      }));
     }
 
     // Actualizar kilometraje si se proporciona

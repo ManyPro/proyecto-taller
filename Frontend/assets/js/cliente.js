@@ -270,43 +270,60 @@ function renderVehicleInfo(vehicle, plate) {
   const container = document.getElementById('vehicleInfo');
   if (!container) return;
 
-  const currentMileage = vehicle?.currentMileage || state.schedule?.currentMileage || null;
+  // Asegurar que la placa se muestre correctamente
+  const plateValue = plate || state.plate || vehicle?.plate || '-';
+  
+  // Obtener kilometraje con prioridad: schedule > vehicle > guardado
+  const savedMileage = getSavedMileage(plateValue !== '-' ? plateValue : state.plate);
+  const currentMileage = state.schedule?.currentMileage || vehicle?.currentMileage || savedMileage || null;
 
   const infoCards = [
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`,
       label: 'Placa',
-      value: plate || vehicle?.plate || '-',
+      value: plateValue,
       color: 'blue',
-      editable: false
+      editable: false,
+      bgColorClass: 'bg-blue-600/20',
+      textColorClass: 'text-blue-400'
     },
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`,
       label: 'Marca',
       value: vehicle?.brand || '-',
       color: 'purple',
-      editable: false
+      editable: false,
+      bgColorClass: 'bg-purple-600/20',
+      textColorClass: 'text-purple-400'
     },
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
       label: 'Línea',
       value: vehicle?.line || '-',
       color: 'green',
-      editable: false
+      editable: false,
+      bgColorClass: 'bg-green-600/20',
+      textColorClass: 'text-green-400'
     },
     {
       icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>`,
       label: 'Kilometraje',
       value: currentMileage,
       color: 'yellow',
-      editable: true
+      editable: true,
+      bgColorClass: 'bg-yellow-600/20',
+      textColorClass: 'text-yellow-400',
+      borderColorClass: 'border-yellow-500/50',
+      borderFocusClass: 'focus:border-yellow-500',
+      buttonBgClass: 'bg-yellow-600',
+      buttonHoverClass: 'hover:bg-yellow-700'
     }
   ];
 
   container.innerHTML = infoCards.map(card => `
     <div class="bg-slate-900/50 rounded-lg p-4 border border-slate-700/50 hover:border-slate-600 transition-all service-card">
       <div class="flex items-center gap-3 mb-2">
-        <div class="p-2 bg-${card.color}-600/20 rounded-lg">
+        <div class="p-2 ${card.bgColorClass} rounded-lg">
           ${card.icon}
         </div>
         <p class="text-xs text-slate-400 uppercase tracking-wide">${card.label}</p>
@@ -318,14 +335,14 @@ function renderVehicleInfo(vehicle, plate) {
             id="currentMileageInput"
             value="${card.value || ''}"
             placeholder="Ingresar km"
-            class="flex-1 text-xl font-bold text-white bg-transparent border-b-2 border-${card.color}-500/50 focus:border-${card.color}-500 focus:outline-none px-1 py-1"
+            class="flex-1 text-xl font-bold text-white bg-transparent border-b-2 ${card.borderColorClass} ${card.borderFocusClass} focus:outline-none px-1 py-1"
             min="0"
             step="1"
           />
           <span class="text-xl font-bold text-white">km</span>
           <button
             id="updateMileageBtn"
-            class="px-3 py-1 bg-${card.color}-600 hover:bg-${card.color}-700 text-white text-xs font-semibold rounded-lg transition-colors"
+            class="px-3 py-1 ${card.buttonBgClass} ${card.buttonHoverClass} text-white text-xs font-semibold rounded-lg transition-colors"
             title="Actualizar kilometraje"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,7 +352,7 @@ function renderVehicleInfo(vehicle, plate) {
         </div>
         <p class="text-xs text-slate-500 mt-1">Actualiza para calcular servicios próximos</p>
       ` : `
-        <p class="text-xl font-bold text-white">${card.value}</p>
+        <p class="text-xl font-bold text-white">${escapeHtml(String(card.value))}</p>
       `}
     </div>
   `).join('');
@@ -968,8 +985,16 @@ async function loadSchedule() {
         const savedMileage = getSavedMileage(state.plate);
         if (savedMileage) {
           mileageInput.value = savedMileage;
+        } else {
+          // Si no hay nada, dejar vacío para que el usuario pueda ingresar
+          mileageInput.value = '';
         }
       }
+    }
+    
+    // Si no hay input pero hay kilometraje, actualizar la vista del vehículo
+    if (!mileageInput && state.schedule?.currentMileage) {
+      renderVehicleInfo(state.customer?.vehicle || {}, state.plate);
     }
     
     renderSchedule(state.schedule);
