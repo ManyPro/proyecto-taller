@@ -217,10 +217,10 @@ export const generateOilChangeSticker = async (req, res) => {
 
     // ===== COLUMNA IZQUIERDA: DATOS (CENTRADOS) =====
     // Calcular altura total del contenido de texto para centrarlo verticalmente
-    const lineHeight = 0.3 * CM;
-    const fontSize = 7;
-    const fontSizeSmall = 6;
-    const fontSizeKm = 6;
+    const lineHeight = 0.4 * CM; // Aumentado de 0.3 a 0.4
+    const fontSize = 9; // Aumentado de 7 a 9
+    const fontSizeSmall = 8; // Aumentado de 6 a 8
+    const fontSizeKm = 8; // Aumentado de 6 a 8
     
     // Calcular altura total del contenido de texto
     const textContentHeight = 
@@ -235,50 +235,50 @@ export const generateOilChangeSticker = async (req, res) => {
     // Fuente sobria (Helvetica)
     doc.font('Helvetica');
     
-    // Placa (sin etiqueta, centrada)
-    doc.fontSize(fontSize)
+    // Placa (sin etiqueta, centrada) - Fuente más grande
+    doc.fontSize(fontSize + 1) // 10pt para la placa
        .font('Helvetica-Bold')
        .fillColor('#000000')
        .text(plateStr, leftColX, currentY, {
          width: leftColW,
          align: 'center'
        });
-    currentY += lineHeight * 1.1;
+    currentY += lineHeight * 1.2;
     
-    // Aceite utilizado (sin etiqueta, centrado)
-    doc.fontSize(fontSizeSmall)
+    // Aceite utilizado (sin etiqueta, centrado) - Fuente más grande
+    doc.fontSize(fontSize) // 9pt para el aceite
        .font('Helvetica')
        .text(oilTypeStr, leftColX, currentY, {
          width: leftColW,
          align: 'center'
        });
-    currentY += lineHeight * 1.2;
+    currentY += lineHeight * 1.3;
     
-    // Actual KM: [valor] (centrado)
-    doc.fontSize(fontSizeSmall)
+    // Actual KM: [valor] (centrado) - Fuente más grande
+    doc.fontSize(fontSizeSmall) // 8pt para la etiqueta
        .font('Helvetica')
        .text('Actual KM:', leftColX, currentY, {
          width: leftColW,
          align: 'center'
        });
-    currentY += lineHeight * 0.8;
-    doc.fontSize(fontSizeKm)
+    currentY += lineHeight * 0.9;
+    doc.fontSize(fontSizeKm) // 8pt para el valor
        .font('Helvetica-Bold')
        .text(mileageNum.toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
          align: 'center'
        });
-    currentY += lineHeight * 1.1;
+    currentY += lineHeight * 1.2;
     
-    // Proximo KM: [valor] (centrado)
-    doc.fontSize(fontSizeSmall)
+    // Proximo KM: [valor] (centrado) - Fuente más grande
+    doc.fontSize(fontSizeSmall) // 8pt para la etiqueta
        .font('Helvetica')
        .text('Proximo KM:', leftColX, currentY, {
          width: leftColW,
          align: 'center'
        });
-    currentY += lineHeight * 0.8;
-    doc.fontSize(fontSizeKm)
+    currentY += lineHeight * 0.9;
+    doc.fontSize(fontSizeKm) // 8pt para el valor
        .font('Helvetica-Bold')
        .text(nextServiceMileageNum.toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
