@@ -90,35 +90,6 @@ function removeFavoriteCompany(plate) {
   }
 }
 
-// Obtener clave de kilometraje para una placa específica
-function getMileageKey(plate) {
-  if (!plate) return null;
-  return `${MILEAGE_KEY_PREFIX}${String(plate).trim().toUpperCase()}`;
-}
-
-// Guardar kilometraje en localStorage por placa
-function saveMileage(plate, mileage) {
-  try {
-    const key = getMileageKey(plate);
-    if (!key) return;
-    localStorage.setItem(key, String(mileage));
-  } catch (err) {
-    console.error('Error guardando kilometraje:', err);
-  }
-}
-
-// Obtener kilometraje guardado por placa
-function getSavedMileage(plate) {
-  try {
-    const key = getMileageKey(plate);
-    if (!key) return null;
-    const mileage = localStorage.getItem(key);
-    return mileage ? Number(mileage) : null;
-  } catch {
-    return null;
-  }
-}
-
 // Obtener companyId de la URL, favorito (por placa) o input
 function getCompanyId(plate = null) {
   const urlParams = new URLSearchParams(window.location.search);
@@ -902,7 +873,22 @@ async function handleLogin(e) {
 
   const plate = plateInput?.value?.trim().toUpperCase() || '';
   const phonePassword = phonePasswordInput?.value?.trim() || '';
-  let companyId = companyIdInput?.value?.trim() || getCompanyId();
+  
+  // Obtener companyId: primero del input oculto, luego de favorito por placa, luego de URL
+  let companyId = companyIdInput?.value?.trim() || null;
+  
+  if (!companyId && plate) {
+    // Intentar obtener desde favorito por placa
+    const favorite = getFavoriteCompany(plate);
+    if (favorite) {
+      companyId = favorite.id;
+    }
+  }
+  
+  if (!companyId) {
+    // Intentar desde URL
+    companyId = getCompanyId(plate);
+  }
 
   if (!plate || !phonePassword) {
     showError('Por favor completa todos los campos');
@@ -910,7 +896,7 @@ async function handleLogin(e) {
   }
 
   if (!companyId) {
-    showError('Por favor ingresa el ID del taller o configúralo en la URL como ?companyId=...');
+    showError('Por favor selecciona un taller de la lista');
     return;
   }
 
