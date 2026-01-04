@@ -329,22 +329,63 @@ export const generateOilChangeSticker = async (req, res) => {
     
     // Imagen de Renault (encima del QR, centrada)
     try {
-      const renaultImagePath = join(__dirname, '../../../../Frontend/assets/img/stickersrenault.png');
-      const renaultImageBuffer = readFileSync(renaultImagePath);
+      // Construir ruta relativa desde Backend/src/controllers/ hasta Frontend/assets/img/
+      // __dirname = Backend/src/controllers/
+      // Necesitamos subir 3 niveles: controllers -> src -> Backend -> raíz
+      // Luego bajar a Frontend/assets/img/
+      let renaultImagePath = join(__dirname, '../../../Frontend/assets/img/stickersrenault.png');
       
-      // Tamaño de la imagen Renault (más pequeña que el logo)
-      const renaultImageSize = Math.min(rightColW * 0.6, (rightColH - rightCurrentY - (rightColH * 0.4)) * 0.8);
-      const renaultImageX = rightColX + (rightColW - renaultImageSize) / 2; // Centrar horizontalmente
+      // Si no existe, intentar ruta alternativa desde process.cwd()
+      if (!existsSync(renaultImagePath)) {
+        renaultImagePath = join(process.cwd(), 'Frontend/assets/img/stickersrenault.png');
+      }
       
-      doc.image(renaultImageBuffer, renaultImageX, rightCurrentY, {
-        width: renaultImageSize,
-        height: renaultImageSize * 0.6, // Mantener proporción
-        fit: [renaultImageSize, renaultImageSize * 0.6]
-      });
+      // Si aún no existe, intentar ruta absoluta desde la raíz del proyecto
+      if (!existsSync(renaultImagePath)) {
+        // Desde Backend/src/controllers/ subir 3 niveles
+        const projectRoot = join(__dirname, '../../..');
+        renaultImagePath = join(projectRoot, 'Frontend/assets/img/stickersrenault.png');
+      }
       
-      rightCurrentY += (renaultImageSize * 0.6) + verticalSpacing;
+      if (existsSync(renaultImagePath)) {
+        const renaultImageBuffer = readFileSync(renaultImagePath);
+        
+        // Calcular posición: encima del QR
+        // Primero calcular dónde estará el QR (abajo) - usar el mismo cálculo que más abajo
+        const qrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
+        const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3);
+        
+        // Tamaño de la imagen Renault (proporcional, visible pero no muy grande)
+        const renaultImageWidth = Math.min(rightColW * 0.65, qrSize * 0.85);
+        const renaultImageHeight = renaultImageWidth * 0.35; // Proporción más ancha que alta
+        const renaultImageX = rightColX + (rightColW - renaultImageWidth) / 2; // Centrar horizontalmente
+        const renaultImageY = qrY - renaultImageHeight - (verticalSpacing * 1.5); // Posicionar encima del QR con más espacio
+        
+        doc.image(renaultImageBuffer, renaultImageX, renaultImageY, {
+          width: renaultImageWidth,
+          height: renaultImageHeight,
+          fit: [renaultImageWidth, renaultImageHeight]
+        });
+        
+        logger.info('[generateOilChangeSticker] Imagen Renault posicionada:', {
+          x: renaultImageX,
+          y: renaultImageY,
+          width: renaultImageWidth,
+          height: renaultImageHeight,
+          qrY: qrY,
+          qrSize: qrSize
+        });
+        
+        logger.info('[generateOilChangeSticker] Imagen Renault cargada desde:', renaultImagePath);
+      } else {
+        logger.warn('[generateOilChangeSticker] Imagen Renault no encontrada. Rutas intentadas:', {
+          path1: join(__dirname, '../../../Frontend/assets/img/stickersrenault.png'),
+          path2: join(process.cwd(), 'Frontend/assets/img/stickersrenault.png'),
+          path3: join(join(__dirname, '../../..'), 'Frontend/assets/img/stickersrenault.png')
+        });
+      }
     } catch (err) {
-      logger.warn('[generateOilChangeSticker] Error cargando imagen Renault:', err.message);
+      logger.error('[generateOilChangeSticker] Error cargando imagen Renault:', err.message, err.stack);
     }
     
     // QR Code (abajo, centrado)
