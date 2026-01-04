@@ -7572,6 +7572,8 @@ function openEditCV(){
     finally{
       loadingProfile = false;
       lastLookupPlate = raw;
+      // Después de cargar el perfil, cargar el link de empresa (separado, no interfiere)
+      scheduleCompanyLinkLoad();
     }
   };
 
@@ -7596,21 +7598,55 @@ function openEditCV(){
     }
   };
 
+  // Timer para debounce del autocompletado
+  let plateAutocompleteTimer = null;
+  
   if (plateInput) {
     plateInput.addEventListener('input', (ev)=>{
       const upper = ev.target.value.toUpperCase();
       if (ev.target.value !== upper) ev.target.value = upper;
+      
+      // Actualizar objeto current
       if(current){
         current.vehicle = current.vehicle||{};
         current.vehicle.plate = upper;
         syncCurrentIntoOpenList();
         renderCapsules();
       }
+      
+      // Limpiar timer anterior
+      if (plateAutocompleteTimer) {
+        clearTimeout(plateAutocompleteTimer);
+      }
+      
+      // Cargar perfil automáticamente después de 500ms de inactividad (debounce)
+      // Solo si la placa tiene al menos 3 caracteres
+      if (upper.length >= 3) {
+        plateAutocompleteTimer = setTimeout(() => {
+          loadProfile(true);
+        }, 500);
+      } else if (upper.length === 0) {
+        // Si se borra la placa, limpiar campos relacionados
+        if (plateAutocompleteTimer) {
+          clearTimeout(plateAutocompleteTimer);
+        }
+      }
     });
-    plateInput.addEventListener('change', ()=> loadProfile(true));
+    
+    // También cargar al hacer blur (por si el usuario no espera el debounce)
+    plateInput.addEventListener('blur', ()=> {
+      if (plateInput.value.trim().length >= 3) {
+        loadProfile(true);
+      }
+    });
+    
+    // Cargar al presionar Enter
     plateInput.addEventListener('keydown', (ev)=>{
       if (ev.key === 'Enter') {
         ev.preventDefault();
+        if (plateAutocompleteTimer) {
+          clearTimeout(plateAutocompleteTimer);
+        }
         loadProfile(true);
       }
     });
@@ -7645,14 +7681,18 @@ function openEditCV(){
     });
   });
 
-  // Funcionalidad de asociar cliente a empresa
+  // ===== FUNCIONALIDAD DE ASOCIAR CLIENTE A EMPRESA (SEPARADA DEL AUTOCOMPLETADO) =====
+  // Esta lógica es independiente y solo se ejecuta cuando se necesita mostrar/guardar
+  // la relación entre un cliente y una empresa. NO interfiere con el autocompletado.
   let selectedCompanyId = null;
   let currentLink = null;
+  let companyLinkTimer = null;
   
-  // Cargar link existente si hay placa
-  const loadExistingLink = async () => {
+  // Cargar link existente si hay placa (solo para mostrar información de empresa asociada)
+  // Esta función NO modifica los campos del formulario, solo actualiza la UI de empresa
+  const loadExistingCompanyLink = async () => {
     const plate = plateInput?.value?.trim().toUpperCase();
-    if (!plate) {
+    if (!plate || plate.length < 3) {
       selectedCompanyId = null;
       currentLink = null;
       updateCompanyUI();
@@ -7676,6 +7716,16 @@ function openEditCV(){
       currentLink = null;
       updateCompanyUI();
     }
+  };
+  
+  // Cargar link de empresa con debounce (separado del autocompletado)
+  const scheduleCompanyLinkLoad = () => {
+    if (companyLinkTimer) {
+      clearTimeout(companyLinkTimer);
+    }
+    companyLinkTimer = setTimeout(() => {
+      loadExistingCompanyLink();
+    }, 1000); // Debounce más largo para no interferir con el autocompletado
   };
   
   const updateCompanyUI = () => {
@@ -7704,15 +7754,20 @@ function openEditCV(){
     }
   };
   
-  // Cargar link al cambiar placa
+  // Cargar link de empresa al cambiar placa (separado del autocompletado)
+  // Solo se ejecuta después de que el autocompletado haya terminado
   if (plateInput) {
-    plateInput.addEventListener('change', loadExistingLink);
-    plateInput.addEventListener('blur', loadExistingLink);
+    // Usar un listener separado que no interfiera con el autocompletado
+    plateInput.addEventListener('blur', () => {
+      scheduleCompanyLinkLoad();
+    });
   }
   
-  // Cargar link inicial si hay placa
+  // Cargar link inicial si hay placa (solo después de un delay para no interferir)
   if (plateInput?.value) {
-    loadExistingLink();
+    setTimeout(() => {
+      scheduleCompanyLinkLoad();
+    }, 500);
   }
   
   // Botón para seleccionar empresa
