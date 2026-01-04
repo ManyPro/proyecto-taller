@@ -5,6 +5,12 @@ import Company from '../models/Company.js';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { logger } from '../lib/logger.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Obtener servicios de mantenimiento filtrados por vehículo
@@ -201,79 +207,94 @@ export const generateOilChangeSticker = async (req, res) => {
     const vw = STICKER_W - 2 * MARGIN;
     const vh = STICKER_H - 2 * MARGIN;
 
-    // Dividir en dos columnas: izquierda (texto) y derecha (logo + QR)
-    const leftColW = vw * 0.55; // 55% para texto
-    const rightColW = vw * 0.45; // 45% para logo y QR
-    const gap = 0.15 * CM; // Separación entre columnas
+    // Dividir en dos columnas: izquierda (texto centrado) y derecha (logo + imagen Renault + QR)
+    const leftColW = vw * 0.52; // 52% para texto
+    const rightColW = vw * 0.48; // 48% para logo, imagen y QR
+    const gap = 0.2 * CM; // Separación entre columnas
     
     const leftColX = vx;
     const rightColX = vx + leftColW + gap;
 
-    // ===== COLUMNA IZQUIERDA: DATOS =====
-    let currentY = vy;
+    // ===== COLUMNA IZQUIERDA: DATOS (CENTRADOS) =====
+    // Calcular altura total del contenido de texto para centrarlo verticalmente
     const lineHeight = 0.3 * CM;
     const fontSize = 7;
     const fontSizeSmall = 6;
-    const fontSizeKm = 6; // Fuente más pequeña para números de 6-7 cifras
+    const fontSizeKm = 6;
+    
+    // Calcular altura total del contenido de texto
+    const textContentHeight = 
+      (lineHeight * 1.1) + // Placa
+      (lineHeight * 1.2) + // Aceite
+      (lineHeight * 0.8) + (lineHeight * 0.8) + // Actual KM label + valor
+      (lineHeight * 0.8) + (lineHeight * 0.8); // Proximo KM label + valor
+    
+    // Centrar verticalmente el contenido de texto
+    let currentY = vy + (vh - textContentHeight) / 2;
     
     // Fuente sobria (Helvetica)
     doc.font('Helvetica');
     
-    // Placa (sin etiqueta)
+    // Placa (sin etiqueta, centrada)
     doc.fontSize(fontSize)
        .font('Helvetica-Bold')
        .fillColor('#000000')
        .text(plateStr, leftColX, currentY, {
          width: leftColW,
-         align: 'left'
+         align: 'center'
        });
     currentY += lineHeight * 1.1;
     
-    // Aceite utilizado (sin etiqueta)
+    // Aceite utilizado (sin etiqueta, centrado)
     doc.fontSize(fontSizeSmall)
        .font('Helvetica')
        .text(oilTypeStr, leftColX, currentY, {
          width: leftColW,
-         align: 'left'
+         align: 'center'
        });
     currentY += lineHeight * 1.2;
     
-    // Actual KM: [valor]
+    // Actual KM: [valor] (centrado)
     doc.fontSize(fontSizeSmall)
        .font('Helvetica')
        .text('Actual KM:', leftColX, currentY, {
          width: leftColW,
-         align: 'left'
+         align: 'center'
        });
     currentY += lineHeight * 0.8;
     doc.fontSize(fontSizeKm)
        .font('Helvetica-Bold')
        .text(mileageNum.toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
-         align: 'left'
+         align: 'center'
        });
     currentY += lineHeight * 1.1;
     
-    // Proximo KM: [valor]
+    // Proximo KM: [valor] (centrado)
     doc.fontSize(fontSizeSmall)
        .font('Helvetica')
        .text('Proximo KM:', leftColX, currentY, {
          width: leftColW,
-         align: 'left'
+         align: 'center'
        });
     currentY += lineHeight * 0.8;
     doc.fontSize(fontSizeKm)
        .font('Helvetica-Bold')
        .text(nextServiceMileageNum.toLocaleString('es-CO'), leftColX, currentY, {
          width: leftColW,
-         align: 'left'
+         align: 'center'
        });
 
-    // ===== COLUMNA DERECHA: LOGO Y QR =====
+    // ===== COLUMNA DERECHA: LOGO, IMAGEN RENAULT Y QR =====
     const rightColY = vy;
     const rightColH = vh;
     
+    // Espaciado vertical entre elementos
+    const verticalSpacing = 0.15 * CM;
+    let rightCurrentY = rightColY;
+    
     // Logo del taller (arriba, centrado)
+    let logoHeight = 0;
     if (companyLogoUrl) {
       try {
         // Helper para obtener buffer desde URL
@@ -289,15 +310,16 @@ export const generateOilChangeSticker = async (req, res) => {
           const logoResponse = await fetchFn(companyLogoUrl);
           if (logoResponse.ok) {
             const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
-            const logoSize = Math.min(rightColW * 0.7, rightColH * 0.35); // Tamaño del logo
-            const logoX = rightColX + (rightColW - logoSize) / 2; // Centrar horizontalmente
-            const logoY = rightColY;
+            logoHeight = Math.min(rightColW * 0.5, rightColH * 0.25); // Tamaño del logo
+            const logoX = rightColX + (rightColW - logoHeight) / 2; // Centrar horizontalmente
             
-            doc.image(logoBuffer, logoX, logoY, {
-              width: logoSize,
-              height: logoSize,
-              fit: [logoSize, logoSize]
+            doc.image(logoBuffer, logoX, rightCurrentY, {
+              width: logoHeight,
+              height: logoHeight,
+              fit: [logoHeight, logoHeight]
             });
+            
+            rightCurrentY += logoHeight + verticalSpacing;
           }
         }
       } catch (err) {
@@ -305,10 +327,32 @@ export const generateOilChangeSticker = async (req, res) => {
       }
     }
     
+    // Imagen de Renault (encima del QR, centrada)
+    try {
+      const renaultImagePath = join(__dirname, '../../../../Frontend/assets/img/stickersrenault.png');
+      const renaultImageBuffer = readFileSync(renaultImagePath);
+      
+      // Tamaño de la imagen Renault (más pequeña que el logo)
+      const renaultImageSize = Math.min(rightColW * 0.6, (rightColH - rightCurrentY - (rightColH * 0.4)) * 0.8);
+      const renaultImageX = rightColX + (rightColW - renaultImageSize) / 2; // Centrar horizontalmente
+      
+      doc.image(renaultImageBuffer, renaultImageX, rightCurrentY, {
+        width: renaultImageSize,
+        height: renaultImageSize * 0.6, // Mantener proporción
+        fit: [renaultImageSize, renaultImageSize * 0.6]
+      });
+      
+      rightCurrentY += (renaultImageSize * 0.6) + verticalSpacing;
+    } catch (err) {
+      logger.warn('[generateOilChangeSticker] Error cargando imagen Renault:', err.message);
+    }
+    
     // QR Code (abajo, centrado)
     try {
-      const qrSize = Math.min(rightColW * 0.85, rightColH * 0.5); // Tamaño del QR
-      const qrY = rightColY + rightColH - qrSize; // Alineado abajo
+      // Calcular espacio disponible para el QR
+      const availableHeight = rightColH - rightCurrentY;
+      const qrSize = Math.min(rightColW * 0.75, availableHeight * 0.9); // Tamaño del QR
+      const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3); // Alineado abajo con pequeño margen
       const qrX = rightColX + (rightColW - qrSize) / 2; // Centrado horizontalmente
       
       // Convertir puntos a píxeles para QR (300 DPI)
