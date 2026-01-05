@@ -341,7 +341,9 @@ export const generateOilChangeSticker = async (req, res) => {
           
           if (logoResponse.ok) {
             const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
-            logoHeight = Math.min(rightColW * 0.5, rightColH * 0.25); // Tamaño del logo
+            // Aumentar 50% el tamaño del logo, respetando límites
+            const logoBase = Math.min(rightColW * 0.5, rightColH * 0.25);
+            logoHeight = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW);
             const logoX = rightColX + (rightColW - logoHeight) / 2; // Centrar horizontalmente
             
             logger.info('[generateOilChangeSticker] ✅ Logo cargado, insertando en PDF:', {
@@ -376,7 +378,9 @@ export const generateOilChangeSticker = async (req, res) => {
     }
     
     // Calcular posición del QR primero (se usa para posicionar la imagen Renault)
-    const qrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
+    // Aumentar el tamaño del QR en 50% con límites para no salir del área
+    const baseQrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
+    const qrSize = Math.min(baseQrSize * 1.5, rightColW, rightColH);
     const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3);
     const qrX = rightColX + (rightColW - qrSize) / 2;
     
@@ -517,9 +521,9 @@ export const generateOilChangeSticker = async (req, res) => {
       
       if (renaultImageBuffer && renaultImageBuffer.length > 0) {
         // Tamaño de la imagen Renault (proporcional, visible y bien dimensionada)
-        // La imagen debe ser visible pero no demasiado grande para dejar espacio al QR
-        // Aumentar tamaño del logo Renault (más ancho y alto)
-        const renaultImageWidth = Math.min(rightColW * 0.95, qrSize * 1.1); // 95% de la columna o 110% del QR
+        // Aumentar 50% respecto al cálculo base, sin salirse del área
+        const renaultBaseWidth = Math.min(rightColW * 0.95, qrSize * 1.1);
+        const renaultImageWidth = Math.min(renaultBaseWidth * 1.5, rightColW); // +50% con límite de columna
         const renaultImageHeight = renaultImageWidth * 0.5; // Proporción más ancha que alta
         const renaultImageX = rightColX + (rightColW - renaultImageWidth) / 2; // Centrar horizontalmente
         
