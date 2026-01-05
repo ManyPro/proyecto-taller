@@ -6,7 +6,7 @@ import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { logger } from '../lib/logger.js';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -394,26 +394,40 @@ export const generateOilChangeSticker = async (req, res) => {
       
       // Intentar múltiples rutas posibles - USAR RUTAS ABSOLUTAS
       const projectRoot = process.cwd();
-      // Si estamos en Backend/, subir un nivel
-      const actualRoot = projectRoot.endsWith('Backend') || projectRoot.includes('Backend') 
-        ? join(projectRoot, '..') 
-        : projectRoot;
       
+      // Determinar la raíz del proyecto (subir un nivel si estamos en Backend/)
+      let actualRoot = projectRoot;
+      if (projectRoot.endsWith('Backend') || projectRoot.includes('Backend')) {
+        actualRoot = resolve(projectRoot, '..');
+      }
+      
+      // Obtener la ruta del workspace desde process.env o usar la ruta actual
+      const workspacePath = process.env.WORKSPACE_PATH || actualRoot;
+
+      // Permitir ruta directa configurable por entorno (ej. Netlify)
+      const envRenaultPath = process.env.RENAULT_IMAGE_PATH;
+      
+      // Construir rutas posibles usando resolve para obtener rutas absolutas
       const possiblePaths = [
-        join(actualRoot, 'Frontend/assets/img/stickersrenault.png'), // Desde raíz del proyecto
-        join(projectRoot, 'Frontend/assets/img/stickersrenault.png'), // Desde donde esté el proceso
-        join(__dirname, '../../../Frontend/assets/img/stickersrenault.png'), // Desde controllers
-        join(__dirname, '../../../../Frontend/assets/img/stickersrenault.png'), // Alternativa
-        join(projectRoot, '../Frontend/assets/img/stickersrenault.png'), // Alternativa relativa
-        // Ruta absoluta desde la raíz del workspace (C:\proyecto-taller)
-        'C:\\proyecto-taller\\Frontend\\assets\\img\\stickersrenault.png',
-        'C:/proyecto-taller/Frontend/assets/img/stickersrenault.png',
-      ];
+        // Ruta más probable: desde la raíz del workspace
+        envRenaultPath ? resolve(envRenaultPath) : null, // Ruta explícita por entorno
+        resolve(workspacePath, 'Frontend', 'assets', 'img', 'stickersrenault.png'),
+        resolve(actualRoot, 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde raíz del proyecto
+        resolve(projectRoot, 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde donde esté el proceso
+        resolve(__dirname, '..', '..', '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde controllers
+        resolve(__dirname, '..', '..', '..', '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Alternativa
+        resolve(projectRoot, '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Alternativa relativa
+        // Ruta absoluta local (equipo del usuario)
+        process.platform === 'win32' ? resolve('C:\\Users\\ManyManito\\Documents\\GitHub\\proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
+        // Ruta absoluta genérica en C:\proyecto-taller (por compatibilidad previa)
+        process.platform === 'win32' ? resolve('C:\\proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
+      ].filter(Boolean); // Filtrar nulls
       
       // Log todas las rutas que se intentarán
       logger.info('[generateOilChangeSticker] 📂 Rutas a verificar:', {
         projectRoot,
         actualRoot,
+        workspacePath,
         __dirname,
         paths: possiblePaths.map(p => {
           const np = String(p).replace(/\\/g, '/');
@@ -423,15 +437,17 @@ export const generateOilChangeSticker = async (req, res) => {
       });
       
       // Buscar la primera ruta que exista
-      for (const path of possiblePaths) {
-        const normalizedPath = String(path).replace(/\\/g, '/'); // Normalizar rutas en Windows
+      for (const pathToCheck of possiblePaths) {
+        // Las rutas ya están resueltas, solo verificar existencia
+        const normalizedPath = String(pathToCheck).replace(/\\/g, '/');
+        
         logger.info('[generateOilChangeSticker] 🔎 Verificando ruta:', normalizedPath);
         
-        if (existsSync(normalizedPath)) {
+        if (existsSync(pathToCheck)) {
           logger.info('[generateOilChangeSticker] ✅✅✅ Ruta EXISTE:', normalizedPath);
-          renaultImagePath = normalizedPath;
+          renaultImagePath = pathToCheck; // Usar la ruta original (no normalizada) para readFileSync
           try {
-            renaultImageBuffer = readFileSync(normalizedPath);
+            renaultImageBuffer = readFileSync(pathToCheck);
             if (renaultImageBuffer && renaultImageBuffer.length > 0) {
               logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault ENCONTRADA y LEÍDA:', {
                 path: normalizedPath,
@@ -457,13 +473,19 @@ export const generateOilChangeSticker = async (req, res) => {
       
       if (renaultImageBuffer && renaultImageBuffer.length > 0) {
         // Tamaño de la imagen Renault (proporcional, visible y bien dimensionada)
-        const renaultImageWidth = Math.min(rightColW * 0.75, qrSize * 0.95);
-        const renaultImageHeight = renaultImageWidth * 0.45; // Proporción más ancha que alta
+        // La imagen debe ser visible pero no demasiado grande para dejar espacio al QR
+        const renaultImageWidth = Math.min(rightColW * 0.85, qrSize * 1.0); // 85% del ancho de columna o igual al QR
+        const renaultImageHeight = renaultImageWidth * 0.4; // Proporción más ancha que alta (ajustar según la imagen real)
         const renaultImageX = rightColX + (rightColW - renaultImageWidth) / 2; // Centrar horizontalmente
-        const renaultImageY = qrY - renaultImageHeight - (verticalSpacing * 1.5); // Posicionar encima del QR con espacio adecuado
         
-        // Asegurar que la imagen no se salga del área disponible
-        const finalY = Math.max(rightColY + verticalSpacing, renaultImageY);
+        // Calcular posición Y: debe estar arriba del QR con espacio adecuado
+        // El QR está en qrY, así que la imagen debe estar antes de qrY
+        const spaceBetweenImageAndQR = verticalSpacing * 2; // Espacio entre imagen y QR
+        const renaultImageY = qrY - renaultImageHeight - spaceBetweenImageAndQR;
+        
+        // Asegurar que la imagen no se salga del área disponible (pero permitir que esté cerca del logo)
+        const minY = rightColY + (logoHeight > 0 ? logoHeight + verticalSpacing * 2 : verticalSpacing);
+        const finalY = Math.max(minY, renaultImageY);
         
         // CRÍTICO: Insertar la imagen en el PDF ANTES del QR
         logger.info('[generateOilChangeSticker] 🖼️ Insertando imagen Renault en PDF', {
@@ -478,18 +500,27 @@ export const generateOilChangeSticker = async (req, res) => {
           rightColW,
           rightColH,
           qrY,
-          qrSize
+          qrSize,
+          logoHeight,
+          spaceBetweenImageAndQR
         });
         
         // Insertar imagen usando sintaxis de PDFKit - FORZAR INSERCIÓN
         try {
           // Verificar que las coordenadas sean válidas
           if (renaultImageX >= 0 && finalY >= 0 && renaultImageWidth > 0 && renaultImageHeight > 0) {
+            // Usar fit para mantener proporciones
             doc.image(renaultImageBuffer, renaultImageX, finalY, {
-              fit: [renaultImageWidth, renaultImageHeight]
+              fit: [renaultImageWidth, renaultImageHeight],
+              align: 'center'
             });
             renaultImageLoaded = true;
-            logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA exitosamente en PDF');
+            logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA exitosamente en PDF', {
+              x: renaultImageX,
+              y: finalY,
+              width: renaultImageWidth,
+              height: renaultImageHeight
+            });
           } else {
             logger.error('[generateOilChangeSticker] ❌ Coordenadas inválidas para imagen:', {
               x: renaultImageX,
@@ -510,11 +541,11 @@ export const generateOilChangeSticker = async (req, res) => {
         }
       } else {
         logger.error('[generateOilChangeSticker] ❌ Imagen Renault NO ENCONTRADA o buffer vacío. Rutas intentadas:', {
-          paths: possiblePaths,
+          paths: possiblePaths.map(p => String(p).replace(/\\/g, '/')),
           cwd: process.cwd(),
           __dirname: __dirname,
           exists: possiblePaths.map(p => {
-            const np = p.replace(/\\/g, '/');
+            const np = String(p).replace(/\\/g, '/');
             return { path: np, exists: existsSync(np) };
           })
         });
