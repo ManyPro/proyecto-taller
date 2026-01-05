@@ -472,16 +472,42 @@ export const generateOilChangeSticker = async (req, res) => {
           width: renaultImageWidth,
           height: renaultImageHeight,
           bufferSize: renaultImageBuffer.length,
-          path: renaultImagePath
+          path: renaultImagePath,
+          rightColX,
+          rightColY,
+          rightColW,
+          rightColH,
+          qrY,
+          qrSize
         });
         
-        // Insertar imagen usando sintaxis de PDFKit
-        doc.image(renaultImageBuffer, renaultImageX, finalY, {
-          fit: [renaultImageWidth, renaultImageHeight]
-        });
-        
-        renaultImageLoaded = true;
-        logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA exitosamente en PDF');
+        // Insertar imagen usando sintaxis de PDFKit - FORZAR INSERCIÓN
+        try {
+          // Verificar que las coordenadas sean válidas
+          if (renaultImageX >= 0 && finalY >= 0 && renaultImageWidth > 0 && renaultImageHeight > 0) {
+            doc.image(renaultImageBuffer, renaultImageX, finalY, {
+              fit: [renaultImageWidth, renaultImageHeight]
+            });
+            renaultImageLoaded = true;
+            logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA exitosamente en PDF');
+          } else {
+            logger.error('[generateOilChangeSticker] ❌ Coordenadas inválidas para imagen:', {
+              x: renaultImageX,
+              y: finalY,
+              width: renaultImageWidth,
+              height: renaultImageHeight
+            });
+          }
+        } catch (insertError) {
+          logger.error('[generateOilChangeSticker] ❌ Error al insertar imagen en PDF:', {
+            error: insertError.message,
+            stack: insertError.stack,
+            x: renaultImageX,
+            y: finalY,
+            width: renaultImageWidth,
+            height: renaultImageHeight
+          });
+        }
       } else {
         logger.error('[generateOilChangeSticker] ❌ Imagen Renault NO ENCONTRADA o buffer vacío. Rutas intentadas:', {
           paths: possiblePaths,
@@ -541,15 +567,18 @@ export const generateOilChangeSticker = async (req, res) => {
     }
 
     // Finalizar PDF
+    logger.info('[generateOilChangeSticker] 📄 Finalizando PDF...');
     doc.end();
 
-    logger.info('[maintenance.generateOilChangeSticker] Sticker generado', {
+    logger.info('[maintenance.generateOilChangeSticker] ✅✅✅ Sticker generado exitosamente', {
       companyId,
       saleId,
       plate,
       mileage,
       nextServiceMileage,
-      oilType
+      oilType,
+      renaultImageLoaded,
+      logoLoaded: !!companyLogoUrl
     });
 
   } catch (error) {
