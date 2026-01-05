@@ -518,8 +518,9 @@ export const generateOilChangeSticker = async (req, res) => {
       if (renaultImageBuffer && renaultImageBuffer.length > 0) {
         // Tamaño de la imagen Renault (proporcional, visible y bien dimensionada)
         // La imagen debe ser visible pero no demasiado grande para dejar espacio al QR
-        const renaultImageWidth = Math.min(rightColW * 0.85, qrSize * 1.0); // 85% del ancho de columna o igual al QR
-        const renaultImageHeight = renaultImageWidth * 0.4; // Proporción más ancha que alta (ajustar según la imagen real)
+        // Aumentar tamaño del logo Renault (más ancho y alto)
+        const renaultImageWidth = Math.min(rightColW * 0.95, qrSize * 1.1); // 95% de la columna o 110% del QR
+        const renaultImageHeight = renaultImageWidth * 0.5; // Proporción más ancha que alta
         const renaultImageX = rightColX + (rightColW - renaultImageWidth) / 2; // Centrar horizontalmente
         
         // Calcular posición Y: debe estar arriba del QR con espacio adecuado
