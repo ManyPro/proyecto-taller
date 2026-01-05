@@ -295,6 +295,11 @@ export const generateOilChangeSticker = async (req, res) => {
     
     // Logo del taller (arriba, centrado)
     let logoHeight = 0;
+    logger.info('[generateOilChangeSticker] 🖼️ Intentando cargar logo de compañía:', {
+      companyLogoUrl: companyLogoUrl || 'NO HAY URL',
+      hasUrl: !!companyLogoUrl
+    });
+    
     if (companyLogoUrl) {
       try {
         // Helper para obtener buffer desde URL
@@ -307,24 +312,48 @@ export const generateOilChangeSticker = async (req, res) => {
         }
         
         if (fetchFn) {
+          logger.info('[generateOilChangeSticker] 📡 Haciendo fetch del logo...');
           const logoResponse = await fetchFn(companyLogoUrl);
+          logger.info('[generateOilChangeSticker] 📡 Respuesta del logo:', {
+            ok: logoResponse.ok,
+            status: logoResponse.status,
+            statusText: logoResponse.statusText
+          });
+          
           if (logoResponse.ok) {
             const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
             logoHeight = Math.min(rightColW * 0.5, rightColH * 0.25); // Tamaño del logo
             const logoX = rightColX + (rightColW - logoHeight) / 2; // Centrar horizontalmente
             
+            logger.info('[generateOilChangeSticker] ✅ Logo cargado, insertando en PDF:', {
+              bufferSize: logoBuffer.length,
+              logoHeight,
+              logoX,
+              logoY: rightCurrentY
+            });
+            
+            // Insertar logo usando sintaxis de PDFKit
             doc.image(logoBuffer, logoX, rightCurrentY, {
-              width: logoHeight,
-              height: logoHeight,
               fit: [logoHeight, logoHeight]
             });
             
+            logger.info('[generateOilChangeSticker] ✅✅ Logo INSERTADO en PDF');
+            
             rightCurrentY += logoHeight + verticalSpacing;
+          } else {
+            logger.warn('[generateOilChangeSticker] ⚠️ Logo no se pudo cargar, respuesta no OK:', logoResponse.status);
           }
+        } else {
+          logger.warn('[generateOilChangeSticker] ⚠️ No hay función fetch disponible');
         }
       } catch (err) {
-        logger.warn('[generateOilChangeSticker] Error cargando logo:', err.message);
+        logger.error('[generateOilChangeSticker] ❌ Error cargando logo:', {
+          error: err.message,
+          stack: err.stack
+        });
       }
+    } else {
+      logger.warn('[generateOilChangeSticker] ⚠️ No hay URL de logo de compañía');
     }
     
     // Calcular posición del QR primero (se usa para posicionar la imagen Renault)
@@ -335,6 +364,12 @@ export const generateOilChangeSticker = async (req, res) => {
     // Imagen de Renault (encima del QR, centrada) - INSERTAR ANTES DEL QR
     let renaultImageLoaded = false;
     try {
+      // Log inicial para debugging
+      logger.info('[generateOilChangeSticker] 🔍 Buscando imagen Renault...', {
+        cwd: process.cwd(),
+        __dirname: __dirname
+      });
+      
       // Intentar múltiples rutas posibles
       const possiblePaths = [
         join(process.cwd(), 'Frontend/assets/img/stickersrenault.png'), // Desde raíz del proyecto
@@ -346,25 +381,41 @@ export const generateOilChangeSticker = async (req, res) => {
       let renaultImagePath = null;
       let renaultImageBuffer = null;
       
+      // Log todas las rutas que se intentarán
+      logger.info('[generateOilChangeSticker] 📂 Rutas a verificar:', {
+        paths: possiblePaths.map(p => {
+          const np = p.replace(/\\/g, '/');
+          const exists = existsSync(np);
+          return { path: np, exists };
+        })
+      });
+      
       // Buscar la primera ruta que exista
       for (const path of possiblePaths) {
         const normalizedPath = path.replace(/\\/g, '/'); // Normalizar rutas en Windows
+        logger.info('[generateOilChangeSticker] 🔎 Verificando ruta:', normalizedPath);
+        
         if (existsSync(normalizedPath)) {
+          logger.info('[generateOilChangeSticker] ✅ Ruta existe:', normalizedPath);
           renaultImagePath = normalizedPath;
           try {
             renaultImageBuffer = readFileSync(normalizedPath);
-            logger.info('[generateOilChangeSticker] ✅ Imagen Renault encontrada y leída:', {
+            logger.info('[generateOilChangeSticker] ✅✅ Imagen Renault encontrada y leída:', {
               path: normalizedPath,
               size: renaultImageBuffer.length,
               exists: true
             });
             break;
           } catch (readErr) {
-            logger.warn('[generateOilChangeSticker] Error leyendo imagen desde:', normalizedPath, readErr.message);
+            logger.error('[generateOilChangeSticker] ❌ Error leyendo imagen desde:', {
+              path: normalizedPath,
+              error: readErr.message,
+              stack: readErr.stack
+            });
             continue;
           }
         } else {
-          logger.debug('[generateOilChangeSticker] Ruta no existe:', normalizedPath);
+          logger.warn('[generateOilChangeSticker] ⚠️ Ruta NO existe:', normalizedPath);
         }
       }
       
@@ -383,11 +434,11 @@ export const generateOilChangeSticker = async (req, res) => {
         try {
           // Sintaxis: doc.image(buffer, x, y, options)
           // Usar 'fit' para asegurar que la imagen se ajuste correctamente
+          logger.info('[generateOilChangeSticker] 🖼️ ANTES de insertar imagen Renault en PDF');
           doc.image(renaultImageBuffer, renaultImageX, finalY, {
-            fit: [renaultImageWidth, renaultImageHeight],
-            align: 'center',
-            valign: 'top'
+            fit: [renaultImageWidth, renaultImageHeight]
           });
+          logger.info('[generateOilChangeSticker] 🖼️ DESPUÉS de insertar imagen Renault en PDF');
           
           renaultImageLoaded = true;
           
