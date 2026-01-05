@@ -332,7 +332,7 @@ export const generateOilChangeSticker = async (req, res) => {
     const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3);
     const qrX = rightColX + (rightColW - qrSize) / 2;
     
-    // Imagen de Renault (encima del QR, centrada)
+    // Imagen de Renault (encima del QR, centrada) - INSERTAR ANTES DEL QR
     let renaultImageLoaded = false;
     try {
       // Intentar múltiples rutas posibles
@@ -348,20 +348,27 @@ export const generateOilChangeSticker = async (req, res) => {
       
       // Buscar la primera ruta que exista
       for (const path of possiblePaths) {
-        if (existsSync(path)) {
-          renaultImagePath = path;
+        const normalizedPath = path.replace(/\\/g, '/'); // Normalizar rutas en Windows
+        if (existsSync(normalizedPath)) {
+          renaultImagePath = normalizedPath;
           try {
-            renaultImageBuffer = readFileSync(path);
-            logger.info('[generateOilChangeSticker] Imagen Renault encontrada en:', path);
+            renaultImageBuffer = readFileSync(normalizedPath);
+            logger.info('[generateOilChangeSticker] ✅ Imagen Renault encontrada y leída:', {
+              path: normalizedPath,
+              size: renaultImageBuffer.length,
+              exists: true
+            });
             break;
           } catch (readErr) {
-            logger.warn('[generateOilChangeSticker] Error leyendo imagen desde:', path, readErr.message);
+            logger.warn('[generateOilChangeSticker] Error leyendo imagen desde:', normalizedPath, readErr.message);
             continue;
           }
+        } else {
+          logger.debug('[generateOilChangeSticker] Ruta no existe:', normalizedPath);
         }
       }
       
-      if (renaultImageBuffer) {
+      if (renaultImageBuffer && renaultImageBuffer.length > 0) {
         // Tamaño de la imagen Renault (proporcional, visible y bien dimensionada)
         const renaultImageWidth = Math.min(rightColW * 0.75, qrSize * 0.95);
         const renaultImageHeight = renaultImageWidth * 0.45; // Proporción más ancha que alta
@@ -369,37 +376,60 @@ export const generateOilChangeSticker = async (req, res) => {
         const renaultImageY = qrY - renaultImageHeight - (verticalSpacing * 1.5); // Posicionar encima del QR con espacio adecuado
         
         // Asegurar que la imagen no se salga del área disponible
-        const finalY = renaultImageY >= rightColY ? renaultImageY : (rightColY + verticalSpacing);
+        const finalY = Math.max(rightColY + verticalSpacing, renaultImageY);
         
-        // Insertar la imagen en el PDF
-        doc.image(renaultImageBuffer, renaultImageX, finalY, {
-          width: renaultImageWidth,
-          height: renaultImageHeight,
-          fit: [renaultImageWidth, renaultImageHeight]
-        });
-        
-        renaultImageLoaded = true;
-        
-        logger.info('[generateOilChangeSticker] Imagen Renault INSERTADA en PDF:', {
-          path: renaultImagePath,
-          x: renaultImageX,
-          y: finalY,
-          width: renaultImageWidth,
-          height: renaultImageHeight,
-          qrY: qrY,
-          qrSize: qrSize,
-          bufferSize: renaultImageBuffer.length
-        });
+        // CRÍTICO: Insertar la imagen en el PDF ANTES del QR
+        // Usar la sintaxis correcta de PDFKit (como en media.routes.js)
+        try {
+          // Sintaxis: doc.image(buffer, x, y, options)
+          // Usar 'fit' para asegurar que la imagen se ajuste correctamente
+          doc.image(renaultImageBuffer, renaultImageX, finalY, {
+            fit: [renaultImageWidth, renaultImageHeight],
+            align: 'center',
+            valign: 'top'
+          });
+          
+          renaultImageLoaded = true;
+          
+          logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA en PDF:', {
+            path: renaultImagePath,
+            x: renaultImageX,
+            y: finalY,
+            width: renaultImageWidth,
+            height: renaultImageHeight,
+            qrY: qrY,
+            qrSize: qrSize,
+            bufferSize: renaultImageBuffer.length,
+            rightColX: rightColX,
+            rightColY: rightColY,
+            rightColW: rightColW,
+            rightColH: rightColH,
+            STICKER_W: STICKER_W,
+            STICKER_H: STICKER_H
+          });
+        } catch (imgErr) {
+          logger.error('[generateOilChangeSticker] ❌ Error insertando imagen en PDF:', {
+            error: imgErr.message,
+            stack: imgErr.stack,
+            x: renaultImageX,
+            y: finalY,
+            width: renaultImageWidth,
+            height: renaultImageHeight
+          });
+        }
       } else {
-        logger.error('[generateOilChangeSticker] Imagen Renault NO ENCONTRADA. Rutas intentadas:', {
+        logger.error('[generateOilChangeSticker] ❌ Imagen Renault NO ENCONTRADA o buffer vacío. Rutas intentadas:', {
           paths: possiblePaths,
           cwd: process.cwd(),
           __dirname: __dirname,
-          exists: possiblePaths.map(p => ({ path: p, exists: existsSync(p) }))
+          exists: possiblePaths.map(p => {
+            const np = p.replace(/\\/g, '/');
+            return { path: np, exists: existsSync(np) };
+          })
         });
       }
     } catch (err) {
-      logger.error('[generateOilChangeSticker] Error cargando imagen Renault:', {
+      logger.error('[generateOilChangeSticker] ❌ Error cargando imagen Renault:', {
         error: err.message,
         stack: err.stack
       });
@@ -407,7 +437,7 @@ export const generateOilChangeSticker = async (req, res) => {
     
     // Si la imagen no se cargó, registrar advertencia
     if (!renaultImageLoaded) {
-      logger.warn('[generateOilChangeSticker] ADVERTENCIA: Imagen Renault no se pudo cargar');
+      logger.warn('[generateOilChangeSticker] ⚠️ ADVERTENCIA: Imagen Renault no se pudo cargar o insertar');
     }
     
     // QR Code (abajo, centrado)
