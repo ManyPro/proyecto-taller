@@ -2819,14 +2819,34 @@ function fillCloseModal(){
     recalc();
   })();
 
-  // Technician add inline
+  // Technician add inline y actualización
   techSel.addEventListener('change', async ()=>{
     if(techSel.value === '__ADD_TECH__'){
       const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
       techSel.value='';
       if(!name) return;
-      try{ companyTechnicians = await API.company.addTechnician(name); fillCloseModal(); }
+      try{ 
+        companyTechnicians = await API.company.addTechnician(name); 
+        fillCloseModal(); 
+      }
       catch(e){ alert(e?.message||'No se pudo agregar'); }
+    } else if(current && techSel.value && techSel.value.trim() !== ''){
+      // Actualizar técnico en la venta cuando se selecciona uno existente
+      try {
+        const technician = techSel.value.trim().toUpperCase();
+        await API.sales.updateTechnician(current._id, technician);
+        // Actualizar objeto current localmente
+        current.technician = technician;
+        if(!current.initialTechnician) {
+          current.initialTechnician = technician;
+        }
+        syncCurrentIntoOpenList();
+      } catch(e) {
+        console.error('Error actualizando técnico:', e);
+        alert('No se pudo actualizar el técnico: ' + (e?.message || 'Error desconocido'));
+        // Revertir selección
+        techSel.value = current.technician || current.initialTechnician || '';
+      }
     }
   });
 
@@ -7581,12 +7601,28 @@ function openEditCV(){
     loadingProfile = true;
     try{
       let profile = null;
-      try { profile = await API.sales.profileByPlate(raw, { fuzzy: true }); } catch {}
-      if (!profile) { try { profile = await API.sales.profileByPlate(raw); } catch {} }
-      if (profile) {
-        await applyProfile(profile, raw);
+      // Intentar primero con fuzzy, luego sin fuzzy
+      try { 
+        profile = await API.sales.profileByPlate(raw, { fuzzy: true }); 
+      } catch (err) {
+        console.warn('Error en búsqueda fuzzy de perfil:', err?.message || err);
       }
-    }catch(err){ console.warn('No se pudo cargar perfil', err?.message||err); }
+      if (!profile) { 
+        try { 
+          profile = await API.sales.profileByPlate(raw); 
+        } catch (err) {
+          console.warn('Error en búsqueda exacta de perfil:', err?.message || err);
+        }
+      }
+      if (profile) {
+        console.log('Perfil encontrado para placa:', raw, profile);
+        await applyProfile(profile, raw);
+      } else {
+        console.log('No se encontró perfil para la placa:', raw);
+      }
+    }catch(err){ 
+      console.error('Error cargando perfil:', err?.message || err);
+    }
     finally{
       loadingProfile = false;
       lastLookupPlate = raw;

@@ -379,12 +379,7 @@ const API = {
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
     techReport: (params = {}) => http.get(`/api/v1/sales/technicians/report${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
-  },
-
-  // --- Mantenimiento ---
-  maintenance: {
-    getTemplates: (params = {}) => http.get(`/api/v1/maintenance/templates${toQuery(params)}`),
-    getTemplate: (serviceId) => http.get(`/api/v1/maintenance/templates/${serviceId}`),
+    // Buscar perfil por placa
     profileByPlate: (plate, opts = {}) => {
       const params = {};
       if (opts.fuzzy) params.fuzzy = 'true';
@@ -397,7 +392,15 @@ const API = {
       if (!id) return Promise.resolve(null);
       return http.get(`/api/v1/sales/profile/by-id/${id}`);
     },
-    setTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician })
+    // Actualizar técnico de la venta
+    updateTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician }),
+  },
+
+  // --- Mantenimiento ---
+  maintenance: {
+    getTemplates: (params = {}) => http.get(`/api/v1/maintenance/templates${toQuery(params)}`),
+    getTemplate: (serviceId) => http.get(`/api/v1/maintenance/templates/${serviceId}`),
+    generateOilChangeSticker: (payload) => http.post(`/api/v1/maintenance/generate-oil-change-sticker`, payload)
   },
   accounts: {
     list: () => http.get('/api/v1/cashflow/accounts'),
