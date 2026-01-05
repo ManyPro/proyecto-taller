@@ -403,20 +403,24 @@ export const generateOilChangeSticker = async (req, res) => {
       
       // Obtener la ruta del workspace desde process.env o usar la ruta actual
       const workspacePath = process.env.WORKSPACE_PATH || actualRoot;
+
+      // Permitir ruta directa configurable por entorno (ej. Netlify)
+      const envRenaultPath = process.env.RENAULT_IMAGE_PATH;
       
       // Construir rutas posibles usando resolve para obtener rutas absolutas
       const possiblePaths = [
         // Ruta más probable: desde la raíz del workspace
+        envRenaultPath ? resolve(envRenaultPath) : null, // Ruta explícita por entorno
         resolve(workspacePath, 'Frontend', 'assets', 'img', 'stickersrenault.png'),
         resolve(actualRoot, 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde raíz del proyecto
         resolve(projectRoot, 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde donde esté el proceso
         resolve(__dirname, '..', '..', '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde controllers
         resolve(__dirname, '..', '..', '..', '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Alternativa
         resolve(projectRoot, '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Alternativa relativa
-        // Ruta absoluta desde la raíz del workspace (C:\proyecto-taller) - solo en Windows
-        process.platform === 'win32' ? resolve('C:', 'proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
-        // También intentar con la ruta mencionada por el usuario (por si acaso)
-        resolve(workspacePath, 'assets', 'images', '@Frontend', 'assets', 'img', 'stickersrenault.png'),
+        // Ruta absoluta local (equipo del usuario)
+        process.platform === 'win32' ? resolve('C:\\Users\\ManyManito\\Documents\\GitHub\\proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
+        // Ruta absoluta genérica en C:\proyecto-taller (por compatibilidad previa)
+        process.platform === 'win32' ? resolve('C:\\proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
       ].filter(Boolean); // Filtrar nulls
       
       // Log todas las rutas que se intentarán
