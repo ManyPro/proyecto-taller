@@ -2498,7 +2498,7 @@ function openMarketplaceHelper(item){
   // Lado izquierdo: Logo (1/3 arriba), SKU (1/3 medio), Nombre (1/3 abajo en cuadro)
   // Lado derecho: QR centrado
   function getCasaRenaultStickerLayout() {
-    const margin = 1; // Márgenes mínimos para ocupar máximo espacio
+    const margin = 0; // Sin margen para ocupar máximo espacio
     
     console.log('🏷️ [LAYOUT] Iniciando cálculo de layout Casa Renault');
     console.log('🏷️ [LAYOUT] Canvas dimensions:', { canvasWidth, canvasHeight });
@@ -2509,7 +2509,7 @@ function openMarketplaceHelper(item){
     
     // === LADO IZQUIERDO: Dividir verticalmente en 3 partes iguales ===
     const leftColX = margin;
-    const leftColW = mitadAncho - margin - 2; // Ancho disponible en la mitad izquierda (con pequeño gap)
+    const leftColW = mitadAncho - margin; // Ancho completo de la mitad izquierda
     
     // Dividir la altura total en 3 partes iguales (aproximadamente 1/3 cada una)
     const terceraAltura = canvasHeight / 3;
@@ -2519,18 +2519,18 @@ function openMarketplaceHelper(item){
     const logoX = leftColX;
     const logoY = margin;
     const logoW = leftColW;
-    const logoH = Math.floor(terceraAltura) - margin; // Aproximadamente 1/3, menos margen
+    const logoH = Math.floor(canvasHeight * 0.22); // ~22% de la altura
     console.log('🏷️ [LAYOUT] Logo (1/3 superior):', { logoX, logoY, logoW, logoH });
     
     // 2. SKU: Parte media (1/3 del espacio vertical), centrado horizontalmente
-    const skuH = Math.floor(terceraAltura); // Altura para SKU
+    const skuH = Math.floor(canvasHeight * 0.18); // ~18% de la altura
     const skuX = leftColX;
     const skuY = logoY + logoH + margin; // Justo debajo del logo
     const skuW = leftColW;
     console.log('🏷️ [LAYOUT] SKU (1/3 medio, centrado):', { skuX, skuY, skuW, skuH, fontSize: 8 });
     
     // 3. NOMBRE: Parte inferior (1/3 del espacio vertical), en cuadro
-    const nameH = canvasHeight - skuY - skuH - margin; // Resto del espacio hasta abajo
+    const nameH = canvasHeight - skuY - skuH - margin; // Resto del espacio hasta abajo (mayor altura para texto)
     const nameX = leftColX;
     const nameY = skuY + skuH + margin; // Justo debajo del SKU
     const nameW = leftColW;
@@ -2545,8 +2545,8 @@ function openMarketplaceHelper(item){
     
     // === LADO DERECHO: QR centrado ===
     // Ancho del QR (derecha) - ajustado para que quepa en la mitad derecha
-    const qrMaxW = mitadAncho - (margin * 2); // Espacio disponible en la mitad derecha menos márgenes
-    const qrW = Math.min(Math.floor(canvasHeight * 0.9), qrMaxW); // El menor entre 90% de altura y el espacio disponible
+    const qrMaxW = mitadAncho - (margin * 2); // Espacio disponible en la mitad derecha
+    const qrW = Math.min(Math.floor(canvasHeight * 0.95), qrMaxW); // 95% de la altura o espacio disponible
     const qrH = qrW; // Cuadrado
     console.log('🏷️ [LAYOUT] QR dimensions:', { qrW, qrH, qrMaxW });
     
@@ -2584,9 +2584,9 @@ function openMarketplaceHelper(item){
     }
     
     return {
-    widthCm: 5,
-    heightCm: 3,
-    elements: [
+      widthCm: 5,
+      heightCm: 3,
+      elements: [
         // Logo de Casa Renault en la parte superior izquierda (1/3 del espacio)
         { 
           id: 'logo', 
@@ -3805,6 +3805,8 @@ function openMarketplaceHelper(item){
       // Tamaño de fuente exactamente 4px como solicitado
       const nameFontSize = 4;
       const nameText = name || 'NO NAME'; // Mostrar placeholder si está vacío
+      // Permitir saltos de línea usando \n del segmentTextForDisplay
+      const nameHtml = nameText.replace(/\n/g, '<br/>');
       console.log('🏷️ [HTML] Agregando Nombre:', { x: nameEl.x, y: nameEl.y, w: nameEl.w, h: nameEl.h, fontSize: nameFontSize, text: nameText, original: name, textLength: nameText.length });
       console.log('🏷️ [HTML] Nombre ocupa desde', nameEl.x, 'hasta', nameEl.x + nameEl.w, 'de', widthPx, 'px totales');
       // Escapar HTML
@@ -3814,7 +3816,7 @@ function openMarketplaceHelper(item){
       const innerPadding = 2;
       // CRÍTICO: Usar un contenedor flex para centrar verticalmente, pero permitir saltos de línea en el texto interno
       // El contenedor externo usa flex para centrar, el interno usa block para permitir múltiples líneas
-      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:${innerPadding}px;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;max-width:100% !important;padding:2px !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.5 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameEscaped}</div></div>`);
+      htmlParts.push(`<div class="st-el st-text" data-id="name" style="position:absolute;left:${nameEl.x}px;top:${nameEl.y}px;width:${nameEl.w}px;height:${nameEl.h}px;box-sizing:border-box;padding:${innerPadding}px;margin:0;z-index:15;background-color:#f8f8f8 !important;border:1px solid #e0e0e0 !important;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;"><div class="name-text-inner" style="font-size:${nameFontSize}px !important;font-weight:600 !important;color:#000000 !important;width:100% !important;max-width:100% !important;padding:2px !important;margin:0 !important;display:block !important;text-align:center !important;line-height:1.4 !important;white-space:normal !important;word-wrap:break-word !important;word-break:break-word !important;overflow-wrap:break-word !important;overflow:hidden !important;visibility:visible !important;opacity:1 !important;box-sizing:border-box !important;hyphens:auto !important;">${nameHtml}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] Name element no encontrado en layout');
     }
