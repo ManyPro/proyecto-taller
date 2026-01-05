@@ -3970,7 +3970,9 @@ function openMarketplaceHelper(item){
 
     // CRÍTICO: Crear PDF con dimensiones exactas SIN márgenes
     // Usar formato personalizado con dimensiones exactas en mm
+    const orientation = widthMm >= heightMm ? 'landscape' : 'portrait';
     const doc = new jsPDF({
+      orientation,
       unit: 'mm',
       format: [widthMm, heightMm], // 50mm x 30mm = 5cm x 3cm
       compress: false,
@@ -4058,7 +4060,7 @@ function openMarketplaceHelper(item){
     images.forEach((imgData, idx) => {
       if (idx > 0) {
         // Agregar nueva página con dimensiones exactas
-        doc.addPage([widthMm, heightMm], widthMm > heightMm ? 'landscape' : 'portrait');
+        doc.addPage([widthMm, heightMm], orientation);
         
         // Eliminar márgenes en la nueva página
         if (doc.internal) {
@@ -4085,7 +4087,6 @@ function openMarketplaceHelper(item){
           pageWidth = doc.internal.pageSize.getWidth();
           pageHeight = doc.internal.pageSize.getHeight();
         } catch (e) {
-          // Si falla, usar las dimensiones exactas
           pageWidth = widthMm;
           pageHeight = heightMm;
         }
