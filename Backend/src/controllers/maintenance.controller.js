@@ -382,6 +382,9 @@ export const generateOilChangeSticker = async (req, res) => {
     
     // Imagen de Renault (encima del QR, centrada) - INSERTAR ANTES DEL QR
     let renaultImageLoaded = false;
+    let renaultImageBuffer = null;
+    let renaultImagePath = null;
+    
     try {
       // Log inicial para debugging
       logger.info('[generateOilChangeSticker] 🔍 Buscando imagen Renault...', {
@@ -392,7 +395,9 @@ export const generateOilChangeSticker = async (req, res) => {
       // Intentar múltiples rutas posibles - USAR RUTAS ABSOLUTAS
       const projectRoot = process.cwd();
       // Si estamos en Backend/, subir un nivel
-      const actualRoot = projectRoot.endsWith('Backend') ? join(projectRoot, '..') : projectRoot;
+      const actualRoot = projectRoot.endsWith('Backend') || projectRoot.includes('Backend') 
+        ? join(projectRoot, '..') 
+        : projectRoot;
       
       const possiblePaths = [
         join(actualRoot, 'Frontend/assets/img/stickersrenault.png'), // Desde raíz del proyecto
@@ -400,15 +405,18 @@ export const generateOilChangeSticker = async (req, res) => {
         join(__dirname, '../../../Frontend/assets/img/stickersrenault.png'), // Desde controllers
         join(__dirname, '../../../../Frontend/assets/img/stickersrenault.png'), // Alternativa
         join(projectRoot, '../Frontend/assets/img/stickersrenault.png'), // Alternativa relativa
+        // Ruta absoluta desde la raíz del workspace (C:\proyecto-taller)
+        'C:\\proyecto-taller\\Frontend\\assets\\img\\stickersrenault.png',
+        'C:/proyecto-taller/Frontend/assets/img/stickersrenault.png',
       ];
-      
-      let renaultImagePath = null;
-      let renaultImageBuffer = null;
       
       // Log todas las rutas que se intentarán
       logger.info('[generateOilChangeSticker] 📂 Rutas a verificar:', {
+        projectRoot,
+        actualRoot,
+        __dirname,
         paths: possiblePaths.map(p => {
-          const np = p.replace(/\\/g, '/');
+          const np = String(p).replace(/\\/g, '/');
           const exists = existsSync(np);
           return { path: np, exists };
         })
@@ -416,20 +424,24 @@ export const generateOilChangeSticker = async (req, res) => {
       
       // Buscar la primera ruta que exista
       for (const path of possiblePaths) {
-        const normalizedPath = path.replace(/\\/g, '/'); // Normalizar rutas en Windows
+        const normalizedPath = String(path).replace(/\\/g, '/'); // Normalizar rutas en Windows
         logger.info('[generateOilChangeSticker] 🔎 Verificando ruta:', normalizedPath);
         
         if (existsSync(normalizedPath)) {
-          logger.info('[generateOilChangeSticker] ✅ Ruta existe:', normalizedPath);
+          logger.info('[generateOilChangeSticker] ✅✅✅ Ruta EXISTE:', normalizedPath);
           renaultImagePath = normalizedPath;
           try {
             renaultImageBuffer = readFileSync(normalizedPath);
-            logger.info('[generateOilChangeSticker] ✅✅ Imagen Renault encontrada y leída:', {
-              path: normalizedPath,
-              size: renaultImageBuffer.length,
-              exists: true
-            });
-            break;
+            if (renaultImageBuffer && renaultImageBuffer.length > 0) {
+              logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault ENCONTRADA y LEÍDA:', {
+                path: normalizedPath,
+                size: renaultImageBuffer.length,
+                exists: true
+              });
+              break;
+            } else {
+              logger.warn('[generateOilChangeSticker] ⚠️ Buffer vacío para:', normalizedPath);
+            }
           } catch (readErr) {
             logger.error('[generateOilChangeSticker] ❌ Error leyendo imagen desde:', {
               path: normalizedPath,
@@ -454,60 +466,22 @@ export const generateOilChangeSticker = async (req, res) => {
         const finalY = Math.max(rightColY + verticalSpacing, renaultImageY);
         
         // CRÍTICO: Insertar la imagen en el PDF ANTES del QR
-        // Usar la sintaxis correcta de PDFKit (como en media.routes.js)
-        try {
-          // Sintaxis: doc.image(buffer, x, y, options)
-          // Usar 'fit' para asegurar que la imagen se ajuste correctamente
-          logger.info('[generateOilChangeSticker] 🖼️ ANTES de insertar imagen Renault en PDF', {
-            x: renaultImageX,
-            y: finalY,
-            width: renaultImageWidth,
-            height: renaultImageHeight,
-            bufferSize: renaultImageBuffer.length
-          });
-          
-          // FORZAR inserción de imagen - sin opciones que puedan fallar
-          try {
-            doc.image(renaultImageBuffer, renaultImageX, finalY, {
-              fit: [renaultImageWidth, renaultImageHeight]
-            });
-            logger.info('[generateOilChangeSticker] 🖼️✅✅✅ Imagen INSERTADA exitosamente');
-          } catch (imgInsertErr) {
-            logger.error('[generateOilChangeSticker] ❌❌❌ Error al insertar imagen en PDF:', {
-              error: imgInsertErr.message,
-              stack: imgInsertErr.stack
-            });
-            throw imgInsertErr; // Re-lanzar para que se capture arriba
-          }
-          
-          renaultImageLoaded = true;
-          
-          logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA en PDF:', {
-            path: renaultImagePath,
-            x: renaultImageX,
-            y: finalY,
-            width: renaultImageWidth,
-            height: renaultImageHeight,
-            qrY: qrY,
-            qrSize: qrSize,
-            bufferSize: renaultImageBuffer.length,
-            rightColX: rightColX,
-            rightColY: rightColY,
-            rightColW: rightColW,
-            rightColH: rightColH,
-            STICKER_W: STICKER_W,
-            STICKER_H: STICKER_H
-          });
-        } catch (imgErr) {
-          logger.error('[generateOilChangeSticker] ❌ Error insertando imagen en PDF:', {
-            error: imgErr.message,
-            stack: imgErr.stack,
-            x: renaultImageX,
-            y: finalY,
-            width: renaultImageWidth,
-            height: renaultImageHeight
-          });
-        }
+        logger.info('[generateOilChangeSticker] 🖼️ Insertando imagen Renault en PDF', {
+          x: renaultImageX,
+          y: finalY,
+          width: renaultImageWidth,
+          height: renaultImageHeight,
+          bufferSize: renaultImageBuffer.length,
+          path: renaultImagePath
+        });
+        
+        // Insertar imagen usando sintaxis de PDFKit
+        doc.image(renaultImageBuffer, renaultImageX, finalY, {
+          fit: [renaultImageWidth, renaultImageHeight]
+        });
+        
+        renaultImageLoaded = true;
+        logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault INSERTADA exitosamente en PDF');
       } else {
         logger.error('[generateOilChangeSticker] ❌ Imagen Renault NO ENCONTRADA o buffer vacío. Rutas intentadas:', {
           paths: possiblePaths,
@@ -531,8 +505,9 @@ export const generateOilChangeSticker = async (req, res) => {
       logger.warn('[generateOilChangeSticker] ⚠️ ADVERTENCIA: Imagen Renault no se pudo cargar o insertar');
     }
     
-    // QR Code (abajo, centrado)
+    // QR Code (abajo, centrado) - INSERTAR DESPUÉS DE LA IMAGEN RENAULT
     try {
+      logger.info('[generateOilChangeSticker] 📱 Generando QR Code...');
       
       // Convertir puntos a píxeles para QR (300 DPI)
       const DPI = 300;
@@ -545,13 +520,24 @@ export const generateOilChangeSticker = async (req, res) => {
       });
       
       const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      
+      logger.info('[generateOilChangeSticker] 📱 Insertando QR Code en PDF', {
+        x: qrX,
+        y: qrY,
+        size: qrSize,
+        bufferSize: qrBuffer.length
+      });
+      
       doc.image(qrBuffer, qrX, qrY, {
-        width: qrSize,
-        height: qrSize,
         fit: [qrSize, qrSize]
       });
+      
+      logger.info('[generateOilChangeSticker] ✅✅ QR Code INSERTADO exitosamente');
     } catch (err) {
-      logger.warn('[generateOilChangeSticker] Error generando QR:', err.message);
+      logger.error('[generateOilChangeSticker] ❌ Error generando QR:', {
+        error: err.message,
+        stack: err.stack
+      });
     }
 
     // Finalizar PDF

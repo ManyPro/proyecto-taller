@@ -2035,6 +2035,11 @@ async function openMaintenanceServicesModal() {
             // Llamar al endpoint para generar PDF
             const apiBase = API.base || '';
             const token = API.token.get();
+            console.log('📤 Enviando solicitud para generar sticker:', {
+              url: `${apiBase}/api/v1/maintenance/generate-oil-change-sticker`,
+              data: stickerData
+            });
+            
             const response = await fetch(`${apiBase}/api/v1/maintenance/generate-oil-change-sticker`, {
               method: 'POST',
               headers: {
@@ -2044,9 +2049,17 @@ async function openMaintenanceServicesModal() {
               body: JSON.stringify(stickerData)
             });
             
+            console.log('📥 Respuesta del servidor:', {
+              ok: response.ok,
+              status: response.status,
+              statusText: response.statusText,
+              headers: Object.fromEntries(response.headers.entries())
+            });
+            
             if (response.ok) {
               // Descargar PDF
               const blob = await response.blob();
+              console.log('📄 PDF generado, tamaño:', blob.size, 'bytes');
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
@@ -2055,10 +2068,15 @@ async function openMaintenanceServicesModal() {
               a.click();
               document.body.removeChild(a);
               window.URL.revokeObjectURL(url);
+              console.log('✅ Sticker descargado exitosamente');
             } else {
               const errorText = await response.text();
-              console.warn('Error generando sticker:', errorText);
-              alert('Error al generar el sticker. Por favor, intenta nuevamente.');
+              console.error('❌ Error generando sticker:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText
+              });
+              alert(`Error al generar el sticker (${response.status}): ${errorText}`);
             }
           } catch (err) {
             console.error('Error generando sticker de cambio de aceite:', err);
