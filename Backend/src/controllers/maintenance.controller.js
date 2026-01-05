@@ -141,11 +141,30 @@ export const getMaintenanceTemplate = async (req, res) => {
  * - Derecha: Logo del taller y QR que lleva a página de clientes
  */
 export const generateOilChangeSticker = async (req, res) => {
+  // LOG INICIAL - SIEMPRE SE EJECUTA
+  logger.info('[generateOilChangeSticker] 🚀 FUNCIÓN INICIADA', {
+    companyId: req.companyId,
+    body: req.body,
+    method: req.method,
+    url: req.url
+  });
+  
   try {
     const { companyId } = req;
     const { saleId, vehicleId, plate, mileage, oilType, nextServiceMileage, ...stickerData } = req.body;
 
+    logger.info('[generateOilChangeSticker] 📥 Datos recibidos:', {
+      companyId,
+      saleId,
+      vehicleId,
+      plate,
+      mileage,
+      oilType,
+      nextServiceMileage
+    });
+
     if (!companyId) {
+      logger.error('[generateOilChangeSticker] ❌ No hay companyId');
       return res.status(400).json({ error: 'companyId requerido' });
     }
 
@@ -370,12 +389,17 @@ export const generateOilChangeSticker = async (req, res) => {
         __dirname: __dirname
       });
       
-      // Intentar múltiples rutas posibles
+      // Intentar múltiples rutas posibles - USAR RUTAS ABSOLUTAS
+      const projectRoot = process.cwd();
+      // Si estamos en Backend/, subir un nivel
+      const actualRoot = projectRoot.endsWith('Backend') ? join(projectRoot, '..') : projectRoot;
+      
       const possiblePaths = [
-        join(process.cwd(), 'Frontend/assets/img/stickersrenault.png'), // Desde raíz del proyecto
+        join(actualRoot, 'Frontend/assets/img/stickersrenault.png'), // Desde raíz del proyecto
+        join(projectRoot, 'Frontend/assets/img/stickersrenault.png'), // Desde donde esté el proceso
         join(__dirname, '../../../Frontend/assets/img/stickersrenault.png'), // Desde controllers
         join(__dirname, '../../../../Frontend/assets/img/stickersrenault.png'), // Alternativa
-        join(process.cwd(), '../Frontend/assets/img/stickersrenault.png'), // Alternativa relativa
+        join(projectRoot, '../Frontend/assets/img/stickersrenault.png'), // Alternativa relativa
       ];
       
       let renaultImagePath = null;
@@ -434,11 +458,27 @@ export const generateOilChangeSticker = async (req, res) => {
         try {
           // Sintaxis: doc.image(buffer, x, y, options)
           // Usar 'fit' para asegurar que la imagen se ajuste correctamente
-          logger.info('[generateOilChangeSticker] 🖼️ ANTES de insertar imagen Renault en PDF');
-          doc.image(renaultImageBuffer, renaultImageX, finalY, {
-            fit: [renaultImageWidth, renaultImageHeight]
+          logger.info('[generateOilChangeSticker] 🖼️ ANTES de insertar imagen Renault en PDF', {
+            x: renaultImageX,
+            y: finalY,
+            width: renaultImageWidth,
+            height: renaultImageHeight,
+            bufferSize: renaultImageBuffer.length
           });
-          logger.info('[generateOilChangeSticker] 🖼️ DESPUÉS de insertar imagen Renault en PDF');
+          
+          // FORZAR inserción de imagen - sin opciones que puedan fallar
+          try {
+            doc.image(renaultImageBuffer, renaultImageX, finalY, {
+              fit: [renaultImageWidth, renaultImageHeight]
+            });
+            logger.info('[generateOilChangeSticker] 🖼️✅✅✅ Imagen INSERTADA exitosamente');
+          } catch (imgInsertErr) {
+            logger.error('[generateOilChangeSticker] ❌❌❌ Error al insertar imagen en PDF:', {
+              error: imgInsertErr.message,
+              stack: imgInsertErr.stack
+            });
+            throw imgInsertErr; // Re-lanzar para que se capture arriba
+          }
           
           renaultImageLoaded = true;
           
