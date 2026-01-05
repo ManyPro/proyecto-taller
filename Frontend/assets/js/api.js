@@ -394,6 +394,8 @@ const API = {
     },
     // Actualizar técnico de la venta
     updateTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician }),
+    // Alias para compatibilidad
+    setTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician }),
   },
 
   // --- Mantenimiento ---

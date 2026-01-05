@@ -3665,7 +3665,7 @@ async function setupTechnicianSelect(){
               sel.value = upper;
               if(current?._id){
                 try{ 
-                  current = await API.sales.setTechnician(current._id, upper); 
+                  current = await API.sales.updateTechnician(current._id, upper); 
                   syncCurrentIntoOpenList(); 
                   renderCapsules(); 
                 }catch{}
@@ -3677,7 +3677,7 @@ async function setupTechnicianSelect(){
       }
       if(!current?._id) return;
       try{
-        current = await API.sales.setTechnician(current._id, sel.value||'');
+        current = await API.sales.updateTechnician(current._id, sel.value||'');
         syncCurrentIntoOpenList();
         renderCapsules();
       }catch(e){ alert(e?.message||'No se pudo asignar técnico'); }
