@@ -529,7 +529,8 @@ export const generateOilChangeSticker = async (req, res) => {
         
         // Calcular posición Y: debe estar arriba del QR con espacio adecuado
         // El QR está en qrY, así que la imagen debe estar antes de qrY
-        const spaceBetweenImageAndQR = verticalSpacing * 2; // Espacio entre imagen y QR
+        // Separación adicional para que el QR no tape el logo (+50% más de aire)
+        const spaceBetweenImageAndQR = verticalSpacing * 3; // Más espacio entre imagen y QR
         const renaultImageY = qrY - renaultImageHeight - spaceBetweenImageAndQR;
         
         // Asegurar que la imagen no se salga del área disponible (pero permitir que esté cerca del logo)
