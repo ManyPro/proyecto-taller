@@ -436,38 +436,82 @@ export const generateOilChangeSticker = async (req, res) => {
         })
       });
       
-      // Buscar la primera ruta que exista
+      // Buscar la primera ruta que exista localmente
       for (const pathToCheck of possiblePaths) {
-        // Las rutas ya están resueltas, solo verificar existencia
         const normalizedPath = String(pathToCheck).replace(/\\/g, '/');
-        
         logger.info('[generateOilChangeSticker] 🔎 Verificando ruta:', normalizedPath);
         
-        if (existsSync(pathToCheck)) {
-          logger.info('[generateOilChangeSticker] ✅✅✅ Ruta EXISTE:', normalizedPath);
-          renaultImagePath = pathToCheck; // Usar la ruta original (no normalizada) para readFileSync
-          try {
-            renaultImageBuffer = readFileSync(pathToCheck);
-            if (renaultImageBuffer && renaultImageBuffer.length > 0) {
-              logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault ENCONTRADA y LEÍDA:', {
-                path: normalizedPath,
-                size: renaultImageBuffer.length,
-                exists: true
-              });
-              break;
-            } else {
-              logger.warn('[generateOilChangeSticker] ⚠️ Buffer vacío para:', normalizedPath);
-            }
-          } catch (readErr) {
-            logger.error('[generateOilChangeSticker] ❌ Error leyendo imagen desde:', {
-              path: normalizedPath,
-              error: readErr.message,
-              stack: readErr.stack
-            });
-            continue;
-          }
-        } else {
+        if (!existsSync(pathToCheck)) {
           logger.warn('[generateOilChangeSticker] ⚠️ Ruta NO existe:', normalizedPath);
+          continue;
+        }
+        
+        try {
+          const buf = readFileSync(pathToCheck);
+          if (buf && buf.length > 0) {
+            renaultImageBuffer = buf;
+            renaultImagePath = pathToCheck;
+            logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault ENCONTRADA y LEÍDA:', {
+              path: normalizedPath,
+              size: renaultImageBuffer.length,
+              exists: true
+            });
+            break;
+          } else {
+            logger.warn('[generateOilChangeSticker] ⚠️ Buffer vacío para:', normalizedPath);
+          }
+        } catch (readErr) {
+          logger.error('[generateOilChangeSticker] ❌ Error leyendo imagen desde:', {
+            path: normalizedPath,
+            error: readErr.message,
+            stack: readErr.stack
+          });
+        }
+      }
+
+      // Si no se encontró localmente, intentar descargar desde el frontend (URL pública)
+      if (!renaultImageBuffer) {
+        try {
+          let fetchFn = globalThis.fetch;
+          if (!fetchFn) {
+            try {
+              const mod = await import('node-fetch');
+              fetchFn = mod.default || mod;
+            } catch (err) {
+              logger.warn('[generateOilChangeSticker] No se pudo cargar node-fetch:', err?.message);
+            }
+          }
+
+          const remoteUrl = `${baseUrl.replace(/\/+$/, '')}/assets/img/stickersrenault.png`;
+          if (fetchFn) {
+            logger.info('[generateOilChangeSticker] 🌐 Buscando imagen Renault en URL pública:', remoteUrl);
+            const resp = await fetchFn(remoteUrl);
+            if (resp.ok) {
+              const arrBuf = await resp.arrayBuffer();
+              const buf = Buffer.from(arrBuf);
+              if (buf.length > 0) {
+                renaultImageBuffer = buf;
+                renaultImagePath = remoteUrl;
+                logger.info('[generateOilChangeSticker] ✅✅✅ Imagen Renault descargada desde URL pública', {
+                  url: remoteUrl,
+                  size: buf.length
+                });
+              } else {
+                logger.warn('[generateOilChangeSticker] ⚠️ Buffer vacío al descargar imagen Renault desde URL pública');
+              }
+            } else {
+              logger.warn('[generateOilChangeSticker] ⚠️ No se pudo descargar imagen Renault desde URL pública', {
+                url: remoteUrl,
+                status: resp.status,
+                statusText: resp.statusText
+              });
+            }
+          }
+        } catch (remoteErr) {
+          logger.error('[generateOilChangeSticker] ❌ Error descargando imagen Renault desde URL pública:', {
+            error: remoteErr?.message,
+            stack: remoteErr?.stack
+          });
         }
       }
       
