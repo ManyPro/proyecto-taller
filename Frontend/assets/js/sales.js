@@ -2035,28 +2035,41 @@ async function openMaintenanceServicesModal() {
       body.innerHTML = modalHTML;
       modal.classList.remove('hidden');
       
+      // Función helper para cerrar el modal
+      const closeModal = () => {
+        modal.classList.add('hidden');
+        body.innerHTML = '';
+        reject(new Error('Modal cerrado'));
+      };
+      
+      // Función helper para agregar eventos touch y click
+      const addTouchAndClick = (element, handler) => {
+        if (!element) return;
+        element.style.touchAction = 'manipulation';
+        element.style.webkitTapHighlightColor = 'transparent';
+        element.addEventListener('click', handler);
+        element.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handler(e);
+        });
+      };
+      
       // Configurar el botón X (modalClose) para cerrar el modal sin continuar con el flujo
       const modalCloseBtn = document.getElementById('modalClose');
       if (modalCloseBtn) {
         // Remover cualquier handler previo
         modalCloseBtn.onclick = null;
-        modalCloseBtn.addEventListener('click', () => {
-          // Cerrar el modal simplemente (no continuar con flujo de pago)
-          modal.classList.add('hidden');
-          body.innerHTML = '';
-          // Rechazar la promesa para indicar que se cerró sin continuar
-          reject(new Error('Modal cerrado'));
-        }, { once: true });
+        addTouchAndClick(modalCloseBtn, () => {
+          closeModal();
+        });
       }
       
       // Configurar el botón "Cerrar" para hacer lo mismo que el botón X
       const maintenanceModalCloseBtn = document.getElementById('maintenance-modal-close');
       if (maintenanceModalCloseBtn) {
-        maintenanceModalCloseBtn.addEventListener('click', () => {
-          modal.classList.add('hidden');
-          body.innerHTML = '';
-          // Rechazar la promesa para indicar que se cerró sin continuar
-          reject(new Error('Modal cerrado'));
+        addTouchAndClick(maintenanceModalCloseBtn, () => {
+          closeModal();
         });
       }
       
@@ -2144,22 +2157,28 @@ async function openMaintenanceServicesModal() {
       }
       
       // Event listeners (saleId y currentSelection ya están declarados arriba)
-      document.getElementById('maintenance-skip')?.addEventListener('click', () => {
-        // Limpiar selecciones para esta venta en ambos lugares
-        if (maintenanceSelections[saleId]) {
-          maintenanceSelections[saleId].services = [];
-          maintenanceSelections[saleId].mileage = null;
-        }
-        currentSelection.services = [];
-        currentSelection.mileage = null;
-        console.log('[maintenance-skip] Selecciones limpiadas para venta:', saleId);
-        modal.classList.add('hidden');
-        body.innerHTML = '';
-        // Cerrar el modal sin continuar con el flujo de pago
-        reject(new Error('Servicios omitidos'));
-      });
+      const skipBtn = document.getElementById('maintenance-skip');
+      if (skipBtn) {
+        const handleSkip = () => {
+          // Limpiar selecciones para esta venta en ambos lugares
+          if (maintenanceSelections[saleId]) {
+            maintenanceSelections[saleId].services = [];
+            maintenanceSelections[saleId].mileage = null;
+          }
+          currentSelection.services = [];
+          currentSelection.mileage = null;
+          console.log('[maintenance-skip] Selecciones limpiadas para venta:', saleId);
+          modal.classList.add('hidden');
+          body.innerHTML = '';
+          // Cerrar el modal sin continuar con el flujo de pago
+          reject(new Error('Servicios omitidos'));
+        };
+        addTouchAndClick(skipBtn, handleSkip);
+      }
 
-      document.getElementById('maintenance-continue')?.addEventListener('click', async () => {
+      const continueBtn = document.getElementById('maintenance-continue');
+      if (continueBtn) {
+        const handleContinue = async () => {
         // Obtener servicios seleccionados
         const checkboxes = body.querySelectorAll('.maintenance-service-checkbox:checked');
         const selectedServices = Array.from(checkboxes).map(cb => cb.value);
@@ -2370,7 +2389,9 @@ async function openMaintenanceServicesModal() {
         body.innerHTML = '';
         // Resolver la promesa para continuar con el flujo de pago
         resolve();
-      });
+        };
+        addTouchAndClick(continueBtn, handleContinue);
+      }
     }).catch(err => {
       console.error('Error cargando plantillas de mantenimiento:', err);
       // Si hay error, rechazar para cerrar el modal
@@ -10599,23 +10620,43 @@ export function initSales(){
   });
 
   // Botón para abrir modal de servicios de mantenimiento
-  document.getElementById('sales-maintenance-services')?.addEventListener('click', async ()=>{
-    if (!current) return;
-    if (!current?.vehicle?.vehicleId && !current?.vehicle?.plate) {
-      alert('Esta venta no tiene un vehículo asociado. Agrega un vehículo primero.');
-      return;
-    }
-    try {
-      await openMaintenanceServicesModal();
-      // El modal se cierra independientemente, no necesita hacer nada más
-    } catch (err) {
-      // Ignorar errores de cierre normal del modal
-      if (err?.message !== 'Modal cerrado' && err?.message !== 'Servicios omitidos' && err?.message !== 'Servicios procesados') {
-        console.error('Error abriendo modal de servicios de mantenimiento:', err);
-        alert('Error al abrir servicios de mantenimiento: ' + (err.message || 'Error desconocido'));
+  const maintenanceBtn = document.getElementById('sales-maintenance-services');
+  if (maintenanceBtn) {
+    // Función para manejar la apertura del modal
+    const handleOpenModal = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (!current) return;
+      if (!current?.vehicle?.vehicleId && !current?.vehicle?.plate) {
+        alert('Esta venta no tiene un vehículo asociado. Agrega un vehículo primero.');
+        return;
       }
-    }
-  });
+      try {
+        await openMaintenanceServicesModal();
+        // El modal se cierra independientemente, no necesita hacer nada más
+      } catch (err) {
+        // Ignorar errores de cierre normal del modal
+        if (err?.message !== 'Modal cerrado' && err?.message !== 'Servicios omitidos' && err?.message !== 'Servicios procesados') {
+          console.error('Error abriendo modal de servicios de mantenimiento:', err);
+          alert('Error al abrir servicios de mantenimiento: ' + (err.message || 'Error desconocido'));
+        }
+      }
+    };
+    
+    // Agregar soporte para click y touch
+    maintenanceBtn.addEventListener('click', handleOpenModal);
+    maintenanceBtn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      handleOpenModal(e);
+    });
+    
+    // Agregar estilos para mejorar la experiencia táctil
+    maintenanceBtn.style.touchAction = 'manipulation';
+    maintenanceBtn.style.userSelect = 'none';
+    maintenanceBtn.style.webkitUserSelect = 'none';
+    maintenanceBtn.style.webkitTapHighlightColor = 'transparent';
+  }
 
   connectLive();
 }

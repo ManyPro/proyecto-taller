@@ -1,7 +1,9 @@
 // Frontend/assets/js/clientes.js
 // Gestión de clientes: planillas y tiers
+// Versión: 2026-01-06
 
 // Cargar API desde window (api.js lo expone globalmente)
+// NO usar import/export - este archivo se carga como script normal
 const API_BASE = (typeof window !== 'undefined' && window.BACKEND_URL) ? window.BACKEND_URL : 
                 (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
@@ -61,6 +63,11 @@ function setupTabs() {
   const planillaTab = document.getElementById('planillaTab');
   const tiersTab = document.getElementById('tiersTab');
 
+  if (!tabPlanilla || !tabTiers || !planillaTab || !tiersTab) {
+    console.error('No se encontraron los elementos de tabs necesarios');
+    return;
+  }
+
   function switchTab(tab) {
     // Actualizar botones
     [tabPlanilla, tabTiers].forEach(btn => {
@@ -89,12 +96,16 @@ function setupTabs() {
     }
   }
 
-  if (tabPlanilla) {
-    tabPlanilla.addEventListener('click', () => switchTab('planilla'));
-  }
-  if (tabTiers) {
-    tabTiers.addEventListener('click', () => switchTab('tiers'));
-  }
+  // Agregar event listeners
+  tabPlanilla.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchTab('planilla');
+  });
+  
+  tabTiers.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchTab('tiers');
+  });
 }
 
 // Configurar eventos
@@ -104,14 +115,23 @@ function setupEvents() {
   const searchPlate = document.getElementById('searchPlate');
   
   if (searchPlateBtn) {
-    searchPlateBtn.addEventListener('click', handleSearchPlate);
+    searchPlateBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleSearchPlate();
+    });
+  } else {
+    console.warn('No se encontró el botón de búsqueda de planilla');
   }
+  
   if (searchPlate) {
     searchPlate.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
+        e.preventDefault();
         handleSearchPlate();
       }
     });
+  } else {
+    console.warn('No se encontró el input de búsqueda de planilla');
   }
 
   // Búsqueda de clientes
@@ -121,8 +141,12 @@ function setupEvents() {
   if (searchCustomerTier) {
     searchCustomerTier.addEventListener('input', filterCustomers);
   }
+  
   if (refreshCustomersBtn) {
-    refreshCustomersBtn.addEventListener('click', loadCustomers);
+    refreshCustomersBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      loadCustomers();
+    });
   }
 }
 
@@ -529,16 +553,33 @@ function extendAPI() {
   }
 }
 
-// Llamar a extendAPI cuando API esté disponible
-if (typeof window !== 'undefined') {
-  // Esperar a que api.js cargue
-  if (window.API) {
-    extendAPI();
+// Función para esperar a que API esté disponible y extenderla
+function waitForAPIAndExtend() {
+  if (typeof window !== 'undefined' && window.API) {
+    try {
+      extendAPI();
+      console.log('API extendida correctamente');
+    } catch (error) {
+      console.error('Error extendiendo API:', error);
+    }
   } else {
-    // Esperar un poco y volver a intentar
-    setTimeout(() => {
-      if (window.API) {
-        extendAPI();
+    // Esperar a que api.js cargue (máximo 5 segundos)
+    let attempts = 0;
+    const maxAttempts = 50; // 50 * 100ms = 5 segundos
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (typeof window !== 'undefined' && window.API) {
+        clearInterval(checkInterval);
+        try {
+          extendAPI();
+          console.log('API extendida correctamente');
+        } catch (error) {
+          console.error('Error extendiendo API:', error);
+        }
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.error('API no disponible después de 5 segundos');
+        alert('Error: No se pudo cargar la API. Por favor, recarga la página.');
       }
     }, 100);
   }
@@ -546,17 +587,46 @@ if (typeof window !== 'undefined') {
 
 // Inicializar cuando el DOM esté listo y API esté disponible
 function waitForAPIAndInit() {
-  if (typeof window !== 'undefined' && window.API) {
-    init();
+  if (typeof window !== 'undefined' && window.API && window.API.customers) {
+    try {
+      init().catch(error => {
+        console.error('Error en init:', error);
+      });
+    } catch (error) {
+      console.error('Error llamando init:', error);
+    }
   } else {
-    // Esperar a que api.js cargue
-    setTimeout(waitForAPIAndInit, 100);
+    // Esperar a que api.js cargue y se extienda (máximo 5 segundos)
+    let attempts = 0;
+    const maxAttempts = 50; // 50 * 100ms = 5 segundos
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (typeof window !== 'undefined' && window.API && window.API.customers) {
+        clearInterval(checkInterval);
+        try {
+          init().catch(error => {
+            console.error('Error en init:', error);
+          });
+        } catch (error) {
+          console.error('Error llamando init:', error);
+        }
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.error('API.customers no disponible después de 5 segundos');
+        alert('Error: No se pudo inicializar la aplicación. Por favor, recarga la página.');
+      }
+    }, 100);
   }
 }
 
+// Inicializar cuando el DOM esté listo
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', waitForAPIAndInit);
+  document.addEventListener('DOMContentLoaded', () => {
+    waitForAPIAndExtend();
+    waitForAPIAndInit();
+  });
 } else {
+  waitForAPIAndExtend();
   waitForAPIAndInit();
 }
 

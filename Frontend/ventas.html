@@ -316,9 +316,35 @@
     #modal {
       align-items: center;
       justify-content: center;
+      z-index: 9999 !important;
+      -webkit-overflow-scrolling: touch;
     }
     #modal > div {
       pointer-events: auto;
+      touch-action: pan-y;
+    }
+    /* Mejorar experiencia táctil en móviles */
+    #modal button,
+    #modal input,
+    #modal select,
+    #modal textarea {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Asegurar que el modal sea responsive en móviles */
+    @media (max-width: 640px) {
+      #modal {
+        padding: 0.5rem;
+      }
+      #modal > div {
+        max-width: 100% !important;
+        max-height: 95vh !important;
+        margin: 0;
+      }
+      #modalBody {
+        max-height: calc(95vh - 3rem) !important;
+        padding: 1rem !important;
+      }
     }
     .custom-scrollbar {
       scrollbar-width: thin;
