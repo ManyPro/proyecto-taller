@@ -108,12 +108,23 @@ async function generateSchedulesForRenaultVehicles(companyId = null) {
           };
 
           // Filtrar por marca y línea
+          // Priorizar plantillas específicas para la línea del vehículo
           templateQuery.$or = [
+            // Plantillas específicas para este vehículo
+            { vehicleIds: vehicleId },
+            // Plantillas para la línea específica
+            { lines: { $in: [vehicle.line] } },
+            // Plantillas para la marca
             { makes: { $in: [vehicle.make] } },
+            // Plantillas generales (sin restricción)
             { makes: { $size: 0 } },
-            { makes: { $exists: false } },
-            { vehicleIds: vehicleId }
+            { makes: { $exists: false } }
           ];
+          
+          // Si el vehículo tiene línea, también filtrar por línea
+          if (vehicle.line) {
+            templateQuery.$or.push({ lines: { $in: [vehicle.line.toUpperCase()] } });
+          }
 
           // Traer plantillas ordenadas por prioridad
           const templates = await MaintenanceTemplate.find(templateQuery)

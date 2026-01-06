@@ -1630,6 +1630,13 @@ export const closeSale = async (req, res) => {
             });
             
             // Procesar cada servicio seleccionado
+            logger.info('[closeSale] Procesando servicios de mantenimiento', {
+              totalServices: completedMaintenanceServices.length,
+              services: completedMaintenanceServices,
+              mileage: saleMileage,
+              plate: plateUpper
+            });
+            
             for (const serviceId of completedMaintenanceServices) {
               const serviceIdUpper = String(serviceId).trim().toUpperCase();
               
@@ -1644,7 +1651,12 @@ export const closeSale = async (req, res) => {
                 logger.warn('[closeSale] Plantilla de mantenimiento no encontrada', { 
                   serviceId,
                   serviceIdUpper,
-                  companyId: req.companyId
+                  companyId: req.companyId,
+                  // Buscar plantillas similares para debugging
+                  similarTemplates: await MaintenanceTemplate.find({
+                    companyId: req.companyId,
+                    active: { $ne: false }
+                  }).select('serviceId serviceName').limit(5).lean()
                 });
                 continue;
               }
@@ -1667,13 +1679,16 @@ export const closeSale = async (req, res) => {
                 
                 logger.info('[closeSale] Servicio agregado al historial', {
                   serviceKey,
+                  serviceName: template.serviceName,
                   serviceId: serviceIdUpper,
                   mileage: saleMileage,
-                  date: serviceDate
+                  date: serviceDate,
+                  saleId: sale._id
                 });
               } else {
                 logger.info('[closeSale] Servicio no actualizado (kilometraje menor al existente)', {
                   serviceKey,
+                  serviceName: template.serviceName,
                   existingMileage: existingHistory.lastPerformedMileage,
                   newMileage: saleMileage
                 });

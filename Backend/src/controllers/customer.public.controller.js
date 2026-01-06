@@ -216,13 +216,33 @@ export const getVehicleServices = async (req, res) => {
       
       // Agregar servicios de mantenimiento del historial del cliente que corresponden a esta venta
       const saleId = sale._id.toString();
+      const saleIdObj = sale._id;
+      
       serviceHistory.forEach(historyItem => {
-        if (historyItem.saleId && historyItem.saleId.toString() === saleId) {
+        // Comparar tanto como string como ObjectId
+        const historySaleId = historyItem.saleId;
+        let matchesSale = false;
+        
+        if (historySaleId) {
+          // Intentar diferentes formas de comparación
+          if (typeof historySaleId === 'string') {
+            matchesSale = historySaleId === saleId;
+          } else if (historySaleId.toString) {
+            matchesSale = historySaleId.toString() === saleId;
+          } else if (historySaleId._id) {
+            matchesSale = historySaleId._id.toString() === saleId;
+          } else if (mongoose.Types.ObjectId.isValid(historySaleId)) {
+            matchesSale = new mongoose.Types.ObjectId(historySaleId).toString() === saleId;
+          }
+        }
+        
+        if (matchesSale) {
           const serviceName = serviceKeyToName.get(historyItem.serviceKey) || historyItem.serviceKey;
           // Verificar que no esté ya en saleServices (evitar duplicados)
           const alreadyIncluded = saleServices.some(s => 
             s.name.toLowerCase() === serviceName.toLowerCase() ||
-            s.sku === historyItem.serviceKey
+            s.sku === historyItem.serviceKey ||
+            (s.isMaintenanceService && s.sku === historyItem.serviceKey)
           );
           
           if (!alreadyIncluded) {
@@ -240,8 +260,24 @@ export const getVehicleServices = async (req, res) => {
         }
       });
       
-      // Incluir la venta si tiene servicios o si tiene servicios de mantenimiento asociados
-      if (saleServices.length > 0) {
+      // Incluir la venta si tiene servicios, servicios de mantenimiento asociados, O si tiene items (aunque no sean servicios explícitos)
+      // Esto asegura que todas las ventas cerradas aparezcan en el historial
+      if (saleServices.length > 0 || sale.items.length > 0) {
+        // Si no hay servicios explícitos pero hay items, incluir la venta con los items como servicios
+        if (saleServices.length === 0 && sale.items.length > 0) {
+          sale.items.forEach(item => {
+            if (item.name) {
+              saleServices.push({
+                name: item.name,
+                sku: item.sku || '',
+                qty: item.qty || 1,
+                unitPrice: item.unitPrice || 0,
+                total: item.total || 0
+              });
+            }
+          });
+        }
+        
         servicesHistory.push({
           saleNumber: sale.number || null,
           date: sale.closedAt || sale.createdAt,
