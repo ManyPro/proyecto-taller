@@ -2222,7 +2222,17 @@ async function openMaintenanceServicesModal() {
             }
             
             // Obtener próximo kilometraje desde la planilla o calcular
-            let nextServiceMileage = finalMileage + (oilChangeService.mileageInterval || 10000);
+            // Asegurar que mileageInterval sea un número (puede venir como string)
+            let defaultInterval = 10000;
+            if (oilChangeService.mileageInterval) {
+              if (typeof oilChangeService.mileageInterval === 'string') {
+                // Remover puntos de separación de miles y convertir a número
+                defaultInterval = Number(oilChangeService.mileageInterval.replace(/\./g, '').replace(',', '.')) || 10000;
+              } else {
+                defaultInterval = Number(oilChangeService.mileageInterval) || 10000;
+              }
+            }
+            let nextServiceMileage = finalMileage + defaultInterval;
             
             // Intentar obtener desde la planilla si está disponible
             try {
@@ -2235,11 +2245,25 @@ async function openMaintenanceServicesModal() {
                 const scheduleData = await scheduleResponse.json();
                 const serviceInSchedule = scheduleData.templates?.find(t => t.serviceId === oilChangeService.serviceId);
                 if (serviceInSchedule && serviceInSchedule.mileageInterval) {
-                  nextServiceMileage = finalMileage + serviceInSchedule.mileageInterval;
+                  // Asegurar que mileageInterval sea un número
+                  let interval = serviceInSchedule.mileageInterval;
+                  if (typeof interval === 'string') {
+                    // Remover puntos de separación de miles y convertir a número
+                    interval = Number(interval.replace(/\./g, '').replace(',', '.')) || defaultInterval;
+                  } else {
+                    interval = Number(interval) || defaultInterval;
+                  }
+                  nextServiceMileage = finalMileage + interval;
+                  console.log('[Sticker] Intervalo obtenido desde planilla:', {
+                    original: serviceInSchedule.mileageInterval,
+                    parsed: interval,
+                    finalMileage,
+                    nextServiceMileage
+                  });
                 }
               }
             } catch (err) {
-              console.warn('No se pudo obtener intervalo desde planilla, usando valor por defecto');
+              console.warn('No se pudo obtener intervalo desde planilla, usando valor por defecto:', err);
             }
             
             // Obtener placa del vehículo (puede estar en diferentes lugares)

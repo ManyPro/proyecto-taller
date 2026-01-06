@@ -46,18 +46,38 @@ export const getMaintenanceTemplates = async (req, res) => {
         
         if (schedule && schedule.services && schedule.services.length > 0) {
           // Convertir servicios de la planilla a formato de plantillas
-          templates = schedule.services.map(service => ({
-            serviceId: service.serviceKey, // Usar serviceKey como serviceId
-            serviceName: service.serviceName,
-            system: service.system || 'General',
-            mileageInterval: service.mileageInterval || 0,
-            mileageIntervalMax: service.mileageIntervalMax || null,
-            monthsInterval: service.monthsInterval || 0,
-            notes: service.notes || '',
-            isCommon: false, // Por defecto
-            priority: 100, // Por defecto
-            active: true
-          }));
+          templates = schedule.services.map(service => {
+            // Asegurar que mileageInterval sea un número (puede venir como string desde Excel)
+            let mileageInterval = service.mileageInterval || 0;
+            if (typeof mileageInterval === 'string') {
+              // Remover puntos de separación de miles y convertir a número
+              mileageInterval = Number(mileageInterval.replace(/\./g, '').replace(',', '.'));
+            } else {
+              mileageInterval = Number(mileageInterval);
+            }
+            
+            let mileageIntervalMax = service.mileageIntervalMax || null;
+            if (mileageIntervalMax !== null) {
+              if (typeof mileageIntervalMax === 'string') {
+                mileageIntervalMax = Number(mileageIntervalMax.replace(/\./g, '').replace(',', '.'));
+              } else {
+                mileageIntervalMax = Number(mileageIntervalMax);
+              }
+            }
+            
+            return {
+              serviceId: service.serviceKey, // Usar serviceKey como serviceId
+              serviceName: service.serviceName,
+              system: service.system || 'General',
+              mileageInterval: mileageInterval,
+              mileageIntervalMax: mileageIntervalMax,
+              monthsInterval: Number(service.monthsInterval || 0),
+              notes: service.notes || '',
+              isCommon: false, // Por defecto
+              priority: 100, // Por defecto
+              active: true
+            };
+          });
           
           // Ordenar por nombre
           templates.sort((a, b) => a.serviceName.localeCompare(b.serviceName));

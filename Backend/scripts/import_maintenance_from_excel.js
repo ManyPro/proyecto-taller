@@ -230,15 +230,25 @@ function readMaintenanceExcel(excelPath) {
       
       if (intervalStr) {
         // Remover "km" y espacios
-        const cleanInterval = intervalStr.replace(/km/gi, '').replace(/\s+/g, '').trim();
+        let cleanInterval = intervalStr.replace(/km/gi, '').replace(/\s+/g, '').trim();
         
-        // Verificar si es un rango (ej: "10000-15000")
+        // Función helper para convertir string a número, manejando formato de miles
+        const parseMileage = (str) => {
+          if (!str) return null;
+          // Remover puntos de separación de miles (formato: 10.000 -> 10000)
+          // y reemplazar comas decimales por puntos si existen
+          const cleaned = str.replace(/\./g, '').replace(',', '.');
+          const num = Number(cleaned);
+          return isNaN(num) ? null : Math.round(num);
+        };
+        
+        // Verificar si es un rango (ej: "10000-15000" o "10.000-15.000")
         if (cleanInterval.includes('-')) {
           const parts = cleanInterval.split('-');
-          mileageInterval = parseInt(parts[0]) || null;
-          mileageIntervalMax = parseInt(parts[1]) || null;
+          mileageInterval = parseMileage(parts[0]);
+          mileageIntervalMax = parseMileage(parts[1]);
         } else {
-          mileageInterval = parseInt(cleanInterval) || null;
+          mileageInterval = parseMileage(cleanInterval);
         }
       }
       
