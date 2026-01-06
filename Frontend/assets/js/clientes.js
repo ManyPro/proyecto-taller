@@ -35,10 +35,32 @@ const state = {
 async function getCompanyId() {
   try {
     const API = getAPI();
-    const me = await API.auth.companyMe();
+    // companyMe está directamente en API, no en API.auth
+    if (!API || typeof API.companyMe !== 'function') {
+      console.error('API.companyMe no está disponible');
+      // Intentar obtener companyId desde localStorage como fallback
+      const companyId = API?.companyId?.get?.() || null;
+      if (companyId) {
+        console.log('Usando companyId desde localStorage:', companyId);
+        return companyId;
+      }
+      return null;
+    }
+    const me = await API.companyMe();
     return me?.company?.id || me?.id || me?._id || null;
   } catch (error) {
     console.error('Error obteniendo companyId:', error);
+    // Intentar obtener companyId desde localStorage como fallback
+    try {
+      const API = getAPI();
+      const companyId = API?.companyId?.get?.() || null;
+      if (companyId) {
+        console.log('Usando companyId desde localStorage (fallback):', companyId);
+        return companyId;
+      }
+    } catch (e) {
+      console.error('Error obteniendo companyId desde localStorage:', e);
+    }
     return null;
   }
 }
