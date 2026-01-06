@@ -15,6 +15,9 @@ const __dirname = dirname(__filename);
 /**
  * Obtener servicios de mantenimiento filtrados por vehículo
  * GET /api/v1/maintenance/templates?vehicleId=...&commonOnly=true
+ * 
+ * Si se especifica vehicleId, usa las planillas de VehicleServiceSchedule (del Excel)
+ * Si no, usa las plantillas de MaintenanceTemplate (legacy)
  */
 export const getMaintenanceTemplates = async (req, res) => {
   try {
@@ -25,41 +28,94 @@ export const getMaintenanceTemplates = async (req, res) => {
       return res.status(400).json({ error: 'companyId requerido' });
     }
 
-    // Construir filtro
-    const filter = {
-      companyId,
-      active: true
-    };
-
-    // Si se solicita solo comunes
-    if (commonOnly === 'true') {
-      filter.isCommon = true;
-    }
-
-    // Si se especifica sistema
-    if (system) {
-      filter.system = String(system).trim();
-    }
-
-    // Si se especifica vehículo, intentar filtrar por vehículo
     let vehicle = null;
+    let templates = [];
+
+    // Si se especifica vehículo, usar planilla del vehículo (del Excel)
     if (vehicleId && mongoose.Types.ObjectId.isValid(vehicleId)) {
       vehicle = await Vehicle.findById(vehicleId).lean();
       
       if (vehicle) {
-        // Filtrar por marca, línea, o vehículo específico
+        const VehicleServiceSchedule = (await import('../models/VehicleServiceSchedule.js')).default;
+        
+        // Buscar planilla del vehículo
+        const schedule = await VehicleServiceSchedule.findOne({
+          companyId,
+          vehicleId: new mongoose.Types.ObjectId(vehicleId)
+        }).lean();
+        
+        if (schedule && schedule.services && schedule.services.length > 0) {
+          // Convertir servicios de la planilla a formato de plantillas
+          templates = schedule.services.map(service => ({
+            serviceId: service.serviceKey, // Usar serviceKey como serviceId
+            serviceName: service.serviceName,
+            system: service.system || 'General',
+            mileageInterval: service.mileageInterval || 0,
+            mileageIntervalMax: service.mileageIntervalMax || null,
+            monthsInterval: service.monthsInterval || 0,
+            notes: service.notes || '',
+            isCommon: false, // Por defecto
+            priority: 100, // Por defecto
+            active: true
+          }));
+          
+          // Ordenar por nombre
+          templates.sort((a, b) => a.serviceName.localeCompare(b.serviceName));
+          
+          // Si se solicita solo comunes, filtrar (aunque no hay campo isCommon en las planillas del Excel)
+          if (commonOnly === 'true') {
+            // Los primeros servicios suelen ser los comunes (cambio de aceite, filtros, etc.)
+            templates = templates.slice(0, Math.min(10, templates.length));
+          }
+          
+          // Si se especifica sistema, filtrar
+          if (system) {
+            templates = templates.filter(t => 
+              (t.system || '').toLowerCase() === String(system).trim().toLowerCase()
+            );
+          }
+        } else {
+          // Si no hay planilla, usar plantillas legacy como fallback
+          logger.warn('[maintenance.templates] Planilla no encontrada para vehículo, usando plantillas legacy', {
+            vehicleId,
+            make: vehicle.make,
+            line: vehicle.line
+          });
+        }
+      }
+    }
+    
+    // Si no hay templates (no se especificó vehicleId o no se encontró planilla), usar plantillas legacy
+    if (templates.length === 0) {
+      // Construir filtro
+      const filter = {
+        companyId,
+        active: true
+      };
+
+      // Si se solicita solo comunes
+      if (commonOnly === 'true') {
+        filter.isCommon = true;
+      }
+
+      // Si se especifica sistema
+      if (system) {
+        filter.system = String(system).trim();
+      }
+
+      // Si hay vehículo, filtrar por vehículo
+      if (vehicle) {
         const vehicleFilter = {
           $or: [
             { makes: { $in: [vehicle.make] } },
             { lines: { $in: [vehicle.line] } },
             { vehicleIds: new mongoose.Types.ObjectId(vehicleId) },
             { appliesTo: { $regex: /todos|all|general/i } },
-            { makes: { $size: 0 } }, // Sin restricción de marca
-            { lines: { $size: 0 } }  // Sin restricción de línea
+            { makes: { $size: 0 } },
+            { lines: { $size: 0 } }
           ]
         };
         
-        // Combinar filtros
         filter.$and = [
           { ...filter },
           vehicleFilter
@@ -69,14 +125,14 @@ export const getMaintenanceTemplates = async (req, res) => {
         delete filter.vehicleIds;
         delete filter.appliesTo;
       }
+
+      // Obtener plantillas ordenadas por prioridad y nombre
+      templates = await MaintenanceTemplate.find(filter)
+        .sort({ priority: 1, serviceName: 1 })
+        .lean();
     }
 
-    // Obtener plantillas ordenadas por prioridad y nombre
-    const templates = await MaintenanceTemplate.find(filter)
-      .sort({ priority: 1, serviceName: 1 })
-      .lean();
-
-    // Si hay vehículo, agregar información de compatibilidad
+    // Agregar información de compatibilidad si hay vehículo
     const templatesWithVehicle = templates.map(template => ({
       ...template,
       compatible: vehicle ? (

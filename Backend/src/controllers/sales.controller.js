@@ -1640,28 +1640,58 @@ export const closeSale = async (req, res) => {
             for (const serviceId of completedMaintenanceServices) {
               const serviceIdUpper = String(serviceId).trim().toUpperCase();
               
-              // Buscar plantilla de mantenimiento
-              const template = await MaintenanceTemplate.findOne({
-                companyId: req.companyId,
-                serviceId: serviceIdUpper,
-                active: { $ne: false }
-              }).session(session);
+              // Buscar el servicio directamente en la planilla del vehículo (planillas del Excel)
+              // Esto es lo más importante porque las planillas vienen del Excel
+              let serviceKey = null;
+              let serviceName = null;
               
-              if (!template) {
-                logger.warn('[closeSale] Plantilla de mantenimiento no encontrada', { 
+              if (profile.vehicle?.vehicleId) {
+                const VehicleServiceSchedule = (await import('../models/VehicleServiceSchedule.js')).default;
+                const schedule = await VehicleServiceSchedule.findOne({
+                  companyId: req.companyId,
+                  vehicleId: profile.vehicle.vehicleId
+                }).session(session);
+                
+                if (schedule) {
+                  const scheduleService = schedule.services.find(s => {
+                    const sKey = String(s.serviceKey || '').toUpperCase();
+                    return sKey === serviceIdUpper || 
+                           sKey.includes(serviceIdUpper) ||
+                           serviceIdUpper.includes(sKey);
+                  });
+                  
+                  if (scheduleService) {
+                    serviceKey = scheduleService.serviceKey;
+                    serviceName = scheduleService.serviceName;
+                  }
+                }
+              }
+              
+              // Si no se encuentra en la planilla, buscar en MaintenanceTemplate (legacy)
+              if (!serviceKey) {
+                const template = await MaintenanceTemplate.findOne({
+                  companyId: req.companyId,
+                  serviceId: serviceIdUpper,
+                  active: { $ne: false }
+                }).session(session);
+                
+                if (template) {
+                  serviceKey = template.serviceId;
+                  serviceName = template.serviceName;
+                }
+              }
+              
+              if (!serviceKey) {
+                logger.warn('[closeSale] Servicio no encontrado en planilla ni plantillas', { 
                   serviceId,
                   serviceIdUpper,
                   companyId: req.companyId,
-                  // Buscar plantillas similares para debugging
-                  similarTemplates: await MaintenanceTemplate.find({
-                    companyId: req.companyId,
-                    active: { $ne: false }
-                  }).select('serviceId serviceName').limit(5).lean()
+                  vehicleId: profile.vehicle?.vehicleId,
+                  plate: plateUpper
                 });
                 continue;
               }
               
-              const serviceKey = template.serviceId;
               const serviceDate = sale.closedAt || new Date();
               
               // Actualizar o agregar al historial del cliente
@@ -1679,16 +1709,17 @@ export const closeSale = async (req, res) => {
                 
                 logger.info('[closeSale] Servicio agregado al historial', {
                   serviceKey,
-                  serviceName: template.serviceName,
+                  serviceName: serviceName,
                   serviceId: serviceIdUpper,
                   mileage: saleMileage,
                   date: serviceDate,
-                  saleId: sale._id
+                  saleId: sale._id,
+                  plate: plateUpper
                 });
               } else {
                 logger.info('[closeSale] Servicio no actualizado (kilometraje menor al existente)', {
                   serviceKey,
-                  serviceName: template.serviceName,
+                  serviceName: serviceName,
                   existingMileage: existingHistory.lastPerformedMileage,
                   newMileage: saleMileage
                 });
@@ -3414,6 +3445,7 @@ export const getSalesByPlate = async (req, res) => {
     }))
   });
 };
+
 
 
 
