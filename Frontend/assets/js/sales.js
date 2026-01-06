@@ -1263,6 +1263,9 @@ const QUOTE_LINK_KEY = 'sales:quoteBySale';
 let saleQuoteLinks = loadSaleQuoteLinks();
 const saleQuoteCache = new Map();
 let saleQuoteRequestToken = 0;
+// Estado para servicios de mantenimiento seleccionados
+// Usar un objeto por venta para mantener las selecciones por venta
+let maintenanceSelections = {}; // { saleId: { services: [], mileage: null } }
 
 function loadSaleQuoteLinks(){
   if (typeof localStorage === 'undefined') return {};
@@ -2305,10 +2308,6 @@ function buildCloseModalContent(){
     </div>`;
   return wrap;
 }
-
-// Estado para servicios de mantenimiento seleccionados
-// Usar un objeto por venta para mantener las selecciones por venta
-let maintenanceSelections = {}; // { saleId: { services: [], mileage: null } }
 
 function openCloseModal(){
   const modal = document.getElementById('modal');
