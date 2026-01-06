@@ -1241,7 +1241,18 @@ async function loadCompanies() {
   try {
     const response = await fetch(`${API_BASE}/api/v1/public/customer/companies`);
     const data = await response.json();
-    state.companies = data.companies || [];
+    const allCompanies = data.companies || [];
+    
+    // Filtrar solo "Casa Renault" y "Servitecha Shelby"
+    const allowedCompanyNames = ['Casa Renault', 'Servitecha Shelby'];
+    state.companies = allCompanies.filter(company => {
+      const name = (company.name || '').trim();
+      return allowedCompanyNames.some(allowed => 
+        name.toLowerCase().includes(allowed.toLowerCase()) ||
+        allowed.toLowerCase().includes(name.toLowerCase())
+      );
+    });
+    
     state.filteredCompanies = state.companies;
     return state.companies;
   } catch (error) {

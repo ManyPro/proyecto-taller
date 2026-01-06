@@ -161,22 +161,123 @@ export const getVehicleServices = async (req, res) => {
 
     // Obtener historial de servicios del cliente para mapear serviceKeys a nombres
     const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
+    const VehicleServiceSchedule = (await import('../models/VehicleServiceSchedule.js')).default;
     const serviceHistory = profile.serviceHistory || [];
     const serviceKeyToName = new Map();
     
-    // Mapear serviceKeys a nombres de servicios desde las plantillas
-    if (serviceHistory.length > 0) {
-      const serviceKeys = serviceHistory.map(h => h.serviceKey).filter(Boolean);
+    // Recopilar todos los serviceKeys/SKUs que necesitamos mapear
+    const allServiceKeys = new Set();
+    
+    // Agregar serviceKeys del historial del cliente
+    serviceHistory.forEach(h => {
+      if (h.serviceKey) allServiceKeys.add(String(h.serviceKey).toUpperCase());
+    });
+    
+    // Agregar SKUs de todas las ventas
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        const sku = String(item.sku || '').toUpperCase();
+        const name = String(item.name || '').toUpperCase();
+        
+        // Si el SKU parece un serviceKey (REN-*, SRV-*, etc.)
+        if (sku && (sku.startsWith('REN-') || sku.startsWith('SRV-'))) {
+          allServiceKeys.add(sku);
+        }
+        
+        // Si el nombre parece un serviceKey
+        if (name && (name.startsWith('REN-') || name.startsWith('SRV-'))) {
+          allServiceKeys.add(name);
+        }
+      });
+    });
+    
+    // Mapear serviceKeys a nombres desde MaintenanceTemplate
+    if (allServiceKeys.size > 0) {
+      const serviceKeysArray = Array.from(allServiceKeys);
       const templates = await MaintenanceTemplate.find({
         companyId,
-        serviceId: { $in: serviceKeys },
+        serviceId: { $in: serviceKeysArray },
         active: { $ne: false }
       }).select('serviceId serviceName').lean();
       
       templates.forEach(t => {
-        serviceKeyToName.set(t.serviceId, t.serviceName);
+        const key = String(t.serviceId).toUpperCase();
+        serviceKeyToName.set(key, t.serviceName);
       });
     }
+    
+    // También buscar en VehicleServiceSchedule si hay vehicleId
+    if (profile.vehicle?.vehicleId && mongoose.Types.ObjectId.isValid(profile.vehicle.vehicleId)) {
+      const schedule = await VehicleServiceSchedule.findOne({
+        companyId,
+        vehicleId: new mongoose.Types.ObjectId(profile.vehicle.vehicleId)
+      }).lean();
+      
+      if (schedule && schedule.services) {
+        schedule.services.forEach(service => {
+          if (service.serviceKey) {
+            const key = String(service.serviceKey).toUpperCase();
+            // Solo agregar si no existe ya en el mapa (priorizar MaintenanceTemplate)
+            if (!serviceKeyToName.has(key) && service.serviceName) {
+              serviceKeyToName.set(key, service.serviceName);
+            }
+          }
+        });
+      }
+    }
+    
+    // Función helper para obtener nombre legible de un servicio
+    const getServiceDisplayName = (name, sku) => {
+      const nameUpper = String(name || '').toUpperCase().trim();
+      const skuUpper = String(sku || '').toUpperCase().trim();
+      
+      // Si el nombre ya es legible (no parece un SKU), usarlo
+      if (name && !nameUpper.startsWith('REN-') && !nameUpper.startsWith('SRV-') && name.length > 5) {
+        return name;
+      }
+      
+      // Intentar buscar por SKU primero
+      if (skuUpper && serviceKeyToName.has(skuUpper)) {
+        return serviceKeyToName.get(skuUpper);
+      }
+      
+      // Intentar buscar por nombre si parece un serviceKey
+      if (nameUpper && (nameUpper.startsWith('REN-') || nameUpper.startsWith('SRV-'))) {
+        if (serviceKeyToName.has(nameUpper)) {
+          return serviceKeyToName.get(nameUpper);
+        }
+      }
+      
+      // Si no se encuentra, intentar limpiar el nombre (remover REN- y convertir a título legible)
+      if (nameUpper.startsWith('REN-')) {
+        let cleaned = nameUpper.replace(/^REN-/, '');
+        
+        // Convertir palabras comunes a formato legible
+        cleaned = cleaned
+          .replace(/CAMBIODEACEITE/g, 'Cambio de aceite')
+          .replace(/CAMBIODEFILTRO/g, 'Cambio de filtro')
+          .replace(/FILTRODEAIRE/g, 'Filtro de aire')
+          .replace(/FILTRODEACEITE/g, 'Filtro de aceite')
+          .replace(/FILTRODEMOTOR/g, 'Filtro de motor')
+          .replace(/MOTOR/g, 'motor')
+          .replace(/([A-Z])([A-Z]+)/g, (match, p1, p2) => {
+            // Si hay mayúsculas consecutivas, separarlas
+            return p1 + ' ' + p2.toLowerCase();
+          })
+          .replace(/([a-z])([A-Z])/g, '$1 $2'); // Separar camelCase
+        
+        // Capitalizar primera letra y el resto en minúsculas
+        cleaned = cleaned
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+        
+        return cleaned || name;
+      }
+      
+      // Último recurso: devolver el nombre original
+      return name || sku || 'Servicio';
+    };
     
     // Procesar servicios de cada venta
     const servicesHistory = [];
@@ -205,8 +306,11 @@ export const getVehicleServices = async (req, res) => {
         }
         
         if (isService && name) {
+          // Obtener nombre legible del servicio
+          const displayName = getServiceDisplayName(name, sku);
+          
           saleServices.push({
-            name,
+            name: displayName,
             sku: sku || '',
             qty: item.qty || 1,
             unitPrice: item.unitPrice || 0,
@@ -238,18 +342,19 @@ export const getVehicleServices = async (req, res) => {
         }
         
         if (matchesSale) {
-          const serviceName = serviceKeyToName.get(historyItem.serviceKey) || historyItem.serviceKey;
+          const serviceKeyUpper = String(historyItem.serviceKey || '').toUpperCase();
+          const serviceName = serviceKeyToName.get(serviceKeyUpper) || historyItem.serviceKey;
           // Verificar que no esté ya en saleServices (evitar duplicados)
           const alreadyIncluded = saleServices.some(s => 
             s.name.toLowerCase() === serviceName.toLowerCase() ||
-            s.sku === historyItem.serviceKey ||
-            (s.isMaintenanceService && s.sku === historyItem.serviceKey)
+            s.sku === serviceKeyUpper ||
+            (s.isMaintenanceService && s.sku === serviceKeyUpper)
           );
           
           if (!alreadyIncluded) {
             saleServices.push({
               name: serviceName,
-              sku: historyItem.serviceKey,
+              sku: serviceKeyUpper,
               qty: 1,
               unitPrice: 0,
               total: 0,
@@ -268,8 +373,11 @@ export const getVehicleServices = async (req, res) => {
         if (saleServices.length === 0 && sale.items.length > 0) {
           sale.items.forEach(item => {
             if (item.name) {
+              // Obtener nombre legible del servicio
+              const displayName = getServiceDisplayName(item.name, item.sku);
+              
               saleServices.push({
-                name: item.name,
+                name: displayName,
                 sku: item.sku || '',
                 qty: item.qty || 1,
                 unitPrice: item.unitPrice || 0,

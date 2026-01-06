@@ -96,8 +96,22 @@
 </head>
 <body class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 min-h-screen">
   <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
   
   <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Botón para volver al inicio -->
+    <div class="mb-6 fade-in">
+      <a 
+        href="ventas.html" 
+        class="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Volver al Inicio
+      </a>
+    </div>
+
     <!-- Header -->
     <div class="text-center mb-8 fade-in">
       <div class="inline-block p-4 bg-blue-600/20 rounded-full mb-4">
@@ -271,7 +285,7 @@
     </div>
   </div>
 
-  <script type="module" src="assets/js/clientes.js"></script>
+  <script src="assets/js/clientes.js"></script>
 </body>
 </html>
 

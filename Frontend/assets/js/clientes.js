@@ -1,10 +1,18 @@
 // Frontend/assets/js/clientes.js
 // Gestión de clientes: planillas y tiers
 
-import { API } from './api.js';
-
+// Cargar API desde window (api.js lo expone globalmente)
 const API_BASE = (typeof window !== 'undefined' && window.BACKEND_URL) ? window.BACKEND_URL : 
                 (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+
+// Obtener API desde window
+function getAPI() {
+  if (typeof window !== 'undefined' && window.API) {
+    return window.API;
+  }
+  // Si no está disponible, lanzar error
+  throw new Error('API no está disponible. Asegúrate de que api.js se cargue antes que clientes.js');
+}
 
 // Estado
 const state = {
@@ -18,6 +26,7 @@ const state = {
 // Obtener companyId del token
 async function getCompanyId() {
   try {
+    const API = getAPI();
     const me = await API.auth.companyMe();
     return me?.company?.id || me?.id || me?._id || null;
   } catch (error) {
@@ -130,6 +139,7 @@ async function handleSearchPlate() {
   hideError('planillaError');
 
   try {
+    const API = getAPI();
     const data = await API.customers.getSchedule(state.companyId, plate);
     
     // Mostrar información del vehículo
@@ -277,6 +287,7 @@ function hideSchedule() {
 // Cargar clientes
 async function loadCustomers() {
   try {
+    const API = getAPI();
     const data = await API.customers.list(state.companyId);
     state.customers = data.customers || [];
     filterCustomers();
@@ -377,6 +388,7 @@ async function updateCustomerTier(plate, tier) {
   if (!plate || !tier) return;
 
   try {
+    const API = getAPI();
     await API.customers.updateTier(state.companyId, plate, tier);
     
     // Actualizar en el estado
@@ -435,83 +447,116 @@ function showSuccess(message) {
 }
 
 // Extender API con métodos de clientes
-if (typeof API !== 'undefined') {
-  API.customers = {
-    search: async (companyId, plate) => {
-      const token = API.token?.get?.();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API_BASE}/api/v1/customers/search?plate=${encodeURIComponent(plate)}`, {
-        headers,
-        credentials: 'omit'
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(body.error || body.message || `HTTP ${res.status}`);
-      }
-      return res.json();
-    },
-    getSchedule: async (companyId, plate) => {
-      const token = API.token?.get?.();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API_BASE}/api/v1/customers/${encodeURIComponent(plate)}/schedule`, {
-        headers,
-        credentials: 'omit'
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(body.error || body.message || `HTTP ${res.status}`);
-      }
-      return res.json();
-    },
-    list: async (companyId, search = '') => {
-      const token = API.token?.get?.();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-      const res = await fetch(`${API_BASE}/api/v1/customers/list?${searchParam}`, {
-        headers,
-        credentials: 'omit'
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(body.error || body.message || `HTTP ${res.status}`);
-      }
-      return res.json();
-    },
-    getTier: async (companyId, plate) => {
-      const token = API.token?.get?.();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`${API_BASE}/api/v1/customers/${encodeURIComponent(plate)}/tier`, {
-        headers,
-        credentials: 'omit'
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(body.error || body.message || `HTTP ${res.status}`);
-      }
-      return res.json();
-    },
-    updateTier: async (companyId, plate, tier) => {
-      const token = API.token?.get?.();
-      const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {};
-      const res = await fetch(`${API_BASE}/api/v1/customers/${encodeURIComponent(plate)}/tier`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ tier }),
-        credentials: 'omit'
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(body.error || body.message || `HTTP ${res.status}`);
-      }
-      return res.json();
+function extendAPI() {
+  try {
+    const API = getAPI();
+    if (!API.customers) {
+      API.customers = {};
     }
-  };
+    
+    API.customers = {
+      search: async (companyId, plate) => {
+        const token = API.token?.get?.();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/api/v1/customers/search?plate=${encodeURIComponent(plate)}`, {
+          headers,
+          credentials: 'omit'
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        }
+        return res.json();
+      },
+      getSchedule: async (companyId, plate) => {
+        const token = API.token?.get?.();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/api/v1/customers/${encodeURIComponent(plate)}/schedule`, {
+          headers,
+          credentials: 'omit'
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        }
+        return res.json();
+      },
+      list: async (companyId, search = '') => {
+        const token = API.token?.get?.();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+        const res = await fetch(`${API_BASE}/api/v1/customers/list?${searchParam}`, {
+          headers,
+          credentials: 'omit'
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        }
+        return res.json();
+      },
+      getTier: async (companyId, plate) => {
+        const token = API.token?.get?.();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/api/v1/customers/${encodeURIComponent(plate)}/tier`, {
+          headers,
+          credentials: 'omit'
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        }
+        return res.json();
+      },
+      updateTier: async (companyId, plate, tier) => {
+        const token = API.token?.get?.();
+        const headers = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {};
+        const res = await fetch(`${API_BASE}/api/v1/customers/${encodeURIComponent(plate)}/tier`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ tier }),
+          credentials: 'omit'
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        }
+        return res.json();
+      }
+    };
+  } catch (error) {
+    console.error('Error extendiendo API:', error);
+  }
 }
 
-// Inicializar cuando el DOM esté listo
+// Llamar a extendAPI cuando API esté disponible
+if (typeof window !== 'undefined') {
+  // Esperar a que api.js cargue
+  if (window.API) {
+    extendAPI();
+  } else {
+    // Esperar un poco y volver a intentar
+    setTimeout(() => {
+      if (window.API) {
+        extendAPI();
+      }
+    }, 100);
+  }
+}
+
+// Inicializar cuando el DOM esté listo y API esté disponible
+function waitForAPIAndInit() {
+  if (typeof window !== 'undefined' && window.API) {
+    init();
+  } else {
+    // Esperar a que api.js cargue
+    setTimeout(waitForAPIAndInit, 100);
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', waitForAPIAndInit);
 } else {
-  init();
+  waitForAPIAndInit();
 }
 
