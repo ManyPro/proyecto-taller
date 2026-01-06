@@ -287,8 +287,10 @@ export const generateOilChangeSticker = async (req, res) => {
     });
 
     // Configurar headers para descarga
+    // Nombre del archivo: ACEITE - [PLACA]
+    const filename = `ACEITE - ${plateStr}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="sticker-cambio-aceite-${Date.now()}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     // Pipe PDF a response
     doc.pipe(res);

@@ -2360,7 +2360,9 @@ async function openMaintenanceServicesModal() {
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `sticker-cambio-aceite-${Date.now()}.pdf`;
+              // Nombre del archivo: ACEITE - [PLACA]
+              const plate = current.vehicle?.plate || 'SIN-PLACA';
+              a.download = `ACEITE - ${plate}.pdf`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
