@@ -1658,16 +1658,45 @@ async function openMaintenanceServicesModal() {
         </div>
       `;
 
-      // Separar servicios comunes y otros (mostrar más servicios)
-      const commonServices = templates.filter(t => t.isCommon || t.priority <= 20); // Mostrar más comunes
-      const otherServices = templates.filter(t => !t.isCommon && t.priority > 20);
+      // Función para identificar servicios prioritarios (cambio de aceite, filtro aire, filtro aceite)
+      const isPriorityService = (service) => {
+        const name = (service.serviceName || '').toLowerCase();
+        return name.includes('cambio de aceite') || 
+               name.includes('cambio filtro de aire') || 
+               name.includes('cambio filtro aire') ||
+               name.includes('cambio filtro de aceite') ||
+               name.includes('cambio filtro aceite') ||
+               service.priority === 1;
+      };
       
-      // Ordenar: cambio de aceite primero
-      commonServices.sort((a, b) => {
-        if (a.priority === 1) return -1;
-        if (b.priority === 1) return 1;
+      // Separar servicios prioritarios, comunes y otros
+      const priorityServices = templates.filter(isPriorityService);
+      const commonServices = templates.filter(t => !isPriorityService(t) && (t.isCommon || t.priority <= 20));
+      const otherServices = templates.filter(t => !isPriorityService(t) && !t.isCommon && t.priority > 20);
+      
+      // Ordenar servicios prioritarios: cambio de aceite primero, luego filtro aire, luego filtro aceite
+      priorityServices.sort((a, b) => {
+        const nameA = (a.serviceName || '').toLowerCase();
+        const nameB = (b.serviceName || '').toLowerCase();
+        
+        // Cambio de aceite primero
+        if (nameA.includes('cambio de aceite') && !nameB.includes('cambio de aceite')) return -1;
+        if (!nameA.includes('cambio de aceite') && nameB.includes('cambio de aceite')) return 1;
+        
+        // Filtro aire segundo
+        if (nameA.includes('filtro de aire') && !nameB.includes('filtro de aire')) return -1;
+        if (!nameA.includes('filtro de aire') && nameB.includes('filtro de aire')) return 1;
+        
+        // Filtro aceite tercero
+        if (nameA.includes('filtro de aceite') && !nameB.includes('filtro de aceite')) return -1;
+        if (!nameA.includes('filtro de aceite') && nameB.includes('filtro de aceite')) return 1;
+        
         return (a.priority || 100) - (b.priority || 100);
       });
+      
+      // Ordenar comunes y otros por prioridad
+      commonServices.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+      otherServices.sort((a, b) => (a.priority || 100) - (b.priority || 100));
       
       // Estado para búsqueda y filtrado
       let filteredTemplates = templates;
@@ -1739,6 +1768,19 @@ async function openMaintenanceServicesModal() {
           };
           
           servicesContainer.innerHTML = `
+            ${filteredPriority.length > 0 ? `
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                  </svg>
+                  SERVICIOS PRINCIPALES
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${filteredPriority.map(t => renderServiceCardWithSelection(t, true)).join('')}
+                </div>
+              </div>
+            ` : ''}
             ${filteredCommon.length > 0 ? `
               <div class="mb-4">
                 <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -1853,6 +1895,19 @@ async function openMaintenanceServicesModal() {
           </div>
           
           <div class="max-h-[500px] overflow-y-auto custom-scrollbar pr-2" id="maintenance-services-container">
+            ${priorityServices.length > 0 ? `
+              <div class="mb-4">
+                <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
+                  <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                  </svg>
+                  SERVICIOS PRINCIPALES
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${priorityServices.map(t => renderServiceCard(t, true)).join('')}
+                </div>
+              </div>
+            ` : ''}
             ${commonServices.length > 0 ? `
               <div class="mb-4">
                 <p class="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wide flex items-center gap-2">
@@ -2031,7 +2086,11 @@ async function openMaintenanceServicesModal() {
       
       // Event listeners (saleId y currentSelection ya están declarados arriba)
       document.getElementById('maintenance-skip')?.addEventListener('click', () => {
-        // Limpiar selecciones para esta venta
+        // Limpiar selecciones para esta venta en ambos lugares
+        if (maintenanceSelections[saleId]) {
+          maintenanceSelections[saleId].services = [];
+          maintenanceSelections[saleId].mileage = null;
+        }
         currentSelection.services = [];
         currentSelection.mileage = null;
         console.log('[maintenance-skip] Selecciones limpiadas para venta:', saleId);
@@ -2051,8 +2110,16 @@ async function openMaintenanceServicesModal() {
         const mileageValue = mileageInput ? Number(mileageInput.value) : null;
         const finalMileage = Number.isFinite(mileageValue) && mileageValue > 0 ? mileageValue : null;
         
-        // GUARDAR en el objeto de selecciones para esta venta
-        currentSelection.services = selectedServices;
+        // GUARDAR directamente en el objeto de selecciones para esta venta
+        // Asegurar que se guarde correctamente
+        if (!maintenanceSelections[saleId]) {
+          maintenanceSelections[saleId] = { services: [], mileage: null };
+        }
+        maintenanceSelections[saleId].services = [...selectedServices]; // Copiar array
+        maintenanceSelections[saleId].mileage = finalMileage;
+        
+        // También actualizar currentSelection para consistencia
+        currentSelection.services = [...selectedServices];
         currentSelection.mileage = finalMileage;
         
         // Debug: mostrar lo que se está guardando
@@ -2061,15 +2128,21 @@ async function openMaintenanceServicesModal() {
           services: selectedServices,
           mileage: finalMileage,
           totalSelecciones: selectedServices.length,
-          maintenanceSelections: maintenanceSelections[saleId]
+          maintenanceSelections: maintenanceSelections[saleId],
+          guardadoEn: maintenanceSelections[saleId]
         });
         
         // Guardar en variables locales para uso en el código siguiente
         const selectedMaintenanceServices = selectedServices;
         const saleMileage = finalMileage;
         
-        // Si se seleccionó cambio de aceite (prioridad 1), preguntar aceite y generar sticker
-        const oilChangeService = templates.find(t => t.priority === 1 && selectedMaintenanceServices.includes(t.serviceId));
+        // Si se seleccionó cambio de aceite, preguntar aceite y generar sticker
+        // Buscar por nombre también, no solo por prioridad
+        const oilChangeService = templates.find(t => {
+          const name = (t.serviceName || '').toLowerCase();
+          return (t.priority === 1 || name.includes('cambio de aceite')) && 
+                 selectedMaintenanceServices.includes(t.serviceId);
+        });
         if (oilChangeService) {
           try {
             // Usar el kilometraje de la venta o el del vehículo actual
