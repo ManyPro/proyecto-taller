@@ -705,7 +705,12 @@ function renderSchedule(schedule) {
               </svg>
               <p class="text-xs text-slate-400 uppercase tracking-wide">Intervalo</p>
             </div>
-            <p class="text-white font-bold text-lg">${formatNumber(service.mileageInterval)} km</p>
+            <p class="text-white font-bold text-lg">
+              ${service.mileageIntervalMax && service.mileageIntervalMax !== service.mileageInterval
+                ? `${formatNumber(service.mileageInterval)} - ${formatNumber(service.mileageIntervalMax)} km`
+                : `${formatNumber(service.mileageInterval)} km`
+              }
+            </p>
           </div>
           ${service.lastPerformedMileage ? `
             <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700/50">

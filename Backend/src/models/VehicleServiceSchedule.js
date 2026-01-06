@@ -8,7 +8,8 @@ const ServiceScheduleItemSchema = new mongoose.Schema({
   serviceName: { type: String, required: true, trim: true }, // Nombre del servicio (ej: "Cambio de aceite")
   serviceKey: { type: String, trim: true }, // Key del servicio si está vinculado
   system: { type: String, trim: true }, // Sistema al que pertenece (ej: Motor, Filtración)
-  mileageInterval: { type: Number, required: true }, // Intervalo en km (ej: 10000)
+  mileageInterval: { type: Number, required: true }, // Intervalo en km (mínimo, ej: 10000)
+  mileageIntervalMax: { type: Number, default: null }, // Intervalo máximo en km (opcional, para rangos)
   monthsInterval: { type: Number, default: 0 }, // Intervalo en meses
   lastPerformedMileage: { type: Number, default: null }, // Último kilometraje en que se realizó
   lastPerformedDate: { type: Date, default: null }, // Última fecha en que se realizó

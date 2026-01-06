@@ -3699,7 +3699,8 @@ function openMarketplaceHelper(item){
       }
       
       if (currentChunk) chunks.push(currentChunk);
-      segmented = chunks.join(' ');
+      // Unir chunks con saltos de línea para forzar wrap
+      segmented = chunks.join('\n');
     } else if (segmented.length > maxCharsPerLine) {
       // Si tiene espacios pero es muy largo, dividir en líneas
       const words = segmented.split(/\s+/);
@@ -3728,7 +3729,8 @@ function openMarketplaceHelper(item){
         }
       }
       if (currentLine) lines.push(currentLine.trim());
-      segmented = lines.join(' ');
+      // Unir líneas con saltos de línea para permitir wrap explícito
+      segmented = lines.join('\n');
     }
     
     return segmented;

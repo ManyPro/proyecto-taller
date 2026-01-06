@@ -1835,16 +1835,26 @@ async function openMaintenanceServicesModal() {
       const modalHTML = `
         <div class="p-6 flex flex-col h-full max-h-[90vh]">
           <div class="flex-1 overflow-y-auto">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="p-2 bg-blue-600/20 rounded-lg">
-                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600/20 rounded-lg">
+                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
+                  <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
+                </div>
               </div>
-              <div>
-                <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
-                <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
-              </div>
+              <!-- Botón para cerrar solo el modal de servicios -->
+              <button 
+                id="maintenance-modal-close" 
+                class="px-3 py-2 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500 text-sm"
+                title="Cerrar modal de servicios"
+              >
+                Cerrar
+              </button>
             </div>
             
             ${mileageInput}
@@ -1871,6 +1881,34 @@ async function openMaintenanceServicesModal() {
 
       body.innerHTML = modalHTML;
       modal.classList.remove('hidden');
+      
+      // Configurar el botón X (modalClose) para cerrar la venta completamente (funcionamiento antiguo)
+      // Este botón debe cancelar el proceso de cierre y volver a la vista normal
+      const modalCloseBtn = document.getElementById('modalClose');
+      if (modalCloseBtn) {
+        // Remover cualquier handler previo
+        modalCloseBtn.onclick = null;
+        modalCloseBtn.addEventListener('click', () => {
+          // Cerrar el modal sin continuar con el flujo
+          selectedMaintenanceServices = [];
+          saleMileage = null;
+          modal.classList.add('hidden');
+          // Rechazar la promesa para indicar que se canceló el proceso
+          reject(new Error('Modal cerrado por el usuario'));
+        }, { once: true });
+      }
+      
+      // Configurar el botón propio para cerrar solo el modal de servicios (continúa con el flujo)
+      const maintenanceModalCloseBtn = document.getElementById('maintenance-modal-close');
+      if (maintenanceModalCloseBtn) {
+        maintenanceModalCloseBtn.addEventListener('click', () => {
+          selectedMaintenanceServices = [];
+          saleMileage = null;
+          modal.classList.add('hidden');
+          // Continuar con el modal de pago después de un pequeño delay
+          setTimeout(() => resolve(), 100);
+        });
+      }
       
       // Agregar estilos CSS para los checkboxes personalizados y scrollbars si no existen
       if (!document.getElementById('maintenance-checkbox-styles')) {
@@ -2242,8 +2280,13 @@ function openCloseModal(){
         // El modal resuelve cuando el usuario hace "Omitir" o "Continuar"
         // Continuar con el modal de pago normalmente (no hay return aquí)
       } catch (err) {
+        // Si el usuario cerró con el botón X, cancelar el proceso completamente
+        if (err?.message === 'Modal cerrado por el usuario') {
+          console.log('Modal de servicios cerrado por el usuario, cancelando proceso de cierre');
+          return; // Salir sin mostrar el modal de pago
+        }
         console.error('Error en modal de servicios de mantenimiento:', err);
-        // Continuar con el modal de pago si hay error
+        // Continuar con el modal de pago si hay otro tipo de error
       }
     }
     

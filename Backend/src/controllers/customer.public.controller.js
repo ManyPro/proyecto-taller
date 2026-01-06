@@ -331,6 +331,7 @@ export const getVehicleServiceSchedule = async (req, res) => {
           serviceKey: template.serviceId,
           system: template.system || '',
           mileageInterval: template.mileageInterval || 0,
+          mileageIntervalMax: template.mileageIntervalMax || null, // Rango máximo si existe
           monthsInterval: template.monthsInterval || 0,
           lastPerformedMileage: null,
           lastPerformedDate: null,
@@ -369,6 +370,7 @@ export const getVehicleServiceSchedule = async (req, res) => {
           serviceKey: s.serviceKey,
           system: s.system || '',
           mileageInterval: s.mileageInterval,
+          mileageIntervalMax: s.mileageIntervalMax || null, // Rango máximo si existe
           monthsInterval: s.monthsInterval || 0,
           lastPerformedMileage: s.lastPerformedMileage,
           lastPerformedDate: s.lastPerformedDate,

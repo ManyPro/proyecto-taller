@@ -1665,6 +1665,7 @@ export const closeSale = async (req, res) => {
                 serviceName: template.serviceName,
                 serviceKey: template.serviceId,
                 mileageInterval: template.mileageInterval || 10000, // Default si no tiene
+                mileageIntervalMax: template.mileageIntervalMax || null, // Rango máximo si existe
                 lastPerformedMileage: null,
                 lastPerformedDate: null,
                 nextDueMileage: null,

@@ -33,8 +33,13 @@ const MaintenanceTemplateSchema = new mongoose.Schema({
     trim: true,
     uppercase: true 
   },
-  // Intervalo en kilómetros
+  // Intervalo en kilómetros (mínimo)
   mileageInterval: { 
+    type: Number, 
+    default: null 
+  },
+  // Intervalo máximo en kilómetros (opcional, para rangos)
+  mileageIntervalMax: { 
     type: Number, 
     default: null 
   },
