@@ -1882,31 +1882,28 @@ async function openMaintenanceServicesModal() {
       body.innerHTML = modalHTML;
       modal.classList.remove('hidden');
       
-      // Configurar el botón X (modalClose) para cerrar la venta completamente (funcionamiento antiguo)
-      // Este botón debe cancelar el proceso de cierre y volver a la vista normal
+      // Configurar el botón X (modalClose) para cerrar el modal sin continuar con el flujo
       const modalCloseBtn = document.getElementById('modalClose');
       if (modalCloseBtn) {
         // Remover cualquier handler previo
         modalCloseBtn.onclick = null;
         modalCloseBtn.addEventListener('click', () => {
-          // Cerrar el modal sin continuar con el flujo
-          selectedMaintenanceServices = [];
-          saleMileage = null;
+          // Cerrar el modal simplemente (no continuar con flujo de pago)
           modal.classList.add('hidden');
-          // Rechazar la promesa para indicar que se canceló el proceso
-          reject(new Error('Modal cerrado por el usuario'));
+          body.innerHTML = '';
+          // Rechazar la promesa para indicar que se cerró sin continuar
+          reject(new Error('Modal cerrado'));
         }, { once: true });
       }
       
-      // Configurar el botón propio para cerrar solo el modal de servicios (continúa con el flujo)
+      // Configurar el botón "Cerrar" para hacer lo mismo que el botón X
       const maintenanceModalCloseBtn = document.getElementById('maintenance-modal-close');
       if (maintenanceModalCloseBtn) {
         maintenanceModalCloseBtn.addEventListener('click', () => {
-          selectedMaintenanceServices = [];
-          saleMileage = null;
           modal.classList.add('hidden');
-          // Continuar con el modal de pago después de un pequeño delay
-          setTimeout(() => resolve(), 100);
+          body.innerHTML = '';
+          // Rechazar la promesa para indicar que se cerró sin continuar
+          reject(new Error('Modal cerrado'));
         });
       }
       
@@ -1970,8 +1967,9 @@ async function openMaintenanceServicesModal() {
         selectedMaintenanceServices = [];
         saleMileage = null;
         modal.classList.add('hidden');
-        // Continuar con el modal de pago después de un pequeño delay
-        setTimeout(() => resolve(), 100);
+        body.innerHTML = '';
+        // Cerrar el modal sin continuar con el flujo de pago
+        reject(new Error('Servicios omitidos'));
       });
 
       document.getElementById('maintenance-continue')?.addEventListener('click', async () => {
@@ -2124,14 +2122,14 @@ async function openMaintenanceServicesModal() {
         }
         
         modal.classList.add('hidden');
-        // Continuar con el modal de pago después de un pequeño delay
-        setTimeout(() => resolve(), 100);
+        body.innerHTML = '';
+        // Cerrar el modal sin continuar con el flujo de pago
+        reject(new Error('Servicios procesados'));
       });
     }).catch(err => {
       console.error('Error cargando plantillas de mantenimiento:', err);
-      // Si hay error, resolver igualmente para continuar con el flujo normal
-      // Mostrar modal vacío o continuar directamente
-      setTimeout(() => resolve(), 100);
+      // Si hay error, rechazar para cerrar el modal
+      reject(err);
     });
   });
 }
@@ -2273,24 +2271,7 @@ function openCloseModal(){
     selectedMaintenanceServices = [];
     saleMileage = null;
     
-    // Si la venta tiene vehículo, mostrar primero modal de servicios de mantenimiento
-    if (current?.vehicle?.vehicleId || current?.vehicle?.plate) {
-      try {
-        await openMaintenanceServicesModal();
-        // El modal resuelve cuando el usuario hace "Omitir" o "Continuar"
-        // Continuar con el modal de pago normalmente (no hay return aquí)
-      } catch (err) {
-        // Si el usuario cerró con el botón X, cancelar el proceso completamente
-        if (err?.message === 'Modal cerrado por el usuario') {
-          console.log('Modal de servicios cerrado por el usuario, cancelando proceso de cierre');
-          return; // Salir sin mostrar el modal de pago
-        }
-        console.error('Error en modal de servicios de mantenimiento:', err);
-        // Continuar con el modal de pago si hay otro tipo de error
-      }
-    }
-    
-    // Mostrar modal de pago normal (siempre se ejecuta después del modal de mantenimiento)
+    // Mostrar modal de pago normal (sin abrir automáticamente el modal de servicios)
     body.innerHTML='';
     const content = buildCloseModalContent();
     body.appendChild(content);
@@ -10363,6 +10344,25 @@ export function initSales(){
   document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{
     if (!current) return;
     openSpecialNotesModal();
+  });
+
+  // Botón para abrir modal de servicios de mantenimiento
+  document.getElementById('sales-maintenance-services')?.addEventListener('click', async ()=>{
+    if (!current) return;
+    if (!current?.vehicle?.vehicleId && !current?.vehicle?.plate) {
+      alert('Esta venta no tiene un vehículo asociado. Agrega un vehículo primero.');
+      return;
+    }
+    try {
+      await openMaintenanceServicesModal();
+      // El modal se cierra independientemente, no necesita hacer nada más
+    } catch (err) {
+      // Ignorar errores de cierre normal del modal
+      if (err?.message !== 'Modal cerrado' && err?.message !== 'Servicios omitidos' && err?.message !== 'Servicios procesados') {
+        console.error('Error abriendo modal de servicios de mantenimiento:', err);
+        alert('Error al abrir servicios de mantenimiento: ' + (err.message || 'Error desconocido'));
+      }
+    }
   });
 
   connectLive();

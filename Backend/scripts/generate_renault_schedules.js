@@ -2,9 +2,12 @@
  * Script para generar planillas de mantenimiento para todos los vehículos RENAULT
  * 
  * Este script:
- * 1. Busca todos los perfiles de clientes con vehículos RENAULT
- * 2. Para cada perfil, crea o actualiza una planilla de servicios basada en las plantillas de mantenimiento
+ * 1. Busca todos los vehículos RENAULT únicos en la base de datos
+ * 2. Para cada vehículo, crea o actualiza una planilla base de servicios
  * 3. Filtra las plantillas según el vehículo específico (marca, línea, etc.)
+ * 
+ * NOTA: La planilla es compartida por todos los clientes con el mismo vehículo.
+ * Los datos específicos del cliente (KM, historial) se calculan al consultar.
  * 
  * Uso: node Backend/scripts/generate_renault_schedules.js [companyId]
  */
@@ -18,18 +21,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Cargar variables de entorno
-dotenv.config({ path: join(__dirname, '../.env') });
+dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/taller';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://giovannymanriquelol_db_user:XfOvU9NYHxoNgKAl@cluster0.gs3ajdl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 // Importar modelos
-const CustomerProfile = (await import('../src/models/CustomerProfile.js')).default;
+const Vehicle = (await import('../src/models/Vehicle.js')).default;
 const VehicleServiceSchedule = (await import('../src/models/VehicleServiceSchedule.js')).default;
 const MaintenanceTemplate = (await import('../src/models/MaintenanceTemplate.js')).default;
 
 async function connectDB(uri) {
   try {
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, { 
+      dbName: process.env.MONGODB_DB || 'taller' 
+    });
     console.log('✅ Conectado a MongoDB');
   } catch (err) {
     console.error('❌ Error conectando a MongoDB:', err.message);
@@ -41,24 +46,20 @@ async function generateSchedulesForRenaultVehicles(companyId = null) {
   try {
     console.log('\n🚀 Iniciando generación de planillas para vehículos RENAULT...\n');
 
-    // Construir query para perfiles con vehículos RENAULT
-    const profileQuery = {
-      'vehicle.brand': { $regex: /^RENAULT$/i }
+    // Buscar todos los vehículos RENAULT únicos
+    const vehicleQuery = {
+      make: 'RENAULT',
+      active: true
     };
     
-    if (companyId) {
-      profileQuery.companyId = String(companyId);
-      console.log(`📋 Filtrando por companyId: ${companyId}`);
-    } else {
-      console.log('📋 Procesando todas las empresas');
-    }
+    const vehicles = await Vehicle.find(vehicleQuery)
+      .sort({ make: 1, line: 1, displacement: 1, modelYear: 1 })
+      .lean();
+    
+    console.log(`📊 Encontrados ${vehicles.length} vehículos RENAULT únicos\n`);
 
-    // Buscar todos los perfiles con vehículos RENAULT
-    const profiles = await CustomerProfile.find(profileQuery).lean();
-    console.log(`📊 Encontrados ${profiles.length} perfiles con vehículos RENAULT\n`);
-
-    if (profiles.length === 0) {
-      console.log('⚠️  No se encontraron perfiles con vehículos RENAULT');
+    if (vehicles.length === 0) {
+      console.log('⚠️  No se encontraron vehículos RENAULT');
       return;
     }
 
@@ -67,125 +68,96 @@ async function generateSchedulesForRenaultVehicles(companyId = null) {
     let skipped = 0;
     let errors = 0;
 
-    // Procesar cada perfil
-    for (let i = 0; i < profiles.length; i++) {
-      const profile = profiles[i];
-      const plate = profile.vehicle?.plate || profile.plate;
+    // Obtener todos los companyIds únicos de las plantillas de mantenimiento
+    const allCompanyIds = await MaintenanceTemplate.distinct('companyId');
+    const companyIdsToProcess = companyId ? [String(companyId)] : allCompanyIds;
+    
+    console.log(`📋 Procesando ${companyIdsToProcess.length} empresa(s)\n`);
+
+    // Procesar cada vehículo para cada empresa
+    for (let vIdx = 0; vIdx < vehicles.length; vIdx++) {
+      const vehicle = vehicles[vIdx];
+      const vehicleId = vehicle._id;
       
-      if (!plate) {
-        console.log(`⚠️  Perfil ${i + 1}/${profiles.length}: Sin placa, saltando...`);
-        skipped++;
-        continue;
-      }
-
-      const plateUpper = String(plate).trim().toUpperCase();
-      const profileCompanyId = profile.companyId;
-
-      try {
-        // Buscar o crear planilla
-        let schedule = await VehicleServiceSchedule.findOne({
-          companyId: profileCompanyId,
-          plate: plateUpper
-        });
-
-        if (!schedule) {
-          schedule = new VehicleServiceSchedule({
-            companyId: profileCompanyId,
-            plate: plateUpper,
-            customerProfileId: profile._id,
-            currentMileage: profile.vehicle?.mileage || null,
-            services: []
+      for (let cIdx = 0; cIdx < companyIdsToProcess.length; cIdx++) {
+        const companyIdStr = companyIdsToProcess[cIdx];
+        
+        try {
+          // Buscar o crear planilla para este vehículo y empresa
+          let schedule = await VehicleServiceSchedule.findOne({
+            companyId: companyIdStr,
+            vehicleId: vehicleId
           });
-          created++;
-        } else {
-          updated++;
-        }
 
-        // Obtener información del vehículo para filtrar plantillas
-        const vehicleBrand = profile.vehicle?.brand?.toUpperCase() || 'RENAULT';
-        const vehicleLine = profile.vehicle?.line?.toUpperCase() || '';
-        const vehicleId = profile.vehicle?.vehicleId;
+          if (!schedule) {
+            schedule = new VehicleServiceSchedule({
+              companyId: companyIdStr,
+              vehicleId: vehicleId,
+              services: []
+            });
+            created++;
+          } else {
+            updated++;
+          }
 
-        // Buscar plantillas de mantenimiento aplicables
-        const templateQuery = {
-          companyId: profileCompanyId,
-          active: { $ne: false },
-          mileageInterval: { $gt: 0 } // Solo servicios con intervalo de kilometraje
-        };
+          // Buscar plantillas de mantenimiento aplicables
+          const templateQuery = {
+            companyId: companyIdStr,
+            active: { $ne: false },
+            mileageInterval: { $gt: 0 }
+          };
 
-        // Filtrar por marca y línea si están disponibles
-        if (vehicleBrand) {
+          // Filtrar por marca y línea
           templateQuery.$or = [
-            { makes: { $in: [vehicleBrand] } },
-            { makes: { $size: 0 } }, // Sin marca específica = genérico
-            { makes: { $exists: false } } // Sin campo makes = genérico
-          ];
-        }
-
-        // Si hay vehicleId, también filtrar por vehículo específico
-        if (vehicleId && mongoose.Types.ObjectId.isValid(vehicleId)) {
-          templateQuery.$or = [
-            ...(templateQuery.$or || []),
+            { makes: { $in: [vehicle.make] } },
+            { makes: { $size: 0 } },
+            { makes: { $exists: false } },
             { vehicleIds: vehicleId }
           ];
-        }
 
-        // Traer plantillas ordenadas por prioridad
-        const templates = await MaintenanceTemplate.find(templateQuery)
-          .sort({ isCommon: -1, priority: 1, serviceName: 1 })
-          .limit(100) // Limitar a 100 servicios
-          .lean();
+          // Traer plantillas ordenadas por prioridad
+          const templates = await MaintenanceTemplate.find(templateQuery)
+            .sort({ isCommon: -1, priority: 1, serviceName: 1 })
+            .limit(100)
+            .lean();
 
-        if (templates.length === 0) {
-          console.log(`⚠️  Perfil ${i + 1}/${profiles.length} (${plateUpper}): No se encontraron plantillas aplicables`);
-          skipped++;
-          continue;
-        }
-
-        // Si la planilla está vacía o necesita actualización, inicializar servicios
-        const existingServiceKeys = new Set(
-          schedule.services.map(s => s.serviceKey).filter(Boolean)
-        );
-
-        // Agregar servicios que no existen
-        for (const template of templates) {
-          if (!existingServiceKeys.has(template.serviceId)) {
-            schedule.services.push({
-              serviceName: template.serviceName,
-              serviceKey: template.serviceId,
-              system: template.system || '',
-              mileageInterval: template.mileageInterval || 0,
-              mileageIntervalMax: template.mileageIntervalMax || null, // Rango máximo si existe
-              monthsInterval: template.monthsInterval || 0,
-              lastPerformedMileage: null,
-              lastPerformedDate: null,
-              nextDueMileage: null,
-              nextDueDate: null,
-              status: 'pending',
-              notes: template.notes || ''
-            });
+          if (templates.length === 0) {
+            console.log(`⚠️  Vehículo ${vIdx + 1}/${vehicles.length} (${vehicle.make} ${vehicle.line} ${vehicle.displacement}): No se encontraron plantillas para empresa ${companyIdStr}`);
+            skipped++;
+            continue;
           }
+
+          // Obtener serviceKeys existentes
+          const existingServiceKeys = new Set(
+            schedule.services.map(s => s.serviceKey).filter(Boolean)
+          );
+
+          // Agregar servicios que no existen
+          let addedServices = 0;
+          for (const template of templates) {
+            if (!existingServiceKeys.has(template.serviceId)) {
+              schedule.services.push({
+                serviceName: template.serviceName,
+                serviceKey: template.serviceId,
+                system: template.system || '',
+                mileageInterval: template.mileageInterval || 0,
+                mileageIntervalMax: template.mileageIntervalMax || null,
+                monthsInterval: template.monthsInterval || 0,
+                notes: template.notes || ''
+              });
+              addedServices++;
+            }
+          }
+
+          await schedule.save();
+
+          const vehicleDesc = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}${vehicle.modelYear ? ` (${vehicle.modelYear})` : ''}`;
+          console.log(`✅ Vehículo ${vIdx + 1}/${vehicles.length} - Empresa ${cIdx + 1}/${companyIdsToProcess.length} (${vehicleDesc}): ${schedule.services.length} servicios${addedServices > 0 ? ` (+${addedServices} nuevos)` : ''}`);
+
+        } catch (error) {
+          console.error(`❌ Error procesando vehículo ${vIdx + 1}/${vehicles.length} para empresa ${companyIdStr}:`, error.message);
+          errors++;
         }
-
-        // Actualizar kilometraje si es mayor
-        const currentMileage = profile.vehicle?.mileage || null;
-        if (currentMileage && (schedule.currentMileage === null || currentMileage > schedule.currentMileage)) {
-          schedule.currentMileage = currentMileage;
-          schedule.mileageUpdatedAt = new Date();
-        }
-
-        // Recalcular estados basados en el kilometraje actual
-        if (schedule.currentMileage !== null && schedule.currentMileage > 0) {
-          schedule.updateMileage(schedule.currentMileage);
-        }
-
-        await schedule.save();
-
-        console.log(`✅ Perfil ${i + 1}/${profiles.length} (${plateUpper}): ${schedule.services.length} servicios en planilla`);
-
-      } catch (error) {
-        console.error(`❌ Error procesando perfil ${i + 1}/${profiles.length} (${plateUpper}):`, error.message);
-        errors++;
       }
     }
 
@@ -194,7 +166,9 @@ async function generateSchedulesForRenaultVehicles(companyId = null) {
     console.log(`   🔄 Actualizadas: ${updated}`);
     console.log(`   ⏭️  Saltadas: ${skipped}`);
     console.log(`   ❌ Errores: ${errors}`);
-    console.log(`   📋 Total procesados: ${profiles.length}\n`);
+    console.log(`   📋 Total vehículos: ${vehicles.length}`);
+    console.log(`   🏢 Total empresas: ${companyIdsToProcess.length}`);
+    console.log(`   📋 Total planillas procesadas: ${vehicles.length * companyIdsToProcess.length}\n`);
 
   } catch (error) {
     console.error('❌ Error general:', error);

@@ -266,32 +266,20 @@ export const getVehicleServiceSchedule = async (req, res) => {
       return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
 
-    // Buscar o crear planilla de servicios
-    let schedule = await VehicleServiceSchedule.findOne({
-      companyId,
-      plate: plateUpper
-    });
-
-    if (!schedule) {
-      // Crear planilla vacía si no existe
-      schedule = await VehicleServiceSchedule.create({
-        companyId,
-        plate: plateUpper,
-        customerProfileId: profile._id,
-        currentMileage: profile.vehicle?.mileage || null,
-        services: []
-      });
-    } else {
-      // Actualizar kilometraje si el perfil tiene uno más reciente
-      const profileMileage = profile.vehicle?.mileage;
-      if (profileMileage && (schedule.currentMileage === null || profileMileage > schedule.currentMileage)) {
-        schedule.updateMileage(profileMileage);
-        await schedule.save();
-      }
+    // Obtener vehicleId del perfil
+    const vehicleId = profile.vehicle?.vehicleId;
+    if (!vehicleId || !mongoose.Types.ObjectId.isValid(vehicleId)) {
+      return res.status(400).json({ error: 'El vehículo no está correctamente vinculado. Contacte al taller.' });
     }
 
-    // Si la planilla está vacía o tiene pocos servicios, inicializar con plantillas de mantenimiento
-    if (!schedule.services || schedule.services.length === 0) {
+    // Buscar planilla del vehículo (compartida por todos los clientes con el mismo vehículo)
+    let schedule = await VehicleServiceSchedule.findOne({
+      companyId,
+      vehicleId: new mongoose.Types.ObjectId(vehicleId)
+    });
+
+    // Si no existe planilla para este vehículo, crearla con plantillas de mantenimiento
+    if (!schedule) {
       const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
       
       // Obtener información del vehículo para filtrar plantillas
@@ -299,59 +287,63 @@ export const getVehicleServiceSchedule = async (req, res) => {
       const vehicleLine = profile.vehicle?.line?.toUpperCase() || '';
       
       // Buscar plantillas de mantenimiento aplicables
-      // Mostrar servicios comunes primero, luego otros
       const templateQuery = {
         companyId,
-        active: { $ne: false }, // Solo servicios activos
-        mileageInterval: { $gt: 0 } // Solo servicios con intervalo de kilometraje
+        active: { $ne: false },
+        mileageInterval: { $gt: 0 }
       };
       
-      // Si hay marca, intentar filtrar por marca (opcional)
+      // Filtrar por marca si está disponible
       if (vehicleBrand) {
-        // Buscar servicios que apliquen a esta marca o sean genéricos
         templateQuery.$or = [
           { makes: { $in: [vehicleBrand] } },
-          { makes: { $size: 0 } }, // Sin marca específica = genérico
-          { makes: { $exists: false } } // Sin campo makes = genérico
+          { makes: { $size: 0 } },
+          { makes: { $exists: false } }
         ];
       }
       
-      // Traer servicios comunes primero, luego otros, ordenados por prioridad
+      // También filtrar por vehicleId si está disponible
+      if (vehicleId) {
+        templateQuery.$or = [
+          ...(templateQuery.$or || []),
+          { vehicleIds: new mongoose.Types.ObjectId(vehicleId) }
+        ];
+      }
+      
+      // Traer plantillas ordenadas por prioridad
       const templates = await MaintenanceTemplate.find(templateQuery)
         .sort({ isCommon: -1, priority: 1, serviceName: 1 })
-        .limit(50) // Limitar a 50 servicios más comunes
+        .limit(100)
         .lean();
       
-      // Convertir plantillas a servicios de la planilla
-      const currentMileage = schedule.currentMileage || 0;
-      
-      schedule.services = templates.map(template => {
-        return {
+      // Crear planilla base del vehículo
+      schedule = await VehicleServiceSchedule.create({
+        companyId,
+        vehicleId: new mongoose.Types.ObjectId(vehicleId),
+        services: templates.map(template => ({
           serviceName: template.serviceName,
           serviceKey: template.serviceId,
           system: template.system || '',
           mileageInterval: template.mileageInterval || 0,
-          mileageIntervalMax: template.mileageIntervalMax || null, // Rango máximo si existe
+          mileageIntervalMax: template.mileageIntervalMax || null,
           monthsInterval: template.monthsInterval || 0,
-          lastPerformedMileage: null,
-          lastPerformedDate: null,
-          nextDueMileage: null, // Se calculará con updateMileage
-          nextDueDate: null,
-          status: 'pending',
           notes: template.notes || ''
-        };
+        }))
       });
-      
-      // Recalcular estados basados en el kilometraje actual
-      if (schedule.currentMileage !== null && schedule.currentMileage > 0) {
-        schedule.updateMileage(schedule.currentMileage);
-      } else if (currentMileage > 0) {
-        schedule.currentMileage = currentMileage;
-        schedule.updateMileage(currentMileage);
-      }
-      
-      await schedule.save();
     }
+
+    // Obtener kilometraje actual del cliente
+    const currentMileage = profile.vehicle?.mileage || null;
+    
+    // Obtener historial de servicios del cliente
+    const serviceHistory = (profile.serviceHistory || []).map(h => ({
+      serviceKey: h.serviceKey,
+      lastPerformedMileage: h.lastPerformedMileage,
+      lastPerformedDate: h.lastPerformedDate
+    }));
+
+    // Calcular servicios con datos del cliente
+    const servicesWithCustomerData = schedule.calculateServicesForCustomer(currentMileage, serviceHistory);
 
     res.json({
       vehicle: {
@@ -362,15 +354,15 @@ export const getVehicleServiceSchedule = async (req, res) => {
         year: profile.vehicle?.year || null
       },
       schedule: {
-        currentMileage: schedule.currentMileage,
-        mileageUpdatedAt: schedule.mileageUpdatedAt,
-        services: schedule.services.map(s => ({
-          id: s._id,
+        currentMileage: currentMileage,
+        mileageUpdatedAt: profile.updatedAt, // Usar fecha de actualización del perfil
+        services: servicesWithCustomerData.map((s, index) => ({
+          id: schedule.services[index]?._id || s._id || index.toString(),
           serviceName: s.serviceName,
           serviceKey: s.serviceKey,
           system: s.system || '',
           mileageInterval: s.mileageInterval,
-          mileageIntervalMax: s.mileageIntervalMax || null, // Rango máximo si existe
+          mileageIntervalMax: s.mileageIntervalMax || null,
           monthsInterval: s.monthsInterval || 0,
           lastPerformedMileage: s.lastPerformedMileage,
           lastPerformedDate: s.lastPerformedDate,
@@ -432,24 +424,20 @@ export const updateVehicleServiceSchedule = async (req, res) => {
       return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
 
-    // Buscar planilla
+    // Obtener vehicleId del perfil
+    const vehicleId = profile.vehicle?.vehicleId;
+    if (!vehicleId || !mongoose.Types.ObjectId.isValid(vehicleId)) {
+      return res.status(400).json({ error: 'El vehículo no está correctamente vinculado. Contacte al taller.' });
+    }
+
+    // Buscar planilla del vehículo (compartida por todos los clientes)
     let schedule = await VehicleServiceSchedule.findOne({
       companyId,
-      plate: plateUpper
+      vehicleId: new mongoose.Types.ObjectId(vehicleId)
     });
 
+    // Si no existe planilla, crearla (esto no debería pasar si se ejecutó el script)
     if (!schedule) {
-      schedule = await VehicleServiceSchedule.create({
-        companyId,
-        plate: plateUpper,
-        customerProfileId: profile._id,
-        currentMileage: mileage || profile.vehicle?.mileage || null,
-        services: []
-      });
-    }
-    
-    // Si la planilla está vacía, inicializar con plantillas de mantenimiento
-    if (!schedule.services || schedule.services.length === 0) {
       const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
       
       const vehicleBrand = profile.vehicle?.brand?.toUpperCase() || '';
@@ -464,37 +452,47 @@ export const updateVehicleServiceSchedule = async (req, res) => {
         templateQuery.$or = [
           { makes: { $in: [vehicleBrand] } },
           { makes: { $size: 0 } },
-          { makes: { $exists: false } }
+          { makes: { $exists: false } },
+          { vehicleIds: new mongoose.Types.ObjectId(vehicleId) }
         ];
       }
       
       const templates = await MaintenanceTemplate.find(templateQuery)
         .sort({ isCommon: -1, priority: 1, serviceName: 1 })
-        .limit(50)
+        .limit(100)
         .lean();
       
-      schedule.services = templates.map(template => ({
-        serviceName: template.serviceName,
-        serviceKey: template.serviceId,
-        system: template.system || '',
-        mileageInterval: template.mileageInterval || 0,
-        monthsInterval: template.monthsInterval || 0,
-        lastPerformedMileage: null,
-        lastPerformedDate: null,
-        nextDueMileage: null,
-        nextDueDate: null,
-        status: 'pending',
-        notes: template.notes || ''
-      }));
+      schedule = await VehicleServiceSchedule.create({
+        companyId,
+        vehicleId: new mongoose.Types.ObjectId(vehicleId),
+        services: templates.map(template => ({
+          serviceName: template.serviceName,
+          serviceKey: template.serviceId,
+          system: template.system || '',
+          mileageInterval: template.mileageInterval || 0,
+          mileageIntervalMax: template.mileageIntervalMax || null,
+          monthsInterval: template.monthsInterval || 0,
+          notes: template.notes || ''
+        }))
+      });
     }
 
-    // Actualizar kilometraje si se proporciona
-    if (mileage !== null && mileage !== undefined) {
-      const newMileage = Number(mileage);
-      if (newMileage >= 0 && (schedule.currentMileage === null || newMileage > schedule.currentMileage)) {
-        schedule.updateMileage(newMileage);
-      }
+    // Actualizar kilometraje del cliente si se proporciona
+    const newMileage = mileage !== null && mileage !== undefined ? Number(mileage) : profile.vehicle?.mileage || null;
+    const updateData = {};
+    
+    if (newMileage !== null && newMileage >= 0) {
+      updateData['vehicle.mileage'] = newMileage;
     }
+
+    // Obtener historial actual del cliente
+    const currentHistory = profile.serviceHistory || [];
+    const historyMap = new Map();
+    currentHistory.forEach(h => {
+      if (h.serviceKey) {
+        historyMap.set(h.serviceKey, h);
+      }
+    });
 
     // Procesar actualizaciones de servicios
     for (const serviceUpdate of services) {
@@ -502,62 +500,67 @@ export const updateVehicleServiceSchedule = async (req, res) => {
       
       if (!serviceId) continue;
 
-      const service = schedule.services.id(serviceId);
-      if (!service) {
-        logger.warn('[updateVehicleServiceSchedule] Servicio no encontrado', { serviceId });
+      // Buscar el servicio en la planilla base
+      const scheduleService = schedule.services.find(s => 
+        s.serviceKey === String(serviceId).trim().toUpperCase()
+      );
+
+      if (!scheduleService) {
+        logger.warn('[updateVehicleServiceSchedule] Servicio no encontrado en planilla', { serviceId });
         continue;
       }
 
       if (action === 'completed') {
-        const serviceMileageNum = serviceMileage ? Number(serviceMileage) : schedule.currentMileage;
+        const serviceMileageNum = serviceMileage ? Number(serviceMileage) : newMileage;
         if (serviceMileageNum && serviceMileageNum > 0) {
-          service.lastPerformedMileage = serviceMileageNum;
-          service.lastPerformedDate = new Date();
-          service.nextDueMileage = serviceMileageNum + service.mileageInterval;
-          service.status = 'completed';
+          const existingHistory = historyMap.get(scheduleService.serviceKey);
           
-          // Si el kilometraje del servicio es mayor al actual, actualizar
-          if (schedule.currentMileage === null || serviceMileageNum > schedule.currentMileage) {
-            schedule.currentMileage = serviceMileageNum;
-            schedule.mileageUpdatedAt = new Date();
+          // Solo actualizar si el kilometraje es mayor (servicio más reciente)
+          if (!existingHistory || serviceMileageNum >= existingHistory.lastPerformedMileage) {
+            historyMap.set(scheduleService.serviceKey, {
+              serviceKey: scheduleService.serviceKey,
+              lastPerformedMileage: serviceMileageNum,
+              lastPerformedDate: new Date(),
+              saleId: null // No hay venta asociada en actualización manual
+            });
           }
-        }
-      } else if (action === 'skipped') {
-        // Marcar como saltado: recalcular próximo servicio basado en el kilometraje actual
-        if (schedule.currentMileage) {
-          // Si ya tiene un último servicio realizado, calcular desde ahí
-          if (service.lastPerformedMileage) {
-            service.nextDueMileage = service.lastPerformedMileage + service.mileageInterval;
-          } else {
-            // Si nunca se ha realizado, calcular desde el kilometraje actual
-            service.nextDueMileage = schedule.currentMileage + service.mileageInterval;
-          }
-          // Mantener el estado según el kilometraje (se recalculará abajo con updateMileage)
         }
       }
+      // Para 'skipped' no hacemos nada, solo se recalcula al consultar
     }
 
-    // Recalcular estados de todos los servicios
-    if (schedule.currentMileage !== null) {
-      schedule.updateMileage(schedule.currentMileage);
-    }
+    // Actualizar perfil con historial y kilometraje
+    updateData.serviceHistory = Array.from(historyMap.values());
+    
+    await CustomerProfile.updateOne(
+      { _id: profile._id },
+      { $set: updateData }
+    );
 
-    await schedule.save();
+    // Recalcular servicios con datos del cliente para la respuesta
+    const finalMileage = newMileage || profile.vehicle?.mileage || null;
+    const serviceHistory = Array.from(historyMap.values());
+    const servicesWithCustomerData = schedule.calculateServicesForCustomer(finalMileage, serviceHistory);
 
     res.json({
       success: true,
       schedule: {
-        currentMileage: schedule.currentMileage,
-        mileageUpdatedAt: schedule.mileageUpdatedAt,
-        services: schedule.services.map(s => ({
-          id: s._id,
+        currentMileage: finalMileage,
+        mileageUpdatedAt: new Date(),
+        services: servicesWithCustomerData.map((s, index) => ({
+          id: schedule.services[index]?._id || s._id || index.toString(),
           serviceName: s.serviceName,
           serviceKey: s.serviceKey,
+          system: s.system || '',
           mileageInterval: s.mileageInterval,
+          mileageIntervalMax: s.mileageIntervalMax || null,
+          monthsInterval: s.monthsInterval || 0,
           lastPerformedMileage: s.lastPerformedMileage,
           lastPerformedDate: s.lastPerformedDate,
           nextDueMileage: s.nextDueMileage,
-          status: s.status
+          nextDueDate: s.nextDueDate,
+          status: s.status,
+          notes: s.notes || ''
         }))
       }
     });
