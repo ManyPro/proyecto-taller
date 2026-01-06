@@ -595,10 +595,21 @@ function renderSchedule(schedule) {
   if (noSchedule) noSchedule.classList.add('hidden');
 
   // Separar servicios por estado para mejor organización
+  // ORDENAR: Completados primero, luego los demás por prioridad
   const completed = schedule.services.filter(s => s.status === 'completed');
   const overdue = schedule.services.filter(s => s.status === 'overdue');
   const due = schedule.services.filter(s => s.status === 'due');
   const pending = schedule.services.filter(s => s.status === 'pending');
+  
+  // Ordenar completados por fecha de último servicio (más reciente primero)
+  completed.sort((a, b) => {
+    if (a.lastPerformedDate && b.lastPerformedDate) {
+      return new Date(b.lastPerformedDate) - new Date(a.lastPerformedDate);
+    }
+    if (a.lastPerformedDate) return -1;
+    if (b.lastPerformedDate) return 1;
+    return 0;
+  });
 
   const renderServiceCard = (service) => {
     const statusColors = {
@@ -764,6 +775,28 @@ function renderSchedule(schedule) {
 
   let html = '';
 
+  // SERVICIOS COMPLETADOS PRIMERO (como solicitó el usuario)
+  if (completed.length > 0) {
+    html += `
+      <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+          <div class="p-2 bg-green-500/20 rounded-lg">
+            <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-green-400">Servicios Completados</h3>
+            <p class="text-sm text-green-300/70">${completed.length} servicio${completed.length !== 1 ? 's' : ''} completado${completed.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        <div class="space-y-4">
+          ${completed.map(renderServiceCard).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   // Servicios vencidos (prioridad alta)
   if (overdue.length > 0) {
     html += `
@@ -830,27 +863,6 @@ function renderSchedule(schedule) {
     `;
   }
 
-  // Servicios completados (al final)
-  if (completed.length > 0) {
-    html += `
-      <div class="mb-8">
-        <div class="flex items-center gap-3 mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-          <div class="p-2 bg-green-500/20 rounded-lg">
-            <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-green-400">Servicios Completados</h3>
-            <p class="text-sm text-green-300/70">${completed.length} servicio${completed.length !== 1 ? 's' : ''} realizado${completed.length !== 1 ? 's' : ''} correctamente</p>
-          </div>
-        </div>
-        <div class="space-y-4">
-          ${completed.map(renderServiceCard).join('')}
-        </div>
-      </div>
-    `;
-  }
 
   container.innerHTML = html;
   

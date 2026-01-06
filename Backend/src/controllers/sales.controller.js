@@ -1631,15 +1631,21 @@ export const closeSale = async (req, res) => {
             
             // Procesar cada servicio seleccionado
             for (const serviceId of completedMaintenanceServices) {
+              const serviceIdUpper = String(serviceId).trim().toUpperCase();
+              
               // Buscar plantilla de mantenimiento
               const template = await MaintenanceTemplate.findOne({
                 companyId: req.companyId,
-                serviceId: String(serviceId).trim().toUpperCase(),
-                active: true
+                serviceId: serviceIdUpper,
+                active: { $ne: false }
               }).session(session);
               
               if (!template) {
-                logger.warn('[closeSale] Plantilla de mantenimiento no encontrada', { serviceId });
+                logger.warn('[closeSale] Plantilla de mantenimiento no encontrada', { 
+                  serviceId,
+                  serviceIdUpper,
+                  companyId: req.companyId
+                });
                 continue;
               }
               
@@ -1649,13 +1655,27 @@ export const closeSale = async (req, res) => {
               // Actualizar o agregar al historial del cliente
               const existingHistory = historyMap.get(serviceKey);
               
-              // Solo actualizar si el kilometraje es mayor (servicio más reciente)
-              if (!existingHistory || saleMileage >= existingHistory.lastPerformedMileage) {
+              // Solo actualizar si el kilometraje es mayor o igual (servicio más reciente)
+              // O si no existe historial previo
+              if (!existingHistory || saleMileage >= (existingHistory.lastPerformedMileage || 0)) {
                 historyMap.set(serviceKey, {
                   serviceKey,
                   lastPerformedMileage: saleMileage,
                   lastPerformedDate: serviceDate,
                   saleId: sale._id
+                });
+                
+                logger.info('[closeSale] Servicio agregado al historial', {
+                  serviceKey,
+                  serviceId: serviceIdUpper,
+                  mileage: saleMileage,
+                  date: serviceDate
+                });
+              } else {
+                logger.info('[closeSale] Servicio no actualizado (kilometraje menor al existente)', {
+                  serviceKey,
+                  existingMileage: existingHistory.lastPerformedMileage,
+                  newMileage: saleMileage
                 });
               }
             }

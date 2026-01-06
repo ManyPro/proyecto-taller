@@ -1620,8 +1620,16 @@ async function openMaintenanceServicesModal() {
     };
 
     loadTemplates().then(templates => {
+      // Obtener selecciones previas para esta venta
+      const saleId = current?._id || 'current';
+      if (!maintenanceSelections[saleId]) {
+        maintenanceSelections[saleId] = { services: [], mileage: null };
+      }
+      const currentSelection = maintenanceSelections[saleId];
+      const selectedMaintenanceServices = currentSelection.services;
+      
       // Construir HTML del modal
-      const mileageValue = currentMileage || '';
+      const mileageValue = currentSelection.mileage || currentMileage || '';
       const mileageInput = `
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2">Kilometraje actual del vehículo</label>
@@ -1732,7 +1740,9 @@ async function openMaintenanceServicesModal() {
       };
 
       const renderServiceCard = (t, isCommon = true) => {
-        const isChecked = t.priority === 1;
+        // Verificar si este servicio ya estaba seleccionado previamente
+        const wasSelected = selectedMaintenanceServices.includes(t.serviceId);
+        const isChecked = wasSelected || t.priority === 1;
         const shortNotes = summarizeText(t.notes || '', 50);
         return `
           <label class="maintenance-service-card block relative cursor-pointer group">
@@ -1964,8 +1974,9 @@ async function openMaintenanceServicesModal() {
       
       // Event listeners
       document.getElementById('maintenance-skip')?.addEventListener('click', () => {
-        selectedMaintenanceServices = [];
-        saleMileage = null;
+        // Limpiar selecciones para esta venta
+        currentSelection.services = [];
+        currentSelection.mileage = null;
         modal.classList.add('hidden');
         body.innerHTML = '';
         // Cerrar el modal sin continuar con el flujo de pago
@@ -1975,12 +1986,16 @@ async function openMaintenanceServicesModal() {
       document.getElementById('maintenance-continue')?.addEventListener('click', async () => {
         // Obtener servicios seleccionados
         const checkboxes = body.querySelectorAll('.maintenance-service-checkbox:checked');
-        selectedMaintenanceServices = Array.from(checkboxes).map(cb => cb.value);
+        currentSelection.services = Array.from(checkboxes).map(cb => cb.value);
         
         // Obtener kilometraje
         const mileageInput = document.getElementById('maintenance-mileage');
         const mileageValue = mileageInput ? Number(mileageInput.value) : null;
-        saleMileage = Number.isFinite(mileageValue) && mileageValue > 0 ? mileageValue : null;
+        currentSelection.mileage = Number.isFinite(mileageValue) && mileageValue > 0 ? mileageValue : null;
+        
+        // Guardar en variables locales para uso en el código siguiente
+        const selectedMaintenanceServices = currentSelection.services;
+        const saleMileage = currentSelection.mileage;
         
         // Si se seleccionó cambio de aceite (prioridad 1), preguntar aceite y generar sticker
         const oilChangeService = templates.find(t => t.priority === 1 && selectedMaintenanceServices.includes(t.serviceId));
@@ -2121,13 +2136,12 @@ async function openMaintenanceServicesModal() {
           }
         }
         
-        // Guardar los datos en variables globales para que se pasen al cierre de la venta
-        // selectedMaintenanceServices y saleMileage ya están guardados arriba
+        // Los datos ya están guardados en currentSelection (maintenanceSelections[saleId])
+        // que se usará al cerrar la venta
         
         modal.classList.add('hidden');
         body.innerHTML = '';
         // Resolver la promesa para continuar con el flujo de pago
-        // Los datos ya están guardados en selectedMaintenanceServices y saleMileage
         resolve();
       });
     }).catch(err => {
@@ -3262,6 +3276,10 @@ function fillCloseModal(){
       const investmentInput = document.getElementById('cv-investment-amount');
       const investmentAmount = investmentInput ? Number(investmentInput.value || 0) : 0;
       
+      // Obtener selecciones de mantenimiento para esta venta
+      const saleId = current?._id || 'current';
+      const maintenanceSelection = maintenanceSelections[saleId] || { services: [], mileage: null };
+      
       const payload = {
         paymentMethods: paymentMethodsToSend,
         technician: techSel.value||'',
@@ -3272,8 +3290,8 @@ function fillCloseModal(){
         investment: investmentAmount > 0 ? investmentAmount : undefined,
         total: total, // Enviar el total para que el backend pueda validarlo
         // Servicios de mantenimiento seleccionados
-        completedMaintenanceServices: selectedMaintenanceServices || [],
-        mileage: saleMileage || null
+        completedMaintenanceServices: maintenanceSelection.services || [],
+        mileage: maintenanceSelection.mileage || null
       };
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');

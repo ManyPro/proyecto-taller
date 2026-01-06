@@ -158,6 +158,25 @@ export const getVehicleServices = async (req, res) => {
       .sort({ closedAt: -1 })
       .lean();
 
+    // Obtener historial de servicios del cliente para mapear serviceKeys a nombres
+    const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
+    const serviceHistory = profile.serviceHistory || [];
+    const serviceKeyToName = new Map();
+    
+    // Mapear serviceKeys a nombres de servicios desde las plantillas
+    if (serviceHistory.length > 0) {
+      const serviceKeys = serviceHistory.map(h => h.serviceKey).filter(Boolean);
+      const templates = await MaintenanceTemplate.find({
+        companyId,
+        serviceId: { $in: serviceKeys },
+        active: { $ne: false }
+      }).select('serviceId serviceName').lean();
+      
+      templates.forEach(t => {
+        serviceKeyToName.set(t.serviceId, t.serviceName);
+      });
+    }
+    
     // Procesar servicios de cada venta
     const servicesHistory = [];
     
@@ -195,6 +214,33 @@ export const getVehicleServices = async (req, res) => {
         }
       });
       
+      // Agregar servicios de mantenimiento del historial del cliente que corresponden a esta venta
+      const saleId = sale._id.toString();
+      serviceHistory.forEach(historyItem => {
+        if (historyItem.saleId && historyItem.saleId.toString() === saleId) {
+          const serviceName = serviceKeyToName.get(historyItem.serviceKey) || historyItem.serviceKey;
+          // Verificar que no esté ya en saleServices (evitar duplicados)
+          const alreadyIncluded = saleServices.some(s => 
+            s.name.toLowerCase() === serviceName.toLowerCase() ||
+            s.sku === historyItem.serviceKey
+          );
+          
+          if (!alreadyIncluded) {
+            saleServices.push({
+              name: serviceName,
+              sku: historyItem.serviceKey,
+              qty: 1,
+              unitPrice: 0,
+              total: 0,
+              isMaintenanceService: true,
+              mileage: historyItem.lastPerformedMileage,
+              date: historyItem.lastPerformedDate
+            });
+          }
+        }
+      });
+      
+      // Incluir la venta si tiene servicios o si tiene servicios de mantenimiento asociados
       if (saleServices.length > 0) {
         servicesHistory.push({
           saleNumber: sale.number || null,
@@ -278,57 +324,29 @@ export const getVehicleServiceSchedule = async (req, res) => {
       vehicleId: new mongoose.Types.ObjectId(vehicleId)
     });
 
-    // Si no existe planilla para este vehículo, crearla con plantillas de mantenimiento
+    // Si no existe planilla para este vehículo, NO crear una nueva dinámicamente
+    // La planilla debe ser generada por el script generate_renault_schedules.js
+    // para asegurar que solo se incluyan las plantillas correctas para cada vehículo
     if (!schedule) {
-      const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
-      
-      // Obtener información del vehículo para filtrar plantillas
-      const vehicleBrand = profile.vehicle?.brand?.toUpperCase() || '';
-      const vehicleLine = profile.vehicle?.line?.toUpperCase() || '';
-      
-      // Buscar plantillas de mantenimiento aplicables
-      const templateQuery = {
+      logger.warn('[getVehicleServiceSchedule] Planilla no encontrada para vehículo', {
         companyId,
-        active: { $ne: false },
-        mileageInterval: { $gt: 0 }
-      };
-      
-      // Filtrar por marca si está disponible
-      if (vehicleBrand) {
-        templateQuery.$or = [
-          { makes: { $in: [vehicleBrand] } },
-          { makes: { $size: 0 } },
-          { makes: { $exists: false } }
-        ];
-      }
-      
-      // También filtrar por vehicleId si está disponible
-      if (vehicleId) {
-        templateQuery.$or = [
-          ...(templateQuery.$or || []),
-          { vehicleIds: new mongoose.Types.ObjectId(vehicleId) }
-        ];
-      }
-      
-      // Traer plantillas ordenadas por prioridad
-      const templates = await MaintenanceTemplate.find(templateQuery)
-        .sort({ isCommon: -1, priority: 1, serviceName: 1 })
-        .limit(100)
-        .lean();
-      
-      // Crear planilla base del vehículo
-      schedule = await VehicleServiceSchedule.create({
-        companyId,
-        vehicleId: new mongoose.Types.ObjectId(vehicleId),
-        services: templates.map(template => ({
-          serviceName: template.serviceName,
-          serviceKey: template.serviceId,
-          system: template.system || '',
-          mileageInterval: template.mileageInterval || 0,
-          mileageIntervalMax: template.mileageIntervalMax || null,
-          monthsInterval: template.monthsInterval || 0,
-          notes: template.notes || ''
-        }))
+        vehicleId,
+        plate: plateUpper
+      });
+      return res.json({
+        vehicle: {
+          plate: profile.plate,
+          brand: profile.vehicle?.brand || '',
+          line: profile.vehicle?.line || '',
+          engine: profile.vehicle?.engine || '',
+          year: profile.vehicle?.year || null
+        },
+        schedule: {
+          currentMileage: profile.vehicle?.mileage || null,
+          mileageUpdatedAt: profile.updatedAt,
+          services: [],
+          notes: 'Planilla no configurada. Contacte al taller para configurar los servicios de mantenimiento.'
+        }
       });
     }
 
@@ -436,44 +454,16 @@ export const updateVehicleServiceSchedule = async (req, res) => {
       vehicleId: new mongoose.Types.ObjectId(vehicleId)
     });
 
-    // Si no existe planilla, crearla (esto no debería pasar si se ejecutó el script)
+    // Si no existe planilla, NO crear una nueva dinámicamente
+    // La planilla debe ser generada por el script generate_renault_schedules.js
     if (!schedule) {
-      const MaintenanceTemplate = (await import('../models/MaintenanceTemplate.js')).default;
-      
-      const vehicleBrand = profile.vehicle?.brand?.toUpperCase() || '';
-      
-      const templateQuery = {
+      logger.warn('[updateVehicleServiceSchedule] Planilla no encontrada para vehículo', {
         companyId,
-        active: { $ne: false },
-        mileageInterval: { $gt: 0 }
-      };
-      
-      if (vehicleBrand) {
-        templateQuery.$or = [
-          { makes: { $in: [vehicleBrand] } },
-          { makes: { $size: 0 } },
-          { makes: { $exists: false } },
-          { vehicleIds: new mongoose.Types.ObjectId(vehicleId) }
-        ];
-      }
-      
-      const templates = await MaintenanceTemplate.find(templateQuery)
-        .sort({ isCommon: -1, priority: 1, serviceName: 1 })
-        .limit(100)
-        .lean();
-      
-      schedule = await VehicleServiceSchedule.create({
-        companyId,
-        vehicleId: new mongoose.Types.ObjectId(vehicleId),
-        services: templates.map(template => ({
-          serviceName: template.serviceName,
-          serviceKey: template.serviceId,
-          system: template.system || '',
-          mileageInterval: template.mileageInterval || 0,
-          mileageIntervalMax: template.mileageIntervalMax || null,
-          monthsInterval: template.monthsInterval || 0,
-          notes: template.notes || ''
-        }))
+        vehicleId,
+        plate: plateUpper
+      });
+      return res.status(404).json({ 
+        error: 'Planilla de servicios no configurada. Contacte al taller para configurar los servicios de mantenimiento.' 
       });
     }
 
@@ -501,12 +491,19 @@ export const updateVehicleServiceSchedule = async (req, res) => {
       if (!serviceId) continue;
 
       // Buscar el servicio en la planilla base
+      // El serviceId puede venir como serviceId o serviceKey, normalizar
+      const serviceIdUpper = String(serviceId).trim().toUpperCase();
       const scheduleService = schedule.services.find(s => 
-        s.serviceKey === String(serviceId).trim().toUpperCase()
+        s.serviceKey === serviceIdUpper || 
+        String(s.serviceKey || '').toUpperCase() === serviceIdUpper
       );
 
       if (!scheduleService) {
-        logger.warn('[updateVehicleServiceSchedule] Servicio no encontrado en planilla', { serviceId });
+        logger.warn('[updateVehicleServiceSchedule] Servicio no encontrado en planilla', { 
+          serviceId,
+          serviceIdUpper,
+          availableServiceKeys: schedule.services.map(s => s.serviceKey).slice(0, 5)
+        });
         continue;
       }
 
