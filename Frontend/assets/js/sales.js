@@ -1689,6 +1689,10 @@ async function openMaintenanceServicesModal() {
         // Re-renderizar servicios
         const servicesContainer = document.getElementById('maintenance-services-container');
         if (servicesContainer) {
+          // Obtener selecciones actuales para restaurar checkboxes
+          // saleId y currentSelection ya están declarados en el scope superior
+          const currentSelectedServices = currentSelection.services || [];
+          
           const filteredCommon = filteredTemplates.filter(t => t.isCommon || t.priority <= 20);
           const filteredOther = filteredTemplates.filter(t => !t.isCommon && t.priority > 20);
           
@@ -1697,6 +1701,42 @@ async function openMaintenanceServicesModal() {
             if (b.priority === 1) return 1;
             return (a.priority || 100) - (b.priority || 100);
           });
+          
+          // Función para renderizar con selecciones actuales
+          const renderServiceCardWithSelection = (t, isCommon) => {
+            const wasSelected = currentSelectedServices.includes(t.serviceId);
+            const isChecked = wasSelected || (!currentSelectedServices.length && t.priority === 1);
+            const shortNotes = summarizeText(t.notes || '', 50);
+            return `
+              <label class="maintenance-service-card block relative cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  value="${t.serviceId}" 
+                  class="maintenance-service-checkbox absolute opacity-0 w-0 h-0 peer"
+                  ${isChecked ? 'checked' : ''}
+                />
+                <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-slate-700/50 rounded-xl p-4 transition-all duration-200 peer-checked:border-blue-500 peer-checked:bg-blue-900/20 peer-checked:shadow-lg peer-checked:shadow-blue-500/20 hover:border-slate-600 hover:shadow-md h-full">
+                  <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 mt-0.5">
+                      <div class="w-6 h-6 rounded-md border-2 border-slate-600 bg-slate-700/50 flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400">
+                        <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-semibold text-white mb-1 text-sm leading-tight">${escapeHtml(t.serviceName)}</div>
+                      <div class="flex items-center gap-2 mb-1.5">
+                        <span class="px-2 py-0.5 bg-slate-700/50 rounded text-xs text-slate-300">${escapeHtml(t.system || 'General')}</span>
+                        <span class="text-xs text-slate-400">${formatInterval(t)}</span>
+                      </div>
+                      ${shortNotes ? `<div class="text-xs text-slate-500 leading-relaxed">${escapeHtml(shortNotes)}</div>` : ''}
+                    </div>
+                  </div>
+                </div>
+              </label>
+            `;
+          };
           
           servicesContainer.innerHTML = `
             ${filteredCommon.length > 0 ? `
@@ -1708,7 +1748,7 @@ async function openMaintenanceServicesModal() {
                   SERVICIOS COMUNES
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  ${filteredCommon.map(t => renderServiceCard(t, true)).join('')}
+                  ${filteredCommon.map(t => renderServiceCardWithSelection(t, true)).join('')}
                 </div>
               </div>
             ` : ''}
@@ -1721,7 +1761,7 @@ async function openMaintenanceServicesModal() {
                   OTROS SERVICIOS
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  ${filteredOther.map(t => renderServiceCard(t, false)).join('')}
+                  ${filteredOther.map(t => renderServiceCardWithSelection(t, false)).join('')}
                 </div>
               </div>
             ` : ''}
@@ -1988,14 +2028,7 @@ async function openMaintenanceServicesModal() {
         });
       }
       
-      // Obtener o crear selecciones para esta venta (asegurar que existe)
-      const saleId = current?._id ? String(current._id) : 'current';
-      if (!maintenanceSelections[saleId]) {
-        maintenanceSelections[saleId] = { services: [], mileage: null };
-      }
-      const currentSelection = maintenanceSelections[saleId];
-      
-      // Event listeners
+      // Event listeners (saleId y currentSelection ya están declarados arriba)
       document.getElementById('maintenance-skip')?.addEventListener('click', () => {
         // Limpiar selecciones para esta venta
         currentSelection.services = [];
