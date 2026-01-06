@@ -1,11 +1,17 @@
 // Frontend/assets/js/clientes.js
 // Gestión de clientes: planillas y tiers
-// Versión: 2026-01-06
+// Versión: 2026-01-06-v3
+// IMPORTANTE: Este archivo NO usa import/export - se carga como script normal
 
-// Cargar API desde window (api.js lo expone globalmente)
-// NO usar import/export - este archivo se carga como script normal
-const API_BASE = (typeof window !== 'undefined' && window.BACKEND_URL) ? window.BACKEND_URL : 
-                (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+(function() {
+  'use strict';
+  
+  console.log('[clientes.js] Iniciando carga del script...');
+  
+  // Cargar API desde window (api.js lo expone globalmente)
+  // NO usar import/export - este archivo se carga como script normal
+  const API_BASE = (typeof window !== 'undefined' && window.BACKEND_URL) ? window.BACKEND_URL : 
+                  (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
 // Obtener API desde window
 function getAPI() {
@@ -629,4 +635,6 @@ if (document.readyState === 'loading') {
   waitForAPIAndExtend();
   waitForAPIAndInit();
 }
+
+})(); // Cerrar IIFE - NO usar import/export
 
