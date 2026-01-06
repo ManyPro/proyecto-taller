@@ -80,8 +80,8 @@ async function init() {
   // Configurar eventos
   setupEvents();
 
-  // Cargar clientes para la pestaña Tiers
-  await loadCustomers();
+  // Cargar clientes para la pestaña Tiers (solo primeros 100, sin búsqueda)
+  await loadCustomers('');
 }
 
 // Configurar tabs
@@ -167,13 +167,28 @@ function setupEvents() {
   const refreshCustomersBtn = document.getElementById('refreshCustomersBtn');
   
   if (searchCustomerTier) {
-    searchCustomerTier.addEventListener('input', filterCustomers);
+    // Usar input para búsqueda en tiempo real con debounce (ya implementado en filterCustomers)
+    searchCustomerTier.addEventListener('input', () => {
+      filterCustomers();
+    });
+    // También permitir búsqueda inmediata con Enter
+    searchCustomerTier.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (searchTimeout) {
+          clearTimeout(searchTimeout);
+        }
+        filterCustomers();
+      }
+    });
   }
   
   if (refreshCustomersBtn) {
     refreshCustomersBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      loadCustomers();
+      const searchInput = document.getElementById('searchCustomerTier');
+      const searchTerm = searchInput?.value?.trim() || '';
+      loadCustomers(searchTerm);
     });
   }
 }
@@ -336,36 +351,82 @@ function hideSchedule() {
   if (scheduleCard) scheduleCard.classList.add('hidden');
 }
 
-// Cargar clientes
-async function loadCustomers() {
+// Cargar clientes (solo los necesarios según búsqueda)
+async function loadCustomers(searchTerm = '') {
   try {
     const API = getAPI();
-    const data = await API.customers.list(state.companyId);
+    const search = searchTerm.trim();
+    
+    // Si hay búsqueda, solo cargar esa página de resultados
+    if (search) {
+      const data = await API.customers.list(state.companyId, search, 100, 1);
+      state.customers = data.customers || [];
+      console.log(`Cargados ${state.customers.length} clientes (búsqueda: "${search}")`);
+      renderCustomers();
+      return;
+    }
+    
+    // Si no hay búsqueda, cargar solo la primera página (100 clientes)
+    // El usuario puede buscar si necesita más
+    const data = await API.customers.list(state.companyId, '', 100, 1);
     state.customers = data.customers || [];
-    filterCustomers();
+    const total = data.pagination?.total || 0;
+    
+    if (total > 100) {
+      console.log(`Cargados ${state.customers.length} de ${total} clientes. Usa la búsqueda para encontrar más.`);
+    } else {
+      console.log(`Cargados ${state.customers.length} clientes`);
+    }
+    
+    renderCustomers();
   } catch (error) {
     console.error('Error cargando clientes:', error);
     showError('tiersError', error.message || 'Error al cargar clientes');
   }
 }
 
-// Filtrar clientes
-function filterCustomers() {
-  const searchCustomerTier = document.getElementById('searchCustomerTier');
-  const searchTerm = (searchCustomerTier?.value || '').trim().toLowerCase();
+// Variable para debounce de búsqueda
+let searchTimeout = null;
 
-  if (!searchTerm) {
-    state.filteredCustomers = state.customers;
-  } else {
-    state.filteredCustomers = state.customers.filter(c => {
-      const plate = (c.plate || '').toLowerCase();
-      const name = (c.customer?.name || '').toLowerCase();
-      const phone = (c.customer?.phone || '').toLowerCase();
-      return plate.includes(searchTerm) || name.includes(searchTerm) || phone.includes(searchTerm);
-    });
+// Filtrar clientes (búsqueda en el servidor para no sobrecargar)
+async function filterCustomers() {
+  const searchCustomerTier = document.getElementById('searchCustomerTier');
+  const searchTerm = (searchCustomerTier?.value || '').trim();
+
+  // Limpiar timeout anterior
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
   }
 
-  renderCustomers();
+  // Si no hay búsqueda, usar los clientes ya cargados
+  if (!searchTerm) {
+    state.filteredCustomers = state.customers;
+    renderCustomers();
+    return;
+  }
+
+  // Debounce: esperar 500ms después de que el usuario deje de escribir
+  searchTimeout = setTimeout(async () => {
+    try {
+      const API = getAPI();
+      // Buscar en el servidor (solo trae los resultados de la búsqueda)
+      const data = await API.customers.list(state.companyId, searchTerm, 100, 1);
+      state.filteredCustomers = data.customers || [];
+      console.log(`Búsqueda: "${searchTerm}" - ${state.filteredCustomers.length} resultados`);
+      renderCustomers();
+    } catch (error) {
+      console.error('Error buscando clientes:', error);
+      // En caso de error, filtrar localmente como fallback
+      state.filteredCustomers = state.customers.filter(c => {
+        const plate = (c.plate || '').toLowerCase();
+        const name = (c.customer?.name || '').toLowerCase();
+        const phone = (c.customer?.phone || '').toLowerCase();
+        const term = searchTerm.toLowerCase();
+        return plate.includes(term) || name.includes(term) || phone.includes(term);
+      });
+      renderCustomers();
+    }
+  }, 500); // Esperar 500ms después de que el usuario deje de escribir
 }
 
 // Renderizar clientes
@@ -533,11 +594,13 @@ function extendAPI() {
         }
         return res.json();
       },
-      list: async (companyId, search = '') => {
+      list: async (companyId, search = '', limit = 100, page = 1) => {
         const token = API.token?.get?.();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-        const res = await fetch(`${API_BASE}/api/v1/customers/list?${searchParam}`, {
+        const limitParam = limit ? `&limit=${limit}` : '';
+        const pageParam = page ? `&page=${page}` : '';
+        const res = await fetch(`${API_BASE}/api/v1/customers/list?${searchParam}${limitParam}${pageParam}`, {
           headers,
           credentials: 'omit'
         });

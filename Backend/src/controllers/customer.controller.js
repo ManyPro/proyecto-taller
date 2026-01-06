@@ -284,7 +284,7 @@ export const listCustomers = async (req, res) => {
     }
 
     const searchTerm = String(search).trim();
-    const limitNum = Math.min(Number(limit) || 50, 100);
+    const limitNum = Math.min(Number(limit) || 50, 500); // Aumentado el límite máximo a 500
     const pageNum = Math.max(Number(page) || 1, 1);
     const skip = (pageNum - 1) * limitNum;
 
