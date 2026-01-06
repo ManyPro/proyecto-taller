@@ -1991,6 +1991,7 @@ async function openMaintenanceServicesModal() {
           }
           
           /* Estilos personalizados para scrollbars */
+          /* NOTA: saleId se declara UNA SOLA VEZ en la línea 1627 dentro de loadTemplates().then() */
           #maintenance-services-container::-webkit-scrollbar {
             width: 8px;
           }
