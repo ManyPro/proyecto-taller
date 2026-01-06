@@ -39,6 +39,7 @@ import receivablesRouter from './routes/receivables.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
 import chatsRouter from './routes/chats.routes.js';
 import maintenanceRouter from './routes/maintenance.routes.js';
+import customerRouter from './routes/customer.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 
 const app = express();
@@ -309,6 +310,7 @@ app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notifications
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
 app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
 app.use('/api/v1/maintenance', authCompany, withCompanyDefaults, maintenanceRouter);
+app.use('/api/v1/customers', authCompany, withCompanyDefaults, customerRouter);
 app.use('/api/v1/vehicles', authCompany, vehiclesRouter); // Global, sin companyId
 
 app.use((err, _req, res, _next) => {

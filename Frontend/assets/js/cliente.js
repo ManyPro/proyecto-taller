@@ -1055,9 +1055,44 @@ async function handleLogin(e) {
     // Renderizar información del vehículo (incluyendo placa)
     renderVehicleInfo(state.customer.vehicle, state.plate);
 
-    // Cargar servicios
+    // Configurar visibilidad de pestañas según tier
+    const tier = state.customer.tier || 'General';
+    const tabSchedule = document.getElementById('tabSchedule');
+    const scheduleTab = document.getElementById('scheduleTab');
+    
+    if (tier === 'General') {
+      // Cliente General: ocultar pestaña de planilla
+      if (tabSchedule) {
+        tabSchedule.classList.add('hidden');
+      }
+      if (scheduleTab) {
+        scheduleTab.classList.add('hidden');
+      }
+    } else if (tier === 'GOLD') {
+      // Cliente GOLD: mostrar ambas pestañas
+      if (tabSchedule) {
+        tabSchedule.classList.remove('hidden');
+      }
+      // Cargar planilla solo si es GOLD
+      await loadSchedule();
+    }
+
+    // Cargar servicios (siempre disponible)
     await loadServices();
-    await loadSchedule();
+    
+    // Asegurar que la pestaña de servicios esté activa después de cargar
+    const tabServices = document.getElementById('tabServices');
+    const servicesTab = document.getElementById('servicesTab');
+    if (tabServices && servicesTab) {
+      tabServices.classList.remove('text-slate-400', 'hover:text-slate-300');
+      tabServices.classList.add('text-slate-300', 'bg-blue-600');
+      if (tabSchedule && !tabSchedule.classList.contains('hidden')) {
+        tabSchedule.classList.remove('text-slate-300', 'bg-blue-600');
+        tabSchedule.classList.add('text-slate-400', 'hover:text-slate-300');
+      }
+      servicesTab.classList.remove('hidden');
+      if (scheduleTab) scheduleTab.classList.add('hidden');
+    }
   } catch (error) {
     showError(error.message || 'Error al autenticar. Verifica tus datos.');
   }

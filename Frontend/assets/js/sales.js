@@ -1658,7 +1658,7 @@ async function openMaintenanceServicesModal() {
         </div>
       `;
 
-      // Función para identificar servicios prioritarios (cambio de aceite, filtro aire, filtro aceite)
+      // Función para identificar servicios prioritarios (cambio de aceite, filtro aire, filtro aceite, filtro motor)
       const isPriorityService = (service) => {
         const name = (service.serviceName || '').toLowerCase();
         return name.includes('cambio de aceite') || 
@@ -1666,6 +1666,8 @@ async function openMaintenanceServicesModal() {
                name.includes('cambio filtro aire') ||
                name.includes('cambio filtro de aceite') ||
                name.includes('cambio filtro aceite') ||
+               name.includes('cambio filtro de motor') ||
+               name.includes('cambio filtro motor') ||
                service.priority === 1;
       };
       
@@ -1674,7 +1676,7 @@ async function openMaintenanceServicesModal() {
       const commonServices = templates.filter(t => !isPriorityService(t) && (t.isCommon || t.priority <= 20));
       const otherServices = templates.filter(t => !isPriorityService(t) && !t.isCommon && t.priority > 20);
       
-      // Ordenar servicios prioritarios: cambio de aceite primero, luego filtro aire, luego filtro aceite
+      // Ordenar servicios prioritarios: cambio de aceite primero, luego filtro aire, luego filtro motor, luego filtro aceite
       priorityServices.sort((a, b) => {
         const nameA = (a.serviceName || '').toLowerCase();
         const nameB = (b.serviceName || '').toLowerCase();
@@ -1687,7 +1689,11 @@ async function openMaintenanceServicesModal() {
         if (nameA.includes('filtro de aire') && !nameB.includes('filtro de aire')) return -1;
         if (!nameA.includes('filtro de aire') && nameB.includes('filtro de aire')) return 1;
         
-        // Filtro aceite tercero
+        // Filtro motor tercero
+        if (nameA.includes('filtro de motor') && !nameB.includes('filtro de motor')) return -1;
+        if (!nameA.includes('filtro de motor') && nameB.includes('filtro de motor')) return 1;
+        
+        // Filtro aceite cuarto
         if (nameA.includes('filtro de aceite') && !nameB.includes('filtro de aceite')) return -1;
         if (!nameA.includes('filtro de aceite') && nameB.includes('filtro de aceite')) return 1;
         
@@ -1722,8 +1728,34 @@ async function openMaintenanceServicesModal() {
           // saleId y currentSelection ya están declarados en el scope superior
           const currentSelectedServices = currentSelection.services || [];
           
-          const filteredCommon = filteredTemplates.filter(t => t.isCommon || t.priority <= 20);
-          const filteredOther = filteredTemplates.filter(t => !t.isCommon && t.priority > 20);
+          // Separar servicios prioritarios, comunes y otros del conjunto filtrado
+          const filteredPriority = filteredTemplates.filter(isPriorityService);
+          const filteredCommon = filteredTemplates.filter(t => !isPriorityService(t) && (t.isCommon || t.priority <= 20));
+          const filteredOther = filteredTemplates.filter(t => !isPriorityService(t) && !t.isCommon && t.priority > 20);
+          
+          // Ordenar servicios prioritarios filtrados
+          filteredPriority.sort((a, b) => {
+            const nameA = (a.serviceName || '').toLowerCase();
+            const nameB = (b.serviceName || '').toLowerCase();
+            
+            // Cambio de aceite primero
+            if (nameA.includes('cambio de aceite') && !nameB.includes('cambio de aceite')) return -1;
+            if (!nameA.includes('cambio de aceite') && nameB.includes('cambio de aceite')) return 1;
+            
+            // Filtro aire segundo
+            if (nameA.includes('filtro de aire') && !nameB.includes('filtro de aire')) return -1;
+            if (!nameA.includes('filtro de aire') && nameB.includes('filtro de aire')) return 1;
+            
+            // Filtro motor tercero
+            if (nameA.includes('filtro de motor') && !nameB.includes('filtro de motor')) return -1;
+            if (!nameA.includes('filtro de motor') && nameB.includes('filtro de motor')) return 1;
+            
+            // Filtro aceite cuarto
+            if (nameA.includes('filtro de aceite') && !nameB.includes('filtro de aceite')) return -1;
+            if (!nameA.includes('filtro de aceite') && nameB.includes('filtro de aceite')) return 1;
+            
+            return (a.priority || 100) - (b.priority || 100);
+          });
           
           filteredCommon.sort((a, b) => {
             if (a.priority === 1) return -1;
@@ -1955,7 +1987,7 @@ async function openMaintenanceServicesModal() {
 
       const modalHTML = `
         <div class="p-6 flex flex-col h-full max-h-[90vh]">
-          <div class="flex-1 overflow-y-auto">
+          <div class="flex-1 overflow-y-auto modal-body-scroll">
             <div class="flex items-center justify-between mb-4">
               <div class="flex items-center gap-3">
                 <div class="p-2 bg-blue-600/20 rounded-lg">
@@ -2045,31 +2077,58 @@ async function openMaintenanceServicesModal() {
             border-color: rgb(96, 165, 250) !important;
           }
           
-          /* Estilos personalizados para scrollbars */
+          /* Estilos personalizados para scrollbars - Mejorados */
           /* NOTA: saleId se declara UNA SOLA VEZ en la línea 1627 dentro de loadTemplates().then() */
           #maintenance-services-container::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
           }
           
           #maintenance-services-container::-webkit-scrollbar-track {
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(15, 23, 42, 0.8);
             border-radius: 10px;
+            border: 1px solid rgba(51, 65, 85, 0.3);
           }
           
           #maintenance-services-container::-webkit-scrollbar-thumb {
-            background: rgba(100, 116, 139, 0.6);
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.9) 100%);
             border-radius: 10px;
-            border: 2px solid rgba(30, 41, 59, 0.5);
+            border: 2px solid rgba(15, 23, 42, 0.8);
+            box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.2);
           }
           
           #maintenance-services-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 0.8);
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 246, 1) 100%);
+            box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3), 0 0 4px rgba(59, 130, 246, 0.4);
+          }
+          
+          #maintenance-services-container::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(180deg, rgba(37, 99, 235, 1) 0%, rgba(29, 78, 216, 1) 100%);
           }
           
           /* Para Firefox */
           #maintenance-services-container {
             scrollbar-width: thin;
-            scrollbar-color: rgba(100, 116, 139, 0.6) rgba(30, 41, 59, 0.5);
+            scrollbar-color: rgba(59, 130, 246, 0.8) rgba(15, 23, 42, 0.8);
+          }
+          
+          /* Scrollbar para el modal completo si tiene scroll */
+          .modal-body-scroll::-webkit-scrollbar {
+            width: 10px;
+          }
+          
+          .modal-body-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 10px;
+          }
+          
+          .modal-body-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.9) 100%);
+            border-radius: 10px;
+            border: 2px solid rgba(15, 23, 42, 0.8);
+          }
+          
+          .modal-body-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 246, 1) 100%);
           }
         `;
         document.head.appendChild(style);

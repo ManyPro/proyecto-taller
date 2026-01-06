@@ -27,7 +27,14 @@ const CustomerProfileSchema = new mongoose.Schema({
     lastPerformedMileage: { type: Number, required: true }, // Kilometraje en que se realizó
     lastPerformedDate: { type: Date, required: true }, // Fecha en que se realizó
     saleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sale', default: null } // Venta asociada (opcional)
-  }]
+  }],
+  // Tier del cliente: General o GOLD
+  tier: {
+    type: String,
+    enum: ['General', 'GOLD'],
+    default: 'General',
+    index: true
+  }
 }, { timestamps: true });
 
 CustomerProfileSchema.index(

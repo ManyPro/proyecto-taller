@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Clientes</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Suprimir warning de producción para Tailwind CDN
+    if(typeof console !== 'undefined' && console.warn) {
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        originalWarn.apply(console, args);
+      };
+    }
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #e0f2fe, #dbeafe, #e0f2fe) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(224, 242, 254, 0.9) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #e0f2fe !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-300,
+    body.theme-light .text-slate-400,
+    body.theme-light .text-slate-500,
+    body.theme-light .text-slate-600,
+    body.theme-light .text-slate-700,
+    body.theme-light .text-slate-800 {
+      color: #000000 !important;
+    }
+    body.theme-light input,
+    body.theme-light textarea,
+    body.theme-light select {
+      color: #000000 !important;
+      background-color: #ffffff !important;
+    }
+    body.theme-light input::placeholder,
+    body.theme-light textarea::placeholder {
+      color: #666666 !important;
+    }
+    
+    /* Animaciones suaves */
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Scrollbar personalizado */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(51, 65, 85, 0.3);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 min-h-screen">
+  <script src="assets/js/config.js"></script>
+  
+  <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Header -->
+    <div class="text-center mb-8 fade-in">
+      <div class="inline-block p-4 bg-blue-600/20 rounded-full mb-4">
+        <svg class="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-bold text-white mb-3">Gestión de Clientes</h1>
+      <p class="text-slate-300 text-lg">Administra planillas de servicios y configura tiers de clientes</p>
+    </div>
+
+    <!-- Tabs Internos -->
+    <div class="mb-6 fade-in">
+      <div class="flex space-x-1 bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
+        <button
+          id="tabPlanilla"
+          class="tab-button flex-1 px-6 py-3 font-medium text-slate-300 bg-blue-600 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          Planilla
+        </button>
+        <button
+          id="tabTiers"
+          class="tab-button flex-1 px-6 py-3 font-medium text-slate-400 hover:text-slate-300 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+          </svg>
+          Tiers
+        </button>
+      </div>
+    </div>
+
+    <!-- Pestaña Planilla -->
+    <div id="planillaTab" class="tab-content fade-in">
+      <div class="bg-slate-800/70 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-slate-700/50">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="p-2 bg-green-600/20 rounded-lg">
+            <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white">Buscar Planilla por Placa</h3>
+        </div>
+
+        <!-- Búsqueda por placa -->
+        <div class="mb-6">
+          <div class="flex gap-3">
+            <input
+              type="text"
+              id="searchPlate"
+              placeholder="Ingresa la placa (ej: ABC123)"
+              maxlength="6"
+              class="flex-1 px-4 py-3 bg-slate-900/70 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all uppercase font-semibold tracking-wider"
+              style="text-transform: uppercase;"
+            />
+            <button
+              id="searchPlateBtn"
+              class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Buscar
+            </button>
+          </div>
+        </div>
+
+        <!-- Información del vehículo encontrado -->
+        <div id="vehicleInfoCard" class="hidden mb-6 bg-slate-900/50 rounded-lg p-4 border border-slate-700/50">
+          <h4 class="text-lg font-bold text-white mb-3">Información del Vehículo</h4>
+          <div id="vehicleInfoContent" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Se llenará dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Planilla de servicios -->
+        <div id="scheduleCard" class="hidden">
+          <div class="mb-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600/20 rounded-lg">
+                  <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-400">Kilometraje actual</p>
+                  <p class="text-lg font-bold text-white"><span id="scheduleCurrentMileage">-</span></p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-slate-600/20 rounded-lg">
+                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-slate-400">Última actualización</p>
+                  <p class="text-sm font-medium text-slate-300"><span id="scheduleUpdatedAt">-</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="scheduleList" class="space-y-4 custom-scrollbar">
+            <!-- Se llenará dinámicamente -->
+          </div>
+          <div id="noSchedule" class="text-center py-12 text-slate-400 hidden">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            <p class="text-lg font-medium">No hay servicios programados</p>
+            <p class="text-sm mt-2">Esta planilla aún no está configurada.</p>
+          </div>
+        </div>
+
+        <!-- Mensaje de error -->
+        <div id="planillaError" class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm text-center"></div>
+      </div>
+    </div>
+
+    <!-- Pestaña Tiers -->
+    <div id="tiersTab" class="tab-content hidden fade-in">
+      <div class="bg-slate-800/70 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-yellow-600/20 rounded-lg">
+              <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white">Configuración de Tiers</h3>
+          </div>
+          <div class="flex gap-3">
+            <input
+              type="text"
+              id="searchCustomerTier"
+              placeholder="Buscar por placa, nombre o teléfono..."
+              class="px-4 py-2 bg-slate-900/70 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+            <button
+              id="refreshCustomersBtn"
+              class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Actualizar
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de clientes -->
+        <div id="customersList" class="space-y-3 custom-scrollbar max-h-[600px] overflow-y-auto">
+          <!-- Se llenará dinámicamente -->
+        </div>
+
+        <div id="noCustomers" class="text-center py-12 text-slate-400 hidden">
+          <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>
+          <p class="text-lg font-medium">No se encontraron clientes</p>
+          <p class="text-sm mt-2">No hay clientes registrados o no coinciden con la búsqueda.</p>
+        </div>
+
+        <!-- Mensaje de error -->
+        <div id="tiersError" class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm text-center"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/clientes.js"></script>
+</body>
+</html>
+

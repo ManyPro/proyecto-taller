@@ -92,6 +92,7 @@ export const authenticateCustomer = async (req, res) => {
       customer: {
         name: profile.customer?.name || '',
         plate: profile.plate,
+        tier: profile.tier || 'General', // Incluir tier del cliente
         vehicle: {
           brand: profile.vehicle?.brand || '',
           line: profile.vehicle?.line || '',
