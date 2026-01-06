@@ -2121,10 +2121,14 @@ async function openMaintenanceServicesModal() {
           }
         }
         
+        // Guardar los datos en variables globales para que se pasen al cierre de la venta
+        // selectedMaintenanceServices y saleMileage ya están guardados arriba
+        
         modal.classList.add('hidden');
         body.innerHTML = '';
-        // Cerrar el modal sin continuar con el flujo de pago
-        reject(new Error('Servicios procesados'));
+        // Resolver la promesa para continuar con el flujo de pago
+        // Los datos ya están guardados en selectedMaintenanceServices y saleMileage
+        resolve();
       });
     }).catch(err => {
       console.error('Error cargando plantillas de mantenimiento:', err);
