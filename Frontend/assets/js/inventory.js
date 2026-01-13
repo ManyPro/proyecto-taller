@@ -3662,295 +3662,109 @@ function openMarketplaceHelper(item){
   }
 
   async function renderStickerPdf(list, filenameBase = 'stickers') {
-    // CRÍTICO: Detectar empresa y usar layout correcto (Casa Renault o Serviteca Shelby)
-    const layout = await getStickerLayoutForCompany();
-    
-    // Dimensiones exactas: 5cm x 3cm
-    const widthCm = 5;
-    const heightCm = 3;
-    const widthPx = Math.round(widthCm * STICKER_PX_PER_CM); // 189px
-    const heightPx = Math.round(heightCm * STICKER_PX_PER_CM); // 113px
-    const widthMm = widthCm * 10; // 50mm
-    const heightMm = heightCm * 10; // 30mm
-    
-    console.log(`📐 Dimensiones: ${widthCm}cm x ${heightCm}cm = ${widthPx}px x ${heightPx}px = ${widthMm}mm x ${heightMm}mm`);
-
-    const html2canvas = await ensureHtml2Canvas();
+    // Generación directa con jsPDF (sin html2canvas)
     const jsPDF = await ensureJsPDF();
-
-    // Crear contenedor aislado
-    const root = createIsolatedCaptureContainer(widthPx, heightPx);
-
-    // Procesar cada sticker directamente desde los items
-    const images = [];
-    for (const { it, count } of list) {
-      for (let i = 0; i < count; i++) {
-        // Generar QR code para este item usando el endpoint del backend
-        const qrDataUrl = await generateQRCodeDataURL(it._id);
-        
-        // Crear HTML del sticker directamente en el frontend
-        const html = createStickerHTML(it, layout, widthPx, heightPx);
-        
-        // Crear box con dimensiones exactas
-        const box = createStickerBox(widthPx, heightPx);
-      
-      // CRÍTICO: Limpiar y establecer dimensiones exactas del box ANTES de insertar contenido
-      box.removeAttribute('style');
-      box.style.cssText = ''; // Limpiar completamente
-      
-      // Establecer TODOS los estilos necesarios con setProperty para máxima prioridad
-      box.style.setProperty('position', 'relative', 'important');
-      box.style.setProperty('width', `${widthPx}px`, 'important');
-      box.style.setProperty('height', `${heightPx}px`, 'important');
-      box.style.setProperty('min-width', `${widthPx}px`, 'important');
-      box.style.setProperty('min-height', `${heightPx}px`, 'important');
-      box.style.setProperty('max-width', `${widthPx}px`, 'important');
-      box.style.setProperty('max-height', `${heightPx}px`, 'important');
-      box.style.setProperty('overflow', 'hidden', 'important');
-      box.style.setProperty('box-sizing', 'border-box', 'important');
-      box.style.setProperty('margin', '0', 'important');
-      box.style.setProperty('padding', '0', 'important');
-      box.style.setProperty('transform', 'none', 'important');
-      box.style.setProperty('-webkit-transform', 'none', 'important');
-      box.style.setProperty('-moz-transform', 'none', 'important');
-      box.style.setProperty('-ms-transform', 'none', 'important');
-      box.style.setProperty('-o-transform', 'none', 'important');
-      box.style.setProperty('zoom', '1', 'important');
-      box.style.setProperty('scale', '1', 'important');
-      box.style.setProperty('display', 'block', 'important');
-      box.style.setProperty('visibility', 'visible', 'important');
-      box.style.setProperty('opacity', '1', 'important');
-      box.style.setProperty('float', 'none', 'important');
-      box.style.setProperty('clear', 'both', 'important');
-      
-      // Inyectar CSS
-      const style = document.createElement('style');
-      style.textContent = generateStickerCaptureCSS(widthPx, heightPx);
-      
-      // Insertar HTML directamente
-      box.innerHTML = html;
-      
-      // CRÍTICO: Forzar dimensiones del wrapper inmediatamente después de insertar HTML
-      const wrapper = box.querySelector('.sticker-wrapper');
-        if (wrapper) {
-        // El HTML ya tiene las dimensiones correctas, pero forzarlas nuevamente para asegurar
-        wrapper.style.setProperty('width', `${widthPx}px`, 'important');
-        wrapper.style.setProperty('height', `${heightPx}px`, 'important');
-        wrapper.style.setProperty('max-width', `${widthPx}px`, 'important');
-        wrapper.style.setProperty('max-height', `${heightPx}px`, 'important');
-        wrapper.style.setProperty('min-width', `${widthPx}px`, 'important');
-        wrapper.style.setProperty('min-height', `${heightPx}px`, 'important');
-        wrapper.style.setProperty('transform', 'none', 'important');
-        wrapper.style.setProperty('zoom', '1', 'important');
-      }
-      
-      // Actualizar QR code si está disponible
-      const qrImg = box.querySelector('.qr-img');
-      if (qrImg && qrDataUrl) {
-        qrImg.src = qrDataUrl;
-      }
-      
-      box.appendChild(style);
-      
-      // Agregar al DOM
-      root.appendChild(box);
-      
-      // Esperar renderizado
-        void box.offsetHeight;
-        await new Promise(resolve => requestAnimationFrame(resolve));
-      
-      // Ajustar textos automáticamente para que quepan
-      await autoFitStickerTexts(box);
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      
-      // Esperar imágenes
-      // eslint-disable-next-line no-await-in-loop
-      await waitForImagesSafe(box, 4000);
-      
-      // Capturar con html2canvas - dimensiones exactas
-      const scale = 3;
-      // eslint-disable-next-line no-await-in-loop
-      const canvas = await html2canvas(box, {
-        width: widthPx,
-        height: heightPx,
-        backgroundColor: '#ffffff',
-        scale: scale,
-        windowWidth: widthPx,
-        windowHeight: heightPx,
-        useCORS: true,
-        allowTaint: false,
-        logging: false
-      });
-      
-      // Agregar imagen al array
-      images.push({
-        data: canvas.toDataURL('image/png'),
-        width: canvas.width,
-        height: canvas.height,
-        targetWidthMm: widthMm,
-        targetHeightMm: heightMm
-      });
-      
-      root.removeChild(box);
-    }
-    
-    document.body.removeChild(root);
-
-    // CRÍTICO: Crear PDF con dimensiones exactas SIN márgenes
-    // Usar formato personalizado con dimensiones exactas en mm
-    const orientation = widthMm >= heightMm ? 'landscape' : 'portrait';
+    const widthMm = 50;
+    const heightMm = 30;
     const doc = new jsPDF({
-      orientation,
+      orientation: 'landscape',
       unit: 'mm',
-      format: [widthMm, heightMm], // 50mm x 30mm = 5cm x 3cm
+      format: [widthMm, heightMm],
       compress: false,
       precision: 16,
       putOnlyUsedFonts: true,
       floatPrecision: 16
     });
-    
-    // CRÍTICO: Eliminar TODOS los márgenes de forma agresiva ANTES de cualquier operación
-    // jsPDF tiene márgenes por defecto que debemos eliminar completamente
-    if (doc.internal) {
-      // Eliminar márgenes del objeto interno INMEDIATAMENTE
-        doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
-      
-      // Asegurar dimensiones exactas de la página
-      if (doc.internal.pageSize) {
-        doc.internal.pageSize.width = widthMm;
-        doc.internal.pageSize.height = heightMm;
-        // Sobrescribir métodos getWidth/getHeight para devolver valores exactos
-        if (typeof doc.internal.pageSize.getWidth === 'function') {
-          doc.internal.pageSize.getWidth = function() { return widthMm; };
-        }
-        if (typeof doc.internal.pageSize.getHeight === 'function') {
-          doc.internal.pageSize.getHeight = function() { return heightMm; };
-        }
-      }
-      
-      // Eliminar márgenes de todas las formas posibles
-      if (doc.internal.margins) {
-        doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
-      }
-      
-      // CRÍTICO: Eliminar márgenes del objeto de página actual
-      if (doc.internal.getCurrentPageInfo) {
-        try {
-          const pageInfo = doc.internal.getCurrentPageInfo();
-          if (pageInfo && pageInfo.pageContext) {
-            pageInfo.pageContext.margins = { top: 0, right: 0, bottom: 0, left: 0 };
-          }
-        } catch (e) {
-          // Ignorar si no está disponible
-        }
-      }
-      
-      // CRÍTICO: Forzar que el área de dibujo sea igual al tamaño de la página
-      if (doc.internal.scaleFactor) {
-        // Asegurar que no haya escalado que cause márgenes
-        const scaleFactor = doc.internal.scaleFactor;
-        // El área de dibujo debe ser exactamente widthMm x heightMm
-      if (doc.internal.pageSize) {
-          doc.internal.pageSize.width = widthMm;
-          doc.internal.pageSize.height = heightMm;
-        }
-      }
-    }
-    
-    // Establecer página 1 y eliminar márgenes nuevamente
-    doc.setPage(1);
-    
-    // Forzar eliminación de márgenes después de setPage
+
+    // Sin márgenes
     if (doc.internal) {
       doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
       if (doc.internal.margins) {
         doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
       }
-      // Forzar dimensiones exactas nuevamente después de setPage
-      if (doc.internal.pageSize) {
-        doc.internal.pageSize.width = widthMm;
-        doc.internal.pageSize.height = heightMm;
-      }
-      
-      // CRÍTICO: Verificar y forzar dimensiones después de setPage
-      const actualWidth = doc.internal.pageSize ? doc.internal.pageSize.getWidth() : widthMm;
-      const actualHeight = doc.internal.pageSize ? doc.internal.pageSize.getHeight() : heightMm;
-      if (Math.abs(actualWidth - widthMm) > 0.01 || Math.abs(actualHeight - heightMm) > 0.01) {
-        console.warn(`⚠️ Dimensiones de página después de setPage: ${actualWidth}mm x ${actualHeight}mm, forzando: ${widthMm}mm x ${heightMm}mm`);
-        if (doc.internal.pageSize) {
-          doc.internal.pageSize.width = widthMm;
-          doc.internal.pageSize.height = heightMm;
+    }
+
+    // Función utilitaria para cargar imagen a base64
+    async function fetchAsDataURL(url) {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Procesar stickers
+    for (let page = 0; page < list.length; page++) {
+      const { it, count } = list[page];
+      for (let c = 0; c < count; c++) {
+        if (page > 0 || c > 0) doc.addPage([widthMm, heightMm], 'landscape');
+
+        // Layout: columnas 40/60 sin márgenes
+        const leftColW = 50 * 0.4;
+        const rightColW = 50 - leftColW;
+        const leftColX = 0;
+        const rightColX = leftColW;
+        const colY = 0;
+        const rightColH = heightMm;
+
+        // Logo pequeño arriba (60% ancho de la derecha, 20% alto de la derecha)
+        const logoW = rightColW * 0.6;
+        const logoH = rightColH * 0.2;
+        const logoX = rightColX + (rightColW - logoW) / 2;
+        const logoY = colY;
+
+        // Cargar logo
+        const layout = await getStickerLayoutForCompany();
+        const logoUrl = (layout.elements.find(e => e.id === 'logo') || {}).url || '';
+        let logoDataUrl = '';
+        if (logoUrl) {
+          try { logoDataUrl = await fetchAsDataURL(logoUrl); } catch {}
         }
+
+        // Generar QR desde backend (ya se usa en HTML)
+        const qrDataUrl = await generateQRCodeDataURL(it._id);
+
+        // QR ocupa todo el lado derecho
+        const bleed = 0; // ya sin margen
+        const qrW = rightColW + bleed * 2;
+        const qrH = rightColH - logoH + bleed * 2;
+        const qrX = rightColX - bleed;
+        const qrY = logoY + logoH - bleed;
+
+        // SKU centrado en la izquierda
+        const skuText = String(it.sku || '').toUpperCase();
+        const skuFontSize = 18;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(skuFontSize);
+
+        // Dibujar fondo blanco
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, widthMm, heightMm, 'F');
+
+        // Logo
+        if (logoDataUrl) {
+          try {
+            doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
+          } catch {}
+        }
+
+        // QR
+        if (qrDataUrl) {
+          try {
+            doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrW, qrH);
+          } catch {}
+        }
+
+        // SKU
+        const skuBoxW = leftColW;
+        const skuBoxH = heightMm * 0.42;
+        const skuBoxY = (heightMm - skuBoxH) / 2;
+        doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
       }
     }
-    
-    // Insertar imágenes ocupando TODO el espacio (0,0 hasta widthMm, heightMm)
-    images.forEach((imgData, idx) => {
-      if (idx > 0) {
-        // Agregar nueva página con dimensiones exactas
-        doc.addPage([widthMm, heightMm], orientation);
-        
-        // Eliminar márgenes en la nueva página
-        if (doc.internal) {
-          doc.internal.pageMargins = { top: 0, right: 0, bottom: 0, left: 0 };
-          if (doc.internal.margins) {
-            doc.internal.margins = { top: 0, right: 0, bottom: 0, left: 0 };
-          }
-          if (doc.internal.pageSize) {
-            doc.internal.pageSize.width = widthMm;
-            doc.internal.pageSize.height = heightMm;
-          }
-        }
-      }
-      
-      // CRÍTICO: Insertar imagen desde (0,0) ocupando EXACTAMENTE widthMm x heightMm
-      // Sin ningún margen, la imagen debe ocupar el 100% del espacio de la página
-      const src = typeof imgData === 'string' ? imgData : imgData.data;
-      
-      // CRÍTICO: Obtener dimensiones reales de la página antes de insertar
-      let pageWidth = widthMm;
-      let pageHeight = heightMm;
-      if (doc.internal && doc.internal.pageSize) {
-        try {
-          pageWidth = doc.internal.pageSize.getWidth();
-          pageHeight = doc.internal.pageSize.getHeight();
-        } catch (e) {
-          pageWidth = widthMm;
-          pageHeight = heightMm;
-        }
-      }
-      
-      // CRÍTICO: Si las dimensiones no coinciden, forzar las correctas
-      if (Math.abs(pageWidth - widthMm) > 0.01 || Math.abs(pageHeight - heightMm) > 0.01) {
-        console.warn(`⚠️ Dimensiones de página antes de insertar: ${pageWidth}mm x ${pageHeight}mm, forzando: ${widthMm}mm x ${heightMm}mm`);
-        pageWidth = widthMm;
-        pageHeight = heightMm;
-        // Forzar dimensiones correctas
-        if (doc.internal && doc.internal.pageSize) {
-          doc.internal.pageSize.width = widthMm;
-          doc.internal.pageSize.height = heightMm;
-        }
-      }
-      
-      // CRÍTICO: Insertar imagen ocupando TODO el espacio desde (0,0)
-      // Usar las dimensiones exactas (widthMm, heightMm) para asegurar que ocupe 100%
-      doc.addImage(
-        src, 
-        'PNG', 
-        0,  // x = 0 (sin margen izquierdo, desde el borde)
-        0,  // y = 0 (sin margen superior, desde el borde)
-        widthMm,  // ancho = 50mm (5cm) - 100% de la página
-        heightMm, // alto = 30mm (3cm) - 100% de la página
-        undefined, 
-        'FAST' // Usar FAST para mejor calidad
-      );
-      
-      if (idx === 0) {
-        console.log(`📄 PDF: Página ${idx + 1} - Dimensiones: ${widthMm}mm x ${heightMm}mm (${widthCm}cm x ${heightCm}cm)`);
-        console.log(`📐 Imagen insertada en: (0, 0) ocupando 100% del espacio sin márgenes`);
-      }
-    });
-    
+
     doc.save(`${filenameBase}.pdf`);
   }
 
@@ -4120,6 +3934,4 @@ function openMarketplaceHelper(item){
   // Initial load: page 1, limit per page
   console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
-}
-
 }
