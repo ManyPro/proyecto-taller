@@ -2497,35 +2497,34 @@ function openMarketplaceHelper(item){
   // Layout unificado: idéntico al sticker de recordatorio de aceite (backend)
   // Usa mismos márgenes, columnas, y fórmulas de tamaño/posición de logo y QR.
   function buildUnifiedStickerLayout(logoUrl) {
-    // Márgenes y gap del backend: 0.25cm y 0.2cm
-    const marginPx = Math.round(STICKER_PX_PER_CM * 0.25); // ~9px
-    const gapPx = Math.round(STICKER_PX_PER_CM * 0.2);     // ~8px
+    // Sin márgenes ni gap para que el QR pueda ocupar todo el lado derecho
+    const marginPx = 0;
+    const gapPx = 0;
 
-    const availableWidth = canvasWidth - (marginPx * 2);
-    const availableHeight = canvasHeight - (marginPx * 2);
+    const availableWidth = canvasWidth;
+    const availableHeight = canvasHeight;
 
-    // Columnas backend: 52% texto / 48% logo+QR
-    const leftColW = availableWidth * 0.52;
-    const rightColW = availableWidth * 0.48;
+    // Columnas 50/50
+    const leftColW = availableWidth * 0.5;
+    const rightColW = availableWidth - leftColW;
 
     const leftColX = marginPx;
-    const rightColX = marginPx + leftColW + gapPx;
+    const rightColX = leftColW + gapPx;
     const colY = marginPx;
 
     // Altura de la columna derecha
     const rightColH = availableHeight;
 
-    // Logo: fórmula backend
-    const logoBase = Math.min(rightColW * 0.5, rightColH * 0.25);
-    const logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW);
+    // Logo pequeño sobre el QR
+    const logoSize = Math.min(rightColW * 0.6, rightColH * 0.2);
     const logoX = rightColX + (rightColW - logoSize) / 2;
     const logoY = colY;
 
-    // QR: fórmula backend (igual que sticker de recordatorio)
-    const baseQrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
-    const qrSize = Math.min(baseQrSize * 1.5, rightColW, rightColH);
-    const qrX = rightColX + (rightColW - qrSize) / 2;
-    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3);
+    // QR ocupa TODO el lado derecho (permitir deformación)
+    const qrWidth = rightColW;
+    const qrHeight = rightColH;
+    const qrX = rightColX;
+    const qrY = colY;
 
     // SKU centrado verticalmente en la columna izquierda (solo SKU)
     const skuX = leftColX;
@@ -2569,9 +2568,9 @@ function openMarketplaceHelper(item){
           source: 'qr',
           x: qrX,
           y: qrY,
-          w: qrSize,
-          h: qrSize,
-          fit: 'contain'
+          w: qrWidth,
+          h: qrHeight,
+          fit: 'fill'
         }
       ]
     };
