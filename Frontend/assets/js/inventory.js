@@ -1,4 +1,4 @@
-import { API } from "./api.esm.js";
+﻿import { API } from "./api.esm.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
@@ -2497,15 +2497,15 @@ function openMarketplaceHelper(item){
   // Layout unificado: idéntico al sticker de recordatorio de aceite (backend)
   // Usa mismos márgenes, columnas, y fórmulas de tamaño/posición de logo y QR.
   function buildUnifiedStickerLayout(logoUrl) {
-    // Sin márgenes ni gap para que el QR pueda ocupar todo el lado derecho
+    // Sin márgenes ni gap
     const marginPx = 0;
     const gapPx = 0;
 
     const availableWidth = canvasWidth;
     const availableHeight = canvasHeight;
 
-    // Columnas 50/50
-    const leftColW = availableWidth * 0.5;
+    // Columnas nominales (pero el QR rellenará todo); solo se usa para ubicar SKU
+    const leftColW = availableWidth * 0.4;
     const rightColW = availableWidth - leftColW;
 
     const leftColX = marginPx;
@@ -2515,22 +2515,23 @@ function openMarketplaceHelper(item){
     // Altura de la columna derecha
     const rightColH = availableHeight;
 
-    // Logo pequeño sobre el QR
-    const logoSize = Math.min(rightColW * 0.6, rightColH * 0.2);
-    const logoX = rightColX + (rightColW - logoSize) / 2;
+    // Logo pequeño arriba, centrado
+    const logoSize = Math.min(availableWidth * 0.3, rightColH * 0.18);
+    const logoX = (availableWidth - logoSize) / 2;
     const logoY = colY;
 
-    // QR ocupa TODO el lado derecho (permitir deformación) y se sobrepone 2px para matar gaps
-    const qrWidth = rightColW + 4;
-    const qrHeight = rightColH + 4;
-    const qrX = rightColX - 2;
-    const qrY = colY - 2;
+    // QR ocupa TODO el lienzo (overfill para eliminar cualquier gap)
+    const bleed = 4;
+    const qrWidth = availableWidth + bleed * 2;
+    const qrHeight = availableHeight + bleed * 2;
+    const qrX = -bleed;
+    const qrY = -bleed;
 
-    // SKU centrado verticalmente en la columna izquierda (solo SKU)
-    const skuX = leftColX;
-    const skuH = availableHeight * 0.42; // proporción similar al bloque de texto del recordatorio
+    // SKU centrado verticalmente a la izquierda
+    const skuX = availableWidth * 0.05;
+    const skuH = availableHeight * 0.42;
     const skuY = colY + (availableHeight - skuH) / 2;
-    const skuW = leftColW;
+    const skuW = availableWidth * 0.4;
 
     return {
       widthCm: 5,
