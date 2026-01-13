@@ -3281,7 +3281,7 @@ function openMarketplaceHelper(item){
 
         // SKU centrado en la izquierda
         const skuText = String(it.sku || '').toUpperCase();
-        const skuFontSize = 18;
+        const skuFontSize = 16;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(skuFontSize);
 
@@ -3305,7 +3305,7 @@ function openMarketplaceHelper(item){
 
         // SKU
         const skuBoxW = leftColW;
-        const skuBoxH = heightMm * 0.42;
+        const skuBoxH = heightMm * 0.34;
         const skuBoxY = (heightMm - skuBoxH) / 2;
         doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
       }
