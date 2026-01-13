@@ -2513,15 +2513,21 @@ function openMarketplaceHelper(item){
     const colY = marginPx;
 
     // Logo en la parte superior derecha, centrado horizontalmente.
-    // Logo: ocupar casi todo el ancho de la columna derecha sin deformar.
-    const logoSize = Math.min(rightColW * 0.9, availableHeight * 0.35);
+    // Replica exacta del layout del sticker de cambio de aceite:
+    // Margen 0.25cm, gap 0.2cm, columnas 52% (texto) / 48% (logo+QR)
+    const rightColH = availableHeight;
+
+    // Logo: misma fórmula que el sticker de aceite
+    const logoBase = Math.min(rightColW * 0.5, rightColH * 0.25);
+    const logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW);
     const logoX = rightColX + (rightColW - logoSize) / 2;
     const logoY = colY;
 
-    // QR: ensancharlo para que alcance casi todo el ancho disponible.
-    const qrSize = Math.min(rightColW * 0.95, availableHeight * 0.7);
+    // QR: misma fórmula que el sticker de aceite
+    const baseQrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
+    const qrSize = Math.min(baseQrSize * 1.5, rightColW, rightColH);
     const qrX = rightColX + (rightColW - qrSize) / 2;
-    const qrY = colY + availableHeight - qrSize - Math.round(marginPx * 0.3);
+    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3);
 
     // SKU centrado en toda la columna izquierda
     const skuX = leftColX;
