@@ -266,9 +266,24 @@ export const generateOilChangeSticker = async (req, res) => {
       return res.status(400).json({ error: 'Tipo de aceite es requerido' });
     }
 
-    // Obtener información de la compañía para el logo
+    // Obtener información de la compañía para detectar logo correcto
     const company = await Company.findById(companyId).lean();
-    const companyLogoUrl = company?.logoUrl || '';
+    const companyName = (company?.name || '').toLowerCase().trim();
+    const companyIdStr = String(companyId);
+    
+    // IDs de empresas para stickers (igual que frontend)
+    const STICKER_COMPANY_IDS = {
+      CASA_RENAULT: '68c871198d7595062498d7a1',
+      SERVITECA_SHELBY: '68cb18f4202d108152a26e4c'
+    };
+    
+    // Determinar qué logo usar (Renault o Shelby)
+    let stickerLogoName = 'stickersrenault.png'; // Por defecto Renault
+    if (STICKER_COMPANY_IDS.SERVITECA_SHELBY && companyIdStr === String(STICKER_COMPANY_IDS.SERVITECA_SHELBY)) {
+      stickerLogoName = 'stickersshelby.png';
+    } else if (companyName.includes('shelby')) {
+      stickerLogoName = 'stickersshelby.png';
+    }
     
     // URL base para el QR (página de clientes)
     const baseUrl = process.env.FRONTEND_URL || process.env.PUBLIC_URL || 'https://proyecto-taller.netlify.app';
@@ -342,13 +357,24 @@ export const generateOilChangeSticker = async (req, res) => {
        });
     currentY += lineHeight * 1.2;
     
-    // Aceite utilizado (sin etiqueta, centrado)
-    doc.fontSize(fontSize) // 8.5pt para el aceite
-       .font('Helvetica')
-       .text(oilTypeStr, leftColX, currentY, {
-         width: leftColW,
-         align: 'center'
-       });
+    // Aceite utilizado (sin etiqueta, centrado) - ajustar fuente si es muy largo
+    let oilFontSize = fontSize; // 8.5pt inicial
+    const maxOilWidth = leftColW * 0.95; // 95% del ancho disponible
+    doc.fontSize(oilFontSize);
+    doc.font('Helvetica');
+    const oilTextWidth = doc.widthOfString(oilTypeStr);
+    
+    // Si el texto es muy ancho, reducir fuente hasta que quepa en una línea
+    if (oilTextWidth > maxOilWidth) {
+      const ratio = maxOilWidth / oilTextWidth;
+      oilFontSize = Math.max(6, Math.floor(fontSize * ratio)); // Mínimo 6pt
+    }
+    
+    doc.fontSize(oilFontSize);
+    doc.text(oilTypeStr, leftColX, currentY, {
+      width: leftColW,
+      align: 'center'
+    });
     currentY += lineHeight * 1.3;
     
     // Actual KM: [valor] (centrado) - Fuente más grande
@@ -390,60 +416,99 @@ export const generateOilChangeSticker = async (req, res) => {
     const verticalSpacing = 0.15 * CM;
     let rightCurrentY = rightColY;
     
-    // Logo del taller (arriba, centrado)
+    // Logo del taller (arriba, centrado) - usar logo de sticker (Renault o Shelby)
     let logoHeight = 0;
-    logger.info('[generateOilChangeSticker] 🖼️ Intentando cargar logo de compañía:', {
-      companyLogoUrl: companyLogoUrl || 'NO HAY URL',
-      hasUrl: !!companyLogoUrl
+    let logoW = 0;
+    let logoH = 0;
+    logger.info('[generateOilChangeSticker] 🖼️ Intentando cargar logo de sticker:', {
+      stickerLogoName,
+      companyId: companyIdStr,
+      companyName
     });
     
-    if (companyLogoUrl) {
+    // Cargar logo de sticker (desde archivo local o URL remota)
+    let logoBuffer = null;
+    if (stickerLogoName) {
       try {
-        // Helper para obtener buffer desde URL
-        let fetchFn = globalThis.fetch;
-        if (!fetchFn) {
-          try {
-            const mod = await import('node-fetch');
-            fetchFn = mod.default || mod;
-          } catch {}
+        // Intentar cargar desde archivo local primero
+        const projectRoot = process.cwd();
+        let actualRoot = projectRoot;
+        if (projectRoot.endsWith('Backend') || projectRoot.includes('Backend')) {
+          actualRoot = resolve(projectRoot, '..');
+        }
+        const workspacePath = process.env.WORKSPACE_PATH || actualRoot;
+        
+        const possibleLogoPaths = [
+          resolve(workspacePath, 'Frontend', 'assets', 'img', stickerLogoName),
+          resolve(actualRoot, 'Frontend', 'assets', 'img', stickerLogoName),
+          resolve(projectRoot, 'Frontend', 'assets', 'img', stickerLogoName),
+          resolve(__dirname, '..', '..', '..', 'Frontend', 'assets', 'img', stickerLogoName),
+          resolve(__dirname, '..', '..', '..', '..', 'Frontend', 'assets', 'img', stickerLogoName),
+        ].filter(Boolean);
+        
+        // Buscar logo en archivos locales
+        for (const logoPath of possibleLogoPaths) {
+          if (existsSync(logoPath)) {
+            try {
+              logoBuffer = readFileSync(logoPath);
+              logger.info('[generateOilChangeSticker] ✅ Logo cargado desde archivo local:', logoPath);
+              break;
+            } catch (readErr) {
+              logger.warn('[generateOilChangeSticker] ⚠️ Error leyendo logo local:', readErr.message);
+            }
+          }
         }
         
-        if (fetchFn) {
-          logger.info('[generateOilChangeSticker] 📡 Haciendo fetch del logo...');
-          const logoResponse = await fetchFn(companyLogoUrl);
-          logger.info('[generateOilChangeSticker] 📡 Respuesta del logo:', {
-            ok: logoResponse.ok,
-            status: logoResponse.status,
-            statusText: logoResponse.statusText
+        // Si no se encontró localmente, intentar desde URL remota
+        if (!logoBuffer) {
+          let fetchFn = globalThis.fetch;
+          if (!fetchFn) {
+            try {
+              const mod = await import('node-fetch');
+              fetchFn = mod.default || mod;
+            } catch {}
+          }
+          
+          if (fetchFn) {
+            const remoteUrl = `${baseUrl.replace(/\/+$/, '')}/assets/img/${stickerLogoName}`;
+            logger.info('[generateOilChangeSticker] 📡 Intentando cargar logo desde URL:', remoteUrl);
+            const logoResponse = await fetchFn(remoteUrl);
+            
+            if (logoResponse.ok) {
+              logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
+              logger.info('[generateOilChangeSticker] ✅ Logo cargado desde URL remota');
+            } else {
+              logger.warn('[generateOilChangeSticker] ⚠️ Logo no se pudo cargar desde URL:', logoResponse.status);
+            }
+          }
+        }
+        
+        // Si se cargó el logo, insertarlo en el PDF
+        if (logoBuffer) {
+          // Usar mismo tamaño que stickers de inventario: 80% ancho, 18% alto
+          logoW = rightColW * 0.8;
+          logoH = rightColH * 0.18;
+          logoHeight = logoH;
+          const logoX = rightColX + (rightColW - logoW) / 2; // Centrar horizontalmente
+          
+          logger.info('[generateOilChangeSticker] ✅ Logo listo para insertar:', {
+            bufferSize: logoBuffer.length,
+            logoW,
+            logoH,
+            logoX,
+            logoY: rightCurrentY
           });
           
-          if (logoResponse.ok) {
-            const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
-            // Aumentar 50% el tamaño del logo, respetando límites
-            const logoBase = Math.min(rightColW * 0.5, rightColH * 0.25);
-            logoHeight = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW);
-            const logoX = rightColX + (rightColW - logoHeight) / 2; // Centrar horizontalmente
-            
-            logger.info('[generateOilChangeSticker] ✅ Logo cargado, insertando en PDF:', {
-              bufferSize: logoBuffer.length,
-              logoHeight,
-              logoX,
-              logoY: rightCurrentY
-            });
-            
-            // Insertar logo usando sintaxis de PDFKit
-            doc.image(logoBuffer, logoX, rightCurrentY, {
-              fit: [logoHeight, logoHeight]
-            });
-            
-            logger.info('[generateOilChangeSticker] ✅✅ Logo INSERTADO en PDF');
-            
-            rightCurrentY += logoHeight + verticalSpacing;
-          } else {
-            logger.warn('[generateOilChangeSticker] ⚠️ Logo no se pudo cargar, respuesta no OK:', logoResponse.status);
-          }
+          // Insertar logo usando sintaxis de PDFKit (mismo tamaño que inventario)
+          doc.image(logoBuffer, logoX, rightCurrentY, {
+            fit: [logoW, logoH]
+          });
+          
+          logger.info('[generateOilChangeSticker] ✅✅ Logo INSERTADO en PDF');
+          
+          rightCurrentY += logoHeight + verticalSpacing;
         } else {
-          logger.warn('[generateOilChangeSticker] ⚠️ No hay función fetch disponible');
+          logger.warn('[generateOilChangeSticker] ⚠️ No se pudo cargar el logo de sticker');
         }
       } catch (err) {
         logger.error('[generateOilChangeSticker] ❌ Error cargando logo:', {
@@ -452,7 +517,7 @@ export const generateOilChangeSticker = async (req, res) => {
         });
       }
     } else {
-      logger.warn('[generateOilChangeSticker] ⚠️ No hay URL de logo de compañía');
+      logger.warn('[generateOilChangeSticker] ⚠️ No hay nombre de logo de sticker');
     }
     
     // Calcular posición del QR primero (se usa para posicionar la imagen Renault)
@@ -489,20 +554,20 @@ export const generateOilChangeSticker = async (req, res) => {
       // Permitir ruta directa configurable por entorno (ej. Netlify)
       const envRenaultPath = process.env.RENAULT_IMAGE_PATH;
       
-      // Construir rutas posibles usando resolve para obtener rutas absolutas
+      // Construir rutas posibles usando resolve para obtener rutas absolutas (usar logo correcto)
       const possiblePaths = [
         // Ruta más probable: desde la raíz del workspace
         envRenaultPath ? resolve(envRenaultPath) : null, // Ruta explícita por entorno
-        resolve(workspacePath, 'Frontend', 'assets', 'img', 'stickersrenault.png'),
-        resolve(actualRoot, 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde raíz del proyecto
-        resolve(projectRoot, 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde donde esté el proceso
-        resolve(__dirname, '..', '..', '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Desde controllers
-        resolve(__dirname, '..', '..', '..', '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Alternativa
-        resolve(projectRoot, '..', 'Frontend', 'assets', 'img', 'stickersrenault.png'), // Alternativa relativa
+        resolve(workspacePath, 'Frontend', 'assets', 'img', stickerLogoName),
+        resolve(actualRoot, 'Frontend', 'assets', 'img', stickerLogoName), // Desde raíz del proyecto
+        resolve(projectRoot, 'Frontend', 'assets', 'img', stickerLogoName), // Desde donde esté el proceso
+        resolve(__dirname, '..', '..', '..', 'Frontend', 'assets', 'img', stickerLogoName), // Desde controllers
+        resolve(__dirname, '..', '..', '..', '..', 'Frontend', 'assets', 'img', stickerLogoName), // Alternativa
+        resolve(projectRoot, '..', 'Frontend', 'assets', 'img', stickerLogoName), // Alternativa relativa
         // Ruta absoluta local (equipo del usuario)
-        process.platform === 'win32' ? resolve('C:\\Users\\ManyManito\\Documents\\GitHub\\proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
+        process.platform === 'win32' ? resolve('C:\\Users\\ManyManito\\Documents\\GitHub\\proyecto-taller', 'Frontend', 'assets', 'img', stickerLogoName) : null,
         // Ruta absoluta genérica en C:\proyecto-taller (por compatibilidad previa)
-        process.platform === 'win32' ? resolve('C:\\proyecto-taller', 'Frontend', 'assets', 'img', 'stickersrenault.png') : null,
+        process.platform === 'win32' ? resolve('C:\\proyecto-taller', 'Frontend', 'assets', 'img', stickerLogoName) : null,
       ].filter(Boolean); // Filtrar nulls
       
       // Log todas las rutas que se intentarán
@@ -564,7 +629,7 @@ export const generateOilChangeSticker = async (req, res) => {
             }
           }
 
-          const remoteUrl = `${baseUrl.replace(/\/+$/, '')}/assets/img/stickersrenault.png`;
+          const remoteUrl = `${baseUrl.replace(/\/+$/, '')}/assets/img/${stickerLogoName}`;
           if (fetchFn) {
             logger.info('[generateOilChangeSticker] 🌐 Buscando imagen Renault en URL pública:', remoteUrl);
             const resp = await fetchFn(remoteUrl);
