@@ -3281,7 +3281,7 @@ function openMarketplaceHelper(item){
 
         // SKU centrado en la izquierda
         const skuText = String(it.sku || '').toUpperCase();
-        const skuFontSize = 16;
+        const skuFontSize = 14;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(skuFontSize);
 
