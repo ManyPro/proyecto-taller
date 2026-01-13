@@ -2494,272 +2494,94 @@ function openMarketplaceHelper(item){
   
   // STICKER_DEFAULT_LAYOUT y cloneStickerLayout eliminados - no se usan
 
-  // Layout fijo de Casa Renault - formato no editable
-  // Lado izquierdo: Logo (1/3 arriba), SKU (1/3 medio), Nombre (1/3 abajo en cuadro)
-  // Lado derecho: QR centrado
-  function getCasaRenaultStickerLayout() {
-    const margin = 0; // Sin margen para ocupar máximo espacio
-    
-    console.log('🏷️ [LAYOUT] Iniciando cálculo de layout Casa Renault');
-    console.log('🏷️ [LAYOUT] Canvas dimensions:', { canvasWidth, canvasHeight });
-    
-    // Dividir el ancho en dos mitades: izquierda (logo + SKU + nombre) y derecha (QR)
-    const mitadAncho = canvasWidth / 2;
-    console.log('🏷️ [LAYOUT] Mitad del ancho:', mitadAncho);
-    
-    // === LADO IZQUIERDO: Dividir verticalmente en 3 partes iguales ===
-    const leftColX = margin;
-    const leftColW = mitadAncho - margin; // Ancho completo de la mitad izquierda
-    
-    // Dividir la altura total en 3 partes iguales (aproximadamente 1/3 cada una)
-    const terceraAltura = canvasHeight / 3;
-    console.log('🏷️ [LAYOUT] Tercera parte de altura:', terceraAltura);
-    
-    // 1. LOGO: Parte superior (1/3 del espacio vertical)
-    const logoX = leftColX;
-    const logoY = margin;
-    const logoW = leftColW;
-    const logoH = Math.floor(canvasHeight * 0.22); // ~22% de la altura
-    console.log('🏷️ [LAYOUT] Logo (1/3 superior):', { logoX, logoY, logoW, logoH });
-    
-    // 2. SKU: Parte media (1/3 del espacio vertical), centrado horizontalmente
-    const skuH = Math.floor(canvasHeight * 0.18); // ~18% de la altura
+  // Layout unificado (copia del sticker de recordatorio de aceite)
+  // Mantiene QR y logo en la misma posición; lado izquierdo sólo muestra el SKU centrado.
+  function buildUnifiedStickerLayout(logoUrl) {
+    // Replicar proporciones del PDF de cambio de aceite: margen de 0.25cm y separación de 0.2cm
+    const marginPx = Math.round(STICKER_PX_PER_CM * 0.25); // ~7px
+    const gapPx = Math.round(STICKER_PX_PER_CM * 0.2); // ~8px
+
+    const availableWidth = canvasWidth - (marginPx * 2);
+    const availableHeight = canvasHeight - (marginPx * 2);
+
+    // Columnas: 52% texto (izquierda) y 48% logo/QR (derecha), alineadas al diseño del sticker de aceite
+    const leftColW = Math.floor(availableWidth * 0.52);
+    const rightColW = availableWidth - leftColW - gapPx;
+
+    const leftColX = marginPx;
+    const rightColX = marginPx + leftColW + gapPx;
+    const colY = marginPx;
+
+    // Logo en la parte superior derecha, centrado horizontalmente
+    const logoSize = Math.min(rightColW * 0.65, availableHeight * 0.35);
+    const logoX = rightColX + (rightColW - logoSize) / 2;
+    const logoY = colY;
+
+    // QR ocupando el bloque inferior derecho, centrado, sin invadir el logo
+    const qrSize = Math.min(
+      rightColW * 0.85,
+      Math.max(32, availableHeight - logoSize - gapPx * 2)
+    );
+    const qrX = rightColX + (rightColW - qrSize) / 2;
+    const qrY = colY + availableHeight - qrSize;
+
+    // SKU centrado en toda la columna izquierda
     const skuX = leftColX;
-    const skuY = logoY + logoH + margin; // Justo debajo del logo
+    const skuY = colY;
     const skuW = leftColW;
-    console.log('🏷️ [LAYOUT] SKU (1/3 medio, centrado):', { skuX, skuY, skuW, skuH, fontSize: 8 });
-    
-    // 3. NOMBRE: Parte inferior (1/3 del espacio vertical), en cuadro
-    const nameH = canvasHeight - skuY - skuH - margin; // Resto del espacio hasta abajo (mayor altura para texto)
-    const nameX = leftColX;
-    const nameY = skuY + skuH + margin; // Justo debajo del SKU
-    const nameW = leftColW;
-    console.log('🏷️ [LAYOUT] Nombre (1/3 inferior, en cuadro):', { nameX, nameY, nameW, nameH, fontSize: 4 });
-    
-    // Verificación del lado izquierdo
-    console.log('🏷️ [LAYOUT] Verificación lado izquierdo:');
-    console.log('  - Logo ocupa desde Y:', logoY, 'hasta:', logoY + logoH);
-    console.log('  - SKU ocupa desde Y:', skuY, 'hasta:', skuY + skuH);
-    console.log('  - Nombre ocupa desde Y:', nameY, 'hasta:', nameY + nameH);
-    console.log('  - Total altura izquierda:', nameY + nameH, 'debe ser <=', canvasHeight);
-    
-    // === LADO DERECHO: QR centrado ===
-    // Ancho del QR (derecha) - ajustado para que quepa en la mitad derecha
-    const qrMaxW = mitadAncho - (margin * 2); // Espacio disponible en la mitad derecha
-    const qrW = Math.min(Math.floor(canvasHeight * 0.95), qrMaxW); // 95% de la altura o espacio disponible
-    const qrH = qrW; // Cuadrado
-    console.log('🏷️ [LAYOUT] QR dimensions:', { qrW, qrH, qrMaxW });
-    
-    // QR CENTRADO en la mitad derecha (horizontal y verticalmente)
-    const qrX = mitadAncho + (mitadAncho - qrW) / 2; // Centrado horizontalmente en la mitad derecha
-    const qrY = (canvasHeight - qrH) / 2; // Centrado verticalmente en toda la altura
-    console.log('🏷️ [LAYOUT] QR position (centrado en mitad derecha):', { qrX, qrY, qrW, qrH });
-    console.log('🏷️ [LAYOUT] QR verificación - qrX debe ser >= mitad:', mitadAncho, 'qrX:', qrX);
-    console.log('🏷️ [LAYOUT] QR verificación - qrY + qrH/2 debe estar en:', canvasHeight / 2, 'actual:', qrY + qrH / 2);
-    
-    // Verificación final de superposiciones y protección del contenido izquierdo
-    console.log('🏷️ [LAYOUT] Verificación de superposiciones:');
-    console.log('  - Logo:', { x: logoX, y: logoY, w: logoW, h: logoH, right: logoX + logoW, bottom: logoY + logoH });
-    console.log('  - SKU:', { x: skuX, y: skuY, w: skuW, h: skuH, right: skuX + skuW, bottom: skuY + skuH });
-    console.log('  - Name:', { x: nameX, y: nameY, w: nameW, h: nameH, right: nameX + nameW, bottom: nameY + nameH });
-    console.log('  - QR:', { x: qrX, y: qrY, w: qrW, h: qrH, right: qrX + qrW, bottom: qrY + qrH });
-    
-    // Verificaciones críticas para proteger el contenido izquierdo
-    const logoRight = logoX + logoW;
-    const skuRight = skuX + skuW;
-    const nameRight = nameX + nameW;
-    const maxLeftContent = Math.max(logoRight, skuRight, nameRight);
-    console.log('🏷️ [LAYOUT] Verificación protección contenido izquierdo:');
-    console.log('  - Logo termina en:', logoRight, 'debe ser <= mitad:', mitadAncho);
-    console.log('  - SKU termina en:', skuRight, 'debe ser <= mitad:', mitadAncho);
-    console.log('  - Nombre termina en:', nameRight, 'debe ser <= mitad:', mitadAncho);
-    console.log('  - Contenido izquierdo máximo:', maxLeftContent, 'debe ser <= mitad:', mitadAncho);
-    console.log('  - QR empieza en:', qrX, 'debe ser >= mitad:', mitadAncho);
-    
-    if (maxLeftContent > mitadAncho) {
-      console.warn('⚠️ [LAYOUT] ADVERTENCIA: El contenido izquierdo se extiende más allá de la mitad!');
-    }
-    if (qrX < mitadAncho) {
-      console.warn('⚠️ [LAYOUT] ADVERTENCIA: El QR está invadiendo la mitad izquierda!');
-    }
-    
+    const skuH = availableHeight;
+
     return {
       widthCm: 5,
       heightCm: 3,
       elements: [
-        // Logo de Casa Renault en la parte superior izquierda (1/3 del espacio)
-        { 
-          id: 'logo', 
-          type: 'image', 
-          source: 'company-logo', 
-          url: STICKER_LOGO_URLS.CASA_RENAULT, // Logo de Casa Renault
-          x: logoX, 
-          y: logoY, 
-          w: logoW, 
-          h: logoH, 
-          fit: 'contain' 
+        {
+          id: 'logo',
+          type: 'image',
+          source: 'company-logo',
+          url: logoUrl || STICKER_LOGO_URLS.CASA_RENAULT,
+          x: logoX,
+          y: logoY,
+          w: logoSize,
+          h: logoSize,
+          fit: 'contain'
         },
-        // SKU en el medio izquierdo (1/3 del espacio), centrado, fuente 8px
-        { 
-          id: 'sku', 
-          type: 'text', 
-          source: 'sku', 
-          x: skuX, 
-          y: skuY, 
-          w: skuW, 
-          h: skuH, 
-          fontSize: 8, 
-          fontWeight: '700', 
-          wrap: true, 
-          align: 'center', 
-          vAlign: 'center', 
-          lineHeight: 1.1 
+        {
+          id: 'sku',
+          type: 'text',
+          source: 'sku',
+          x: skuX,
+          y: skuY,
+          w: skuW,
+          h: skuH,
+          fontSize: 14,
+          fontWeight: '800',
+          wrap: true,
+          align: 'center',
+          vAlign: 'center',
+          lineHeight: 1.15
         },
-        // Nombre del producto abajo izquierdo (1/3 del espacio), en cuadro, fuente 4px, múltiples líneas
-        { 
-          id: 'name', 
-          type: 'text', 
-          source: 'name', 
-          x: nameX, 
-          y: nameY, 
-          w: nameW, 
-          h: nameH, 
-          fontSize: 4, 
-          fontWeight: '600', 
-          wrap: true, 
-          align: 'center', 
-          vAlign: 'center', 
-          lineHeight: 1.2 
-        },
-        // QR code a la derecha, centrado vertical y horizontalmente en la mitad derecha
-        { 
-          id: 'qr', 
-          type: 'image', 
-          source: 'qr', 
-          x: qrX, 
-          y: qrY, 
-          w: qrW, 
-          h: qrH, 
-          fit: 'contain' 
+        {
+          id: 'qr',
+          type: 'image',
+          source: 'qr',
+          x: qrX,
+          y: qrY,
+          w: qrSize,
+          h: qrSize,
+          fit: 'contain'
         }
       ]
     };
   }
 
-  // Layout fijo de Serviteca Shelby - formato no editable
-  // Logo izquierda, SKU en medio, nombre abajo en cuadro, QR derecha centrado
-  // Mismo formato que Casa Renault
+  // Layout fijo para cada empresa (mismo formato, cambia sólo el logo)
+  function getCasaRenaultStickerLayout() {
+    return buildUnifiedStickerLayout(STICKER_LOGO_URLS.CASA_RENAULT);
+  }
+
   function getServitecaShelbyStickerLayout() {
-    const margin = 1; // Márgenes mínimos para ocupar máximo espacio
-    
-    // Altura del cuadro del nombre (abajo del todo) - más grande para mejor legibilidad
-    const nameH = 28; // Altura aumentada para el cuadro del nombre
-    
-    // Área disponible verticalmente (excluyendo el nombre y márgenes)
-    const availableHeight = canvasHeight - nameH - margin; // Altura disponible sin el nombre
-    
-    // Ancho del QR (derecha) - más grande y visible
-    const qrW = Math.floor(availableHeight * 0.95); // 95% de la altura disponible para máximo tamaño
-    const qrH = qrW; // Cuadrado
-    
-    // Calcular posiciones horizontales - asegurar que no haya superposiciones
-    const qrX = canvasWidth - qrW - margin; // QR alineado a la derecha con margen mínimo
-    const gap = 3; // Espacio mínimo entre columnas
-    
-    // Calcular ancho de la columna izquierda (logo) - más grande para mejor visibilidad
-    const availableWidth = qrX - margin - gap; // Ancho disponible antes del QR
-    const leftColW = Math.floor(availableWidth * 0.4); // 40% del espacio disponible para el logo (más grande)
-    
-    // Calcular ancho de la columna media (SKU) - el resto del espacio
-    const middleColW = availableWidth - leftColW - gap; // Ancho restante para SKU
-    
-    // Posiciones de las columnas
-    const leftColX = margin;
-    const middleColX = leftColX + leftColW + gap;
-    
-    // Logo: parte izquierda, desde arriba hasta justo antes del nombre
-    const logoX = leftColX;
-    const logoY = margin;
-    const logoW = leftColW;
-    const logoH = availableHeight; // Altura hasta antes del nombre
-    
-    // SKU: en medio, centrado verticalmente en el espacio disponible (excluyendo el nombre)
-    const skuH = 30; // Altura aumentada del SKU
-    const skuX = middleColX;
-    const skuY = margin + (availableHeight - skuH) / 2; // Centrado verticalmente en espacio disponible
-    const skuW = middleColW;
-    
-    // Nombre: abajo del todo, ocupando TODO el ancho disponible (desde la izquierda hasta justo antes del QR)
-    const nameX = 0; // Comienza desde el borde izquierdo (sin margen para ocupar máximo espacio)
-    const nameY = canvasHeight - nameH; // Abajo sin margen
-    // El nombre debe ocupar desde nameX hasta justo antes del QR
-    const nameW = qrX; // Ancho desde la izquierda hasta el inicio del QR
-    
-    // QR: parte derecha, centrado verticalmente en el espacio disponible (excluyendo el nombre)
-    const qrX_pos = qrX;
-    const qrY = margin + (availableHeight - qrH) / 2; // Centrado verticalmente en espacio disponible
-    
-    return {
-      widthCm: 5,
-      heightCm: 3,
-      elements: [
-        // Logo de Serviteca Shelby en la parte izquierda, ajustado uniformemente
-        { 
-          id: 'logo', 
-          type: 'image', 
-          source: 'company-logo', 
-          url: STICKER_LOGO_URLS.SERVITECA_SHELBY, // Logo de Serviteca Shelby
-          x: logoX, 
-          y: logoY, 
-          w: logoW, 
-          h: logoH, 
-          fit: 'contain' 
-        },
-        // SKU en el medio, tamaño de fuente 7
-        { 
-          id: 'sku', 
-          type: 'text', 
-          source: 'sku', 
-          x: skuX, 
-          y: skuY, 
-          w: skuW, 
-          h: skuH, 
-          fontSize: 7, 
-          fontWeight: '700', 
-          wrap: true, 
-          align: 'center', 
-          vAlign: 'center', 
-          lineHeight: 1.1 
-        },
-        // Nombre del producto abajo del todo, en cuadro, tamaño de fuente 4
-        { 
-          id: 'name', 
-          type: 'text', 
-          source: 'name', 
-          x: nameX, 
-          y: nameY, 
-          w: nameW, 
-          h: nameH, 
-          fontSize: 4, 
-          fontWeight: '600', 
-          wrap: true, 
-          align: 'center', 
-          vAlign: 'center', 
-          lineHeight: 1.2 
-        },
-        // QR code a la derecha, centrado
-        { 
-          id: 'qr', 
-          type: 'image', 
-          source: 'qr', 
-          x: qrX_pos, 
-          y: qrY, 
-          w: qrW, 
-          h: qrH, 
-          fit: 'contain' 
-        }
-      ]
-    };
+    return buildUnifiedStickerLayout(STICKER_LOGO_URLS.SERVITECA_SHELBY);
   }
 
   // IDs específicos de empresas configuradas para stickers
