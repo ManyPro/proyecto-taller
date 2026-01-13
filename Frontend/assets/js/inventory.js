@@ -2521,9 +2521,9 @@ function openMarketplaceHelper(item){
     const logoX = rightColX + (rightColW - logoSize) / 2;
     const logoY = colY;
 
-    // QR: fórmula backend (ligero offset como en PDF)
+    // QR: fórmula backend, ajustada para no sobrecrecer (similar al recordatorio)
     const baseQrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
-    const qrSize = Math.min(baseQrSize * 1.5, rightColW, rightColH);
+    const qrSize = Math.min(baseQrSize * 1.2, rightColW * 0.9, rightColH * 0.65);
     const qrX = rightColX + (rightColW - qrSize) / 2;
     const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3);
 
