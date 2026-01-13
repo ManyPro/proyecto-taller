@@ -2527,11 +2527,11 @@ function openMarketplaceHelper(item){
     const qrX = rightColX + (rightColW - qrSize) / 2;
     const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3);
 
-    // SKU centrado en toda la columna izquierda
+    // SKU centrado verticalmente en la columna izquierda (solo SKU)
     const skuX = leftColX;
-    const skuY = colY;
+    const skuH = availableHeight * 0.42; // proporción similar al bloque de texto del recordatorio
+    const skuY = colY + (availableHeight - skuH) / 2;
     const skuW = leftColW;
-    const skuH = availableHeight;
 
     return {
       widthCm: 5,
@@ -2556,7 +2556,7 @@ function openMarketplaceHelper(item){
           y: skuY,
           w: skuW,
           h: skuH,
-          fontSize: 14,
+          fontSize: 18,
           fontWeight: '800',
           wrap: true,
           align: 'center',
