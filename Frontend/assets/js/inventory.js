@@ -2504,9 +2504,9 @@ function openMarketplaceHelper(item){
     const availableWidth = canvasWidth - (marginPx * 2);
     const availableHeight = canvasHeight - (marginPx * 2);
 
-    // Columnas: 52% texto (izquierda) y 48% logo/QR (derecha), alineadas al diseño del sticker de aceite
-    const leftColW = Math.floor(availableWidth * 0.52);
-    const rightColW = availableWidth - leftColW - gapPx;
+    // Columnas exactas del sticker de aceite: 52% / 48% y gap adicional
+    const leftColW = availableWidth * 0.52;
+    const rightColW = availableWidth * 0.48;
 
     const leftColX = marginPx;
     const rightColX = marginPx + leftColW + gapPx;
