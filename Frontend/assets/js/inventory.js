@@ -2513,14 +2513,17 @@ function openMarketplaceHelper(item){
     const colY = marginPx;
 
     // Logo en la parte superior derecha, centrado horizontalmente.
-    // Ajustado para que se vea como el sticker de aceite (más proporcionado y sin estirar).
-    const logoSize = Math.min(rightColW * 0.60, availableHeight * 0.28);
+    // Replica exactamente las proporciones del sticker de cambio de aceite:
+    // base = 50% del ancho derecho o 25% de la altura; luego +50% con topes.
+    const logoBase = Math.min(rightColW * 0.5, availableHeight * 0.25);
+    const logoSize = Math.min(logoBase * 1.5, availableHeight * 0.4, rightColW);
     const logoX = rightColX + (rightColW - logoSize) / 2;
     const logoY = colY;
 
     // QR grande en el bloque inferior derecho, misma lógica que el sticker de aceite:
-    // Mantener proporción sin ocupar más ancho que el sticker de aceite.
-    const qrSize = Math.min(rightColW * 0.70, availableHeight * 0.55);
+    // base = 75% del ancho derecho o 45% de la altura; luego +50% con topes.
+    const baseQrSize = Math.min(rightColW * 0.75, availableHeight * 0.45);
+    const qrSize = Math.min(baseQrSize * 1.5, rightColW, availableHeight);
     const qrX = rightColX + (rightColW - qrSize) / 2;
     const qrY = colY + availableHeight - qrSize - Math.round(marginPx * 0.3);
 
