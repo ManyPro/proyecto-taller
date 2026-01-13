@@ -2497,16 +2497,16 @@ function openMarketplaceHelper(item){
   // Layout unificado (copia del sticker de recordatorio de aceite)
   // Mantiene QR y logo en la misma posición; lado izquierdo sólo muestra el SKU centrado.
   function buildUnifiedStickerLayout(logoUrl) {
-    // Para inventario usamos todo el lienzo (sin margen) para que el QR y logo ocupen más espacio.
+    // Usar todo el lienzo; mover más ancho a la derecha (55%) para QR+logo
     const marginPx = 0;
     const gapPx = 0;
 
     const availableWidth = canvasWidth;
     const availableHeight = canvasHeight;
 
-    // Columnas: 52% / 48% sin gap para maximizar ancho utilizable en la derecha
-    const leftColW = availableWidth * 0.52;
-    const rightColW = availableWidth * 0.48;
+    // Columnas: 45% / 55% sin gap para ampliar QR y logo
+    const leftColW = availableWidth * 0.45;
+    const rightColW = availableWidth * 0.55;
 
     const leftColX = marginPx;
     const rightColX = marginPx + leftColW + gapPx;
@@ -2518,15 +2518,17 @@ function openMarketplaceHelper(item){
     // logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW)
     const rightColH = availableHeight;
 
-    // Logo: priorizar ancho, permitiendo que crezca más (hasta 90% del ancho o 35% de la altura)
-    const logoSize = Math.min(rightColW * 0.9, rightColH * 0.35);
+    // Logo: priorizar ancho, hasta 90% del ancho o 30% de la altura para dejar espacio al QR
+    const logoSize = Math.min(rightColW * 0.9, rightColH * 0.3);
     const logoX = rightColX + (rightColW - logoSize) / 2; // Centrar horizontalmente
-    const logoY = colY;
+    const logoY = colY + 2; // pequeño padding superior
 
-    // QR: ocupar casi toda la columna derecha, centrado verticalmente
-    const qrSize = Math.min(rightColW * 0.95, rightColH * 0.8);
+    // QR: ocupar casi toda la columna derecha, alineado abajo
+    const qrMaxW = rightColW * 0.98;
+    const qrMaxH = rightColH * 0.9;
+    const qrSize = Math.min(qrMaxW, qrMaxH);
     const qrX = rightColX + (rightColW - qrSize) / 2; // Centrar horizontalmente
-    const qrY = colY + (rightColH - qrSize) / 2; // Centrar verticalmente
+    const qrY = colY + rightColH - qrSize - 2; // Alinear al fondo con pequeño padding
 
     // Debug: Log dimensiones calculadas
     console.log('🏷️ [LAYOUT] Dimensiones calculadas:', {
