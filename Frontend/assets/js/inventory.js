@@ -2513,21 +2513,42 @@ function openMarketplaceHelper(item){
     const colY = marginPx;
 
     // Logo en la parte superior derecha, centrado horizontalmente.
-    // Replica exacta del layout del sticker de cambio de aceite:
-    // Margen 0.25cm, gap 0.2cm, columnas 52% (texto) / 48% (logo+QR)
+    // Replica EXACTA del layout del sticker de cambio de aceite del backend:
+    // Misma fórmula: logoBase = Math.min(rightColW * 0.5, rightColH * 0.25)
+    // logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW)
     const rightColH = availableHeight;
 
-    // Logo: aumentar significativamente para que ocupe más espacio como en el sticker de recordatorio
-    // Usar hasta 85% del ancho de la columna derecha y 35% de la altura
-    const logoSize = Math.min(rightColW * 0.85, rightColH * 0.35);
-    const logoX = rightColX + (rightColW - logoSize) / 2;
+    // Logo: aumentar para que ocupe más espacio como en el sticker de recordatorio
+    // Usar hasta 90% del ancho de la columna derecha y 40% de la altura
+    const logoSize = Math.min(rightColW * 0.9, rightColH * 0.4);
+    const logoX = rightColX + (rightColW - logoSize) / 2; // Centrar horizontalmente
     const logoY = colY;
 
-    // QR: aumentar significativamente para que ocupe más espacio como en el sticker de recordatorio
-    // Usar hasta 90% del ancho de la columna derecha y el espacio vertical restante
-    const qrSize = Math.min(rightColW * 0.9, rightColH - logoSize - marginPx * 0.5);
-    const qrX = rightColX + (rightColW - qrSize) / 2;
-    const qrY = colY + logoSize + marginPx * 0.3;
+    // QR: aumentar para que ocupe más espacio como en el sticker de recordatorio
+    // Usar hasta 95% del ancho de la columna derecha y el espacio vertical restante
+    const qrSize = Math.min(rightColW * 0.95, rightColH - logoSize - marginPx * 0.5);
+    const qrX = rightColX + (rightColW - qrSize) / 2; // Centrar horizontalmente
+    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3); // Desde abajo
+
+    // Debug: Log dimensiones calculadas
+    console.log('🏷️ [LAYOUT] Dimensiones calculadas:', {
+      canvasWidth,
+      canvasHeight,
+      marginPx,
+      gapPx,
+      availableWidth,
+      availableHeight,
+      leftColW,
+      rightColW,
+      rightColX,
+      rightColH,
+      logoSize,
+      logoX,
+      logoY,
+      qrSize,
+      qrX,
+      qrY
+    });
 
     // SKU centrado en toda la columna izquierda
     const skuX = leftColX;
