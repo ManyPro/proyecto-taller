@@ -2520,11 +2520,11 @@ function openMarketplaceHelper(item){
     const logoX = rightColX + (rightColW - logoSize) / 2;
     const logoY = colY;
 
-    // QR ocupa TODO el lado derecho (permitir deformación)
-    const qrWidth = rightColW;
-    const qrHeight = rightColH;
-    const qrX = rightColX;
-    const qrY = colY;
+    // QR ocupa TODO el lado derecho (permitir deformación) y se sobrepone 2px para matar gaps
+    const qrWidth = rightColW + 4;
+    const qrHeight = rightColH + 4;
+    const qrX = rightColX - 2;
+    const qrY = colY - 2;
 
     // SKU centrado verticalmente en la columna izquierda (solo SKU)
     const skuX = leftColX;
