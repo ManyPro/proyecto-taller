@@ -2497,14 +2497,14 @@ function openMarketplaceHelper(item){
   // Layout unificado (copia del sticker de recordatorio de aceite)
   // Mantiene QR y logo en la misma posición; lado izquierdo sólo muestra el SKU centrado.
   function buildUnifiedStickerLayout(logoUrl) {
-    // Replicar proporciones del PDF de cambio de aceite: margen de 0.25cm y separación de 0.2cm
-    const marginPx = Math.round(STICKER_PX_PER_CM * 0.25); // ~7px
-    const gapPx = Math.round(STICKER_PX_PER_CM * 0.2); // ~8px
+    // Para inventario usamos todo el lienzo (sin margen) para que el QR y logo ocupen más espacio.
+    const marginPx = 0;
+    const gapPx = 0;
 
-    const availableWidth = canvasWidth - (marginPx * 2);
-    const availableHeight = canvasHeight - (marginPx * 2);
+    const availableWidth = canvasWidth;
+    const availableHeight = canvasHeight;
 
-    // Columnas exactas del sticker de aceite: 52% / 48% y gap adicional
+    // Columnas: 52% / 48% sin gap para maximizar ancho utilizable en la derecha
     const leftColW = availableWidth * 0.52;
     const rightColW = availableWidth * 0.48;
 
@@ -2518,19 +2518,15 @@ function openMarketplaceHelper(item){
     // logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW)
     const rightColH = availableHeight;
 
-    // Logo: aumentar para que ocupe más espacio como en el sticker de recordatorio
-    // Priorizar el ancho: usar 90% del ancho disponible, y hasta 35% de la altura para dejar espacio al QR
+    // Logo: priorizar ancho, permitiendo que crezca más (hasta 90% del ancho o 35% de la altura)
     const logoSize = Math.min(rightColW * 0.9, rightColH * 0.35);
     const logoX = rightColX + (rightColW - logoSize) / 2; // Centrar horizontalmente
     const logoY = colY;
 
-    // QR: aumentar MUCHO para que ocupe más espacio como en el sticker de recordatorio
-    // Posicionar desde abajo como en el sticker de recordatorio
-    // Usar 95% del ancho y el máximo espacio vertical disponible
-    const maxQrSizeFromBottom = rightColH - logoSize - marginPx * 0.3; // Espacio disponible desde abajo
-    const qrSize = Math.min(rightColW * 0.95, maxQrSizeFromBottom);
+    // QR: ocupar casi toda la columna derecha, centrado verticalmente
+    const qrSize = Math.min(rightColW * 0.95, rightColH * 0.8);
     const qrX = rightColX + (rightColW - qrSize) / 2; // Centrar horizontalmente
-    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3); // Desde abajo, como en el sticker de recordatorio
+    const qrY = colY + (rightColH - qrSize) / 2; // Centrar verticalmente
 
     // Debug: Log dimensiones calculadas
     console.log('🏷️ [LAYOUT] Dimensiones calculadas:', {
