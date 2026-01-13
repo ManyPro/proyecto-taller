@@ -2519,16 +2519,18 @@ function openMarketplaceHelper(item){
     const rightColH = availableHeight;
 
     // Logo: aumentar para que ocupe más espacio como en el sticker de recordatorio
-    // Usar hasta 90% del ancho de la columna derecha y 40% de la altura
-    const logoSize = Math.min(rightColW * 0.9, rightColH * 0.4);
+    // Priorizar el ancho: usar 90% del ancho disponible, y hasta 35% de la altura para dejar espacio al QR
+    const logoSize = Math.min(rightColW * 0.9, rightColH * 0.35);
     const logoX = rightColX + (rightColW - logoSize) / 2; // Centrar horizontalmente
     const logoY = colY;
 
-    // QR: aumentar para que ocupe más espacio como en el sticker de recordatorio
-    // Usar hasta 95% del ancho de la columna derecha y el espacio vertical restante
-    const qrSize = Math.min(rightColW * 0.95, rightColH - logoSize - marginPx * 0.5);
+    // QR: aumentar MUCHO para que ocupe más espacio como en el sticker de recordatorio
+    // Posicionar desde abajo como en el sticker de recordatorio
+    // Usar 95% del ancho y el máximo espacio vertical disponible
+    const maxQrSizeFromBottom = rightColH - logoSize - marginPx * 0.3; // Espacio disponible desde abajo
+    const qrSize = Math.min(rightColW * 0.95, maxQrSizeFromBottom);
     const qrX = rightColX + (rightColW - qrSize) / 2; // Centrar horizontalmente
-    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3); // Desde abajo
+    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3); // Desde abajo, como en el sticker de recordatorio
 
     // Debug: Log dimensiones calculadas
     console.log('🏷️ [LAYOUT] Dimensiones calculadas:', {
