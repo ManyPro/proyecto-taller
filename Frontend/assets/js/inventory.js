@@ -1,4 +1,4 @@
-﻿import { API } from "./api.esm.js";
+import { API } from "./api.esm.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
@@ -2494,61 +2494,38 @@ function openMarketplaceHelper(item){
   
   // STICKER_DEFAULT_LAYOUT y cloneStickerLayout eliminados - no se usan
 
-  // Layout unificado (copia del sticker de recordatorio de aceite)
-  // Mantiene QR y logo en la misma posición; lado izquierdo sólo muestra el SKU centrado.
+  // Layout unificado: idéntico al sticker de recordatorio de aceite (backend)
+  // Usa mismos márgenes, columnas, y fórmulas de tamaño/posición de logo y QR.
   function buildUnifiedStickerLayout(logoUrl) {
-    // Usar todo el lienzo; mover más ancho a la derecha (55%) para QR+logo
-    const marginPx = 0;
-    const gapPx = 0;
+    // Márgenes y gap del backend: 0.25cm y 0.2cm
+    const marginPx = Math.round(STICKER_PX_PER_CM * 0.25); // ~9px
+    const gapPx = Math.round(STICKER_PX_PER_CM * 0.2);     // ~8px
 
-    const availableWidth = canvasWidth;
-    const availableHeight = canvasHeight;
+    const availableWidth = canvasWidth - (marginPx * 2);
+    const availableHeight = canvasHeight - (marginPx * 2);
 
-    // Columnas: 45% / 55% sin gap para ampliar QR y logo
-    const leftColW = availableWidth * 0.45;
-    const rightColW = availableWidth * 0.55;
+    // Columnas backend: 52% texto / 48% logo+QR
+    const leftColW = availableWidth * 0.52;
+    const rightColW = availableWidth * 0.48;
 
     const leftColX = marginPx;
     const rightColX = marginPx + leftColW + gapPx;
     const colY = marginPx;
 
-    // Logo en la parte superior derecha, centrado horizontalmente.
-    // Replica EXACTA del layout del sticker de cambio de aceite del backend:
-    // Misma fórmula: logoBase = Math.min(rightColW * 0.5, rightColH * 0.25)
-    // logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW)
+    // Altura de la columna derecha
     const rightColH = availableHeight;
 
-    // Logo: priorizar ancho, hasta 90% del ancho o 30% de la altura para dejar espacio al QR
-    const logoSize = Math.min(rightColW * 0.9, rightColH * 0.3);
-    const logoX = rightColX + (rightColW - logoSize) / 2; // Centrar horizontalmente
-    const logoY = colY + 2; // pequeño padding superior
+    // Logo: fórmula backend
+    const logoBase = Math.min(rightColW * 0.5, rightColH * 0.25);
+    const logoSize = Math.min(logoBase * 1.5, rightColH * 0.4, rightColW);
+    const logoX = rightColX + (rightColW - logoSize) / 2;
+    const logoY = colY;
 
-    // QR: ocupar casi toda la columna derecha, alineado abajo
-    const qrMaxW = rightColW * 0.98;
-    const qrMaxH = rightColH * 0.9;
-    const qrSize = Math.min(qrMaxW, qrMaxH);
-    const qrX = rightColX + (rightColW - qrSize) / 2; // Centrar horizontalmente
-    const qrY = colY + rightColH - qrSize - 2; // Alinear al fondo con pequeño padding
-
-    // Debug: Log dimensiones calculadas
-    console.log('🏷️ [LAYOUT] Dimensiones calculadas:', {
-      canvasWidth,
-      canvasHeight,
-      marginPx,
-      gapPx,
-      availableWidth,
-      availableHeight,
-      leftColW,
-      rightColW,
-      rightColX,
-      rightColH,
-      logoSize,
-      logoX,
-      logoY,
-      qrSize,
-      qrX,
-      qrY
-    });
+    // QR: fórmula backend (ligero offset como en PDF)
+    const baseQrSize = Math.min(rightColW * 0.75, rightColH * 0.45);
+    const qrSize = Math.min(baseQrSize * 1.5, rightColW, rightColH);
+    const qrX = rightColX + (rightColW - qrSize) / 2;
+    const qrY = colY + rightColH - qrSize - Math.round(marginPx * 0.3);
 
     // SKU centrado en toda la columna izquierda
     const skuX = leftColX;
