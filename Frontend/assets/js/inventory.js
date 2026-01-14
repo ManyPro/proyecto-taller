@@ -5168,6 +5168,9 @@ async function openPurchaseStickersModal(purchaseId) {
 // Abrir modal para cobrar items vendidos del inversor
 async function openPayInvestorItemsModal(investorId, soldItems) {
   try {
+    // Definir función de formateo de dinero
+    const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
     // Obtener items seleccionados
     const checked = Array.from(document.querySelectorAll('.sold-item-checkbox:checked'));
     if (checked.length === 0) {
