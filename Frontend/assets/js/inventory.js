@@ -4744,17 +4744,21 @@ async function openInvestorDetailModal(investorId) {
     invOpenModal('<div class="p-6"><p class="text-white theme-light:text-slate-900">Cargando...</p></div>');
     
     // Cargar datos del inversor
-    const [investorData, purchasesData] = await Promise.all([
+    const [investorData, purchasesData, investorInfo] = await Promise.all([
       API.investments.getInvestorInvestments(investorId),
-      API.purchases.purchases.list({ investorId, limit: 1000 })
+      API.purchases.purchases.list({ investorId, limit: 1000 }),
+      API.purchases.investors.list().then(investors => investors.find(i => i._id === investorId) || { name: 'Sin nombre' })
     ]);
     
     const investor = investorData;
+    const investorName = investorInfo?.name || 'Sin nombre';
+    const summary = investor.summary || {};
+    const items = investor.items || {};
     const purchases = purchasesData.items || [];
     const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     
     // Renderizar items disponibles
-    const availableItems = (investor.available || []).map(item => {
+    const availableItems = (items.available || []).map(item => {
       const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
       const total = (item.purchasePrice || 0) * (item.qty || 0);
       return `
@@ -4768,7 +4772,7 @@ async function openInvestorDetailModal(investorId) {
     }).join('') || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
     
     // Renderizar items vendidos
-    const soldItems = (investor.sold || []).map(item => {
+    const soldItems = (items.sold || []).map(item => {
       const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
       const total = (item.purchasePrice || 0) * (item.qty || 0);
       const saleNumber = item.saleId?.number || 'N/A';
@@ -4784,7 +4788,7 @@ async function openInvestorDetailModal(investorId) {
     }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
     
     // Renderizar items pagados
-    const paidItems = (investor.paid || []).map(item => {
+    const paidItems = (items.paid || []).map(item => {
       const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
       const total = (item.purchasePrice || 0) * (item.qty || 0);
       const saleNumber = item.saleId?.number || 'N/A';
@@ -4821,29 +4825,29 @@ async function openInvestorDetailModal(investorId) {
     
     const modalContent = `
       <div class="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <h3 class="text-2xl font-bold text-white theme-light:text-slate-900 mb-6">💰 ${escapeHtml(investor.investorName || 'Sin nombre')}</h3>
+        <h3 class="text-2xl font-bold text-white theme-light:text-slate-900 mb-6">💰 ${escapeHtml(investorName)}</h3>
         
         <!-- Resumen -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
             <p class="text-xs text-slate-400 theme-light:text-slate-600">Total Inversión</p>
-            <p class="text-lg font-bold text-white theme-light:text-slate-900">${money(investor.totalInvestment || 0)}</p>
+            <p class="text-lg font-bold text-white theme-light:text-slate-900">${money(summary.totalInvestment || 0)}</p>
           </div>
           <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
             <p class="text-xs text-slate-400 theme-light:text-slate-600">Disponible</p>
-            <p class="text-lg font-bold text-green-400 theme-light:text-green-600">${money(investor.availableValue || 0)}</p>
+            <p class="text-lg font-bold text-green-400 theme-light:text-green-600">${money(summary.availableValue || 0)}</p>
           </div>
           <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
             <p class="text-xs text-slate-400 theme-light:text-slate-600">Vendido</p>
-            <p class="text-lg font-bold text-yellow-400 theme-light:text-yellow-600">${money(investor.soldValue || 0)}</p>
+            <p class="text-lg font-bold text-yellow-400 theme-light:text-yellow-600">${money(summary.soldValue || 0)}</p>
           </div>
           <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
             <p class="text-xs text-slate-400 theme-light:text-slate-600">Pagado</p>
-            <p class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${money(investor.paidValue || 0)}</p>
+            <p class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${money(summary.paidValue || 0)}</p>
           </div>
           <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
             <p class="text-xs text-slate-400 theme-light:text-slate-600">Pendiente</p>
-            <p class="text-lg font-bold text-orange-400 theme-light:text-orange-600">${money((investor.soldValue || 0) - (investor.paidValue || 0))}</p>
+            <p class="text-lg font-bold text-orange-400 theme-light:text-orange-600">${money(summary.pendingPayment || 0)}</p>
           </div>
         </div>
         
