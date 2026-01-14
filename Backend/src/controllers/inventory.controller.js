@@ -9,7 +9,9 @@ import SKU from "../models/SKU.js";
 import Supplier from "../models/Supplier.js";
 import Investor from "../models/Investor.js";
 import InvestmentItem from "../models/InvestmentItem.js";
+import Purchase from "../models/Purchase.js";
 import { checkLowStockAndNotify, checkLowStockForMany } from "../lib/stockAlerts.js";
+import { logger } from "../lib/logger.js";
 import xlsx from 'xlsx';
 import multer from 'multer';
 
@@ -956,6 +958,49 @@ export const addItemStock = async (req, res) => {
     console.error('sku-pending-on-stock-in', e?.message);
   }
 
+  // Crear registro de Purchase si hay proveedor, inversor o precio de compra
+  let purchase = null;
+  if (supplierId !== null || investorId !== null || purchasePrice !== null) {
+    try {
+      const totalAmount = purchasePrice !== null ? purchasePrice * qty : 0;
+      
+      purchase = await Purchase.create({
+        companyId: req.companyId,
+        supplierId: supplierId,
+        investorId: investorId,
+        purchaseDate: new Date(),
+        totalAmount: totalAmount,
+        items: [{
+          itemId: item._id,
+          qty: qty,
+          unitPrice: purchasePrice !== null ? purchasePrice : 0
+        }],
+        notes: meta.note || ''
+      });
+      
+      // Vincular el Purchase al StockEntry si existe
+      if (stockEntry && purchase) {
+        stockEntry.purchaseId = purchase._id;
+        await stockEntry.save();
+      }
+      
+      logger.info('[inventory.addItemStock] ✅ Compra creada:', {
+        purchaseId: purchase._id,
+        supplierId,
+        investorId,
+        totalAmount,
+        itemId: item._id
+      });
+    } catch (purchaseErr) {
+      // No fallar si no se puede crear la compra, solo loguear
+      logger.warn('[inventory.addItemStock] ⚠️ Error creando compra (no crítico):', {
+        error: purchaseErr.message,
+        supplierId,
+        investorId
+      });
+    }
+  }
+
   // Generar QR data con la información correcta
   const qrData = makeQrData({
     companyId: req.companyId,
@@ -976,6 +1021,10 @@ export const addItemStock = async (req, res) => {
   }
   if (investmentItem) {
     response.investmentItem = investmentItem.toObject();
+  }
+  if (purchase) {
+    response.purchaseId = purchase._id;
+    response.purchase = purchase.toObject();
   }
 
   res.json(response);

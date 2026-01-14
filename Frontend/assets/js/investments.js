@@ -11,7 +11,19 @@ export function initInvestments() {
     bind();
     invBound = true;
   }
-  loadInvestors();
+  
+  // Verificar si hay un investorId en la URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const investorIdFromUrl = urlParams.get('investorId');
+  
+  if (investorIdFromUrl) {
+    // Cargar inversores primero y luego el detalle
+    loadInvestors().then(() => {
+      loadInvestorDetail(investorIdFromUrl);
+    });
+  } else {
+    loadInvestors();
+  }
 }
 
 function bind() {
@@ -46,7 +58,7 @@ async function loadInvestors() {
 
     if (investors.length === 0) {
       container.innerHTML = '<p class="text-slate-400 theme-light:text-slate-600">No hay inversores registrados</p>';
-      return;
+      return Promise.resolve();
     }
 
     container.innerHTML = investors.map(inv => {
@@ -76,15 +88,22 @@ async function loadInvestors() {
     container.querySelectorAll('[data-investor-id]').forEach(el => {
       el.addEventListener('click', () => {
         const investorId = el.getAttribute('data-investor-id');
+        // Actualizar URL sin recargar
+        const url = new URL(window.location);
+        url.searchParams.set('investorId', investorId);
+        window.history.pushState({}, '', url);
         loadInvestorDetail(investorId);
       });
     });
+    
+    return Promise.resolve();
   } catch (err) {
     console.error('Error cargando inversores:', err);
     const container = document.getElementById('inv-investors-list');
     if (container) {
       container.innerHTML = `<p class="text-red-400">Error: ${err.message || 'Error desconocido'}</p>`;
     }
+    return Promise.reject(err);
   }
 }
 
@@ -140,10 +159,161 @@ async function loadInvestorDetail(investorId) {
     
     // Items pagados
     renderPaidItems(data.paid || []);
+    
+    // Cargar compras del inversor
+    await loadInvestorPurchases(investorId);
 
   } catch (err) {
     console.error('Error cargando detalle de inversor:', err);
     alert('Error: ' + (err.message || 'Error desconocido'));
+  }
+}
+
+async function loadInvestorPurchases(investorId) {
+  try {
+    const data = await API.purchases.purchases.list({ investorId, limit: 100 });
+    const purchases = data.items || [];
+    renderPurchases(purchases);
+  } catch (err) {
+    console.error('Error cargando compras del inversor:', err);
+    const container = document.getElementById('inv-purchases-list');
+    if (container) {
+      container.innerHTML = `<p class="text-red-400">Error cargando compras: ${err.message || 'Error desconocido'}</p>`;
+    }
+  }
+}
+
+function renderPurchases(purchases) {
+  const container = document.getElementById('inv-purchases-list');
+  if (!container) return;
+
+  if (purchases.length === 0) {
+    container.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay compras registradas</td></tr>';
+    return;
+  }
+
+  container.innerHTML = purchases.map(purchase => {
+    const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : 'N/A';
+    const supplierName = purchase.supplierId?.name || 'General';
+    const itemsCount = purchase.items?.length || 0;
+    const totalAmount = money(purchase.totalAmount || 0);
+    const notes = purchase.notes || '';
+    
+    return `
+      <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 cursor-pointer" data-purchase-id="${purchase._id}">
+        <td class="px-4 py-3">${escapeHtml(purchaseDate)}</td>
+        <td class="px-4 py-3">${escapeHtml(supplierName)}</td>
+        <td class="px-4 py-3 text-right">${itemsCount}</td>
+        <td class="px-4 py-3 text-right font-semibold">${totalAmount}</td>
+        <td class="px-4 py-3">${escapeHtml(notes || '-')}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Agregar event listeners para ver detalles de compra
+  container.querySelectorAll('[data-purchase-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const purchaseId = row.getAttribute('data-purchase-id');
+      openPurchaseDetail(purchaseId);
+    });
+  });
+}
+
+async function openPurchaseDetail(purchaseId) {
+  try {
+    const purchase = await API.purchases.purchases.get(purchaseId);
+    
+    const itemsHtml = (purchase.items || []).map(item => {
+      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
+      const qty = item.qty || 0;
+      const unitPrice = money(item.unitPrice || 0);
+      const total = money((item.unitPrice || 0) * qty);
+      
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-right">${qty}</td>
+          <td class="px-4 py-3 text-right">${unitPrice}</td>
+          <td class="px-4 py-3 text-right font-semibold">${total}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : 'N/A';
+    const supplierName = purchase.supplierId?.name || 'General';
+    const investorName = purchase.investorId?.name || 'General';
+    const totalAmount = money(purchase.totalAmount || 0);
+    const notes = purchase.notes || '';
+
+    const modalContent = `
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Detalle de Compra</h3>
+        <div class="space-y-4 mb-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Fecha</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold">${escapeHtml(purchaseDate)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Proveedor</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold">${escapeHtml(supplierName)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Inversor</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold">${escapeHtml(investorName)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Total</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold text-lg">${totalAmount}</p>
+            </div>
+          </div>
+          ${notes ? `
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Notas</p>
+              <p class="text-white theme-light:text-slate-900">${escapeHtml(notes)}</p>
+            </div>
+          ` : ''}
+        </div>
+        <div>
+          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items</h4>
+          <div class="max-h-[400px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Unitario</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                ${itemsHtml || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button id="purchase-detail-close" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cerrar</button>
+        </div>
+      </div>
+    `;
+
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    if (modal && modalBody) {
+      modalBody.innerHTML = modalContent;
+      modal.classList.remove('hidden');
+
+      document.getElementById('purchase-detail-close')?.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+
+      document.getElementById('modalClose')?.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+    }
+  } catch (err) {
+    alert('Error cargando detalle de compra: ' + (err.message || 'Error desconocido'));
   }
 }
 
