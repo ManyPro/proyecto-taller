@@ -526,6 +526,13 @@ export const listItems = async (req, res) => {
   return res.json({ data });
 };
 
+export const getItem = async (req, res) => {
+  const { id } = req.params;
+  const item = await Item.findOne({ _id: id, companyId: req.companyId }).lean();
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
+  res.json(item);
+};
+
 export const createItem = async (req, res) => {
   const b = req.body;
 

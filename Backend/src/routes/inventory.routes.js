@@ -6,6 +6,7 @@ import {
   updateVehicleIntake,
   deleteVehicleIntake,
   listItems,
+  getItem,
   createItem,
   updateItem,
   deleteItem,
@@ -32,6 +33,7 @@ router.delete('/vehicle-intakes/:id', deleteVehicleIntake);
 router.post('/vehicle-intakes/:id/recalc', recalcIntakePrices);
 
 router.get('/items', listItems);
+router.get('/items/:id', getItem);
 router.post('/items', createItem);
 router.put('/items/:id', updateItem);
 router.delete('/items/:id', deleteItem);

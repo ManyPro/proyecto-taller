@@ -768,7 +768,6 @@ if (__ON_INV_PAGE__) {
   const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
   const itLocation = document.getElementById("it-location"); if (itLocation) upper(itLocation);
   const itBrand = document.getElementById("it-brand"); if (itBrand) upper(itBrand);
-  const itVehicleTarget = document.getElementById("it-vehicleTarget"); upper(itVehicleTarget);
   // Controles de Ingreso
   const viCardForm = document.getElementById('vi-card-form');
   const viKindRow = document.getElementById('vi-kind-row');
@@ -812,10 +811,7 @@ if (__ON_INV_PAGE__) {
   // Default to purchase as requested
   if (viKindPurchase) viKindPurchase.checked = true;
   updateIntakeKindUI();
-  const itVehicleIntakeId = document.getElementById("it-vehicleIntakeId");
-  const itEntryPrice = document.getElementById("it-entryPrice");
   const itSalePrice = document.getElementById("it-salePrice");
-  const itOriginal = document.getElementById("it-original");
   const itStock = document.getElementById("it-stock");
   const itFiles = document.getElementById("it-files");
   const itSave = document.getElementById("it-save");
@@ -1083,12 +1079,6 @@ if (__ON_INV_PAGE__) {
     const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
 
-    itVehicleIntakeId.innerHTML =
-      `<option value="">— Sin procedencia —</option>` +
-      state.intakes
-        .map((v) => `<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
-        .join("");
-
     if (qIntake) {
       qIntake.innerHTML =
         `<option value="">Todas las entradas</option>` +
@@ -1098,7 +1088,6 @@ if (__ON_INV_PAGE__) {
     }
 
     renderIntakesList();
-    itVehicleIntakeId.dispatchEvent(new Event("change"));
   }
 
   function renderIntakesList() {
@@ -1330,9 +1319,8 @@ if (__ON_INV_PAGE__) {
         </div>
         ${thumbs}
         <div class="content">
-          <div>Destino: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
-          <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
-          <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "SI" : "No"}</div>
+          <div>Venta: ${fmtMoney(it.salePrice)}</div>
+          <div>Stock: <b>${it.stock}</b></div>
         </div>
         <div class="actions">
           <button class="secondary" data-edit="${it._id}">Editar</button>
@@ -1991,41 +1979,10 @@ if (__ON_INV_PAGE__) {
   };
   }
 
-  // ---- Autorelleno de destino al cambiar procedencia ----
-  if (itVehicleIntakeId) {
-  itVehicleIntakeId.addEventListener("change", () => {
-    const id = itVehicleIntakeId.value;
-    if (!id) {
-      if (itVehicleTarget) {
-      itVehicleTarget.value = "GENERAL";
-      itVehicleTarget.readOnly = false;
-      }
-      return;
-    }
-    const vi = state.intakes.find((v) => v._id === id);
-    if (vi) {
-      if (itVehicleTarget) {
-      itVehicleTarget.value = makeIntakeLabel(vi);
-      itVehicleTarget.readOnly = true;
-      }
-    } else {
-      if (itVehicleTarget) itVehicleTarget.readOnly = false;
-    }
-  });
-  }
 
   // ---- Guardar ítem ----
   if (itSave) {
   itSave.onclick = async () => {
-    let vehicleTargetValue = (itVehicleTarget?.value || "").trim();
-    const selectedIntakeId = itVehicleIntakeId?.value || undefined;
-
-    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "GENERAL")) {
-      const vi = state.intakes.find((v) => v._id === selectedIntakeId);
-      if (vi) vehicleTargetValue = makeIntakeLabel(vi);
-    }
-    if (!vehicleTargetValue) vehicleTargetValue = "GENERAL";
-
     let images = [];
     if (itFiles && itFiles.files && itFiles.files.length > 0) {
       const up = await invAPI.mediaUpload(itFiles.files);
@@ -2038,11 +1995,7 @@ if (__ON_INV_PAGE__) {
       internalName: itInternal ? itInternal.value.trim() : undefined,
       brand: itBrand ? itBrand.value.trim() : undefined,
       location: itLocation ? itLocation.value.trim() : undefined,
-      vehicleTarget: vehicleTargetValue,
-      vehicleIntakeId: selectedIntakeId,
-      entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined,
       salePrice: parseFloat(itSalePrice.value || "0"),
-      original: itOriginal.value === "true",
       stock: parseInt(itStock.value || "0", 10),
       images,
     };
@@ -2064,15 +2017,10 @@ if (__ON_INV_PAGE__) {
     if (itInternal) itInternal.value = "";
   if (itBrand) itBrand.value = "";
     if (itLocation) itLocation.value = "";
-    if (itVehicleTarget) itVehicleTarget.value = "GENERAL";
-    if (itVehicleIntakeId) itVehicleIntakeId.value = "";
-    if (itEntryPrice) itEntryPrice.value = "";
     if (itSalePrice) itSalePrice.value = "";
-    if (itOriginal) itOriginal.value = "false";
     if (itStock) itStock.value = "";
   if (itMinStock) itMinStock.value = "";
     if (itFiles) itFiles.value = "";
-    if (itVehicleTarget) itVehicleTarget.readOnly = false;
 
     await refreshItems({});
   };
@@ -2183,16 +2131,6 @@ if (__ON_INV_PAGE__) {
 
   // ---- Editar Ítem ----
   function openEditItem(it) {
-    const optionsIntakes = [
-      `<option value="">(sin entrada)</option>`,
-      ...state.intakes.map(
-        (v) =>
-          `<option value="${v._id}" ${String(it.vehicleIntakeId || "") === String(v._id) ? "selected" : ""}>
-            ${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}
-          </option>`
-      ),
-    ].join("");
-
     const images = Array.isArray(it.images) ? [...it.images] : [];
 
     invOpenModal(`
@@ -2221,27 +2159,8 @@ if (__ON_INV_PAGE__) {
             <input id="e-it-location" value="${it.location || ''}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Entrada</label>
-            <select id="e-it-intake" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">${optionsIntakes}</select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Destino</label>
-            <input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio entrada (opcional)</label>
-            <input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-          </div>
-          <div>
             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio venta</label>
             <input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Original</label>
-            <select id="e-it-original" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-        <option value="false" ${!it.original ? "selected" : ""}>No</option>
-        <option value="true" ${it.original ? "selected" : ""}>Sí</option>
-      </select>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Stock</label>
@@ -2270,11 +2189,7 @@ if (__ON_INV_PAGE__) {
 
     const sku = document.getElementById("e-it-sku");
     const name = document.getElementById("e-it-name");
-    const intake = document.getElementById("e-it-intake");
-    const target = document.getElementById("e-it-target");
-    const entry = document.getElementById("e-it-entry");
     const sale = document.getElementById("e-it-sale");
-    const original = document.getElementById("e-it-original");
     const stock = document.getElementById("e-it-stock");
     const files = document.getElementById("e-it-files");
   const minInput = document.getElementById("e-it-min");
@@ -2349,20 +2264,6 @@ if (__ON_INV_PAGE__) {
     }
     renderThumbs();
 
-    intake.addEventListener("change", () => {
-      const id = intake.value;
-      if (!id) {
-        target.readOnly = false;
-        return;
-      }
-      const vi = state.intakes.find((v) => v._id === id);
-      if (vi) {
-        target.value = makeIntakeLabel(vi);
-        target.readOnly = true;
-      } else {
-        target.readOnly = false;
-      }
-    });
 
     files.addEventListener("change", async () => {
       if (!files.files?.length) return;
@@ -2396,11 +2297,7 @@ if (__ON_INV_PAGE__) {
           internalName: (document.getElementById('e-it-internal')?.value||'').trim().toUpperCase(),
           brand: (eBrand?.value||'').trim().toUpperCase(),
           location: (document.getElementById('e-it-location')?.value||'').trim().toUpperCase(),
-          vehicleIntakeId: intake.value || null,
-          vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),
-          entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
           salePrice: parseFloat(sale.value || "0"),
-          original: original.value === "true",
           stock: parseInt(stock.value || "0", 10),
           images,
         };
@@ -5041,26 +4938,61 @@ async function openPurchaseStickersModal(purchaseId) {
       return;
     }
     
-    // Obtener información completa de los items
+    // Usar los datos que ya vienen populados de la compra
+    // Si necesitamos más datos del item, los obtenemos del cache o hacemos una llamada
     const itemsWithDetails = await Promise.all(
       (purchase.items || []).map(async (purchaseItem) => {
-        try {
-          const item = await invAPI.getItem(purchaseItem.itemId?._id || purchaseItem.itemId);
-          return {
-            ...purchaseItem,
-            item: item,
-            itemId: purchaseItem.itemId?._id || purchaseItem.itemId,
-            qty: purchaseItem.qty || 0
+        const itemId = purchaseItem.itemId?._id || purchaseItem.itemId;
+        
+        // Si el itemId ya está poblado con datos, usarlos directamente
+        let item = null;
+        if (purchaseItem.itemId && typeof purchaseItem.itemId === 'object' && purchaseItem.itemId._id) {
+          // Ya está poblado, usar los datos disponibles
+          item = {
+            _id: purchaseItem.itemId._id,
+            sku: purchaseItem.itemId.sku || '',
+            name: purchaseItem.itemId.name || ''
           };
-        } catch (err) {
-          console.error('Error obteniendo item:', err);
-          return {
-            ...purchaseItem,
-            item: null,
-            itemId: purchaseItem.itemId?._id || purchaseItem.itemId,
-            qty: purchaseItem.qty || 0
-          };
+          
+          // Intentar obtener más datos del cache o hacer una llamada si es necesario
+          const cachedItem = state.itemCache?.get(String(item._id));
+          if (cachedItem) {
+            item = cachedItem;
+          } else {
+            // Intentar obtener el item completo, pero si falla, usar los datos básicos
+            try {
+              const fullItem = await invAPI.getItem(item._id);
+              if (fullItem) {
+                item = fullItem;
+                if (state.itemCache) {
+                  state.itemCache.set(String(item._id), item);
+                }
+              }
+            } catch (err) {
+              // Si falla, usar los datos básicos que ya tenemos
+              console.warn('No se pudo obtener item completo, usando datos básicos:', err.message);
+            }
+          }
+        } else if (itemId) {
+          // itemId es solo un string, intentar obtenerlo
+          try {
+            item = await invAPI.getItem(itemId);
+            if (state.itemCache && item) {
+              state.itemCache.set(String(itemId), item);
+            }
+          } catch (err) {
+            console.error('Error obteniendo item:', err);
+            // Crear un objeto básico con el ID
+            item = { _id: itemId, sku: '', name: 'N/A' };
+          }
         }
+        
+        return {
+          ...purchaseItem,
+          item: item,
+          itemId: itemId,
+          qty: purchaseItem.qty || 0
+        };
       })
     );
     
