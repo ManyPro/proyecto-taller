@@ -4675,21 +4675,25 @@ async function openInvestorDetailModal(investorId) {
       `;
     }).join('') || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
     
-    // Renderizar items vendidos
+    // Renderizar items vendidos con checkboxes para selección
     const soldItems = (items.sold || []).map(item => {
       const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
       const total = (item.purchasePrice || 0) * (item.qty || 0);
       const saleNumber = item.saleId?.number || 'N/A';
+      const itemId = item._id || item.id;
       return `
         <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3 text-center">
+            <input type="checkbox" class="sold-item-checkbox cursor-pointer" data-investment-item-id="${itemId}" data-total="${total}" />
+          </td>
           <td class="px-4 py-3">${escapeHtml(itemName)}</td>
           <td class="px-4 py-3 text-right">${item.qty || 0}</td>
           <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
-          <td class="px-4 py-3 text-right">${money(total)}</td>
+          <td class="px-4 py-3 text-right font-semibold">${money(total)}</td>
           <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
     
     // Renderizar items pagados
     const paidItems = (items.paid || []).map(item => {
@@ -4780,11 +4784,21 @@ async function openInvestorDetailModal(investorId) {
         
         <!-- Items Vendidos -->
         <div class="mb-6">
-          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items Vendidos</h4>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-lg font-semibold text-white theme-light:text-slate-900">Items Vendidos</h4>
+            ${sold.length > 0 ? `
+              <button id="btn-cobrar-items" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+                💰 Cobrar Items
+              </button>
+            ` : ''}
+          </div>
           <div class="max-h-[200px] overflow-auto custom-scrollbar">
             <table class="w-full text-sm border-collapse">
               <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
                 <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                    <input type="checkbox" id="select-all-sold" class="cursor-pointer" />
+                  </th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
@@ -4840,6 +4854,27 @@ async function openInvestorDetailModal(investorId) {
     `;
     
     invOpenModal(modalContent);
+    
+    // Configurar funcionalidad de cobro si hay items vendidos
+    if (sold.length > 0) {
+      // Checkbox "Seleccionar todos"
+      const selectAllCheckbox = document.getElementById('select-all-sold');
+      const soldCheckboxes = document.querySelectorAll('.sold-item-checkbox');
+      
+      if (selectAllCheckbox && soldCheckboxes.length > 0) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+          soldCheckboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+        });
+      }
+      
+      // Botón "Cobrar Items"
+      const btnCobrar = document.getElementById('btn-cobrar-items');
+      if (btnCobrar) {
+        btnCobrar.onclick = () => openPayInvestorItemsModal(investorId, items.sold || []);
+      }
+    }
   } catch (err) {
     console.error('Error cargando detalle de inversor:', err);
     alert('Error: ' + (err.message || 'Error desconocido'));
@@ -5130,7 +5165,165 @@ async function openPurchaseStickersModal(purchaseId) {
   }
 }
 
+// Abrir modal para cobrar items vendidos del inversor
+async function openPayInvestorItemsModal(investorId, soldItems) {
+  try {
+    // Obtener items seleccionados
+    const checked = Array.from(document.querySelectorAll('.sold-item-checkbox:checked'));
+    if (checked.length === 0) {
+      alert('Selecciona al menos un item para cobrar');
+      return;
+    }
+    
+    const selectedItems = checked.map(cb => {
+      const itemId = cb.dataset.investmentItemId;
+      const total = parseFloat(cb.dataset.total || 0);
+      return { investmentItemId: itemId, total };
+    });
+    
+    const totalAmount = selectedItems.reduce((sum, item) => sum + item.total, 0);
+    
+    // Cargar cuentas disponibles
+    const accountsData = await API.accounts.balances();
+    const accounts = accountsData.balances || [];
+    
+    if (accounts.length === 0) {
+      alert('No hay cuentas disponibles. Crea una cuenta primero.');
+      return;
+    }
+    
+    const accountOptions = accounts.map(acc => {
+      const accId = acc.accountId || acc._id || acc.id;
+      const accName = acc.name || 'Sin nombre';
+      const accBalance = acc.balance || 0;
+      return `<option value="${accId}">${escapeHtml(accName)} - ${money(accBalance)}</option>`;
+    }).join('');
+    
+    const itemsList = selectedItems.map((item, idx) => {
+      const soldItem = soldItems.find(si => String(si._id || si.id) === String(item.investmentItemId));
+      const itemName = soldItem?.itemId?.name || soldItem?.itemId?.sku || 'N/A';
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-right font-semibold">${money(item.total)}</td>
+        </tr>
+      `;
+    }).join('');
+    
+    const modalContent = `
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">💰 Cobrar Items Vendidos</h3>
+        <p class="text-slate-300 theme-light:text-slate-700 mb-4">
+          Total a cobrar: <strong class="text-lg">${money(totalAmount)}</strong>
+        </p>
+        
+        <div class="mb-4">
+          <h4 class="text-sm font-semibold text-white theme-light:text-slate-900 mb-2">Items seleccionados:</h4>
+          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Item</th>
+                  <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Valor</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                ${itemsList}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+              Cuenta de donde sale el dinero <span class="text-red-400">*</span>
+            </label>
+            <select id="pay-investor-account" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Seleccionar cuenta --</option>
+              ${accountOptions}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nota (opcional)</label>
+            <input id="pay-investor-note" placeholder="ej: Pago de inversión" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+        
+        <div class="flex gap-3 mt-6">
+          <button id="pay-investor-confirm" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">
+            💰 Confirmar Cobro
+          </button>
+          <button id="pay-investor-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    invOpenModal(modalContent);
+    
+    // Configurar botones
+    document.getElementById('pay-investor-cancel').onclick = () => {
+      invCloseModal();
+      // Reabrir el modal del inversor
+      setTimeout(() => openInvestorDetailModal(investorId), 100);
+    };
+    
+    document.getElementById('pay-investor-confirm').onclick = async () => {
+      const accountId = document.getElementById('pay-investor-account').value;
+      const note = document.getElementById('pay-investor-note').value || '';
+      
+      if (!accountId) {
+        alert('Debes seleccionar una cuenta de donde sale el dinero');
+        return;
+      }
+      
+      const showBusyFn = window.showBusy || ((msg) => {
+        console.log('Loading:', msg);
+        const overlay = document.getElementById('busy-overlay');
+        if (overlay) overlay.style.display = 'flex';
+      });
+      const hideBusyFn = window.hideBusy || (() => {
+        const overlay = document.getElementById('busy-overlay');
+        if (overlay) overlay.style.display = 'none';
+      });
+      
+      try {
+        showBusyFn('Procesando cobro...');
+        
+        const investmentItemIds = selectedItems.map(item => item.investmentItemId);
+        
+        await API.investments.payInvestment(investorId, {
+          investmentItemIds,
+          accountId,
+          notes: note
+        });
+        
+        hideBusyFn();
+        invCloseModal();
+        
+        if (typeof showToast === 'function') {
+          showToast('Cobro registrado exitosamente');
+        } else {
+          alert('Cobro registrado exitosamente');
+        }
+        
+        // Recargar el modal del inversor para mostrar los cambios
+        setTimeout(() => openInvestorDetailModal(investorId), 300);
+      } catch (err) {
+        hideBusyFn();
+        alert('Error al procesar el cobro: ' + (err.message || 'Error desconocido'));
+      }
+    };
+  } catch (err) {
+    console.error('Error abriendo modal de cobro:', err);
+    alert('Error: ' + (err.message || 'Error desconocido'));
+  }
+}
+
 // Hacer las funciones disponibles globalmente
 window.openInvestorDetailModal = openInvestorDetailModal;
 window.openPurchaseDetailModal = openPurchaseDetailModal;
 window.openPurchaseStickersModal = openPurchaseStickersModal;
+window.openPayInvestorItemsModal = openPayInvestorItemsModal;
