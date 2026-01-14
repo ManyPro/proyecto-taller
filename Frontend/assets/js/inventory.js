@@ -112,6 +112,10 @@ const invAPI = {
     const meta = r?.meta || {};
     return { data, meta };
   },
+  getItem: async (id) => {
+    const r = await request(`/api/v1/inventory/items/${id}`);
+    return r;
+  },
   saveItem: (body) => request("/api/v1/inventory/items", { method: "POST", json: body }),
   updateItem: (id, body) => request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
   deleteItem: (id) => request(`/api/v1/inventory/items/${id}`, { method: "DELETE" }),
@@ -1548,8 +1552,109 @@ if (__ON_INV_PAGE__) {
     setTimeout(()=>{ n.classList.remove('show'); setTimeout(()=>n.remove(), 300); }, 1700);
   }
 
+  // Funciones para manejar el historial de items vistos
+  const HISTORY_KEY = 'inventory:viewedItems';
+  const MAX_HISTORY = 5;
+  
+  function saveItemToHistory(item) {
+    try {
+      let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      // Eliminar el item si ya existe (para evitar duplicados)
+      history = history.filter(h => h._id !== item._id);
+      // Agregar al inicio
+      history.unshift({
+        _id: item._id,
+        name: item.name || '',
+        sku: item.sku || '',
+        stock: item.stock || 0,
+        salePrice: item.salePrice || 0,
+        viewedAt: new Date().toISOString()
+      });
+      // Mantener solo los últimos MAX_HISTORY
+      history = history.slice(0, MAX_HISTORY);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      // Actualizar el historial visual
+      renderItemHistory();
+    } catch (e) {
+      console.warn('Error guardando item en historial:', e);
+    }
+  }
+  
+  function getItemHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  }
+  
+  function renderItemHistory() {
+    const historyContainer = document.getElementById('inventory-history');
+    if (!historyContainer) return;
+    
+    const history = getItemHistory();
+    
+    if (history.length === 0) {
+      historyContainer.innerHTML = '';
+      historyContainer.classList.add('hidden');
+      return;
+    }
+    
+    historyContainer.classList.remove('hidden');
+    
+    historyContainer.innerHTML = `
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">📋 Historial reciente:</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        ${history.map((item, idx) => `
+          <button 
+            data-history-item="${item._id}"
+            class="px-3 py-1.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-100 theme-light:hover:bg-sky-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 text-xs font-medium transition-all duration-200 hover:scale-105 cursor-pointer group"
+            title="${item.name || item.sku || 'Item'} - Stock: ${item.stock || 0}"
+          >
+            <span class="text-blue-400 dark:text-blue-400 theme-light:text-blue-600 font-semibold">${item.sku || 'N/A'}</span>
+            <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700 ml-1">${(item.name || '').substring(0, 20)}${(item.name || '').length > 20 ? '...' : ''}</span>
+            <span class="ml-1 text-slate-400 dark:text-slate-400 theme-light:text-slate-500">(${item.stock || 0})</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+    
+    // Agregar event listeners a los botones del historial
+    historyContainer.querySelectorAll('[data-history-item]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const itemId = btn.dataset.historyItem;
+        // Buscar el item en el cache o cargarlo
+        let item = state.itemCache.get(itemId);
+        if (!item) {
+          try {
+            showBusy('Cargando item...');
+            item = await invAPI.getItem(itemId);
+            hideBusy();
+            if (item) {
+              state.itemCache.set(itemId, item);
+            }
+          } catch (e) {
+            hideBusy();
+            alert('Error al cargar el item: ' + e.message);
+            return;
+          }
+        }
+        if (item) {
+          // Guardar en historial antes de abrir el modal
+          saveItemToHistory(item);
+          openItemSummaryModal(item);
+        }
+      });
+    });
+  }
+
   async function openItemSummaryModal(it) {
     try {
+      // Guardar en historial antes de abrir el modal
+      saveItemToHistory(it);
+      
       showBusy('Cargando resumen del item...');
       const data = await invAPI.getItemStockEntries(it._id);
       hideBusy();
@@ -3443,6 +3548,8 @@ function openMarketplaceHelper(item){
     const originalRefreshItems = refreshItems;
     refreshItems = async function(params={}){
       await originalRefreshItems(params);
+      // Renderizar historial después de refrescar items
+      renderItemHistory();
       // After base rendering, augment each item row with publish controls
       const rows = itemsList.querySelectorAll('.note');
       rows.forEach(row => {
@@ -3480,4 +3587,6 @@ function openMarketplaceHelper(item){
   // Initial load: page 1, limit per page
   console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
+  // Renderizar historial al cargar la página
+  setTimeout(() => renderItemHistory(), 500);
 }
