@@ -662,6 +662,10 @@ if (__ON_INV_PAGE__) {
   }
   function showBusy(msg){ const o=getBusyOverlay(); const m=o.querySelector('#busy-msg'); if(m) m.textContent=msg||'Procesando...'; o.style.display='flex'; }
   function hideBusy(){ const o=document.getElementById('busy-overlay'); if(o) o.style.display='none'; }
+  
+  // Hacer showBusy y hideBusy disponibles globalmente
+  window.showBusy = showBusy;
+  window.hideBusy = hideBusy;
   const itSku = document.getElementById("it-sku"); upper(itSku);
   // Helper UI (sugerencia y botón +)
   const skuHelper = document.createElement('div');
@@ -5067,7 +5071,18 @@ async function openPurchaseStickersModal(purchaseId) {
     
     // Botón para generar PDF
     document.getElementById("purchase-stk-generate").onclick = async () => {
-      showBusy('Generando PDF de stickers...');
+      // Usar window.showBusy si está disponible, o una función de fallback
+      const showBusyFn = window.showBusy || ((msg) => {
+        console.log('Loading:', msg);
+        const overlay = document.getElementById('busy-overlay');
+        if (overlay) overlay.style.display = 'flex';
+      });
+      const hideBusyFn = window.hideBusy || (() => {
+        const overlay = document.getElementById('busy-overlay');
+        if (overlay) overlay.style.display = 'none';
+      });
+      
+      showBusyFn('Generando PDF de stickers...');
       const list = [];
       
       rows.querySelectorAll("tr").forEach((tr) => {
@@ -5081,7 +5096,7 @@ async function openPurchaseStickersModal(purchaseId) {
       });
       
       if (!list.length) {
-        hideBusy();
+        hideBusyFn();
         alert("Selecciona al menos 1 sticker para imprimir.");
         return;
       }
@@ -5090,10 +5105,14 @@ async function openPurchaseStickersModal(purchaseId) {
         const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers-compra';
         await renderStickerPdf(list, `stickers-compra-${base}`);
         invCloseModal();
-        hideBusy();
-        showToast('Stickers generados');
+        hideBusyFn();
+        if (typeof showToast === 'function') {
+          showToast('Stickers generados');
+        } else {
+          alert('Stickers generados exitosamente');
+        }
       } catch (err) {
-        hideBusy();
+        hideBusyFn();
         alert('Error generando stickers: ' + (err.message || err));
       }
     };
