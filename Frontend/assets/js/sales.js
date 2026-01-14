@@ -7973,22 +7973,18 @@ function openEditCV(){
       }
       
       // Cargar perfil automáticamente después de 500ms de inactividad (debounce)
-      // Solo si la placa tiene al menos 3 caracteres
-      if (upper.length >= 3) {
+      // Solo si la placa está completa (6 caracteres)
+      if (upper.length === 6) {
         plateAutocompleteTimer = setTimeout(() => {
           loadProfile(true);
         }, 500);
-      } else if (upper.length === 0) {
-        // Si se borra la placa, limpiar campos relacionados
-        if (plateAutocompleteTimer) {
-          clearTimeout(plateAutocompleteTimer);
-        }
       }
     });
     
     // También cargar al hacer blur (por si el usuario no espera el debounce)
     plateInput.addEventListener('blur', ()=> {
-      if (plateInput.value.trim().length >= 3) {
+      const upper = plateInput.value.trim().toUpperCase();
+      if (upper.length === 6) {
         loadProfile(true);
       }
     });
@@ -8000,7 +7996,10 @@ function openEditCV(){
         if (plateAutocompleteTimer) {
           clearTimeout(plateAutocompleteTimer);
         }
-        loadProfile(true);
+        const upper = plateInput.value.trim().toUpperCase();
+        if (upper.length === 6) {
+          loadProfile(true);
+        }
       }
     });
   }

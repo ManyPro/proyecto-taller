@@ -181,7 +181,7 @@ function openNewEventModal(date = null) {
         
         <div class="mb-3">
           <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Placa <span class="text-red-400">*</span></label>
-          <input id="event-plate" type="text" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" placeholder="ABC123" maxlength="6" />
+          <input id="event-plate" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" placeholder="ABC123" maxlength="6" />
           <div id="event-plate-loading" class="hidden text-xs text-blue-400 mt-1">Buscando...</div>
         </div>
         
@@ -359,15 +359,14 @@ function openNewEventModal(date = null) {
   startTimeEl.addEventListener('input', updateDateTimePreview);
   updateDateTimePreview();
   
-  // Buscar por placa
+  // Buscar por placa - solo cuando haya una placa completa (6 caracteres)
   plateEl.addEventListener('input', async () => {
     const plate = plateEl.value.trim().toUpperCase();
-    if (plate.length < 3) {
+
+    // Mientras la placa no esté completa, no buscar nada ni cargar cotizaciones
+    if (plate.length !== 6) {
       plateLoadingEl.classList.add('hidden');
-      // Limpiar cotizaciones si la placa es muy corta
-      quoteEl.innerHTML = '<option value="">Sin cotización</option>';
-      quoteInfoEl?.classList.add('hidden');
-      quotesCache = [];
+      // No tocamos los datos ya cargados; solo evitamos nuevas búsquedas
       return;
     }
     
@@ -417,7 +416,7 @@ function openNewEventModal(date = null) {
   // También cargar cotizaciones cuando se cambia la placa manualmente (sin buscar perfil)
   plateEl.addEventListener('blur', async () => {
     const plate = plateEl.value.trim().toUpperCase();
-    if (plate.length >= 3) {
+    if (plate.length === 6) {
       // Si no se encontró perfil pero hay placa, intentar cargar cotizaciones de todas formas
       if (quotesCache.length === 0) {
         await loadQuotesForPlate(plate);

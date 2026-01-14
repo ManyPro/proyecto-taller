@@ -23,8 +23,17 @@ async function findOrCreateVehicle(brand, line, engine) {
 }
 
 function buildPayload(companyId, src = {}) {
-  const plate = upper(src?.vehicle?.plate || src?.vehicle?.Plate || '');
-  if (!plate) return null;
+  // Normalizar placa: eliminar espacios, convertir a mayúsculas, y asegurar que tenga exactamente 6 caracteres
+  let plate = upper(src?.vehicle?.plate || src?.vehicle?.Plate || '');
+  // Eliminar cualquier espacio o carácter no alfanumérico (excepto guiones si los hay)
+  plate = plate.replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  
+  // Validar que la placa tenga al menos 3 caracteres (mínimo razonable) y máximo 10 (para placas especiales)
+  if (!plate || plate.length < 3 || plate.length > 10) {
+    console.warn('[buildPayload] Placa inválida o fuera de rango:', plate, 'de', src?.vehicle?.plate);
+    return null;
+  }
+  
   return {
     companyId: String(companyId),
     plate,
@@ -115,6 +124,8 @@ export async function upsertProfileFromSource(companyId, sourceDoc, options={}) 
     }
   }
   
+  // Buscar perfil por placa normalizada (sin espacios, mayúsculas)
+  // Buscar tanto en plate como en vehicle.plate para mayor compatibilidad
   const query = { companyId: payload.companyId, $or: [{ plate: payload.plate }, { 'vehicle.plate': payload.plate }] };
   let docs = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
   if (!docs.length) {

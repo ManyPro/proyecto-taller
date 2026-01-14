@@ -1134,13 +1134,17 @@ export const setCustomerVehicle = async (req, res) => {
     email: (customer.email || '').trim(),
     address: (customer.address || '').trim()
   };
+  // Normalizar placa: eliminar espacios y convertir a mayúsculas
+  let normalizedPlate = String(vehicle.plate || '').trim().toUpperCase();
+  normalizedPlate = normalizedPlate.replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  
   // Si se proporciona vehicleId, obtener datos del vehículo
   let vehicleData = {
-    plate: (vehicle.plate || '').toUpperCase(),
+    plate: normalizedPlate,
     vehicleId: vehicle.vehicleId || null,
-    brand: (vehicle.brand || '').toUpperCase(),
-    line: (vehicle.line || '').toUpperCase(),
-    engine: (vehicle.engine || '').toUpperCase(),
+    brand: (vehicle.brand || '').toUpperCase().trim(),
+    line: (vehicle.line || '').toUpperCase().trim(),
+    engine: (vehicle.engine || '').toUpperCase().trim(),
     year: vehicle.year ?? null,
     mileage: vehicle.mileage ?? null
   };
@@ -2914,8 +2918,14 @@ export const addByQR = async (req, res) => {
 
 // ===== Perfil de cliente/vehÃ­culo =====
 export const getProfileByPlate = async (req, res) => {
-  const plate = String(req.params.plate || '').trim().toUpperCase();
-  if (!plate) return res.status(400).json({ error: 'plate required' });
+  // Normalizar placa: eliminar espacios y convertir a mayúsculas
+  let plate = String(req.params.plate || '').trim().toUpperCase();
+  // Eliminar cualquier espacio o carácter no alfanumérico
+  plate = plate.replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  
+  if (!plate || plate.length < 3) {
+    return res.status(400).json({ error: 'plate required (minimum 3 characters)' });
+  }
 
   const companyId = String(req.companyId);
   const fuzzy = String(req.query.fuzzy || 'false').toLowerCase() === 'true';
@@ -2926,6 +2936,7 @@ export const getProfileByPlate = async (req, res) => {
     const rx = new RegExp(pattern, 'i');
     query = { companyId, $or: [ { plate: rx }, { 'vehicle.plate': rx } ] };
   } else {
+    // Búsqueda exacta: buscar tanto en plate como en vehicle.plate
     query = { companyId, $or: [{ plate }, { 'vehicle.plate': plate }] };
   }
 

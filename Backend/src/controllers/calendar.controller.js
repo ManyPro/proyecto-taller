@@ -248,15 +248,18 @@ export const syncNoteReminders = async (req, res) => {
 
 // Buscar cliente/vehículo por placa para autocompletar
 export const searchByPlate = async (req, res) => {
-  const plate = String(req.params.plate || '').trim().toUpperCase();
-  if (!plate) {
-    return res.status(400).json({ error: 'Placa requerida' });
+  // Normalizar placa: eliminar espacios y convertir a mayúsculas
+  let plate = String(req.params.plate || '').trim().toUpperCase();
+  plate = plate.replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  
+  if (!plate || plate.length < 3) {
+    return res.status(400).json({ error: 'Placa requerida (mínimo 3 caracteres)' });
   }
   
   const companyId = String(req.companyId);
   
   try {
-    // Buscar perfil de cliente
+    // Buscar perfil de cliente (buscar tanto en plate como en vehicle.plate)
     const profile = await CustomerProfile.findOne({
       companyId,
       $or: [{ plate }, { 'vehicle.plate': plate }]

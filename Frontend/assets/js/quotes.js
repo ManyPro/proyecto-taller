@@ -5466,13 +5466,15 @@ export function initQuotes({ getCompanyEmail }) {
     let timer=null;
     function normPlate(p){ return (p||'').trim().toUpperCase(); }
     async function fetchProfile(plate){
-  if(!plate || plate.length<4) return; // mínimo 4 caracteres
-      if(plate===lastPlateFetched) return;
-      lastPlateFetched=plate;
+      const normalized = String(plate||'').trim().toUpperCase();
+      // Solo buscar cuando la placa esté completa (6 caracteres)
+      if(!normalized || normalized.length !== 6) return;
+      if(normalized === lastPlateFetched) return;
+      lastPlateFetched = normalized;
       try {
-        let prof = await API.sales.profileByPlate(plate);
-  if(!prof) { // intento fuzzy si no encontró exacto
-          prof = await API.sales.profileByPlate(plate, { fuzzy:true });
+        let prof = await API.sales.profileByPlate(normalized);
+        if(!prof) { // intento fuzzy si no encontró exacto
+          prof = await API.sales.profileByPlate(normalized, { fuzzy:true });
         }
         if(!prof) return; // nada que completar
         applyProfile(prof);
@@ -5561,11 +5563,22 @@ export function initQuotes({ getCompanyEmail }) {
     }
     function schedule(){
       clearTimeout(timer);
-      timer=setTimeout(()=>fetchProfile(normPlate(iPlate.value)), 450);
+      const plate = normPlate(iPlate.value);
+      // No programar búsqueda hasta que haya una placa completa
+      if (!plate || plate.length !== 6) return;
+      timer=setTimeout(()=>fetchProfile(plate), 450);
     }
     iPlate.addEventListener('input', ()=>schedule());
     iPlate.addEventListener('blur', ()=>fetchProfile(normPlate(iPlate.value)));
-    iPlate.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); fetchProfile(normPlate(iPlate.value)); }});
+    iPlate.addEventListener('keydown', (e)=>{ 
+      if(e.key==='Enter'){ 
+        e.preventDefault(); 
+        const plate = normPlate(iPlate.value);
+        if (plate && plate.length === 6) {
+          fetchProfile(plate);
+        }
+      }
+    });
   }
   // ====== Auto-completar por identificación ======
   function setupIdAutofill(){
