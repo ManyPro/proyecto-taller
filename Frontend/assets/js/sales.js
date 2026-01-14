@@ -2337,49 +2337,82 @@ async function openMaintenanceServicesModal() {
               data: stickerData
             });
             
-            const response = await fetch(`${apiBase}/api/v1/maintenance/generate-oil-change-sticker`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : ''
-              },
-              body: JSON.stringify(stickerData)
-            });
-            
-            console.log('📥 Respuesta del servidor:', {
-              ok: response.ok,
-              status: response.status,
-              statusText: response.statusText,
-              headers: Object.fromEntries(response.headers.entries())
-            });
-            
-            if (response.ok) {
+            try {
+              const response = await fetch(`${apiBase}/api/v1/maintenance/generate-oil-change-sticker`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': token ? `Bearer ${token}` : '',
+                  'Accept': 'application/pdf'
+                },
+                body: JSON.stringify(stickerData)
+              });
+              
+              console.log('📥 Respuesta del servidor:', {
+                ok: response.ok,
+                status: response.status,
+                statusText: response.statusText,
+                contentType: response.headers.get('content-type'),
+                contentDisposition: response.headers.get('content-disposition')
+              });
+              
+              if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Error generando sticker:', {
+                  status: response.status,
+                  statusText: response.statusText,
+                  error: errorText
+                });
+                alert(`Error al generar el sticker (${response.status}): ${errorText}`);
+                return;
+              }
+              
+              // Verificar que la respuesta sea un PDF
+              const contentType = response.headers.get('content-type') || '';
+              if (!contentType.includes('application/pdf')) {
+                const text = await response.text();
+                console.error('❌ Respuesta no es un PDF:', { contentType, text });
+                alert('Error: El servidor no devolvió un PDF válido. Por favor, intenta nuevamente.');
+                return;
+              }
+              
               // Descargar PDF
               const blob = await response.blob();
-              console.log('📄 PDF generado, tamaño:', blob.size, 'bytes');
+              console.log('📄 PDF generado, tamaño:', blob.size, 'bytes', 'tipo:', blob.type);
+              
+              if (blob.size === 0) {
+                console.error('❌ El PDF generado está vacío');
+                alert('Error: El PDF generado está vacío. Por favor, intenta nuevamente.');
+                return;
+              }
+              
+              // Crear URL del blob y descargar
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
+              a.style.display = 'none';
+              
               // Nombre del archivo: ACEITE - [PLACA]
               const plate = current.vehicle?.plate || 'SIN-PLACA';
               a.download = `ACEITE - ${plate}.pdf`;
+              
               document.body.appendChild(a);
               a.click();
-              document.body.removeChild(a);
-              window.URL.revokeObjectURL(url);
-              console.log('✅ Sticker descargado exitosamente');
-            } else {
-              const errorText = await response.text();
-              console.error('❌ Error generando sticker:', {
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText
-              });
-              alert(`Error al generar el sticker (${response.status}): ${errorText}`);
+              
+              // Limpiar después de un breve delay
+              setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                console.log('✅ Sticker descargado exitosamente');
+              }, 100);
+              
+            } catch (fetchErr) {
+              console.error('❌ Error en la petición fetch:', fetchErr);
+              alert(`Error de conexión al generar el sticker: ${fetchErr.message}. Por favor, verifica tu conexión e intenta nuevamente.`);
             }
           } catch (err) {
             console.error('Error generando sticker de cambio de aceite:', err);
-            alert('Error al generar el sticker. Por favor, intenta nuevamente.');
+            alert(`Error al generar el sticker: ${err.message || 'Error desconocido'}. Por favor, intenta nuevamente.`);
             // No bloquear el flujo si falla la generación del sticker
           }
         }

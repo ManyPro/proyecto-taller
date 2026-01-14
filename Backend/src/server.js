@@ -60,7 +60,20 @@ app.use(helmet({
   },
   referrerPolicy: { policy: 'no-referrer' }
 }));
-app.use(compression());
+// Compression middleware - excluir PDFs y otros binarios
+app.use(compression({
+  filter: (req, res) => {
+    // No comprimir PDFs ni otros binarios
+    const contentType = res.getHeader('content-type') || '';
+    if (contentType.includes('application/pdf') || 
+        contentType.includes('image/') || 
+        contentType.includes('application/octet-stream')) {
+      return false;
+    }
+    // Usar el filtro por defecto para otros tipos
+    return compression.filter(req, res);
+  }
+}));
 
 // requestId + access log
 app.use((req, res, next) => {

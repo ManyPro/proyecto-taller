@@ -306,6 +306,9 @@ export const generateOilChangeSticker = async (req, res) => {
     const filename = `ACEITE - ${plateStr}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    // Deshabilitar compresión para PDFs
+    res.setHeader('Content-Encoding', 'identity');
+    res.setHeader('Cache-Control', 'no-transform');
 
     // Pipe PDF a response
     doc.pipe(res);
