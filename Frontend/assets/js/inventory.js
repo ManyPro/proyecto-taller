@@ -4786,7 +4786,7 @@ async function openInvestorDetailModal(investorId) {
         <div class="mb-6">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-lg font-semibold text-white theme-light:text-slate-900">Items Vendidos</h4>
-            ${sold.length > 0 ? `
+            ${(items.sold && items.sold.length > 0) ? `
               <button id="btn-cobrar-items" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
                 💰 Cobrar Items
               </button>
@@ -4856,7 +4856,7 @@ async function openInvestorDetailModal(investorId) {
     invOpenModal(modalContent);
     
     // Configurar funcionalidad de cobro si hay items vendidos
-    if (sold.length > 0) {
+    if (items.sold && items.sold.length > 0) {
       // Checkbox "Seleccionar todos"
       const selectAllCheckbox = document.getElementById('select-all-sold');
       const soldCheckboxes = document.querySelectorAll('.sold-item-checkbox');
