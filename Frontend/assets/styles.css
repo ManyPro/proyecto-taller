@@ -1495,7 +1495,7 @@ body.theme-light #modal select {
 }
 body.theme-light #modal input::placeholder,
 body.theme-light #modal textarea::placeholder {
-  color: #C4CDCE !important;
+  color: #666666 !important;
 }
 /* Mejorar contraste en dropdowns de vehículos y otros */
 body.theme-light [id*="dropdown"],
@@ -1634,7 +1634,7 @@ body.theme-light [class*="text-gray-600"],
 body.theme-light [class*="text-gray-700"],
 body.theme-light [class*="text-gray-800"],
 body.theme-light [class*="text-gray-900"] {
-  color: #C4CDCE !important;
+  color: #000000 !important;
 }
 
 /* Reemplazar todos los bordes grises (slate) en modo claro */
