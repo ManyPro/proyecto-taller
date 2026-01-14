@@ -49,7 +49,7 @@ export const getInvestorInvestments = async (req, res) => {
       return sum + (inv.purchasePrice * inv.qty);
     }, 0);
     
-    const pendingPayment = soldValue - paidValue;
+    const pendingPayment = Math.max(0, soldValue - paidValue);
     
     res.json({
       investorId,
@@ -110,7 +110,7 @@ export const listInvestorsSummary = async (req, res) => {
             availableValue,
             soldValue,
             paidValue,
-            pendingPayment: soldValue - paidValue
+            pendingPayment: Math.max(0, soldValue - paidValue)
           }
         };
       })

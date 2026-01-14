@@ -4598,7 +4598,7 @@ async function loadInversoresContent() {
       const availableVal = money(summary.availableValue || 0);
       const soldVal = money(summary.soldValue || 0);
       const paidVal = money(summary.paidValue || 0);
-      const pendingVal = money(summary.pendingPayment || 0);
+      const pendingVal = money(Math.max(0, summary.pendingPayment || 0));
       
       return `
         <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group" data-investor-id="${investorId}" onclick="openInvestorDetailModal('${investorId}')">
@@ -4782,7 +4782,7 @@ async function openInvestorDetailModal(investorId) {
           </div>
           <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
             <p class="text-xs text-slate-400 theme-light:text-slate-600">Pendiente</p>
-            <p class="text-lg font-bold text-orange-400 theme-light:text-orange-600">${money(summary.pendingPayment || 0)}</p>
+            <p class="text-lg font-bold text-orange-400 theme-light:text-orange-600">${money(Math.max(0, summary.pendingPayment || 0))}</p>
           </div>
         </div>
         
@@ -5405,6 +5405,14 @@ async function openQRReader() {
   
   async function fillCams() {
     try {
+      // En móvil, primero pedir permisos básicos para que las cámaras muestren sus labels
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch (permErr) {
+        // Si falla, continuar de todas formas
+        console.warn('No se pudieron obtener permisos de cámara:', permErr);
+      }
+      
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       sel.innerHTML = '<option value="">-- Seleccionar cámara --</option>';
@@ -5416,6 +5424,10 @@ async function openQRReader() {
       });
       if (videoDevices.length > 0 && !sel.value) {
         sel.value = videoDevices[0].deviceId;
+        // En móvil, intentar iniciar automáticamente
+        if (videoDevices.length === 1) {
+          setTimeout(() => start(), 100);
+        }
       }
     } catch (e) {
       console.error('Error enumerando cámaras:', e);
@@ -5426,17 +5438,44 @@ async function openQRReader() {
   async function start() {
     if (running) return;
     const deviceId = sel.value;
-    if (!deviceId) {
-      msg.textContent = 'Selecciona una cámara';
-      msg.className = 'text-sm text-red-500 theme-light:text-red-600';
-      return;
-    }
     
     try {
       stop();
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: deviceId }, facingMode: 'environment' }
-      });
+      
+      // Configuración de video para móvil y desktop
+      let videoConstraints = {};
+      
+      if (deviceId) {
+        // Si hay deviceId, usarlo
+        videoConstraints = { deviceId: { exact: deviceId } };
+      } else {
+        // Si no hay deviceId (móvil), usar facingMode para la cámara trasera
+        videoConstraints = { facingMode: 'environment' };
+      }
+      
+      // En móvil, también intentar con facingMode si falla
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints
+        });
+      } catch (firstTry) {
+        // Si falla con deviceId exacto, intentar sin exact
+        if (deviceId) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: deviceId }
+            });
+          } catch (secondTry) {
+            // Si aún falla, intentar solo con facingMode (móvil)
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'environment' }
+            });
+          }
+        } else {
+          throw firstTry;
+        }
+      }
+      
       video.srcObject = stream;
       running = true;
       
@@ -5624,9 +5663,30 @@ async function openQRReader() {
   });
   
   // Cargar cámaras y iniciar automáticamente
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
   await fillCams();
-  if (sel.value) {
-    await start();
+  
+  // En móvil, intentar iniciar automáticamente (incluso sin deviceId)
+  if (isMobile) {
+    setTimeout(() => {
+      if (!running) {
+        start().catch(err => {
+          console.warn('Error iniciando cámara automáticamente en móvil:', err);
+          msg.textContent = 'Error al acceder a la cámara. Verifica los permisos.';
+          msg.className = 'text-sm text-red-500 theme-light:text-red-600';
+        });
+      }
+    }, 500);
+  } else if (sel.value) {
+    // En desktop, iniciar si hay una cámara seleccionada
+    setTimeout(() => {
+      if (!running) {
+        start().catch(err => {
+          console.warn('Error iniciando cámara:', err);
+        });
+      }
+    }, 100);
   }
 }
 
