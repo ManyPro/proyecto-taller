@@ -3695,10 +3695,28 @@ async function loadComprasContent() {
   
   try {
     // Cargar proveedores e inversores
-    const [suppliers, investors] = await Promise.all([
-      API.purchases.suppliers.list({ active: true }),
-      API.purchases.investors.list({ active: true })
-    ]);
+    let suppliers = [];
+    let investors = [];
+    
+    try {
+      if (API.purchases && API.purchases.suppliers && API.purchases.suppliers.list) {
+        const suppliersData = await API.purchases.suppliers.list({ active: true });
+        suppliers = Array.isArray(suppliersData) ? suppliersData : (suppliersData?.items || suppliersData?.data || []);
+      }
+    } catch (e) {
+      console.error('Error cargando suppliers:', e);
+      suppliers = [];
+    }
+    
+    try {
+      if (API.purchases && API.purchases.investors && API.purchases.investors.list) {
+        const investorsData = await API.purchases.investors.list({ active: true });
+        investors = Array.isArray(investorsData) ? investorsData : (investorsData?.items || investorsData?.data || []);
+      }
+    } catch (e) {
+      console.error('Error cargando investors:', e);
+      investors = [];
+    }
     
     container.innerHTML = `
       <!-- Proveedores -->
@@ -5332,26 +5350,26 @@ async function openPayInvestorItemsModal(investorId, soldItems) {
 // Función para leer QR y abrir resumen del item
 async function openQRReader() {
   const modalContent = `
-    <div class="p-6">
-      <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">📷 Leer QR</h3>
+    <div class="p-4 sm:p-6">
+      <h3 class="text-lg sm:text-xl font-semibold text-white theme-light:text-slate-900 mb-4">📷 Leer QR</h3>
       <div class="mb-4">
-        <video id="qr-video" autoplay playsinline class="w-full max-w-md mx-auto rounded-lg border-2 border-blue-500" style="max-height: 400px;"></video>
+        <video id="qr-video" autoplay playsinline class="w-full max-w-md mx-auto rounded-lg border-2 border-blue-500" style="max-height: 50vh; object-fit: cover;"></video>
         <canvas id="qr-canvas" class="hidden"></canvas>
       </div>
       <div class="mb-4">
-        <select id="qr-cam" class="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 rounded-lg mb-2">
+        <select id="qr-cam" class="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 rounded-lg mb-2">
           <option value="">Cargando cámaras...</option>
         </select>
       </div>
       <div class="mb-4">
-        <div class="flex gap-2">
-          <input id="qr-manual" type="text" placeholder="O ingresa el código manualmente" class="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 rounded-lg" />
-          <button id="qr-add-manual" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Agregar</button>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input id="qr-manual" type="text" placeholder="O ingresa el código manualmente" class="flex-1 px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 rounded-lg" />
+          <button id="qr-add-manual" class="px-4 py-2 sm:px-4 sm:py-2 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg whitespace-nowrap">Agregar</button>
         </div>
       </div>
-      <div id="qr-msg" class="text-sm text-slate-300 theme-light:text-slate-700 mb-4"></div>
+      <div id="qr-msg" class="text-xs sm:text-sm text-slate-300 theme-light:text-slate-700 mb-4 min-h-[1.5rem]"></div>
       <div class="flex gap-3">
-        <button id="qr-close" class="px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cerrar</button>
+        <button id="qr-close" class="flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2 text-sm sm:text-base bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cerrar</button>
       </div>
     </div>
   `;
