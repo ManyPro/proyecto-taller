@@ -4813,15 +4813,20 @@ async function openInvestorDetailModal(investorId) {
       const totalAmount = money(purchase.totalAmount || 0);
       const notes = purchase.notes || '';
       return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">
-          <td class="px-4 py-3">${escapeHtml(purchaseDate)}</td>
-          <td class="px-4 py-3">${escapeHtml(supplierName)}</td>
-          <td class="px-4 py-3 text-right">${itemsCount}</td>
-          <td class="px-4 py-3 text-right font-semibold">${totalAmount}</td>
-          <td class="px-4 py-3">${escapeHtml(notes || '-')}</td>
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
+          <td class="px-4 py-3 cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${escapeHtml(purchaseDate)}</td>
+          <td class="px-4 py-3 cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${escapeHtml(supplierName)}</td>
+          <td class="px-4 py-3 text-right cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${itemsCount}</td>
+          <td class="px-4 py-3 text-right font-semibold cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${totalAmount}</td>
+          <td class="px-4 py-3 cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${escapeHtml(notes || '-')}</td>
+          <td class="px-4 py-3">
+            <button onclick="event.stopPropagation(); openPurchaseStickersModal('${purchase._id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+              🏷️ Stickers
+            </button>
+          </td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay compras registradas</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay compras registradas</td></tr>';
     
     const modalContent = `
       <div class="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -4919,7 +4924,8 @@ async function openInvestorDetailModal(investorId) {
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Proveedor</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Items</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Total</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Notas</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Notas</th>
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Acciones</th>
                 </tr>
               </thead>
               <tbody class="text-white dark:text-white theme-light:text-slate-900">${purchasesRows}</tbody>
@@ -5013,6 +5019,7 @@ async function openPurchaseDetailModal(purchaseId) {
           </div>
         </div>
         <div class="flex gap-3 mt-6">
+          <button onclick="openPurchaseStickersModal('${purchaseId}')" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">🏷️ Generar Stickers</button>
           <button onclick="invCloseModal()" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cerrar</button>
         </div>
       </div>
@@ -5024,6 +5031,147 @@ async function openPurchaseDetailModal(purchaseId) {
   }
 }
 
+// Abrir modal para generar stickers de una compra
+async function openPurchaseStickersModal(purchaseId) {
+  try {
+    const purchase = await API.purchases.purchases.get(purchaseId);
+    
+    if (!purchase.items || purchase.items.length === 0) {
+      alert('Esta compra no tiene items para generar stickers.');
+      return;
+    }
+    
+    // Obtener información completa de los items
+    const itemsWithDetails = await Promise.all(
+      (purchase.items || []).map(async (purchaseItem) => {
+        try {
+          const item = await invAPI.getItem(purchaseItem.itemId?._id || purchaseItem.itemId);
+          return {
+            ...purchaseItem,
+            item: item,
+            itemId: purchaseItem.itemId?._id || purchaseItem.itemId,
+            qty: purchaseItem.qty || 0
+          };
+        } catch (err) {
+          console.error('Error obteniendo item:', err);
+          return {
+            ...purchaseItem,
+            item: null,
+            itemId: purchaseItem.itemId?._id || purchaseItem.itemId,
+            qty: purchaseItem.qty || 0
+          };
+        }
+      })
+    );
+    
+    const itemsRows = itemsWithDetails.map((purchaseItem, idx) => {
+      const item = purchaseItem.item;
+      const itemName = item?.name || item?.sku || purchaseItem.itemId?.name || purchaseItem.itemId?.sku || 'N/A';
+      const itemSku = item?.sku || purchaseItem.itemId?.sku || '';
+      const maxQty = purchaseItem.qty || 0;
+      const itemId = purchaseItem.itemId;
+      
+      return `
+        <tr data-id="${itemId}" data-index="${idx}">
+          <td class="px-4 py-3">${escapeHtml(itemSku || itemName)}</td>
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-center">${maxQty}</td>
+          <td class="px-4 py-3 text-center">
+            <input type="number" min="0" max="${maxQty}" value="0" class="qty w-20 px-2 py-1 text-center bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900" />
+          </td>
+        </tr>
+      `;
+    }).join('');
+    
+    const modalContent = `
+      <div class="w-full max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Generar stickers de compra</h3>
+        </div>
+        <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">
+          Selecciona cuántos stickers imprimir de cada item (máximo: cantidad comprada).
+        </p>
+        <div class="overflow-x-auto mb-6">
+          <table class="w-full border-collapse bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white rounded-lg overflow-hidden border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <thead>
+              <tr class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100">
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">SKU</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Nombre</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cantidad Comprada</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider border-b border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir</th>
+              </tr>
+            </thead>
+            <tbody id="purchase-stk-rows" class="divide-y divide-slate-700/50 dark:divide-slate-700/50 theme-light:divide-slate-200">
+              ${itemsRows}
+            </tbody>
+          </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <button id="purchase-stk-fill-all" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Usar cantidad comprada</button>
+          <button id="purchase-stk-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Poner 0</button>
+          <button id="purchase-stk-generate" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Generar PDF</button>
+        </div>
+      </div>
+    `;
+    
+    invOpenModal(modalContent);
+    
+    const rows = document.getElementById("purchase-stk-rows");
+    
+    // Botón para llenar con cantidad comprada
+    document.getElementById("purchase-stk-fill-all").onclick = () => {
+      rows.querySelectorAll("tr").forEach((tr) => {
+        const maxQty = parseInt(tr.querySelector("td:nth-child(3)").textContent.trim(), 10) || 0;
+        tr.querySelector(".qty").value = maxQty;
+      });
+    };
+    
+    // Botón para limpiar
+    document.getElementById("purchase-stk-clear").onclick = () => {
+      rows.querySelectorAll("tr").forEach((tr) => {
+        tr.querySelector(".qty").value = 0;
+      });
+    };
+    
+    // Botón para generar PDF
+    document.getElementById("purchase-stk-generate").onclick = async () => {
+      showBusy('Generando PDF de stickers...');
+      const list = [];
+      
+      rows.querySelectorAll("tr").forEach((tr) => {
+        const idx = parseInt(tr.dataset.index, 10);
+        const purchaseItem = itemsWithDetails[idx];
+        const count = parseInt(tr.querySelector(".qty").value || "0", 10);
+        
+        if (purchaseItem && purchaseItem.item && count > 0) {
+          list.push({ it: purchaseItem.item, count });
+        }
+      });
+      
+      if (!list.length) {
+        hideBusy();
+        alert("Selecciona al menos 1 sticker para imprimir.");
+        return;
+      }
+      
+      try {
+        const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers-compra';
+        await renderStickerPdf(list, `stickers-compra-${base}`);
+        invCloseModal();
+        hideBusy();
+        showToast('Stickers generados');
+      } catch (err) {
+        hideBusy();
+        alert('Error generando stickers: ' + (err.message || err));
+      }
+    };
+  } catch (err) {
+    console.error('Error abriendo modal de stickers de compra:', err);
+    alert('Error: ' + (err.message || 'Error desconocido'));
+  }
+}
+
 // Hacer las funciones disponibles globalmente
 window.openInvestorDetailModal = openInvestorDetailModal;
 window.openPurchaseDetailModal = openPurchaseDetailModal;
+window.openPurchaseStickersModal = openPurchaseStickersModal;

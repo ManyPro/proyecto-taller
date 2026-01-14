@@ -68,15 +68,21 @@ function sanitizePublicDescription(html){
 }
 
 // NUEVO: genera el payload estable del QR
-// Estructura: IT:<companyId>:<itemId>:<sku>[:<entryId>]
+// Estructura: IT:<companyId>:<itemId>:<sku>[:<entryId>][:<purchaseId>]
 // Si entryId está presente, vincula el QR a una entrada específica
-function makeQrData({ companyId, item, entryId = null, supplierId = null, investorId = null }) {
+// Si purchaseId está presente, vincula el QR a una compra específica (para diferenciar compras del mismo item)
+function makeQrData({ companyId, item, entryId = null, purchaseId = null, supplierId = null, investorId = null }) {
   const base = `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
   const supplier = supplierId ? (supplierId === 'GENERAL' ? 'GENERAL' : String(supplierId)) : 'GENERAL';
   const investor = investorId ? (investorId === 'GENERAL' ? 'GENERAL' : String(investorId)) : 'GENERAL';
   
   if (entryId) {
-    return `${base}:${supplier}:${investor}:${entryId}`;
+    let qrData = `${base}:${supplier}:${investor}:${entryId}`;
+    // Agregar purchaseId si está disponible para diferenciar compras
+    if (purchaseId) {
+      qrData += `:P${purchaseId}`;
+    }
+    return qrData;
   }
   return `${base}:${supplier}:${investor}`;
 }
@@ -1001,11 +1007,12 @@ export const addItemStock = async (req, res) => {
     }
   }
 
-  // Generar QR data con la información correcta
+  // Generar QR data con la información correcta (incluyendo purchaseId para diferenciar compras)
   const qrData = makeQrData({
     companyId: req.companyId,
     item: updated,
     entryId: stockEntry ? stockEntry._id : null,
+    purchaseId: purchase ? purchase._id : null,
     supplierId: supplierId ? String(supplierId) : 'GENERAL',
     investorId: investorId ? String(investorId) : 'GENERAL'
   });
@@ -1178,15 +1185,17 @@ export const itemQrPng = async (req, res) => {
     }
   }
 
-  // Generar QR con entryId si está disponible
+  // Generar QR con entryId y purchaseId si está disponible
   let payload;
   if (stockEntry) {
     const supplierId = stockEntry.supplierId ? String(stockEntry.supplierId) : 'GENERAL';
     const investorId = stockEntry.investorId ? String(stockEntry.investorId) : 'GENERAL';
+    const purchaseId = stockEntry.purchaseId ? stockEntry.purchaseId : null;
     payload = makeQrData({ 
       companyId: req.companyId, 
       item, 
       entryId: stockEntry._id,
+      purchaseId: purchaseId,
       supplierId: supplierId,
       investorId: investorId
     });

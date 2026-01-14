@@ -285,6 +285,10 @@ export const createPurchase = async (req, res) => {
           if (unitPrice !== null && stockEntry.entryPrice === null) {
             stockEntry.entryPrice = unitPrice;
           }
+          // Vincular purchaseId si no está vinculado
+          if (!stockEntry.purchaseId) {
+            stockEntry.purchaseId = purchaseDoc._id;
+          }
           await stockEntry.save({ session });
         } else {
           // Crear nuevo StockEntry
