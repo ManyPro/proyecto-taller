@@ -347,7 +347,10 @@ export const generateOilChangeSticker = async (req, res) => {
     });
 
     doc.on('error', (err) => {
-      logger.error('[generateOilChangeSticker] ❌ Error generando PDF:', err);
+      logger.error('[generateOilChangeSticker] ❌ Error generando PDF:', {
+        error: err.message,
+        stack: err.stack
+      });
       if (!res.headersSent) {
         res.status(500).json({ error: 'Error al generar PDF', message: err.message });
       }
@@ -570,10 +573,7 @@ export const generateOilChangeSticker = async (req, res) => {
     // Calcular posición del QR (qrSize ya fue calculado arriba)
     const qrY = rightColY + rightColH - qrSize - (MARGIN * 0.3);
     const qrX = rightColX + (rightColW - qrSize) / 2;
-          exists: possiblePaths.map(p => {
-            const np = String(p).replace(/\\/g, '/');
-            return { path: np, exists: existsSync(np) };
-          })
+    
     // QR Code (abajo, centrado)
     try {
       logger.info('[generateOilChangeSticker] 📱 Generando QR Code...');
@@ -616,12 +616,20 @@ export const generateOilChangeSticker = async (req, res) => {
     // NOTA: El log de éxito se hace en el evento 'end' del doc cuando el PDF está completo
 
   } catch (error) {
-    logger.error('[maintenance.generateOilChangeSticker] Error', { 
+    logger.error('[maintenance.generateOilChangeSticker] ❌ Error en función principal', { 
       error: error.message, 
-      stack: error.stack 
+      stack: error.stack,
+      companyId: req.companyId,
+      body: req.body
     });
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Error al generar sticker' });
+      res.status(500).json({ 
+        error: 'Error al generar sticker',
+        message: error.message 
+      });
+    } else {
+      // Si ya se enviaron headers, intentar cerrar la conexión limpiamente
+      logger.warn('[maintenance.generateOilChangeSticker] ⚠️ Headers ya enviados, no se puede enviar error');
     }
   }
 };

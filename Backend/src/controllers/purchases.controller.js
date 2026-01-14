@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 import Supplier from "../models/Supplier.js";
 import Investor from "../models/Investor.js";
 import Purchase from "../models/Purchase.js";
+import Item from "../models/Item.js";
+import StockEntry from "../models/StockEntry.js";
+import InvestmentItem from "../models/InvestmentItem.js";
+import StockMove from "../models/StockMove.js";
 
 // ===== SUPPLIERS =====
 
@@ -234,22 +238,125 @@ export const createPurchase = async (req, res) => {
       return sum + (item.qty || 0) * (item.unitPrice || 0);
     }, 0);
     
-    const purchase = await Purchase.create({
-      companyId: req.companyId,
-      supplierId: supplierObjId,
-      investorId: investorObjId,
-      purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
-      totalAmount,
-      items,
-      notes: (notes || '').trim()
-    });
+    const session = await mongoose.startSession();
+    session.startTransaction();
     
-    const populated = await Purchase.findById(purchase._id)
-      .populate('supplierId', 'name')
-      .populate('investorId', 'name')
-      .lean();
-    
-    res.json(populated);
+    try {
+      const purchase = await Purchase.create([{
+        companyId: req.companyId,
+        supplierId: supplierObjId,
+        investorId: investorObjId,
+        purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
+        totalAmount,
+        items,
+        notes: (notes || '').trim()
+      }], { session });
+      
+      const purchaseDoc = purchase[0];
+      
+      // Actualizar stock para cada item de la compra
+      for (const purchaseItem of items) {
+        const { itemId, qty, unitPrice } = purchaseItem;
+        
+        if (!mongoose.Types.ObjectId.isValid(itemId)) {
+          throw new Error(`ID de item inválido: ${itemId}`);
+        }
+        
+        // Verificar que el item existe
+        const item = await Item.findOne({ _id: itemId, companyId: req.companyId }).session(session);
+        if (!item) {
+          throw new Error(`Item no encontrado: ${itemId}`);
+        }
+        
+        // Buscar o crear StockEntry
+        const searchFilter = {
+          companyId: req.companyId,
+          itemId: item._id,
+          supplierId: supplierObjId,
+          investorId: investorObjId,
+          vehicleIntakeId: null
+        };
+        
+        let stockEntry = await StockEntry.findOne(searchFilter).session(session);
+        
+        if (stockEntry) {
+          // Actualizar cantidad existente
+          stockEntry.qty += qty;
+          if (unitPrice !== null && stockEntry.entryPrice === null) {
+            stockEntry.entryPrice = unitPrice;
+          }
+          await stockEntry.save({ session });
+        } else {
+          // Crear nuevo StockEntry
+          const newEntries = await StockEntry.create([{
+            companyId: req.companyId,
+            itemId: item._id,
+            vehicleIntakeId: null,
+            supplierId: supplierObjId,
+            investorId: investorObjId,
+            purchaseId: purchaseDoc._id,
+            qty: qty,
+            entryPrice: unitPrice,
+            entryDate: purchaseDate ? new Date(purchaseDate) : new Date(),
+            meta: {
+              note: notes || '',
+              supplier: '',
+              purchaseOrder: ''
+            }
+          }], { session });
+          stockEntry = newEntries[0];
+        }
+        
+        // Incrementar stock del item
+        await Item.findOneAndUpdate(
+          { _id: itemId, companyId: req.companyId },
+          { $inc: { stock: qty } },
+          { session }
+        );
+        
+        // Registrar movimiento de stock
+        await StockMove.create([{
+          companyId: req.companyId,
+          itemId: item._id,
+          qty,
+          reason: 'IN',
+          meta: {
+            note: `Compra ${purchaseDoc._id}`,
+            purchaseId: purchaseDoc._id,
+            supplierId: supplierObjId,
+            investorId: investorObjId
+          }
+        }], { session });
+        
+        // Crear InvestmentItem si hay inversor
+        if (investorObjId && stockEntry) {
+          await InvestmentItem.create([{
+            companyId: req.companyId,
+            investorId: investorObjId,
+            purchaseId: purchaseDoc._id,
+            itemId: item._id,
+            stockEntryId: stockEntry._id,
+            purchasePrice: unitPrice,
+            qty: qty,
+            status: 'available'
+          }], { session });
+        }
+      }
+      
+      await session.commitTransaction();
+      
+      const populated = await Purchase.findById(purchaseDoc._id)
+        .populate('supplierId', 'name')
+        .populate('investorId', 'name')
+        .lean();
+      
+      res.json(populated);
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
   } catch (err) {
     res.status(500).json({ error: 'Error al crear compra', message: err.message });
   }

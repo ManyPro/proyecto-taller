@@ -416,6 +416,25 @@ const API = {
     getInvestorInvestments: (investorId) => http.get(`/api/v1/investments/investors/${investorId}`),
     payInvestment: (investorId, payload) => http.post(`/api/v1/investments/investors/${investorId}/pay`, payload)
   },
+  purchases: {
+    suppliers: {
+      list: (params) => http.get(`/api/v1/purchases/suppliers${toQuery(params || {})}`),
+      create: (payload) => http.post('/api/v1/purchases/suppliers', payload),
+      update: (id, payload) => http.put(`/api/v1/purchases/suppliers/${id}`, payload),
+      delete: (id) => http.del(`/api/v1/purchases/suppliers/${id}`)
+    },
+    investors: {
+      list: (params) => http.get(`/api/v1/purchases/investors${toQuery(params || {})}`),
+      create: (payload) => http.post('/api/v1/purchases/investors', payload),
+      update: (id, payload) => http.put(`/api/v1/purchases/investors/${id}`, payload),
+      delete: (id) => http.del(`/api/v1/purchases/investors/${id}`)
+    },
+    purchases: {
+      list: (params) => http.get(`/api/v1/purchases/purchases${toQuery(params || {})}`),
+      create: (payload) => http.post('/api/v1/purchases/purchases', payload),
+      get: (id) => http.get(`/api/v1/purchases/purchases/${id}`)
+    }
+  },
   cashflow: {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),

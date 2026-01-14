@@ -3721,17 +3721,560 @@ function initInternalNavigation() {
 }
 
 // Cargar contenido de compras
-function loadComprasContent() {
+async function loadComprasContent() {
   const container = document.getElementById('compras-content');
   if (!container) return;
   
-  // Por ahora solo mostrar un mensaje, luego se implementará la funcionalidad completa
-  if (!container.dataset.loaded) {
+  // Si ya está cargado, no recargar
+  if (container.dataset.loaded === 'true') return;
+  
+  try {
+    // Cargar proveedores e inversores
+    const [suppliers, investors] = await Promise.all([
+      API.purchases.suppliers.list({ active: true }),
+      API.purchases.investors.list({ active: true })
+    ]);
+    
     container.innerHTML = `
-      <p class="text-slate-400 theme-light:text-slate-600">Gestión de compras, proveedores e inversores (en desarrollo)</p>
+      <!-- Proveedores -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Proveedores</h4>
+          <button id="btn-add-supplier" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">+ Proveedor</button>
+        </div>
+        <div id="suppliers-list" class="space-y-2 max-h-[200px] overflow-auto custom-scrollbar">
+          ${renderSuppliersList(suppliers || [])}
+        </div>
+      </div>
+
+      <!-- Inversores -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Inversores</h4>
+          <button id="btn-add-investor" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">+ Inversor</button>
+        </div>
+        <div id="investors-list" class="space-y-2 max-h-[200px] overflow-auto custom-scrollbar">
+          ${renderInvestorsList(investors || [])}
+        </div>
+      </div>
+
+      <!-- Compras -->
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Compras</h4>
+          <button id="btn-add-purchase" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">+ Compra</button>
+        </div>
+        <div id="purchases-list" class="space-y-2 max-h-[300px] overflow-auto custom-scrollbar">
+          ${renderPurchasesList([])}
+        </div>
+      </div>
     `;
+    
+    // Agregar event listeners
+    setupComprasEventListeners();
+    
+    // Cargar compras
+    loadPurchasesList();
+    
     container.dataset.loaded = 'true';
+  } catch (err) {
+    console.error('Error cargando contenido de compras:', err);
+    container.innerHTML = `<p class="text-red-400">Error: ${err.message || 'Error desconocido'}</p>`;
   }
+}
+
+function renderSuppliersList(suppliers) {
+  if (suppliers.length === 0) {
+    return '<p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay proveedores registrados</p>';
+  }
+  
+  return suppliers.map(s => `
+    <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 flex items-center justify-between">
+      <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtml(s.name || 'Sin nombre')}</span>
+      <div class="flex gap-2">
+        <button class="edit-supplier px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors" data-id="${s._id}">Editar</button>
+        <button class="delete-supplier px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors" data-id="${s._id}">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderInvestorsList(investors) {
+  if (investors.length === 0) {
+    return '<p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay inversores registrados</p>';
+  }
+  
+  return investors.map(i => `
+    <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 flex items-center justify-between">
+      <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtml(i.name || 'Sin nombre')}</span>
+      <div class="flex gap-2">
+        <button class="edit-investor px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors" data-id="${i._id}">Editar</button>
+        <button class="delete-investor px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors" data-id="${i._id}">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPurchasesList(purchases) {
+  if (purchases.length === 0) {
+    return '<p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay compras registradas</p>';
+  }
+  
+  const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  return purchases.map(p => {
+    const date = p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A';
+    const supplier = p.supplierId?.name || 'GENERAL';
+    const investor = p.investorId?.name || 'GENERAL';
+    
+    return `
+      <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-white dark:text-white theme-light:text-slate-900 font-semibold">${date}</span>
+          <span class="text-green-400 theme-light:text-green-600 font-semibold">${money(p.totalAmount || 0)}</span>
+        </div>
+        <div class="text-sm text-slate-400 theme-light:text-slate-600">
+          <p>Proveedor: ${escapeHtml(supplier)}</p>
+          <p>Inversor: ${escapeHtml(investor)}</p>
+          <p>Items: ${(p.items || []).length}</p>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setupComprasEventListeners() {
+  const container = document.getElementById('compras-content');
+  if (!container) return;
+  
+  // Botón agregar proveedor
+  document.getElementById('btn-add-supplier')?.addEventListener('click', () => {
+    openSupplierModal();
+  });
+  
+  // Botón agregar inversor
+  document.getElementById('btn-add-investor')?.addEventListener('click', () => {
+    openInvestorModal();
+  });
+  
+  // Botón agregar compra
+  document.getElementById('btn-add-purchase')?.addEventListener('click', () => {
+    openPurchaseModal();
+  });
+  
+  // Usar delegación de eventos para botones dinámicos
+  container.addEventListener('click', async (e) => {
+    // Editar proveedor
+    if (e.target.classList.contains('edit-supplier')) {
+      const id = e.target.getAttribute('data-id');
+      openSupplierModal(id);
+      return;
+    }
+    
+    // Eliminar proveedor
+    if (e.target.classList.contains('delete-supplier')) {
+      const id = e.target.getAttribute('data-id');
+      if (confirm('¿Estás seguro de eliminar este proveedor?')) {
+        try {
+          await API.purchases.suppliers.delete(id);
+          container.dataset.loaded = 'false';
+          loadComprasContent();
+        } catch (err) {
+          alert('Error: ' + (err.message || 'Error desconocido'));
+        }
+      }
+      return;
+    }
+    
+    // Editar inversor
+    if (e.target.classList.contains('edit-investor')) {
+      const id = e.target.getAttribute('data-id');
+      openInvestorModal(id);
+      return;
+    }
+    
+    // Eliminar inversor
+    if (e.target.classList.contains('delete-investor')) {
+      const id = e.target.getAttribute('data-id');
+      if (confirm('¿Estás seguro de eliminar este inversor?')) {
+        try {
+          await API.purchases.investors.delete(id);
+          container.dataset.loaded = 'false';
+          loadComprasContent();
+        } catch (err) {
+          alert('Error: ' + (err.message || 'Error desconocido'));
+        }
+      }
+      return;
+    }
+  });
+}
+
+async function loadPurchasesList() {
+  const container = document.getElementById('purchases-list');
+  if (!container) return;
+  
+  try {
+    const data = await API.purchases.purchases.list({ limit: 20 });
+    container.innerHTML = renderPurchasesList(data.items || []);
+  } catch (err) {
+    console.error('Error cargando compras:', err);
+    container.innerHTML = `<p class="text-red-400 text-sm">Error: ${err.message || 'Error desconocido'}</p>`;
+  }
+}
+
+function openSupplierModal(supplierId = null) {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  if (!modal || !modalBody) return;
+  
+  const isEdit = supplierId !== null;
+  const title = isEdit ? 'Editar Proveedor' : 'Nuevo Proveedor';
+  
+  modalBody.innerHTML = `
+    <div class="p-6">
+      <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">${title}</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nombre *</label>
+          <input id="supplier-name" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Información de contacto (opcional)</label>
+          <textarea id="supplier-contact" rows="3" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Notas (opcional)</label>
+          <textarea id="supplier-notes" rows="2" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button id="supplier-save" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Guardar</button>
+        <button id="supplier-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cancelar</button>
+      </div>
+    </div>
+  `;
+  
+  modal.classList.remove('hidden');
+  
+  // Cargar datos si es edición
+  if (isEdit) {
+    API.purchases.suppliers.list().then(suppliers => {
+      const supplier = suppliers.find(s => s._id === supplierId);
+      if (supplier) {
+        document.getElementById('supplier-name').value = supplier.name || '';
+        document.getElementById('supplier-contact').value = JSON.stringify(supplier.contactInfo || {}, null, 2);
+        document.getElementById('supplier-notes').value = supplier.notes || '';
+      }
+    });
+  }
+  
+  document.getElementById('supplier-save')?.addEventListener('click', async () => {
+    const name = document.getElementById('supplier-name')?.value?.trim();
+    if (!name) {
+      alert('El nombre es requerido');
+      return;
+    }
+    
+    try {
+      let contactInfo = {};
+      try {
+        const contactText = document.getElementById('supplier-contact')?.value?.trim();
+        if (contactText) {
+          contactInfo = JSON.parse(contactText);
+        }
+      } catch (e) {
+        // Si no es JSON válido, ignorar
+      }
+      
+      const notes = document.getElementById('supplier-notes')?.value?.trim() || '';
+      
+      if (isEdit) {
+        await API.purchases.suppliers.update(supplierId, { name, contactInfo, notes });
+      } else {
+        await API.purchases.suppliers.create({ name, contactInfo, notes });
+      }
+      
+      modal.classList.add('hidden');
+      const container = document.getElementById('compras-content');
+      container.dataset.loaded = 'false';
+      loadComprasContent();
+    } catch (err) {
+      alert('Error: ' + (err.message || 'Error desconocido'));
+    }
+  });
+  
+  document.getElementById('supplier-cancel')?.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+  
+  document.getElementById('modalClose')?.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+}
+
+function openInvestorModal(investorId = null) {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  if (!modal || !modalBody) return;
+  
+  const isEdit = investorId !== null;
+  const title = isEdit ? 'Editar Inversor' : 'Nuevo Inversor';
+  
+  modalBody.innerHTML = `
+    <div class="p-6">
+      <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">${title}</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nombre *</label>
+          <input id="investor-name" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Información de contacto (opcional)</label>
+          <textarea id="investor-contact" rows="3" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Notas (opcional)</label>
+          <textarea id="investor-notes" rows="2" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button id="investor-save" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Guardar</button>
+        <button id="investor-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cancelar</button>
+      </div>
+    </div>
+  `;
+  
+  modal.classList.remove('hidden');
+  
+  // Cargar datos si es edición
+  if (isEdit) {
+    API.purchases.investors.list().then(investors => {
+      const investor = investors.find(i => i._id === investorId);
+      if (investor) {
+        document.getElementById('investor-name').value = investor.name || '';
+        document.getElementById('investor-contact').value = JSON.stringify(investor.contactInfo || {}, null, 2);
+        document.getElementById('investor-notes').value = investor.notes || '';
+      }
+    });
+  }
+  
+  document.getElementById('investor-save')?.addEventListener('click', async () => {
+    const name = document.getElementById('investor-name')?.value?.trim();
+    if (!name) {
+      alert('El nombre es requerido');
+      return;
+    }
+    
+    try {
+      let contactInfo = {};
+      try {
+        const contactText = document.getElementById('investor-contact')?.value?.trim();
+        if (contactText) {
+          contactInfo = JSON.parse(contactText);
+        }
+      } catch (e) {
+        // Si no es JSON válido, ignorar
+      }
+      
+      const notes = document.getElementById('investor-notes')?.value?.trim() || '';
+      
+      if (isEdit) {
+        await API.purchases.investors.update(investorId, { name, contactInfo, notes });
+      } else {
+        await API.purchases.investors.create({ name, contactInfo, notes });
+      }
+      
+      modal.classList.add('hidden');
+      const container = document.getElementById('compras-content');
+      container.dataset.loaded = 'false';
+      loadComprasContent();
+    } catch (err) {
+      alert('Error: ' + (err.message || 'Error desconocido'));
+    }
+  });
+  
+  document.getElementById('investor-cancel')?.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+  
+  document.getElementById('modalClose')?.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+}
+
+function openPurchaseModal() {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  if (!modal || !modalBody) return;
+  
+  // Cargar proveedores e inversores para los selects
+  Promise.all([
+    API.purchases.suppliers.list(),
+    API.purchases.investors.list(),
+    invAPI.listItems({ limit: 1000 })
+  ]).then(([suppliers, investors, itemsData]) => {
+    const items = itemsData.data || [];
+    
+    const supplierOptions = [
+      '<option value="GENERAL">GENERAL</option>',
+      ...suppliers.map(s => `<option value="${s._id}">${escapeHtml(s.name)}</option>`)
+    ].join('');
+    
+    const investorOptions = [
+      '<option value="GENERAL">GENERAL</option>',
+      ...investors.map(i => `<option value="${i._id}">${escapeHtml(i.name)}</option>`)
+    ].join('');
+    
+    modalBody.innerHTML = `
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Nueva Compra</h3>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Proveedor</label>
+              <select id="purchase-supplier" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                ${supplierOptions}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Inversor</label>
+              <select id="purchase-investor" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                ${investorOptions}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Fecha de compra</label>
+            <input id="purchase-date" type="date" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value="${new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Items</label>
+            <div id="purchase-items" class="space-y-2 mb-2">
+              <!-- Se agregarán dinámicamente -->
+            </div>
+            <button id="btn-add-purchase-item" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">+ Agregar Item</button>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Notas (opcional)</label>
+            <textarea id="purchase-notes" rows="2" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button id="purchase-save" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Guardar</button>
+          <button id="purchase-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cancelar</button>
+        </div>
+      </div>
+    `;
+    
+    modal.classList.remove('hidden');
+    
+    let purchaseItems = [];
+    let itemCounter = 0;
+    
+    const itemsContainer = document.getElementById('purchase-items');
+    const itemOptions = items.map(item => 
+      `<option value="${item._id}">${escapeHtml(item.sku || '')} - ${escapeHtml(item.name || '')}</option>`
+    ).join('');
+    
+    function addPurchaseItemRow() {
+      const id = `item-${itemCounter++}`;
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-4 gap-2 items-end';
+      row.id = id;
+      row.innerHTML = `
+        <div>
+          <label class="block text-xs text-slate-400 theme-light:text-slate-600 mb-1">Item</label>
+          <select class="purchase-item-select w-full px-2 py-1 rounded bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm">
+            <option value="">Seleccionar...</option>
+            ${itemOptions}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 theme-light:text-slate-600 mb-1">Cantidad</label>
+          <input type="number" min="1" step="1" class="purchase-item-qty w-full px-2 py-1 rounded bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm" value="1" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 theme-light:text-slate-600 mb-1">Precio Unit.</label>
+          <input type="number" min="0" step="0.01" class="purchase-item-price w-full px-2 py-1 rounded bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm" value="0" />
+        </div>
+        <div>
+          <button class="remove-purchase-item px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors">Eliminar</button>
+        </div>
+      `;
+      
+      row.querySelector('.remove-purchase-item')?.addEventListener('click', () => {
+        row.remove();
+      });
+      
+      itemsContainer.appendChild(row);
+    }
+    
+    document.getElementById('btn-add-purchase-item')?.addEventListener('click', () => {
+      addPurchaseItemRow();
+    });
+    
+    // Agregar primera fila
+    addPurchaseItemRow();
+    
+    document.getElementById('purchase-save')?.addEventListener('click', async () => {
+      const supplierId = document.getElementById('purchase-supplier')?.value;
+      const investorId = document.getElementById('purchase-investor')?.value;
+      const purchaseDate = document.getElementById('purchase-date')?.value;
+      const notes = document.getElementById('purchase-notes')?.value?.trim() || '';
+      
+      // Recopilar items
+      const items = [];
+      document.querySelectorAll('#purchase-items > div').forEach(row => {
+        const itemId = row.querySelector('.purchase-item-select')?.value;
+        const qty = parseInt(row.querySelector('.purchase-item-qty')?.value || '0', 10);
+        const unitPrice = parseFloat(row.querySelector('.purchase-item-price')?.value || '0', 10);
+        
+        if (itemId && qty > 0 && unitPrice >= 0) {
+          items.push({ itemId, qty, unitPrice });
+        }
+      });
+      
+      if (items.length === 0) {
+        alert('Debe agregar al menos un item');
+        return;
+      }
+      
+      try {
+        await API.purchases.purchases.create({
+          supplierId: supplierId === 'GENERAL' ? null : supplierId,
+          investorId: investorId === 'GENERAL' ? null : investorId,
+          purchaseDate,
+          items,
+          notes
+        });
+        
+        modal.classList.add('hidden');
+        // Recargar todo el contenido de compras para actualizar las listas
+        const comprasContainer = document.getElementById('compras-content');
+        if (comprasContainer) {
+          comprasContainer.dataset.loaded = 'false';
+          loadComprasContent();
+        } else {
+          loadPurchasesList();
+        }
+        alert('Compra registrada exitosamente. El stock ha sido actualizado automáticamente.');
+      } catch (err) {
+        alert('Error: ' + (err.message || 'Error desconocido'));
+      }
+    });
+    
+    document.getElementById('purchase-cancel')?.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+    
+    document.getElementById('modalClose')?.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }).catch(err => {
+    console.error('Error cargando datos:', err);
+    alert('Error cargando datos: ' + (err.message || 'Error desconocido'));
+  });
 }
 
 // Cargar contenido de inversores
@@ -3743,48 +4286,46 @@ async function loadInversoresContent() {
   if (container.dataset.loaded === 'true') return;
   
   try {
-    // Importar dinámicamente la función de investments.js
-    const { initInvestments } = await import('./investments.js');
-    if (typeof initInvestments === 'function') {
-      // Cargar inversores usando la lógica de investments.js
-      const data = await API.investments.listInvestors();
-      const investors = data.investors || [];
+    // Cargar inversores usando la API de investments
+    const data = await API.investments.listInvestors();
+    const investors = data.investors || [];
       
-      if (investors.length === 0) {
-        container.innerHTML = '<p class="text-slate-400 theme-light:text-slate-600">No hay inversores registrados</p>';
-        return;
-      }
+    if (investors.length === 0) {
+      container.innerHTML = '<p class="text-slate-400 theme-light:text-slate-600">No hay inversores registrados</p>';
+      container.dataset.loaded = 'true';
+      return;
+    }
 
-      const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    container.innerHTML = investors.map(inv => {
+      const totalInv = money(inv.totalInvestment || 0);
+      const availableVal = money(inv.availableValue || 0);
+      const soldVal = money(inv.soldValue || 0);
+      const paidVal = money(inv.paidValue || 0);
       
-      container.innerHTML = investors.map(inv => {
-        const totalInv = money(inv.totalInvestment || 0);
-        const availableVal = money(inv.availableValue || 0);
-        const soldVal = money(inv.soldValue || 0);
-        const paidVal = money(inv.paidValue || 0);
-        
-        return `
-          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 cursor-pointer hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 transition-colors" data-investor-id="${inv.investorId || inv._id}" onclick="window.location.href='inversiones.html'">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(inv.investorName || 'Sin nombre')}</h4>
-                <p class="text-sm text-slate-400 theme-light:text-slate-600">Total Inversión: ${totalInv}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm text-green-400 theme-light:text-green-600">Disponible: ${availableVal}</p>
-                <p class="text-sm text-yellow-400 theme-light:text-yellow-600">Vendido: ${soldVal}</p>
-                <p class="text-sm text-blue-400 theme-light:text-blue-600">Pagado: ${paidVal}</p>
-              </div>
+      return `
+        <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 cursor-pointer hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 transition-colors" data-investor-id="${inv.investorId || inv._id}" onclick="window.location.href='inversiones.html'">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(inv.investorName || 'Sin nombre')}</h4>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Total Inversión: ${totalInv}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400 theme-light:text-green-600">Disponible: ${availableVal}</p>
+              <p class="text-sm text-yellow-400 theme-light:text-yellow-600">Vendido: ${soldVal}</p>
+              <p class="text-sm text-blue-400 theme-light:text-blue-600">Pagado: ${paidVal}</p>
             </div>
           </div>
-        `;
-      }).join('');
+        </div>
+      `;
+    }).join('');
       
-      container.dataset.loaded = 'true';
-    }
+    container.dataset.loaded = 'true';
   } catch (err) {
     console.error('Error cargando inversores:', err);
     container.innerHTML = `<p class="text-red-400">Error: ${err.message || 'Error desconocido'}</p>`;
+    container.dataset.loaded = 'true';
   }
 }
 
