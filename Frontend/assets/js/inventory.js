@@ -832,6 +832,7 @@ if (__ON_INV_PAGE__) {
   const qClear = document.getElementById("q-clear");
   const btnUnpublishZero = document.getElementById('btn-unpublish-zero');
   const btnPubGlobal = document.getElementById('pub-bulk-global');
+  const btnReadQr = document.getElementById('btn-read-qr');
 
   // Mini-toolbar selección stickers
   const selectionBar = document.createElement("div");
@@ -2054,6 +2055,9 @@ if (__ON_INV_PAGE__) {
   }
   [qName, qSku, qBrand].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
   if (qIntake) qIntake.addEventListener("change", doSearch);
+  if (btnReadQr) {
+    btnReadQr.onclick = () => openQRReader();
+  }
 
   // ---- Editar Ingreso ----
   function openEditVehicleIntake(vi) {
@@ -5325,8 +5329,292 @@ async function openPayInvestorItemsModal(investorId, soldItems) {
   }
 }
 
+// Función para leer QR y abrir resumen del item
+async function openQRReader() {
+  const modalContent = `
+    <div class="p-6">
+      <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">📷 Leer QR</h3>
+      <div class="mb-4">
+        <video id="qr-video" autoplay playsinline class="w-full max-w-md mx-auto rounded-lg border-2 border-blue-500" style="max-height: 400px;"></video>
+        <canvas id="qr-canvas" class="hidden"></canvas>
+      </div>
+      <div class="mb-4">
+        <select id="qr-cam" class="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 rounded-lg mb-2">
+          <option value="">Cargando cámaras...</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <div class="flex gap-2">
+          <input id="qr-manual" type="text" placeholder="O ingresa el código manualmente" class="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 rounded-lg" />
+          <button id="qr-add-manual" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Agregar</button>
+        </div>
+      </div>
+      <div id="qr-msg" class="text-sm text-slate-300 theme-light:text-slate-700 mb-4"></div>
+      <div class="flex gap-3">
+        <button id="qr-close" class="px-6 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cerrar</button>
+      </div>
+    </div>
+  `;
+  
+  invOpenModal(modalContent);
+  
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const sel = document.getElementById('qr-cam');
+  const msg = document.getElementById('qr-msg');
+  const manualInput = document.getElementById('qr-manual');
+  const manualBtn = document.getElementById('qr-add-manual');
+  const closeBtn = document.getElementById('qr-close');
+  
+  let stream = null;
+  let running = false;
+  let detector = null;
+  let lastCode = '';
+  let lastTs = 0;
+  let cameraDisabled = false;
+  
+  function stop() {
+    running = false;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    if (video.srcObject) {
+      video.srcObject = null;
+    }
+  }
+  
+  async function fillCams() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      sel.innerHTML = '<option value="">-- Seleccionar cámara --</option>';
+      videoDevices.forEach((device, idx) => {
+        const opt = document.createElement('option');
+        opt.value = device.deviceId;
+        opt.textContent = device.label || `Cámara ${idx + 1}`;
+        sel.appendChild(opt);
+      });
+      if (videoDevices.length > 0 && !sel.value) {
+        sel.value = videoDevices[0].deviceId;
+      }
+    } catch (e) {
+      console.error('Error enumerando cámaras:', e);
+      sel.innerHTML = '<option value="">Error cargando cámaras</option>';
+    }
+  }
+  
+  async function start() {
+    if (running) return;
+    const deviceId = sel.value;
+    if (!deviceId) {
+      msg.textContent = 'Selecciona una cámara';
+      msg.className = 'text-sm text-red-500 theme-light:text-red-600';
+      return;
+    }
+    
+    try {
+      stop();
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId }, facingMode: 'environment' }
+      });
+      video.srcObject = stream;
+      running = true;
+      
+      if (typeof BarcodeDetector !== 'undefined') {
+        detector = new BarcodeDetector({ formats: ['qr_code'] });
+        tickNative();
+      } else if (typeof jsQR !== 'undefined') {
+        tickCanvas();
+      } else {
+        msg.textContent = 'No se encontró soporte para lectura de QR';
+        msg.className = 'text-sm text-red-500 theme-light:text-red-600';
+        running = false;
+      }
+      msg.textContent = '';
+    } catch (e) {
+      console.error('Error al iniciar cámara:', e);
+      let errorMsg = '';
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        errorMsg = '❌ Permisos de cámara denegados.';
+      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+        errorMsg = '❌ No se encontró ninguna cámara.';
+      } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+        errorMsg = '❌ La cámara está siendo usada por otra aplicación.';
+      } else {
+        errorMsg = '❌ Error: ' + (e?.message || 'Error desconocido');
+      }
+      msg.textContent = errorMsg;
+      msg.className = 'text-sm text-red-500 theme-light:text-red-600';
+      running = false;
+    }
+  }
+  
+  function accept(value) {
+    if (cameraDisabled) return false;
+    const normalized = String(value || '').trim().toUpperCase();
+    if (!normalized) return false;
+    const t = Date.now();
+    if (lastCode === normalized && t - lastTs < 1500) return false;
+    lastCode = normalized;
+    lastTs = t;
+    return true;
+  }
+  
+  function parseInventoryCode(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return { itemId: '', sku: '', raw: text };
+    const upper = text.toUpperCase();
+    if (upper.startsWith('IT:')) {
+      const parts = text.split(':').map(p => p.trim()).filter(Boolean);
+      return {
+        companyId: parts[1] || '',
+        itemId: parts[2] || '',
+        sku: parts[3] || ''
+      };
+    }
+    const match = text.match(/[a-f0-9]{24}/i);
+    return { companyId: '', itemId: match ? match[0] : '', sku: '', raw: text };
+  }
+  
+  async function handleCode(raw, fromManual = false) {
+    const text = String(raw || '').trim();
+    if (!text) return;
+    if (!fromManual && !accept(text)) return;
+    
+    cameraDisabled = true;
+    stop();
+    
+    msg.textContent = 'Procesando código...';
+    msg.className = 'text-sm text-blue-500 theme-light:text-blue-600';
+    
+    const parsed = parseInventoryCode(text);
+    let itemId = parsed.itemId;
+    
+    try {
+      // Si no tenemos itemId del QR, intentar buscar por SKU
+      if (!itemId && parsed.sku) {
+        const items = await invAPI.listItems({ sku: parsed.sku, limit: 1 });
+        if (items.data && items.data.length > 0) {
+          itemId = items.data[0]._id;
+        }
+      }
+      
+      if (!itemId) {
+        throw new Error('No se pudo identificar el item desde el código QR');
+      }
+      
+      // Obtener el item completo
+      const item = await invAPI.getItem(itemId);
+      
+      // Cerrar el modal de QR
+      invCloseModal();
+      
+      // Abrir el resumen del item
+      await openItemSummaryModal(item);
+      
+    } catch (e) {
+      msg.textContent = 'Error: ' + (e?.message || 'No se pudo procesar el código');
+      msg.className = 'text-sm text-red-500 theme-light:text-red-600';
+      
+      // Reanudar cámara después de un delay
+      setTimeout(() => {
+        cameraDisabled = false;
+        lastCode = '';
+        lastTs = 0;
+        if (sel.value) {
+          start().catch(err => {
+            console.warn('Error al reanudar cámara:', err);
+          });
+        }
+      }, 2000);
+    }
+  }
+  
+  async function tickNative() {
+    if (!running || cameraDisabled) {
+      if (running && cameraDisabled) {
+        requestAnimationFrame(tickNative);
+      }
+      return;
+    }
+    try {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const codes = await detector.detect(video);
+        if (codes && codes.length > 0 && codes[0]?.rawValue) {
+          await handleCode(codes[0].rawValue);
+          return;
+        }
+      }
+    } catch (e) {
+      // Silenciar errores de detección
+    }
+    requestAnimationFrame(tickNative);
+  }
+  
+  function tickCanvas() {
+    if (!running || cameraDisabled) {
+      if (running && cameraDisabled) {
+        requestAnimationFrame(tickCanvas);
+      }
+      return;
+    }
+    try {
+      const w = video.videoWidth | 0;
+      const h = video.videoHeight | 0;
+      if (!w || !h) {
+        requestAnimationFrame(tickCanvas);
+        return;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(video, 0, 0, w, h);
+      
+      const imgData = ctx.getImageData(0, 0, w, h);
+      if (typeof jsQR !== 'undefined') {
+        const code = jsQR(imgData.data, w, h);
+        if (code && code.data) {
+          handleCode(code.data);
+          return;
+        }
+      }
+    } catch (e) {
+      // Silenciar errores
+    }
+    requestAnimationFrame(tickCanvas);
+  }
+  
+  // Event listeners
+  sel.addEventListener('change', start);
+  manualBtn.addEventListener('click', () => {
+    const val = manualInput.value.trim();
+    if (!val) return;
+    handleCode(val, true);
+    manualInput.value = '';
+  });
+  manualInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const val = manualInput.value.trim();
+      if (val) handleCode(val, true);
+    }
+  });
+  closeBtn.addEventListener('click', () => {
+    stop();
+    invCloseModal();
+  });
+  
+  // Cargar cámaras y iniciar automáticamente
+  await fillCams();
+  if (sel.value) {
+    await start();
+  }
+}
+
 // Hacer las funciones disponibles globalmente
 window.openInvestorDetailModal = openInvestorDetailModal;
 window.openPurchaseDetailModal = openPurchaseDetailModal;
 window.openPurchaseStickersModal = openPurchaseStickersModal;
 window.openPayInvestorItemsModal = openPayInvestorItemsModal;
+window.openQRReader = openQRReader;
