@@ -3442,6 +3442,9 @@ function openMarketplaceHelper(item){
 
     doc.save(`${filenameBase}.pdf`);
   }
+  
+  // Hacer renderStickerPdf disponible globalmente
+  window.renderStickerPdf = renderStickerPdf;
 
   // ---- Publish management ----
   // Inject after itemsList rendering logic where each item div is built
@@ -5103,7 +5106,12 @@ async function openPurchaseStickersModal(purchaseId) {
       
       try {
         const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers-compra';
-        await renderStickerPdf(list, `stickers-compra-${base}`);
+        // Usar window.renderStickerPdf si está disponible
+        const renderFn = window.renderStickerPdf || renderStickerPdf;
+        if (typeof renderFn !== 'function') {
+          throw new Error('La función renderStickerPdf no está disponible. Por favor, recarga la página.');
+        }
+        await renderFn(list, `stickers-compra-${base}`);
         invCloseModal();
         hideBusyFn();
         if (typeof showToast === 'function') {
