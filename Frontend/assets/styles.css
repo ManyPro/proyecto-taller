@@ -181,7 +181,7 @@ body.theme-light .toggle .toggle-slider{
 body.theme-light input:not([type="checkbox"]):not([type="radio"]):focus,
 body.theme-light textarea:focus,
 body.theme-light select:focus{
-  background:#C4CDCE;
+  background:rgba(148,163,184,.35);
   box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);
 }
 body.theme-light .toggle input:checked + .toggle-slider{
@@ -202,9 +202,6 @@ body.theme-light .toggle input:checked + .toggle-slider{
   border:1px solid rgba(148,163,184,0.2);
   border-radius:16px;
   padding:16px 18px;
-}
-body.theme-light .dev-options-grid .card{
-  border:1px solid #C4CDCE;
 }
 .dev-options-grid .card > b{
   text-transform:uppercase;
@@ -1445,9 +1442,6 @@ body.dense .card{ padding:12px 12px 14px; }
   gap:10px;
   color:#1f2937;
 }
-body.theme-light #tpl-visual-editor .builder-canvas{
-  border:2px dashed #C4CDCE;
-}
 /* Mejorar contraste en modales y menús - Modo claro */
 body.theme-light #modal,
 body.theme-light #modalBody,
@@ -1502,7 +1496,7 @@ body.theme-light [id*="dropdown"],
 body.theme-light [id*="Dropdown"],
 body.theme-light [class*="dropdown"]:not([class*="hidden"]),
 body.theme-light [class*="Dropdown"]:not([class*="hidden"]) {
-  background-color: #C4CDCE !important;
+  background-color: #ffffff !important;
   color: #000000 !important;
 }
 body.theme-light [id*="dropdown"] *,
@@ -1517,14 +1511,14 @@ body.theme-light .text-slate-600,
 body.theme-light .text-slate-700 {
   color: #000000 !important;
 }
-/* Cambiar fondos grises de formularios a #C4CDCE */
+/* Cambiar fondos grises de formularios a celeste claro/blanco */
 body.theme-light input[class*="bg-slate-900"],
 body.theme-light textarea[class*="bg-slate-900"],
 body.theme-light select[class*="bg-slate-900"],
 body.theme-light input[class*="bg-slate-800"],
 body.theme-light textarea[class*="bg-slate-800"],
 body.theme-light select[class*="bg-slate-800"] {
-  background-color: #C4CDCE !important;
+  background-color: #ffffff !important;
 }
 body.theme-light input[class*="bg-slate-900/50"],
 body.theme-light textarea[class*="bg-slate-900/50"],
@@ -1532,166 +1526,33 @@ body.theme-light select[class*="bg-slate-900/50"],
 body.theme-light input[class*="bg-slate-800/50"],
 body.theme-light textarea[class*="bg-slate-800/50"],
 body.theme-light select[class*="bg-slate-800/50"] {
-  background-color: #C4CDCE !important;
+  background-color: #ffffff !important;
 }
-/* Cambiar fondo del modal a #C4CDCE */
+/* Cambiar fondo del modal a celeste claro/blanco */
 body.theme-light #modal > div,
 body.theme-light #modal .bg-slate-800,
 body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]) {
-  background-color: #C4CDCE !important;
+  background-color: #ffffff !important;
 }
 body.theme-light #modal [class*="bg-slate-800/50"] {
-  background-color: #C4CDCE !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
 }
 /* Cambiar todos los inputs, textareas y selects dentro de modales */
 body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
 body.theme-light #modal textarea,
 body.theme-light #modal select {
-  background-color: #C4CDCE !important;
-  border-color: #C4CDCE !important;
+  background-color: #ffffff !important;
+  border-color: #7dd3fc !important;
 }
 /* Cambiar fondos de formularios en toda la página */
 body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]),
 body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]),
 body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]) {
-  background-color: #C4CDCE !important;
+  background-color: #ffffff !important;
 }
 
 body.theme-light #tpl-visual-editor .builder-canvas{
   color:#111827;
-}
-
-/* ==========================================
-   REEMPLAZAR TODOS LOS GRISES POR #C4CDCE EN MODO CLARO
-   ========================================== */
-
-/* Reemplazar todos los fondos grises (slate) en modo claro */
-body.theme-light [class*="bg-slate-50"],
-body.theme-light [class*="bg-slate-100"],
-body.theme-light [class*="bg-slate-200"],
-body.theme-light [class*="bg-slate-300"],
-body.theme-light [class*="bg-slate-400"],
-body.theme-light [class*="bg-slate-500"],
-body.theme-light [class*="bg-slate-600"],
-body.theme-light [class*="bg-slate-700"],
-body.theme-light [class*="bg-slate-800"],
-body.theme-light [class*="bg-slate-900"],
-body.theme-light [class*="bg-gray-50"],
-body.theme-light [class*="bg-gray-100"],
-body.theme-light [class*="bg-gray-200"],
-body.theme-light [class*="bg-gray-300"],
-body.theme-light [class*="bg-gray-400"],
-body.theme-light [class*="bg-gray-500"],
-body.theme-light [class*="bg-gray-600"],
-body.theme-light [class*="bg-gray-700"],
-body.theme-light [class*="bg-gray-800"],
-body.theme-light [class*="bg-gray-900"] {
-  background-color: #C4CDCE !important;
-}
-
-/* Reemplazar fondos grises con opacidad */
-body.theme-light [class*="bg-slate-50/"],
-body.theme-light [class*="bg-slate-100/"],
-body.theme-light [class*="bg-slate-200/"],
-body.theme-light [class*="bg-slate-300/"],
-body.theme-light [class*="bg-slate-400/"],
-body.theme-light [class*="bg-slate-500/"],
-body.theme-light [class*="bg-slate-600/"],
-body.theme-light [class*="bg-slate-700/"],
-body.theme-light [class*="bg-slate-800/"],
-body.theme-light [class*="bg-slate-900/"],
-body.theme-light [class*="bg-gray-50/"],
-body.theme-light [class*="bg-gray-100/"],
-body.theme-light [class*="bg-gray-200/"],
-body.theme-light [class*="bg-gray-300/"],
-body.theme-light [class*="bg-gray-400/"],
-body.theme-light [class*="bg-gray-500/"],
-body.theme-light [class*="bg-gray-600/"],
-body.theme-light [class*="bg-gray-700/"],
-body.theme-light [class*="bg-gray-800/"],
-body.theme-light [class*="bg-gray-900/"] {
-  background-color: #C4CDCE !important;
-}
-
-/* Reemplazar todos los textos grises (slate) en modo claro */
-body.theme-light [class*="text-slate-50"],
-body.theme-light [class*="text-slate-100"],
-body.theme-light [class*="text-slate-200"],
-body.theme-light [class*="text-slate-300"],
-body.theme-light [class*="text-slate-400"],
-body.theme-light [class*="text-slate-500"],
-body.theme-light [class*="text-slate-600"],
-body.theme-light [class*="text-slate-700"],
-body.theme-light [class*="text-slate-800"],
-body.theme-light [class*="text-slate-900"],
-body.theme-light [class*="text-gray-50"],
-body.theme-light [class*="text-gray-100"],
-body.theme-light [class*="text-gray-200"],
-body.theme-light [class*="text-gray-300"],
-body.theme-light [class*="text-gray-400"],
-body.theme-light [class*="text-gray-500"],
-body.theme-light [class*="text-gray-600"],
-body.theme-light [class*="text-gray-700"],
-body.theme-light [class*="text-gray-800"],
-body.theme-light [class*="text-gray-900"] {
-  color: #000000 !important;
-}
-
-/* Reemplazar todos los bordes grises (slate) en modo claro */
-body.theme-light [class*="border-slate-50"],
-body.theme-light [class*="border-slate-100"],
-body.theme-light [class*="border-slate-200"],
-body.theme-light [class*="border-slate-300"],
-body.theme-light [class*="border-slate-400"],
-body.theme-light [class*="border-slate-500"],
-body.theme-light [class*="border-slate-600"],
-body.theme-light [class*="border-slate-700"],
-body.theme-light [class*="border-slate-800"],
-body.theme-light [class*="border-slate-900"],
-body.theme-light [class*="border-gray-50"],
-body.theme-light [class*="border-gray-100"],
-body.theme-light [class*="border-gray-200"],
-body.theme-light [class*="border-gray-300"],
-body.theme-light [class*="border-gray-400"],
-body.theme-light [class*="border-gray-500"],
-body.theme-light [class*="border-gray-600"],
-body.theme-light [class*="border-gray-700"],
-body.theme-light [class*="border-gray-800"],
-body.theme-light [class*="border-gray-900"] {
-  border-color: #C4CDCE !important;
-}
-
-/* Reemplazar bordes grises con opacidad */
-body.theme-light [class*="border-slate-50/"],
-body.theme-light [class*="border-slate-100/"],
-body.theme-light [class*="border-slate-200/"],
-body.theme-light [class*="border-slate-300/"],
-body.theme-light [class*="border-slate-400/"],
-body.theme-light [class*="border-slate-500/"],
-body.theme-light [class*="border-slate-600/"],
-body.theme-light [class*="border-slate-700/"],
-body.theme-light [class*="border-slate-800/"],
-body.theme-light [class*="border-slate-900/"],
-body.theme-light [class*="border-gray-50/"],
-body.theme-light [class*="border-gray-100/"],
-body.theme-light [class*="border-gray-200/"],
-body.theme-light [class*="border-gray-300/"],
-body.theme-light [class*="border-gray-400/"],
-body.theme-light [class*="border-gray-500/"],
-body.theme-light [class*="border-gray-600/"],
-body.theme-light [class*="border-gray-700/"],
-body.theme-light [class*="border-gray-800/"],
-body.theme-light [class*="border-gray-900/"] {
-  border-color: #C4CDCE !important;
-}
-#tpl-visual-editor .vblock{
-  background:#ffffff;
-  border:1px solid #C4CDCE;
-  border-radius:8px;
-}
-body.theme-light #tpl-visual-editor .vblock{
-  background:#C4CDCE;
-  border:1px solid #C4CDCE;
 }
 #tpl-visual-editor .helper-card{
   background:var(--card);
@@ -1728,9 +1589,6 @@ body.theme-light #tpl-visual-editor .vblock{
 #tpl-visual-editor .var-pill{
   background:var(--card-alt);
   border:1px dashed rgba(148,163,184,.45);
-}
-body.theme-light #tpl-visual-editor .var-pill{
-  border:1px dashed #C4CDCE;
   border-radius:999px;
   padding:6px 12px;
   font-size:12px;
