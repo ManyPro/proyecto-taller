@@ -1464,21 +1464,54 @@ if (__ON_INV_PAGE__) {
     refreshItems(params);
   }
 
-  function openStockInModal(it){
+  async function openStockInModal(it){
+    // Cargar proveedores e inversores
+    let suppliers = [];
+    let investors = [];
+    try {
+      suppliers = await request('/api/v1/purchases/suppliers');
+      investors = await request('/api/v1/purchases/investors');
+    } catch (e) {
+      console.error('Error cargando proveedores/inversores:', e);
+    }
+
     const optionsIntakes = [
       `<option value="">(sin entrada)</option>`,
       ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
     ].join('');
+    
+    const optionsSuppliers = [
+      `<option value="GENERAL">General</option>`,
+      ...suppliers.map(s=>`<option value="${s._id}">${s.name}</option>`)
+    ].join('');
+    
+    const optionsInvestors = [
+      `<option value="GENERAL">General</option>`,
+      ...investors.map(i=>`<option value="${i._id}">${i.name}</option>`)
+    ].join('');
+
     invOpenModal(`
       <div class="p-6">
         <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Agregar stock a ${it.name || it.sku || it._id}</h3>
         <div class="space-y-4">
           <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Proveedor</label>
+            <select id="stk-supplier" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsSuppliers}</select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Inversor</label>
+            <select id="stk-investor" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsInvestors}</select>
+          </div>
+          <div>
             <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Cantidad</label>
             <input id="stk-qty" type="number" min="1" step="1" value="1" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Anclar a procedencia (opcional)</label>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Precio de compra (opcional, recomendado si hay inversor)</label>
+            <input id="stk-purchase-price" type="number" min="0" step="0.01" placeholder="0" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Anclar a procedencia (opcional - sistema antiguo)</label>
             <select id="stk-intake" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsIntakes}</select>
           </div>
           <div>
@@ -1488,41 +1521,70 @@ if (__ON_INV_PAGE__) {
         </div>
         <div class="flex gap-3 mt-6">
           <button id="stk-save" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Agregar</button>
-          <button id="stk-generate-stickers" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Generar Stickers</button>
+          <button id="stk-generate-stickers" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Agregar y Generar Stickers</button>
           <button id="stk-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
         </div>
       </div>
     `);
+    
     document.getElementById('stk-cancel').onclick = invCloseModal;
+    
     document.getElementById('stk-save').onclick = async () => {
       const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
       if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const supplierId = document.getElementById('stk-supplier').value || 'GENERAL';
+      const investorId = document.getElementById('stk-investor').value || 'GENERAL';
+      const purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
       const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
       const note = document.getElementById('stk-note').value || '';
+      
       try{
-        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
+        const payload = { qty, note };
+        if (supplierId && supplierId !== '') payload.supplierId = supplierId;
+        if (investorId && investorId !== '') payload.investorId = investorId;
+        if (purchasePrice !== undefined) payload.purchasePrice = purchasePrice;
+        if (vehicleIntakeId) payload.vehicleIntakeId = vehicleIntakeId;
+        
+        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
         invCloseModal();
         await refreshItems(state.lastItemsParams);
         showToast('Stock agregado');
       }catch(e){ alert('No se pudo agregar stock: '+e.message); }
     };
 
-    // Botón para generar stickers usando el formato existente de la empresa
+    // Botón para agregar stock y generar stickers con QR correcto
     document.getElementById('stk-generate-stickers').onclick = async () => {
       const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
       if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const supplierId = document.getElementById('stk-supplier').value || 'GENERAL';
+      const investorId = document.getElementById('stk-investor').value || 'GENERAL';
+      const purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
       const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
       const note = document.getElementById('stk-note').value || '';
       
       try {
         showBusy('Agregando stock y generando stickers...');
         
-        // Primero agregar el stock
-        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
+        // Agregar el stock y obtener el qrData
+        const payload = { qty, note };
+        if (supplierId && supplierId !== '') payload.supplierId = supplierId;
+        if (investorId && investorId !== '') payload.investorId = investorId;
+        if (purchasePrice !== undefined) payload.purchasePrice = purchasePrice;
+        if (vehicleIntakeId) payload.vehicleIntakeId = vehicleIntakeId;
+        
+        const response = await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
         showToast('Stock agregado');
         
-        // Usar exactamente la misma lógica que generateStickersFromSelection
-        const list = [{ it, count: qty }];
+        // Actualizar el item con el qrData y stockEntryId del backend
+        const itemWithQr = { 
+          ...it, 
+          qrData: response.qrData,
+          stockEntryId: response.stockEntryId,
+          stockEntry: response.stockEntry
+        };
+        
+        // Generar stickers con el QR correcto
+        const list = [{ it: itemWithQr, count: qty }];
         
         try {
           const base = it.sku || it._id || 'stickers';
@@ -1537,8 +1599,8 @@ if (__ON_INV_PAGE__) {
           alert('Error generando stickers: ' + (err.message || err));
           return;
         }
-        } catch (err) {
-          hideBusy();
+      } catch (err) {
+        hideBusy();
         alert('Error agregando stock: ' + (err.message || err));
       }
     };
@@ -3090,10 +3152,16 @@ function openMarketplaceHelper(item){
   }
 
   // Función para generar QR code usando el endpoint del backend
-  async function generateQRCodeDataURL(itemId) {
+  // Si el item tiene qrData, se puede pasar directamente o usar entryId
+  async function generateQRCodeDataURL(itemId, entryId = null, qrData = null) {
     try {
-      // Usar el endpoint existente del backend para obtener el QR
-      const qrPath = buildQrPath(itemId, 600);
+      // Si hay qrData directamente, generar QR en el frontend usando el endpoint del backend
+      // pero primero intentar usar entryId si está disponible
+      let qrPath = buildQrPath(itemId, 600);
+      if (entryId) {
+        qrPath += `?entryId=${entryId}`;
+      }
+      
       const response = await fetch(`${apiBase}${qrPath}`, {
         headers: { ...authHeader() }
       });
@@ -3376,7 +3444,9 @@ function openMarketplaceHelper(item){
         }
 
         // Generar QR desde backend (ya se usa en HTML)
-        const qrDataUrl = await generateQRCodeDataURL(it._id);
+        // Si el item tiene stockEntryId, usarlo para generar el QR correcto
+        const stockEntryId = it.stockEntryId || (it.stockEntry && it.stockEntry._id) || null;
+        const qrDataUrl = await generateQRCodeDataURL(it._id, stockEntryId);
 
         // QR centrado debajo del logo
         const qrW = rightColW * 0.9;
@@ -3583,10 +3653,147 @@ function openMarketplaceHelper(item){
 
   // ---- Boot ----
   console.log('🚀 Inicializando inventario...', { paging: state.paging });
+  initInternalNavigation();
   refreshIntakes();
   // Initial load: page 1, limit per page
   console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
   // Renderizar historial al cargar la página
   setTimeout(() => renderItemHistory(), 500);
+}
+
+// ========================
+// NAVEGACIÓN INTERNA
+// ========================
+function initInternalNavigation() {
+  const btnInventario = document.getElementById('inventory-nav-inventario');
+  const btnCompras = document.getElementById('inventory-nav-compras');
+  const btnInversores = document.getElementById('inventory-nav-inversores');
+  const viewInventario = document.getElementById('inventory-view-inventario');
+  const viewCompras = document.getElementById('inventory-view-compras');
+  const viewInversores = document.getElementById('inventory-view-inversores');
+
+  if (!btnInventario || !btnCompras || !btnInversores || !viewInventario || !viewCompras || !viewInversores) return;
+
+  // Navegación entre vistas
+  btnInventario.addEventListener('click', () => {
+    btnInventario.classList.add('active');
+    btnCompras.classList.remove('active');
+    btnInversores.classList.remove('active');
+    viewInventario.classList.remove('hidden');
+    viewCompras.classList.add('hidden');
+    viewInversores.classList.add('hidden');
+  });
+
+  btnCompras.addEventListener('click', () => {
+    btnCompras.classList.add('active');
+    btnInventario.classList.remove('active');
+    btnInversores.classList.remove('active');
+    viewCompras.classList.remove('hidden');
+    viewInventario.classList.add('hidden');
+    viewInversores.classList.add('hidden');
+    // Cargar contenido de compras si es necesario
+    loadComprasContent();
+  });
+
+  btnInversores.addEventListener('click', () => {
+    btnInversores.classList.add('active');
+    btnInventario.classList.remove('active');
+    btnCompras.classList.remove('active');
+    viewInversores.classList.remove('hidden');
+    viewInventario.classList.add('hidden');
+    viewCompras.classList.add('hidden');
+    // Cargar inversores si es necesario
+    loadInversoresContent();
+  });
+
+  // Botón de actualizar inversores
+  const btnRefreshInv = document.getElementById('inv-refresh');
+  if (btnRefreshInv) {
+    btnRefreshInv.addEventListener('click', () => {
+      const container = document.getElementById('inv-investors-list');
+      if (container) {
+        container.dataset.loaded = 'false';
+        loadInversoresContent();
+      }
+    });
+  }
+}
+
+// Cargar contenido de compras
+function loadComprasContent() {
+  const container = document.getElementById('compras-content');
+  if (!container) return;
+  
+  // Por ahora solo mostrar un mensaje, luego se implementará la funcionalidad completa
+  if (!container.dataset.loaded) {
+    container.innerHTML = `
+      <p class="text-slate-400 theme-light:text-slate-600">Gestión de compras, proveedores e inversores (en desarrollo)</p>
+    `;
+    container.dataset.loaded = 'true';
+  }
+}
+
+// Cargar contenido de inversores
+async function loadInversoresContent() {
+  const container = document.getElementById('inv-investors-list');
+  if (!container) return;
+  
+  // Si ya está cargado, no recargar
+  if (container.dataset.loaded === 'true') return;
+  
+  try {
+    // Importar dinámicamente la función de investments.js
+    const { initInvestments } = await import('./investments.js');
+    if (typeof initInvestments === 'function') {
+      // Cargar inversores usando la lógica de investments.js
+      const data = await API.investments.listInvestors();
+      const investors = data.investors || [];
+      
+      if (investors.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 theme-light:text-slate-600">No hay inversores registrados</p>';
+        return;
+      }
+
+      const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      
+      container.innerHTML = investors.map(inv => {
+        const totalInv = money(inv.totalInvestment || 0);
+        const availableVal = money(inv.availableValue || 0);
+        const soldVal = money(inv.soldValue || 0);
+        const paidVal = money(inv.paidValue || 0);
+        
+        return `
+          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 cursor-pointer hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 transition-colors" data-investor-id="${inv.investorId || inv._id}" onclick="window.location.href='inversiones.html'">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(inv.investorName || 'Sin nombre')}</h4>
+                <p class="text-sm text-slate-400 theme-light:text-slate-600">Total Inversión: ${totalInv}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-green-400 theme-light:text-green-600">Disponible: ${availableVal}</p>
+                <p class="text-sm text-yellow-400 theme-light:text-yellow-600">Vendido: ${soldVal}</p>
+                <p class="text-sm text-blue-400 theme-light:text-blue-600">Pagado: ${paidVal}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      container.dataset.loaded = 'true';
+    }
+  } catch (err) {
+    console.error('Error cargando inversores:', err);
+    container.innerHTML = `<p class="text-red-400">Error: ${err.message || 'Error desconocido'}</p>`;
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

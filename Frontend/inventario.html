@@ -69,6 +69,24 @@
     body.theme-light .text-slate-800 {
       color: #000000 !important;
     }
+    /* Estilos para navegación interna y vistas */
+    .inventory-view {
+      display: block;
+    }
+    .inventory-view.hidden {
+      display: none;
+    }
+    .inventory-nav-btn.active {
+      background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
+      color: white !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .inventory-nav-btn:not(.active) {
+      background: rgba(51, 65, 85, 0.5) !important;
+    }
+    .inventory-nav-btn:not(.active):hover {
+      background: rgba(51, 65, 85, 0.7) !important;
+    }
     /* Asegurar que el contenido de inventario ocupe máximo espacio */
     body[data-page="inventario"] main,
     body[data-page="inventario"] #appSection,
@@ -653,6 +671,7 @@
               <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
               <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
               <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="inversiones" data-feature="investments" data-href="inversiones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inversiones</button>
               <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
               <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
               <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
@@ -673,6 +692,7 @@
           <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Inventario</button>
           <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
           <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="inversiones" data-feature="investments" data-href="inversiones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inversiones</button>
           <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
           <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
           <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
@@ -695,6 +715,23 @@
       <!-- ========== INVENTARIO ========== -->
       <section id="tab-inventario" class="tab active w-full">
         <div class="w-full max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <!-- Barra de navegación interna -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 mb-4">
+            <div class="flex gap-2 p-2">
+              <button id="inventory-nav-inventario" class="inventory-nav-btn active px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white shadow-md">
+                Inventario
+              </button>
+              <button id="inventory-nav-compras" class="inventory-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+                Compras
+              </button>
+              <button id="inventory-nav-inversores" class="inventory-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+                Inversores
+              </button>
+            </div>
+          </div>
+
+          <!-- Vista de Inventario (activa por defecto) -->
+          <div id="inventory-view-inventario" class="inventory-view">
           <!-- PRIMERO: Lista de inventario con filtros -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="inventory-list">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Inventario</h3>
@@ -889,6 +926,35 @@
               </div>
             </div>
           </div>
+          </div>
+          <!-- Fin Vista de Inventario -->
+
+          <!-- Vista de Compras -->
+          <div id="inventory-view-compras" class="inventory-view hidden">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Compras</h3>
+              <p class="text-slate-400 theme-light:text-slate-600 mb-4">Gestión de compras, proveedores e inversores</p>
+              <!-- Aquí irá el contenido de compras (proveedores, inversores, compras) -->
+              <div id="compras-content">
+                <!-- Se llenará dinámicamente -->
+              </div>
+            </div>
+          </div>
+          <!-- Fin Vista de Compras -->
+
+          <!-- Vista de Inversores -->
+          <div id="inventory-view-inversores" class="inventory-view hidden">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Inversores</h3>
+              <div class="flex flex-wrap gap-2 items-end mb-4">
+                <button id="inv-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              </div>
+              <div id="inv-investors-list" class="space-y-4">
+                <!-- Se llenará dinámicamente -->
+              </div>
+            </div>
+          </div>
+          <!-- Fin Vista de Inversores -->
         </div>
       </section>
     </section>

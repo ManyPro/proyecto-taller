@@ -296,22 +296,62 @@ export const generateOilChangeSticker = async (req, res) => {
     const MARGIN = 0.25 * CM; // 0.25 cm
     
     // Crear PDF sin márgenes
+    // IMPORTANTE: Generar PDF en buffer para evitar problemas de compresión en Netlify
+    const chunks = [];
     const doc = new PDFDocument({ 
       size: [STICKER_W, STICKER_H],
       margins: { top: 0, bottom: 0, left: 0, right: 0 }
     });
 
-    // Configurar headers para descarga
-    // Nombre del archivo: ACEITE - [PLACA]
-    const filename = `ACEITE - ${plateStr}.pdf`;
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    // Deshabilitar compresión para PDFs
-    res.setHeader('Content-Encoding', 'identity');
-    res.setHeader('Cache-Control', 'no-transform');
+    // Acumular chunks en memoria en lugar de hacer pipe directo
+    doc.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
 
-    // Pipe PDF a response
-    doc.pipe(res);
+    doc.on('end', () => {
+      try {
+        // Cuando el PDF está completo, enviarlo como buffer
+        const pdfBuffer = Buffer.concat(chunks);
+        
+        // Configurar headers para descarga
+        const filename = `ACEITE - ${plateStr}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        // Deshabilitar compresión para PDFs
+        res.setHeader('Content-Encoding', 'identity');
+        res.setHeader('Cache-Control', 'no-transform, no-store');
+        
+        // Enviar el PDF completo
+        res.send(pdfBuffer);
+        
+        logger.info('[maintenance.generateOilChangeSticker] ✅✅✅ Sticker generado y enviado exitosamente', {
+          companyId,
+          saleId,
+          plate: plateStr,
+          mileage: mileageNum,
+          nextServiceMileage: nextServiceMileageNum,
+          oilType: oilTypeStr,
+          pdfSize: pdfBuffer.length,
+          filename
+        });
+      } catch (sendErr) {
+        logger.error('[generateOilChangeSticker] ❌ Error enviando PDF:', {
+          error: sendErr.message,
+          stack: sendErr.stack
+        });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Error al enviar PDF', message: sendErr.message });
+        }
+      }
+    });
+
+    doc.on('error', (err) => {
+      logger.error('[generateOilChangeSticker] ❌ Error generando PDF:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error al generar PDF', message: err.message });
+      }
+    });
 
     // Fondo blanco
     doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
@@ -569,20 +609,11 @@ export const generateOilChangeSticker = async (req, res) => {
       });
     }
 
-    // Finalizar PDF
+    // Finalizar PDF - esto disparará el evento 'end' que enviará el buffer
     logger.info('[generateOilChangeSticker] 📄 Finalizando PDF...');
     doc.end();
-
-    logger.info('[maintenance.generateOilChangeSticker] ✅✅✅ Sticker generado exitosamente', {
-      companyId,
-      saleId,
-      plate,
-      mileage,
-      nextServiceMileage,
-      oilType,
-      renaultImageLoaded,
-      logoLoaded: !!companyLogoUrl
-    });
+    
+    // NOTA: El log de éxito se hace en el evento 'end' del doc cuando el PDF está completo
 
   } catch (error) {
     logger.error('[maintenance.generateOilChangeSticker] Error', { 

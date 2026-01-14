@@ -7,6 +7,7 @@ import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
 import StockEntry from '../models/StockEntry.js';
+import InvestmentItem from '../models/InvestmentItem.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
@@ -1542,6 +1543,66 @@ export const closeSale = async (req, res) => {
         if (stockMoves.length > 0) {
           await StockMove.insertMany(stockMoves, { session });
         }
+
+        // Actualizar InvestmentItems si hay inversor asociado a los StockEntries usados
+        if (stockEntriesUsed.length > 0) {
+          for (const seUsed of stockEntriesUsed) {
+            // Buscar el StockEntry para obtener investorId
+            const stockEntry = await StockEntry.findOne({
+              _id: seUsed.entryId,
+              companyId: req.companyId
+            }).session(session);
+
+            if (stockEntry && stockEntry.investorId) {
+              // Buscar InvestmentItems relacionados con este stockEntry que estén disponibles
+              const investmentItems = await InvestmentItem.find({
+                companyId: req.companyId,
+                stockEntryId: stockEntry._id,
+                status: 'available',
+                qty: { $gt: 0 }
+              })
+              .sort({ createdAt: 1 }) // FIFO: más antiguos primero
+              .session(session);
+
+              let remainingQtyToMark = seUsed.qty;
+              
+              for (const invItem of investmentItems) {
+                if (remainingQtyToMark <= 0) break;
+                
+                const qtyToMark = Math.min(remainingQtyToMark, invItem.qty);
+                invItem.qty -= qtyToMark;
+                remainingQtyToMark -= qtyToMark;
+                
+                if (invItem.qty <= 0) {
+                  // Si se vendió todo, marcar como vendido
+                  invItem.status = 'sold';
+                  invItem.saleId = sale._id;
+                  invItem.soldAt = new Date();
+                  await invItem.save({ session });
+                } else {
+                  // Si quedó cantidad, crear un nuevo InvestmentItem para lo vendido
+                  // y mantener el original con lo que queda
+                  await InvestmentItem.create([{
+                    companyId: req.companyId,
+                    investorId: invItem.investorId,
+                    purchaseId: invItem.purchaseId,
+                    itemId: invItem.itemId,
+                    stockEntryId: invItem.stockEntryId,
+                    purchasePrice: invItem.purchasePrice,
+                    qty: qtyToMark,
+                    status: 'sold',
+                    saleId: sale._id,
+                    soldAt: new Date()
+                  }], { session });
+                  
+                  // Guardar el original con la cantidad restante
+                  await invItem.save({ session });
+                }
+              }
+            }
+          }
+        }
+
         affectedItemIds.push(String(target._id));
       }
 

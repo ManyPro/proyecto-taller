@@ -40,6 +40,8 @@ import calendarRouter from './routes/calendar.routes.js';
 import chatsRouter from './routes/chats.routes.js';
 import maintenanceRouter from './routes/maintenance.routes.js';
 import customerRouter from './routes/customer.routes.js';
+import purchasesRouter from './routes/purchases.routes.js';
+import investmentsRouter from './routes/investments.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 
 const app = express();
@@ -310,6 +312,8 @@ app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);
 app.use('/api/v1/calendar', authCompany, withCompanyDefaults, calendarRouter);
 app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
 app.use('/api/v1/inventory', authCompany, withCompanyDefaults, inventoryRouter);
+app.use('/api/v1/purchases', authCompany, withCompanyDefaults, purchasesRouter);
+app.use('/api/v1/investments', authCompany, withCompanyDefaults, investmentsRouter);
 app.use('/api/v1/services', authCompany, withCompanyDefaults, servicesRouter);
 app.use('/api/v1/prices', authCompany, withCompanyDefaults, pricesRoutes);
 app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);

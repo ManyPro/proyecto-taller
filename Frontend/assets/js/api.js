@@ -411,6 +411,11 @@ const API = {
     delete: (id) => http.del(`/api/v1/cashflow/accounts/${id}`),
     balances: () => http.get('/api/v1/cashflow/accounts/balances')
   },
+  investments: {
+    listInvestors: () => http.get('/api/v1/investments/investors'),
+    getInvestorInvestments: (investorId) => http.get(`/api/v1/investments/investors/${investorId}`),
+    payInvestment: (investorId, payload) => http.post(`/api/v1/investments/investors/${investorId}/pay`, payload)
+  },
   cashflow: {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),

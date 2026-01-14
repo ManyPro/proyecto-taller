@@ -6,6 +6,9 @@ import Notification from "../models/Notification.js";
 import StockMove from "../models/StockMove.js";
 import StockEntry from "../models/StockEntry.js";
 import SKU from "../models/SKU.js";
+import Supplier from "../models/Supplier.js";
+import Investor from "../models/Investor.js";
+import InvestmentItem from "../models/InvestmentItem.js";
 import { checkLowStockAndNotify, checkLowStockForMany } from "../lib/stockAlerts.js";
 import xlsx from 'xlsx';
 import multer from 'multer';
@@ -65,12 +68,15 @@ function sanitizePublicDescription(html){
 // NUEVO: genera el payload estable del QR
 // Estructura: IT:<companyId>:<itemId>:<sku>[:<entryId>]
 // Si entryId está presente, vincula el QR a una entrada específica
-function makeQrData({ companyId, item, entryId = null }) {
+function makeQrData({ companyId, item, entryId = null, supplierId = null, investorId = null }) {
   const base = `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
+  const supplier = supplierId ? (supplierId === 'GENERAL' ? 'GENERAL' : String(supplierId)) : 'GENERAL';
+  const investor = investorId ? (investorId === 'GENERAL' ? 'GENERAL' : String(investorId)) : 'GENERAL';
+  
   if (entryId) {
-    return `${base}:${entryId}`;
+    return `${base}:${supplier}:${investor}:${entryId}`;
   }
-  return base;
+  return `${base}:${supplier}:${investor}`;
 }
 
 // Prorratea el costo del vehiculo entre items 'AUTO' ponderando por stock.
@@ -771,6 +777,7 @@ export const recalcIntakePrices = async (req, res) => {
 
 // ===== Stock IN =====
 // Agrega stock a un ítem existente y registra el movimiento
+// Soporta sistema antiguo (vehicleIntakeId) y nuevo (supplierId, investorId)
 export const addItemStock = async (req, res) => {
   const { id } = req.params;
   const b = req.body || {};
@@ -782,7 +789,7 @@ export const addItemStock = async (req, res) => {
   const item = await Item.findOne({ _id: id, companyId: req.companyId });
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  // Validar vehicleIntakeId si se proporciona
+  // Validar vehicleIntakeId si se proporciona (sistema antiguo)
   let vehicleIntakeId = null;
   let vehicleIntake = null;
   if (b.vehicleIntakeId && mongoose.Types.ObjectId.isValid(b.vehicleIntakeId)) {
@@ -793,6 +800,44 @@ export const addItemStock = async (req, res) => {
     }
   }
 
+  // Validar supplierId si se proporciona (nuevo sistema)
+  let supplierId = null;
+  if (b.supplierId) {
+    if (b.supplierId === 'GENERAL' || b.supplierId === null) {
+      supplierId = null;
+    } else if (mongoose.Types.ObjectId.isValid(b.supplierId)) {
+      const supplier = await Supplier.findOne({ _id: b.supplierId, companyId: req.companyId });
+      if (!supplier) {
+        return res.status(404).json({ error: "Proveedor no encontrado" });
+      }
+      supplierId = supplier._id;
+    } else {
+      return res.status(400).json({ error: "ID de proveedor inválido" });
+    }
+  }
+
+  // Validar investorId si se proporciona (nuevo sistema)
+  let investorId = null;
+  if (b.investorId) {
+    if (b.investorId === 'GENERAL' || b.investorId === null) {
+      investorId = null;
+    } else if (mongoose.Types.ObjectId.isValid(b.investorId)) {
+      const investor = await Investor.findOne({ _id: b.investorId, companyId: req.companyId });
+      if (!investor) {
+        return res.status(404).json({ error: "Inversor no encontrado" });
+      }
+      investorId = investor._id;
+    } else {
+      return res.status(400).json({ error: "ID de inversor inválido" });
+    }
+  }
+
+  // Precio de compra (opcional, pero recomendado si hay inversor)
+  const purchasePrice = b.purchasePrice !== undefined ? parseFloat(b.purchasePrice) : null;
+  if (purchasePrice !== null && (!Number.isFinite(purchasePrice) || purchasePrice < 0)) {
+    return res.status(400).json({ error: "Precio de compra inválido" });
+  }
+
   // Registrar movimiento primero (para auditoría)
   const meta = { note: (b.note || '').trim() };
   if (vehicleIntakeId) {
@@ -800,6 +845,9 @@ export const addItemStock = async (req, res) => {
     meta.intakeKind = vehicleIntake.intakeKind;
     meta.intakeLabel = makeIntakeLabel(vehicleIntake);
   }
+  if (supplierId) meta.supplierId = supplierId;
+  if (investorId) meta.investorId = investorId;
+  if (purchasePrice !== null) meta.purchasePrice = purchasePrice;
 
   await StockMove.create({
     companyId: req.companyId,
@@ -809,43 +857,84 @@ export const addItemStock = async (req, res) => {
     meta
   });
 
-  // Crear o actualizar StockEntry si hay vehicleIntakeId
+  // Crear o actualizar StockEntry
   let stockEntry = null;
-  if (vehicleIntakeId) {
-    // Buscar si ya existe un StockEntry para este item y entrada
-    stockEntry = await StockEntry.findOne({
+  const entryPrice = purchasePrice !== null ? purchasePrice : (item.entryPrice || null);
+  
+  // Si hay supplierId o investorId, usar el nuevo sistema
+  if (supplierId !== null || investorId !== null || vehicleIntakeId) {
+    // Buscar si ya existe un StockEntry para esta combinación
+    const searchFilter = {
       companyId: req.companyId,
-      itemId: item._id,
-      vehicleIntakeId: vehicleIntakeId
-    });
+      itemId: item._id
+    };
+    
+    // Si hay supplierId/investorId, buscar por esos campos
+    if (supplierId !== null || investorId !== null) {
+      searchFilter.supplierId = supplierId;
+      searchFilter.investorId = investorId;
+      // Si hay vehicleIntakeId también, incluirlo en la búsqueda
+      if (vehicleIntakeId) {
+        searchFilter.vehicleIntakeId = vehicleIntakeId;
+      } else {
+        searchFilter.vehicleIntakeId = null;
+      }
+    } else {
+      // Sistema antiguo: buscar solo por vehicleIntakeId
+      searchFilter.vehicleIntakeId = vehicleIntakeId;
+    }
+
+    stockEntry = await StockEntry.findOne(searchFilter);
 
     if (stockEntry) {
       // Actualizar cantidad existente
       stockEntry.qty += qty;
+      if (entryPrice !== null && stockEntry.entryPrice === null) {
+        stockEntry.entryPrice = entryPrice;
+      }
       await stockEntry.save();
     } else {
       // Crear nuevo StockEntry
+      const entryDate = vehicleIntake?.intakeDate || new Date();
       stockEntry = await StockEntry.create({
         companyId: req.companyId,
         itemId: item._id,
         vehicleIntakeId: vehicleIntakeId,
+        supplierId: supplierId,
+        investorId: investorId,
         qty: qty,
-        entryPrice: item.entryPrice || null,
-        entryDate: vehicleIntake.intakeDate || new Date(),
+        entryPrice: entryPrice,
+        entryDate: entryDate,
         meta: {
           note: meta.note,
-          supplier: vehicleIntake.purchasePlace || '',
+          supplier: vehicleIntake?.purchasePlace || '',
           purchaseOrder: ''
         }
       });
     }
   }
 
+  // Incrementar stock del item
   const updated = await Item.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
     { $inc: { stock: qty } },
     { new: true }
   );
+
+  // Crear InvestmentItem si hay inversor
+  let investmentItem = null;
+  if (investorId && stockEntry) {
+    // Crear un InvestmentItem con la cantidad total
+    investmentItem = await InvestmentItem.create({
+      companyId: req.companyId,
+      investorId: investorId,
+      itemId: item._id,
+      stockEntryId: stockEntry._id,
+      purchasePrice: entryPrice || 0,
+      qty: qty,
+      status: 'available'
+    });
+  }
 
   // Actualizar estado del SKU: pasar a 'pending' e incrementar stickers pendientes
   try {
@@ -867,10 +956,26 @@ export const addItemStock = async (req, res) => {
     console.error('sku-pending-on-stock-in', e?.message);
   }
 
-  // Retornar información incluyendo el StockEntry creado/actualizado
-  const response = { item: updated };
+  // Generar QR data con la información correcta
+  const qrData = makeQrData({
+    companyId: req.companyId,
+    item: updated,
+    entryId: stockEntry ? stockEntry._id : null,
+    supplierId: supplierId ? String(supplierId) : 'GENERAL',
+    investorId: investorId ? String(investorId) : 'GENERAL'
+  });
+
+  // Retornar información incluyendo el StockEntry creado/actualizado y QR
+  const response = { 
+    item: updated,
+    qrData: qrData
+  };
   if (stockEntry) {
+    response.stockEntryId = stockEntry._id;
     response.stockEntry = stockEntry.toObject();
+  }
+  if (investmentItem) {
+    response.investmentItem = investmentItem.toObject();
   }
 
   res.json(response);
@@ -1025,9 +1130,20 @@ export const itemQrPng = async (req, res) => {
   }
 
   // Generar QR con entryId si está disponible
-  const payload = stockEntry 
-    ? makeQrData({ companyId: req.companyId, item, entryId: stockEntry._id })
-    : (item.qrData || makeQrData({ companyId: req.companyId, item }));
+  let payload;
+  if (stockEntry) {
+    const supplierId = stockEntry.supplierId ? String(stockEntry.supplierId) : 'GENERAL';
+    const investorId = stockEntry.investorId ? String(stockEntry.investorId) : 'GENERAL';
+    payload = makeQrData({ 
+      companyId: req.companyId, 
+      item, 
+      entryId: stockEntry._id,
+      supplierId: supplierId,
+      investorId: investorId
+    });
+  } else {
+    payload = (item.qrData || makeQrData({ companyId: req.companyId, item }));
+  }
 
   const png = await QRCode.toBuffer(payload, {
     errorCorrectionLevel: "M",
