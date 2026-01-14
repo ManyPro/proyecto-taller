@@ -1589,6 +1589,11 @@ if (__ON_INV_PAGE__) {
         await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
         invCloseModal();
         await refreshItems(state.lastItemsParams);
+        // Recargar lista de compras si está visible (porque ahora se crea una compra automáticamente)
+        const purchasesList = document.getElementById('purchases-list');
+        if (purchasesList) {
+          loadPurchasesList();
+        }
         showToast('Stock agregado');
       }catch(e){ alert('No se pudo agregar stock: '+e.message); }
     };
@@ -1620,6 +1625,12 @@ if (__ON_INV_PAGE__) {
         const response = await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
         showToast('Stock agregado');
         
+        // Recargar lista de compras si está visible (porque ahora se crea una compra automáticamente)
+        const purchasesList = document.getElementById('purchases-list');
+        if (purchasesList) {
+          loadPurchasesList();
+        }
+        
         // Actualizar el item con el qrData y stockEntryId del backend
         const itemWithQr = { 
           ...it, 
@@ -1644,8 +1655,8 @@ if (__ON_INV_PAGE__) {
           alert('Error generando stickers: ' + (err.message || err));
           return;
         }
-      } catch (err) {
-        hideBusy();
+        } catch (err) {
+          hideBusy();
         alert('Error agregando stock: ' + (err.message || err));
       }
     };
@@ -4057,7 +4068,8 @@ async function loadPurchasesList() {
   if (!container) return;
   
   try {
-    const data = await API.purchases.purchases.list({ limit: 20 });
+    // Cargar todas las compras (sin límite o con límite alto)
+    const data = await API.purchases.purchases.list({ limit: 1000 });
     container.innerHTML = renderPurchasesList(data.items || []);
   } catch (err) {
     console.error('Error cargando compras:', err);
@@ -4663,7 +4675,7 @@ async function loadInversoresContent() {
       const pendingVal = money(summary.pendingPayment || 0);
       
       return `
-        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group" data-investor-id="${investorId}" onclick="window.location.href='inversiones.html?investorId=${investorId}'">
+        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group" data-investor-id="${investorId}" onclick="openInvestorDetailModal('${investorId}')">
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform">
@@ -4725,3 +4737,289 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// Abrir modal con detalle completo del inversor
+async function openInvestorDetailModal(investorId) {
+  try {
+    invOpenModal('<div class="p-6"><p class="text-white theme-light:text-slate-900">Cargando...</p></div>');
+    
+    // Cargar datos del inversor
+    const [investorData, purchasesData] = await Promise.all([
+      API.investments.getInvestorInvestments(investorId),
+      API.purchases.purchases.list({ investorId, limit: 1000 })
+    ]);
+    
+    const investor = investorData;
+    const purchases = purchasesData.items || [];
+    const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    // Renderizar items disponibles
+    const availableItems = (investor.available || []).map(item => {
+      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
+      const total = (item.purchasePrice || 0) * (item.qty || 0);
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
+          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
+          <td class="px-4 py-3 text-right">${money(total)}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
+    
+    // Renderizar items vendidos
+    const soldItems = (investor.sold || []).map(item => {
+      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
+      const total = (item.purchasePrice || 0) * (item.qty || 0);
+      const saleNumber = item.saleId?.number || 'N/A';
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
+          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
+          <td class="px-4 py-3 text-right">${money(total)}</td>
+          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
+    
+    // Renderizar items pagados
+    const paidItems = (investor.paid || []).map(item => {
+      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
+      const total = (item.purchasePrice || 0) * (item.qty || 0);
+      const saleNumber = item.saleId?.number || 'N/A';
+      const paidAt = item.paidAt ? new Date(item.paidAt).toLocaleDateString() : 'N/A';
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
+          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
+          <td class="px-4 py-3 text-right">${money(total)}</td>
+          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
+          <td class="px-4 py-3">${paidAt}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="6" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items pagados</td></tr>';
+    
+    // Renderizar compras
+    const purchasesRows = purchases.map(purchase => {
+      const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : 'N/A';
+      const supplierName = purchase.supplierId?.name || 'General';
+      const itemsCount = purchase.items?.length || 0;
+      const totalAmount = money(purchase.totalAmount || 0);
+      const notes = purchase.notes || '';
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">
+          <td class="px-4 py-3">${escapeHtml(purchaseDate)}</td>
+          <td class="px-4 py-3">${escapeHtml(supplierName)}</td>
+          <td class="px-4 py-3 text-right">${itemsCount}</td>
+          <td class="px-4 py-3 text-right font-semibold">${totalAmount}</td>
+          <td class="px-4 py-3">${escapeHtml(notes || '-')}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay compras registradas</td></tr>';
+    
+    const modalContent = `
+      <div class="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <h3 class="text-2xl font-bold text-white theme-light:text-slate-900 mb-6">💰 ${escapeHtml(investor.investorName || 'Sin nombre')}</h3>
+        
+        <!-- Resumen -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            <p class="text-xs text-slate-400 theme-light:text-slate-600">Total Inversión</p>
+            <p class="text-lg font-bold text-white theme-light:text-slate-900">${money(investor.totalInvestment || 0)}</p>
+          </div>
+          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            <p class="text-xs text-slate-400 theme-light:text-slate-600">Disponible</p>
+            <p class="text-lg font-bold text-green-400 theme-light:text-green-600">${money(investor.availableValue || 0)}</p>
+          </div>
+          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            <p class="text-xs text-slate-400 theme-light:text-slate-600">Vendido</p>
+            <p class="text-lg font-bold text-yellow-400 theme-light:text-yellow-600">${money(investor.soldValue || 0)}</p>
+          </div>
+          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            <p class="text-xs text-slate-400 theme-light:text-slate-600">Pagado</p>
+            <p class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${money(investor.paidValue || 0)}</p>
+          </div>
+          <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            <p class="text-xs text-slate-400 theme-light:text-slate-600">Pendiente</p>
+            <p class="text-lg font-bold text-orange-400 theme-light:text-orange-600">${money((investor.soldValue || 0) - (investor.paidValue || 0))}</p>
+          </div>
+        </div>
+        
+        <!-- Items Disponibles -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items Disponibles</h4>
+          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Valor Total</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">${availableItems}</tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Items Vendidos -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items Vendidos</h4>
+          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Venta</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">${soldItems}</tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Items Pagados -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items Pagados</h4>
+          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Venta</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha Pago</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">${paidItems}</tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Compras Registradas -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Compras Registradas</h4>
+          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Fecha</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Proveedor</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Items</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Notas</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">${purchasesRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    invOpenModal(modalContent);
+  } catch (err) {
+    console.error('Error cargando detalle de inversor:', err);
+    alert('Error: ' + (err.message || 'Error desconocido'));
+    invCloseModal();
+  }
+}
+
+// Abrir modal con detalle de compra
+async function openPurchaseDetailModal(purchaseId) {
+  try {
+    const purchase = await API.purchases.purchases.get(purchaseId);
+    const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    const itemsHtml = (purchase.items || []).map(item => {
+      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
+      const qty = item.qty || 0;
+      const unitPrice = money(item.unitPrice || 0);
+      const total = money((item.unitPrice || 0) * qty);
+      
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-right">${qty}</td>
+          <td class="px-4 py-3 text-right">${unitPrice}</td>
+          <td class="px-4 py-3 text-right font-semibold">${total}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : 'N/A';
+    const supplierName = purchase.supplierId?.name || 'General';
+    const investorName = purchase.investorId?.name || 'General';
+    const totalAmount = money(purchase.totalAmount || 0);
+    const notes = purchase.notes || '';
+
+    const modalContent = `
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Detalle de Compra</h3>
+        <div class="space-y-4 mb-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Fecha</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold">${escapeHtml(purchaseDate)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Proveedor</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold">${escapeHtml(supplierName)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Inversor</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold">${escapeHtml(investorName)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Total</p>
+              <p class="text-white theme-light:text-slate-900 font-semibold text-lg">${totalAmount}</p>
+            </div>
+          </div>
+          ${notes ? `
+            <div>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">Notas</p>
+              <p class="text-white theme-light:text-slate-900">${escapeHtml(notes)}</p>
+            </div>
+          ` : ''}
+        </div>
+        <div>
+          <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items</h4>
+          <div class="max-h-[400px] overflow-auto custom-scrollbar">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Unitario</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                ${itemsHtml || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button onclick="invCloseModal()" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cerrar</button>
+        </div>
+      </div>
+    `;
+
+    invOpenModal(modalContent);
+  } catch (err) {
+    alert('Error cargando detalle de compra: ' + (err.message || 'Error desconocido'));
+  }
+}
+
+// Hacer las funciones disponibles globalmente
+window.openInvestorDetailModal = openInvestorDetailModal;
+window.openPurchaseDetailModal = openPurchaseDetailModal;
