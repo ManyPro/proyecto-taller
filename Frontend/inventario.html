@@ -127,6 +127,19 @@
     body.theme-light #modal h1,
     body.theme-light #modal h2,
     body.theme-light #modal h3,
+    /* Estilos para el selector de items mejorado en compras */
+    .purchase-item-dropdown {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    .purchase-item-option {
+      transition: all 0.2s ease;
+    }
+    .purchase-item-option:hover {
+      background-color: rgba(59, 130, 246, 0.2) !important;
+    }
+    body.theme-light .purchase-item-option:hover {
+      background-color: rgba(59, 130, 246, 0.1) !important;
+    }
     body.theme-light #modal h4,
     body.theme-light #modal p,
     body.theme-light #modal span,
@@ -931,9 +944,16 @@
 
           <!-- Vista de Compras -->
           <div id="inventory-view-compras" class="inventory-view hidden">
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Compras</h3>
-              <p class="text-slate-400 theme-light:text-slate-600 mb-4">Gestión de compras, proveedores e inversores</p>
+            <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 dark:from-slate-800/90 dark:to-slate-900/90 theme-light:from-sky-50/95 theme-light:to-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-8 mb-6">
+              <div class="flex items-center gap-4 mb-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl shadow-xl">
+                  🛒
+                </div>
+                <div>
+                  <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Compras</h3>
+                  <p class="text-slate-400 theme-light:text-slate-600 text-sm mt-1">Gestión completa de compras, proveedores e inversores</p>
+                </div>
+              </div>
               <!-- Aquí irá el contenido de compras (proveedores, inversores, compras) -->
               <div id="compras-content">
                 <!-- Se llenará dinámicamente -->
@@ -944,10 +964,21 @@
 
           <!-- Vista de Inversores -->
           <div id="inventory-view-inversores" class="inventory-view hidden">
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Inversores</h3>
-              <div class="flex flex-wrap gap-2 items-end mb-4">
-                <button id="inv-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+            <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 dark:from-slate-800/90 dark:to-slate-900/90 theme-light:from-sky-50/95 theme-light:to-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-8 mb-6">
+              <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-4">
+                  <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-3xl shadow-xl">
+                    💰
+                  </div>
+                  <div>
+                    <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Inversores</h3>
+                    <p class="text-slate-400 theme-light:text-slate-600 text-sm mt-1">Resumen de inversiones por inversor</p>
+                  </div>
+                </div>
+                <button id="inv-refresh" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-700 dark:from-purple-600 dark:to-pink-700 theme-light:from-purple-500 theme-light:to-pink-600 hover:from-purple-700 hover:to-pink-800 dark:hover:from-purple-700 dark:hover:to-pink-800 theme-light:hover:from-purple-600 theme-light:hover:to-pink-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2">
+                  <span class="text-lg">🔄</span>
+                  <span>Actualizar</span>
+                </button>
               </div>
               <div id="inv-investors-list" class="space-y-4">
                 <!-- Se llenará dinámicamente -->

@@ -1507,12 +1507,18 @@ if (__ON_INV_PAGE__) {
             <input id="stk-qty" type="number" min="1" step="1" value="1" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Precio de compra (opcional, recomendado si hay inversor)</label>
-            <input id="stk-purchase-price" type="number" min="0" step="0.01" placeholder="0" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+              💰 Precio por Unidad (opcional, recomendado si hay inversor)
+            </label>
+            <input id="stk-purchase-price" type="number" min="0" step="0.01" placeholder="0.00" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            <p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">Precio de compra por cada unidad</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Anclar a procedencia (opcional - sistema antiguo)</label>
-            <select id="stk-intake" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsIntakes}</select>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+              💵 Precio Total (opcional)
+            </label>
+            <input id="stk-purchase-total" type="number" min="0" step="0.01" placeholder="Opcional" class="w-full px-4 py-2 rounded-lg bg-slate-700/30 border border-slate-600/30 text-white theme-light:bg-slate-50 theme-light:text-slate-900 theme-light:border-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"/>
+            <p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">Si ingresas el total, se calculará el precio unitario</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nota (opcional)</label>
@@ -1529,21 +1535,56 @@ if (__ON_INV_PAGE__) {
     
     document.getElementById('stk-cancel').onclick = invCloseModal;
     
+    // Lógica para calcular precio unitario desde precio total en modal de agregar stock
+    const stkPriceInput = document.getElementById('stk-purchase-price');
+    const stkTotalInput = document.getElementById('stk-purchase-total');
+    const stkQtyInput = document.getElementById('stk-qty');
+    
+    if (stkTotalInput && stkPriceInput && stkQtyInput) {
+      stkTotalInput.addEventListener('input', () => {
+        const total = parseFloat(stkTotalInput.value) || 0;
+        const qty = parseFloat(stkQtyInput.value) || 1;
+        if (total > 0 && qty > 0) {
+          const unitPrice = total / qty;
+          stkPriceInput.value = unitPrice.toFixed(2);
+        }
+      });
+      
+      stkQtyInput.addEventListener('input', () => {
+        const total = parseFloat(stkTotalInput.value) || 0;
+        const qty = parseFloat(stkQtyInput.value) || 1;
+        if (total > 0 && qty > 0) {
+          const unitPrice = total / qty;
+          stkPriceInput.value = unitPrice.toFixed(2);
+        }
+      });
+      
+      stkPriceInput.addEventListener('input', () => {
+        if (stkPriceInput.value && parseFloat(stkPriceInput.value) > 0) {
+          stkTotalInput.value = '';
+        }
+      });
+    }
+    
     document.getElementById('stk-save').onclick = async () => {
       const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
       if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
       const supplierId = document.getElementById('stk-supplier').value || 'GENERAL';
       const investorId = document.getElementById('stk-investor').value || 'GENERAL';
-      const purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
-      const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
+      let purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
+      const purchaseTotal = document.getElementById('stk-purchase-total').value ? parseFloat(document.getElementById('stk-purchase-total').value) : undefined;
       const note = document.getElementById('stk-note').value || '';
+      
+      // Si hay precio total, calcular precio unitario
+      if (purchaseTotal && purchaseTotal > 0 && qty > 0) {
+        purchasePrice = purchaseTotal / qty;
+      }
       
       try{
         const payload = { qty, note };
         if (supplierId && supplierId !== '') payload.supplierId = supplierId;
         if (investorId && investorId !== '') payload.investorId = investorId;
         if (purchasePrice !== undefined) payload.purchasePrice = purchasePrice;
-        if (vehicleIntakeId) payload.vehicleIntakeId = vehicleIntakeId;
         
         await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
         invCloseModal();
@@ -1558,9 +1599,14 @@ if (__ON_INV_PAGE__) {
       if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
       const supplierId = document.getElementById('stk-supplier').value || 'GENERAL';
       const investorId = document.getElementById('stk-investor').value || 'GENERAL';
-      const purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
-      const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
+      let purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
+      const purchaseTotal = document.getElementById('stk-purchase-total').value ? parseFloat(document.getElementById('stk-purchase-total').value) : undefined;
       const note = document.getElementById('stk-note').value || '';
+      
+      // Si hay precio total, calcular precio unitario
+      if (purchaseTotal && purchaseTotal > 0 && qty > 0) {
+        purchasePrice = purchaseTotal / qty;
+      }
       
       try {
         showBusy('Agregando stock y generando stickers...');
@@ -1570,7 +1616,6 @@ if (__ON_INV_PAGE__) {
         if (supplierId && supplierId !== '') payload.supplierId = supplierId;
         if (investorId && investorId !== '') payload.investorId = investorId;
         if (purchasePrice !== undefined) payload.purchasePrice = purchasePrice;
-        if (vehicleIntakeId) payload.vehicleIntakeId = vehicleIntakeId;
         
         const response = await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
         showToast('Stock agregado');
@@ -1857,8 +1902,6 @@ if (__ON_INV_PAGE__) {
         <div class="max-h-60 overflow-y-auto custom-scrollbar mb-4 space-y-2">${rows}</div>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Anclar a procedencia (opcional)</label>
-            <select id="bstk-intake" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsIntakes}</select>
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nota (opcional)</label>
@@ -1880,7 +1923,6 @@ if (__ON_INV_PAGE__) {
       };
     }
     document.getElementById('bstk-save').onclick = async () => {
-      const vehicleIntakeId = document.getElementById('bstk-intake').value || undefined;
       const note = document.getElementById('bstk-note').value || '';
       try{
         // Construir payload por ítem (qty > 0)
@@ -1890,7 +1932,7 @@ if (__ON_INV_PAGE__) {
         if (!itemsPayload.length) return alert('Indica cantidades (>0) para al menos un ítem.');
         if (itemsPayload.length > 500) return alert('Máximo 500 ítems por lote.');
         showBusy('Agregando stock (masivo)...');
-        await request('/api/v1/inventory/items/stock-in/bulk', { method: 'POST', json: { items: itemsPayload, vehicleIntakeId, note } });
+        await request('/api/v1/inventory/items/stock-in/bulk', { method: 'POST', json: { items: itemsPayload, note } });
         showToast('Stock agregado (masivo)');
         
         invCloseModal(); 
@@ -3703,21 +3745,25 @@ function initInternalNavigation() {
     viewInversores.classList.remove('hidden');
     viewInventario.classList.add('hidden');
     viewCompras.classList.add('hidden');
-    // Cargar inversores si es necesario
+    // Forzar recarga al cambiar de vista
+    const container = document.getElementById('inv-investors-list');
+    if (container) {
+      container.dataset.loaded = 'false';
+    }
     loadInversoresContent();
   });
 
   // Botón de actualizar inversores
-  const btnRefreshInv = document.getElementById('inv-refresh');
-  if (btnRefreshInv) {
-    btnRefreshInv.addEventListener('click', () => {
+  // Event listener para el botón de actualizar inversores (usando delegación de eventos)
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'inv-refresh') {
       const container = document.getElementById('inv-investors-list');
       if (container) {
         container.dataset.loaded = 'false';
         loadInversoresContent();
       }
-    });
-  }
+    }
+  });
 }
 
 // Cargar contenido de compras
@@ -3737,23 +3783,45 @@ async function loadComprasContent() {
     
     container.innerHTML = `
       <!-- Proveedores -->
-      <div class="mb-6">
+      <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
-          <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Proveedores</h4>
-          <button id="btn-add-supplier" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">+ Proveedor</button>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-xl shadow-lg">
+              🏪
+            </div>
+            <div>
+              <h4 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Proveedores</h4>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500">Gestiona tus proveedores</p>
+            </div>
+          </div>
+          <button id="btn-add-supplier" class="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-500 theme-light:to-teal-600 hover:from-emerald-700 hover:to-teal-800 dark:hover:from-emerald-700 dark:hover:to-teal-800 theme-light:hover:from-emerald-600 theme-light:hover:to-teal-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2">
+            <span class="text-lg">➕</span>
+            <span>Proveedor</span>
+          </button>
         </div>
-        <div id="suppliers-list" class="space-y-2 max-h-[200px] overflow-auto custom-scrollbar">
+        <div id="suppliers-list" class="space-y-3 max-h-[250px] overflow-auto custom-scrollbar">
           ${renderSuppliersList(suppliers || [])}
         </div>
       </div>
 
       <!-- Inversores -->
-      <div class="mb-6">
+      <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
-          <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Inversores</h4>
-          <button id="btn-add-investor" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">+ Inversor</button>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-xl shadow-lg">
+              💰
+            </div>
+            <div>
+              <h4 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Inversores</h4>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500">Gestiona tus inversores</p>
+            </div>
+          </div>
+          <button id="btn-add-investor" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-700 dark:from-purple-600 dark:to-pink-700 theme-light:from-purple-500 theme-light:to-pink-600 hover:from-purple-700 hover:to-pink-800 dark:hover:from-purple-700 dark:hover:to-pink-800 theme-light:hover:from-purple-600 theme-light:hover:to-pink-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2">
+            <span class="text-lg">➕</span>
+            <span>Inversor</span>
+          </button>
         </div>
-        <div id="investors-list" class="space-y-2 max-h-[200px] overflow-auto custom-scrollbar">
+        <div id="investors-list" class="space-y-3 max-h-[250px] overflow-auto custom-scrollbar">
           ${renderInvestorsList(investors || [])}
         </div>
       </div>
@@ -3761,10 +3829,21 @@ async function loadComprasContent() {
       <!-- Compras -->
       <div>
         <div class="flex items-center justify-between mb-4">
-          <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Compras</h4>
-          <button id="btn-add-purchase" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">+ Compra</button>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-xl shadow-lg">
+              🛒
+            </div>
+            <div>
+              <h4 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Compras</h4>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500">Historial de compras registradas</p>
+            </div>
+          </div>
+          <button id="btn-add-purchase" class="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-600 dark:to-emerald-700 theme-light:from-green-500 theme-light:to-emerald-600 hover:from-green-700 hover:to-emerald-800 dark:hover:from-green-700 dark:hover:to-emerald-800 theme-light:hover:from-green-600 theme-light:hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2">
+            <span class="text-lg">➕</span>
+            <span>Compra</span>
+          </button>
         </div>
-        <div id="purchases-list" class="space-y-2 max-h-[300px] overflow-auto custom-scrollbar">
+        <div id="purchases-list" class="space-y-3 max-h-[350px] overflow-auto custom-scrollbar">
           ${renderPurchasesList([])}
         </div>
       </div>
@@ -3785,15 +3864,31 @@ async function loadComprasContent() {
 
 function renderSuppliersList(suppliers) {
   if (suppliers.length === 0) {
-    return '<p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay proveedores registrados</p>';
+    return `
+      <div class="text-center py-8 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg border-2 border-dashed border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+        <div class="text-5xl mb-3">🏪</div>
+        <p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay proveedores registrados</p>
+        <p class="text-slate-500 theme-light:text-slate-500 text-xs mt-1">Haz clic en "+ Proveedor" para crear uno</p>
+      </div>
+    `;
   }
   
   return suppliers.map(s => `
-    <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 flex items-center justify-between">
-      <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtml(s.name || 'Sin nombre')}</span>
-      <div class="flex gap-2">
-        <button class="edit-supplier px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors" data-id="${s._id}">Editar</button>
-        <button class="delete-supplier px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors" data-id="${s._id}">Eliminar</button>
+    <div class="bg-gradient-to-r from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
+            🏪
+          </div>
+          <div>
+            <h5 class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 group-hover:text-emerald-400 transition-colors">${escapeHtml(s.name || 'Sin nombre')}</h5>
+            ${s.contactInfo && Object.keys(s.contactInfo).length > 0 ? `<p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">📞 Contacto disponible</p>` : ''}
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button class="edit-supplier px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105" data-id="${s._id}" title="Editar proveedor">✏️ Editar</button>
+          <button class="delete-supplier px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105" data-id="${s._id}" title="Eliminar proveedor">🗑️ Eliminar</button>
+        </div>
       </div>
     </div>
   `).join('');
@@ -3801,15 +3896,31 @@ function renderSuppliersList(suppliers) {
 
 function renderInvestorsList(investors) {
   if (investors.length === 0) {
-    return '<p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay inversores registrados</p>';
+    return `
+      <div class="text-center py-8 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg border-2 border-dashed border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+        <div class="text-5xl mb-3">👤</div>
+        <p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay inversores registrados</p>
+        <p class="text-slate-500 theme-light:text-slate-500 text-xs mt-1">Haz clic en "+ Inversor" para crear uno</p>
+      </div>
+    `;
   }
   
   return investors.map(i => `
-    <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 flex items-center justify-between">
-      <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtml(i.name || 'Sin nombre')}</span>
-      <div class="flex gap-2">
-        <button class="edit-investor px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors" data-id="${i._id}">Editar</button>
-        <button class="delete-investor px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors" data-id="${i._id}">Eliminar</button>
+    <div class="bg-gradient-to-r from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] group">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
+            💰
+          </div>
+          <div>
+            <h5 class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 group-hover:text-purple-400 transition-colors">${escapeHtml(i.name || 'Sin nombre')}</h5>
+            ${i.contactInfo && Object.keys(i.contactInfo).length > 0 ? `<p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">📞 Contacto disponible</p>` : ''}
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button class="edit-investor px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105" data-id="${i._id}" title="Editar inversor">✏️ Editar</button>
+          <button class="delete-investor px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105" data-id="${i._id}" title="Eliminar inversor">🗑️ Eliminar</button>
+        </div>
       </div>
     </div>
   `).join('');
@@ -3817,26 +3928,57 @@ function renderInvestorsList(investors) {
 
 function renderPurchasesList(purchases) {
   if (purchases.length === 0) {
-    return '<p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay compras registradas</p>';
+    return `
+      <div class="text-center py-8 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg border-2 border-dashed border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+        <div class="text-5xl mb-3">🛒</div>
+        <p class="text-slate-400 theme-light:text-slate-600 text-sm">No hay compras registradas</p>
+        <p class="text-slate-500 theme-light:text-slate-500 text-xs mt-1">Haz clic en "+ Compra" para registrar una compra</p>
+      </div>
+    `;
   }
   
   const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   
   return purchases.map(p => {
-    const date = p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString() : 'N/A';
+    const date = p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
     const supplier = p.supplierId?.name || 'GENERAL';
     const investor = p.investorId?.name || 'GENERAL';
+    const itemsCount = (p.items || []).length;
+    const totalAmount = p.totalAmount || 0;
     
     return `
-      <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-white dark:text-white theme-light:text-slate-900 font-semibold">${date}</span>
-          <span class="text-green-400 theme-light:text-green-600 font-semibold">${money(p.totalAmount || 0)}</span>
+      <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.01] group">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-xl shadow-lg">
+              🛒
+            </div>
+            <div>
+              <h5 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">Compra del ${date}</h5>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">${itemsCount} ${itemsCount === 1 ? 'item' : 'items'}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-xs text-slate-400 theme-light:text-slate-500 mb-1">Total</p>
+            <p class="text-xl font-bold text-green-400 theme-light:text-green-600">${money(totalAmount)}</p>
+          </div>
         </div>
-        <div class="text-sm text-slate-400 theme-light:text-slate-600">
-          <p>Proveedor: ${escapeHtml(supplier)}</p>
-          <p>Inversor: ${escapeHtml(investor)}</p>
-          <p>Items: ${(p.items || []).length}</p>
+        
+        <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">🏪</span>
+            <div>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500">Proveedor</p>
+              <p class="text-sm font-medium text-white dark:text-white theme-light:text-slate-700">${escapeHtml(supplier)}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-lg">💰</span>
+            <div>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500">Inversor</p>
+              <p class="text-sm font-medium text-white dark:text-white theme-light:text-slate-700">${escapeHtml(investor)}</p>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -4127,42 +4269,81 @@ function openPurchaseModal() {
     ].join('');
     
     modalBody.innerHTML = `
-      <div class="p-6">
-        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Nueva Compra</h3>
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Proveedor</label>
-              <select id="purchase-supplier" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <div class="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-2xl shadow-lg">
+            🛒
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Nueva Compra</h3>
+            <p class="text-sm text-slate-400 theme-light:text-slate-600">Registra una nueva compra de inventario</p>
+          </div>
+        </div>
+        
+        <div class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+              <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                <span>🏪</span>
+                <span>Proveedor</span>
+              </label>
+              <select id="purchase-supplier" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
                 ${supplierOptions}
               </select>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Inversor</label>
-              <select id="purchase-investor" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+              <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                <span>💰</span>
+                <span>Inversor</span>
+              </label>
+              <select id="purchase-investor" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
                 ${investorOptions}
               </select>
             </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Fecha de compra</label>
-            <input id="purchase-date" type="date" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value="${new Date().toISOString().split('T')[0]}" />
+          
+          <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+            <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+              <span>📅</span>
+              <span>Fecha de compra</span>
+            </label>
+            <input id="purchase-date" type="date" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" value="${new Date().toISOString().split('T')[0]}" />
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Items</label>
-            <div id="purchase-items" class="space-y-2 mb-2">
+          
+          <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+            <div class="flex items-center justify-between mb-4">
+              <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 flex items-center gap-2">
+                <span>📦</span>
+                <span>Items de la compra</span>
+              </label>
+              <button id="btn-add-purchase-item" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center gap-2">
+                <span>➕</span>
+                <span>Agregar Item</span>
+              </button>
+            </div>
+            <div id="purchase-items" class="space-y-3">
               <!-- Se agregarán dinámicamente -->
             </div>
-            <button id="btn-add-purchase-item" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">+ Agregar Item</button>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Notas (opcional)</label>
-            <textarea id="purchase-notes" rows="2" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          
+          <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+            <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+              <span>📝</span>
+              <span>Notas (opcional)</span>
+            </label>
+            <textarea id="purchase-notes" rows="3" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Agrega notas adicionales sobre esta compra..."></textarea>
           </div>
         </div>
-        <div class="flex gap-3 mt-6">
-          <button id="purchase-save" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Guardar</button>
-          <button id="purchase-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">Cancelar</button>
+        
+        <div class="flex gap-3 mt-6 pt-6 border-t border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+          <button id="purchase-save" class="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center justify-center gap-2">
+            <span>💾</span>
+            <span>Guardar Compra</span>
+          </button>
+          <button id="purchase-cancel" class="px-6 py-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-all duration-200 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 flex items-center gap-2">
+            <span>❌</span>
+            <span>Cancelar</span>
+          </button>
         </div>
       </div>
     `;
@@ -4173,35 +4354,198 @@ function openPurchaseModal() {
     let itemCounter = 0;
     
     const itemsContainer = document.getElementById('purchase-items');
-    const itemOptions = items.map(item => 
-      `<option value="${item._id}">${escapeHtml(item.sku || '')} - ${escapeHtml(item.name || '')}</option>`
-    ).join('');
+    
+    // Guardar items para el filtrado
+    window.purchaseItemsData = items;
     
     function addPurchaseItemRow() {
       const id = `item-${itemCounter++}`;
       const row = document.createElement('div');
-      row.className = 'grid grid-cols-4 gap-2 items-end';
+      row.className = 'bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-3 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200';
       row.id = id;
       row.innerHTML = `
-        <div>
-          <label class="block text-xs text-slate-400 theme-light:text-slate-600 mb-1">Item</label>
-          <select class="purchase-item-select w-full px-2 py-1 rounded bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm">
-            <option value="">Seleccionar...</option>
-            ${itemOptions}
-          </select>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+          <div class="md:col-span-1 relative">
+            <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">🔍 Buscar Item</label>
+            <div class="relative">
+              <input 
+                type="text" 
+                class="purchase-item-search w-full px-3 py-2 pl-10 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                placeholder="Buscar por SKU o nombre..."
+                autocomplete="off"
+              />
+              <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+              <div class="purchase-item-dropdown hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg shadow-xl max-h-60 overflow-auto custom-scrollbar"></div>
+            </div>
+            <input type="hidden" class="purchase-item-id" value="" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">📦 Cantidad</label>
+            <input type="number" min="1" step="1" class="purchase-item-qty w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value="1" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+              💰 Precio por Unidad *
+            </label>
+            <input type="number" min="0" step="0.01" class="purchase-item-price w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value="0" placeholder="0.00" />
+            <p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">Precio de compra por cada unidad</p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+              💵 Precio Total (opcional)
+            </label>
+            <input type="number" min="0" step="0.01" class="purchase-item-total w-full px-3 py-2 rounded-lg bg-slate-700/30 border border-slate-600/30 text-white theme-light:bg-slate-50 theme-light:text-slate-900 theme-light:border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" value="" placeholder="Opcional" />
+            <p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">Si ingresas el total, se calculará el precio unitario</p>
+          </div>
+          <div>
+            <button class="remove-purchase-item w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center justify-center gap-1">
+              <span>🗑️</span>
+              <span>Eliminar</span>
+            </button>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-slate-400 theme-light:text-slate-600 mb-1">Cantidad</label>
-          <input type="number" min="1" step="1" class="purchase-item-qty w-full px-2 py-1 rounded bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm" value="1" />
-        </div>
-        <div>
-          <label class="block text-xs text-slate-400 theme-light:text-slate-600 mb-1">Precio Unit.</label>
-          <input type="number" min="0" step="0.01" class="purchase-item-price w-full px-2 py-1 rounded bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm" value="0" />
-        </div>
-        <div>
-          <button class="remove-purchase-item px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors">Eliminar</button>
+        <div class="purchase-item-selected mt-2 hidden">
+          <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-2 border border-blue-500/30 flex items-center gap-2">
+            <span class="text-blue-400 theme-light:text-blue-600">✅</span>
+            <span class="text-sm text-blue-300 theme-light:text-blue-700 purchase-item-display"></span>
+          </div>
         </div>
       `;
+      
+      // Setup search functionality
+      const searchInput = row.querySelector('.purchase-item-search');
+      const dropdown = row.querySelector('.purchase-item-dropdown');
+      const hiddenInput = row.querySelector('.purchase-item-id');
+      const selectedDisplay = row.querySelector('.purchase-item-selected');
+      const displayText = row.querySelector('.purchase-item-display');
+      
+      let selectedItem = null;
+      
+      function filterItems(query) {
+        if (!query || query.trim() === '') {
+          dropdown.classList.add('hidden');
+          return;
+        }
+        
+        const lowerQuery = query.toLowerCase();
+        const filtered = window.purchaseItemsData.filter(item => {
+          const sku = (item.sku || '').toLowerCase();
+          const name = (item.name || '').toLowerCase();
+          return sku.includes(lowerQuery) || name.includes(lowerQuery);
+        }).slice(0, 10); // Limitar a 10 resultados
+        
+        if (filtered.length === 0) {
+          dropdown.innerHTML = `
+            <div class="p-3 text-center text-slate-400 theme-light:text-slate-500 text-sm">
+              No se encontraron items
+            </div>
+          `;
+        } else {
+          dropdown.innerHTML = filtered.map(item => {
+            const sku = escapeHtml(item.sku || 'Sin SKU');
+            const name = escapeHtml(item.name || 'Sin nombre');
+            const stock = item.stock || 0;
+            return `
+              <div 
+                class="purchase-item-option p-3 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 last:border-b-0 transition-colors"
+                data-id="${item._id}"
+                data-sku="${sku}"
+                data-name="${name}"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${sku}</div>
+                    <div class="text-xs text-slate-400 theme-light:text-slate-600">${name}</div>
+                  </div>
+                  <div class="text-xs text-slate-500 theme-light:text-slate-500">
+                    Stock: ${stock}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+        
+        dropdown.classList.remove('hidden');
+        
+        // Add click handlers to options
+        dropdown.querySelectorAll('.purchase-item-option').forEach(option => {
+          option.addEventListener('click', () => {
+            const itemId = option.dataset.id;
+            const sku = option.dataset.sku;
+            const name = option.dataset.name;
+            
+            selectedItem = window.purchaseItemsData.find(i => i._id === itemId);
+            hiddenInput.value = itemId;
+            searchInput.value = `${sku} - ${name}`;
+            displayText.textContent = `${sku} - ${name}`;
+            selectedDisplay.classList.remove('hidden');
+            dropdown.classList.add('hidden');
+            
+            // Auto-fill price if item has entryPrice
+            if (selectedItem && selectedItem.entryPrice) {
+              const priceInput = row.querySelector('.purchase-item-price');
+              if (priceInput && parseFloat(priceInput.value) === 0) {
+                priceInput.value = selectedItem.entryPrice;
+              }
+            }
+          });
+        });
+      }
+      
+      // Lógica para calcular precio unitario desde precio total
+      const priceInput = row.querySelector('.purchase-item-price');
+      const totalInput = row.querySelector('.purchase-item-total');
+      const qtyInput = row.querySelector('.purchase-item-qty');
+      
+      if (totalInput) {
+        totalInput.addEventListener('input', () => {
+          const total = parseFloat(totalInput.value) || 0;
+          const qty = parseFloat(qtyInput.value) || 1;
+          if (total > 0 && qty > 0) {
+            const unitPrice = total / qty;
+            priceInput.value = unitPrice.toFixed(2);
+          }
+        });
+      }
+      
+      // Si se cambia cantidad y hay precio total, recalcular
+      if (qtyInput) {
+        qtyInput.addEventListener('input', () => {
+          const total = parseFloat(totalInput?.value || 0) || 0;
+          const qty = parseFloat(qtyInput.value) || 1;
+          if (total > 0 && qty > 0) {
+            const unitPrice = total / qty;
+            if (priceInput) priceInput.value = unitPrice.toFixed(2);
+          }
+        });
+      }
+      
+      // Si se cambia precio unitario, limpiar precio total
+      if (priceInput) {
+        priceInput.addEventListener('input', () => {
+          if (priceInput.value && parseFloat(priceInput.value) > 0 && totalInput) {
+            totalInput.value = '';
+          }
+        });
+      }
+      
+      searchInput.addEventListener('input', (e) => {
+        filterItems(e.target.value);
+      });
+      
+      searchInput.addEventListener('focus', () => {
+        if (searchInput.value && !selectedItem) {
+          filterItems(searchInput.value);
+        }
+      });
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!row.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      });
       
       row.querySelector('.remove-purchase-item')?.addEventListener('click', () => {
         row.remove();
@@ -4226,7 +4570,7 @@ function openPurchaseModal() {
       // Recopilar items
       const items = [];
       document.querySelectorAll('#purchase-items > div').forEach(row => {
-        const itemId = row.querySelector('.purchase-item-select')?.value;
+        const itemId = row.querySelector('.purchase-item-id')?.value;
         const qty = parseInt(row.querySelector('.purchase-item-qty')?.value || '0', 10);
         const unitPrice = parseFloat(row.querySelector('.purchase-item-price')?.value || '0', 10);
         
@@ -4288,10 +4632,17 @@ async function loadInversoresContent() {
   try {
     // Cargar inversores usando la API de investments
     const data = await API.investments.listInvestors();
-    const investors = data.investors || [];
+    // La API devuelve un array directamente, no un objeto con investors
+    const investors = Array.isArray(data) ? data : (data.investors || []);
       
     if (investors.length === 0) {
-      container.innerHTML = '<p class="text-slate-400 theme-light:text-slate-600">No hay inversores registrados</p>';
+      container.innerHTML = `
+        <div class="text-center py-12">
+          <div class="text-6xl mb-4">👤</div>
+          <p class="text-slate-400 theme-light:text-slate-600 text-lg">No hay inversores registrados</p>
+          <p class="text-slate-500 theme-light:text-slate-500 text-sm mt-2">Crea un inversor desde la pestaña "Compras"</p>
+        </div>
+      `;
       container.dataset.loaded = 'true';
       return;
     }
@@ -4299,22 +4650,52 @@ async function loadInversoresContent() {
     const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     
     container.innerHTML = investors.map(inv => {
-      const totalInv = money(inv.totalInvestment || 0);
-      const availableVal = money(inv.availableValue || 0);
-      const soldVal = money(inv.soldValue || 0);
-      const paidVal = money(inv.paidValue || 0);
+      // La estructura es { investor: { _id, name }, summary: { ... } }
+      const investor = inv.investor || inv;
+      const summary = inv.summary || {};
+      const investorId = investor._id || inv._id;
+      const investorName = investor.name || 'Sin nombre';
+      
+      const totalInv = money(summary.totalInvestment || 0);
+      const availableVal = money(summary.availableValue || 0);
+      const soldVal = money(summary.soldValue || 0);
+      const paidVal = money(summary.paidValue || 0);
+      const pendingVal = money(summary.pendingPayment || 0);
       
       return `
-        <div class="bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white rounded-lg p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 cursor-pointer hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 transition-colors" data-investor-id="${inv.investorId || inv._id}" onclick="window.location.href='inversiones.html'">
-          <div class="flex items-center justify-between">
-            <div>
-              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(inv.investorName || 'Sin nombre')}</h4>
-              <p class="text-sm text-slate-400 theme-light:text-slate-600">Total Inversión: ${totalInv}</p>
+        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group" data-investor-id="${investorId}" onclick="window.location.href='inversiones.html?investorId=${investorId}'">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform">
+                ${(investorName.charAt(0) || '?').toUpperCase()}
+              </div>
+              <div>
+                <h4 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 group-hover:text-blue-400 transition-colors">💰 ${escapeHtml(investorName)}</h4>
+                <p class="text-xs text-slate-400 theme-light:text-slate-500 mt-1">Inversor</p>
+              </div>
             </div>
             <div class="text-right">
-              <p class="text-sm text-green-400 theme-light:text-green-600">Disponible: ${availableVal}</p>
-              <p class="text-sm text-yellow-400 theme-light:text-yellow-600">Vendido: ${soldVal}</p>
-              <p class="text-sm text-blue-400 theme-light:text-blue-600">Pagado: ${paidVal}</p>
+              <p class="text-xs text-slate-400 theme-light:text-slate-500 mb-1">Total Inversión</p>
+              <p class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${totalInv}</p>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 rounded-lg p-3 border border-green-500/30">
+              <p class="text-xs text-green-400 theme-light:text-green-600 mb-1">✅ Disponible</p>
+              <p class="text-sm font-semibold text-green-300 theme-light:text-green-700">${availableVal}</p>
+            </div>
+            <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 rounded-lg p-3 border border-yellow-500/30">
+              <p class="text-xs text-yellow-400 theme-light:text-yellow-600 mb-1">🛒 Vendido</p>
+              <p class="text-sm font-semibold text-yellow-300 theme-light:text-yellow-700">${soldVal}</p>
+            </div>
+            <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-3 border border-blue-500/30">
+              <p class="text-xs text-blue-400 theme-light:text-blue-600 mb-1">💵 Pagado</p>
+              <p class="text-sm font-semibold text-blue-300 theme-light:text-blue-700">${paidVal}</p>
+            </div>
+            <div class="bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-50 rounded-lg p-3 border border-orange-500/30">
+              <p class="text-xs text-orange-400 theme-light:text-orange-600 mb-1">⏳ Pendiente</p>
+              <p class="text-sm font-semibold text-orange-300 theme-light:text-orange-700">${pendingVal}</p>
             </div>
           </div>
         </div>
@@ -4324,7 +4705,13 @@ async function loadInversoresContent() {
     container.dataset.loaded = 'true';
   } catch (err) {
     console.error('Error cargando inversores:', err);
-    container.innerHTML = `<p class="text-red-400">Error: ${err.message || 'Error desconocido'}</p>`;
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <div class="text-5xl mb-4">⚠️</div>
+        <p class="text-red-400 text-lg font-semibold">Error al cargar inversores</p>
+        <p class="text-slate-400 theme-light:text-slate-600 text-sm mt-2">${err.message || 'Error desconocido'}</p>
+      </div>
+    `;
     container.dataset.loaded = 'true';
   }
 }
