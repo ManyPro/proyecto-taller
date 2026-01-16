@@ -1551,6 +1551,9 @@ function startSalesAutoRefresh() {
 document.addEventListener('DOMContentLoaded', ()=>{
   const btnWO = document.getElementById('sv-print-wo');
   if(btnWO) btnWO.addEventListener('click', ()=> printWorkOrder());
+
+  // Acciones financieras (abonos / descuentos)
+  try { setupSaleFinanceActions(); } catch {}
 });
 
 let companyPrefs = { laborPercents: [] };
@@ -2463,6 +2466,7 @@ function buildCloseModalContent(){
         <tbody id="cv-payments-body"></tbody>
       </table>
       <div id="cv-payments-summary" class="mt-3 text-xs"></div>
+      <div id="cv-advance-info" class="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300"></div>
     </div>
     <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
       <div class="flex justify-between items-center mb-4">
@@ -3116,8 +3120,12 @@ function fillCloseModal(){
     await loadAccounts();
     // Cargar pagos existentes si la venta ya está cerrada, sino crear uno nuevo
     if (current && current.paymentMethods && Array.isArray(current.paymentMethods) && current.paymentMethods.length > 0) {
-      // Cargar pagos existentes
-      current.paymentMethods.forEach(p => {
+      // Cargar pagos existentes (filtrar líneas informativas de abono si existieran por datos antiguos)
+      const filtered = current.paymentMethods.filter(p => {
+        const m = String(p?.method || '').toUpperCase();
+        return !p?.isAdvancePayment && !m.startsWith('ABONO:');
+      });
+      filtered.forEach(p => {
         addPaymentRow({ 
           method: p.method || '', 
           amount: Number(p.amount || 0), 
@@ -3136,6 +3144,7 @@ function fillCloseModal(){
     addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
     }
     recalc();
+    try { renderAdvanceInfoBoxForSale(current, 'cv-advance-info'); } catch {}
   })();
 
   // Technician add inline y actualización
@@ -4436,16 +4445,22 @@ async function renderSale(){
     if (btnDel) actions.appendChild(btnDel);
   }
 
-  // Calcular total con IVA si está habilitado
-  let displayTotal = current?.total || 0;
+  // Total (considera descuento + abonos) y opcionalmente IVA (solo visual)
   const ivaRow = document.getElementById('sales-iva-row');
   const ivaAmount = document.getElementById('sales-iva-amount');
-  
-  if (ivaEnabled && current?.total) {
-    const subtotal = current.total;
-    const ivaValue = subtotal * 0.19;
-    displayTotal = subtotal + ivaValue;
-    
+
+  const saleSubtotal = Math.round(Number(current?.subtotal || 0));
+  const discountAmount = computeSaleDiscountAmount(current);
+  const advanceTotal = computeSaleAdvanceTotal(current);
+  const baseAfterDiscount = Math.max(0, saleSubtotal - discountAmount);
+
+  // Saldo sin IVA (lo que el backend valida al cerrar: current.total)
+  let displayTotal = Math.max(0, baseAfterDiscount - advanceTotal);
+
+  if (ivaEnabled && baseAfterDiscount > 0) {
+    const ivaValue = Math.round(baseAfterDiscount * 0.19);
+    displayTotal = Math.max(0, baseAfterDiscount + ivaValue - advanceTotal);
+
     if (ivaRow) {
       ivaRow.classList.remove('hidden');
       if (ivaAmount) ivaAmount.textContent = money(ivaValue);
@@ -4453,9 +4468,11 @@ async function renderSale(){
   } else {
     if (ivaRow) ivaRow.classList.add('hidden');
   }
-  
+
   if (total) total.textContent = money(displayTotal);
+
   renderMini(); renderCapsules(); setupTechnicianSelect();
+  renderSaleFinanceSummary();
 
   // Leyenda dinámica de orígenes
   try {
@@ -4481,6 +4498,467 @@ async function renderSale(){
       legend.innerHTML = html;
     } else if(legend){ legend.remove(); }
   }catch{}
+}
+
+// ========================
+// ABONOS + DESCUENTOS (UI)
+// ========================
+
+function computeSaleDiscountAmount(sale){
+  const subtotal = Math.round(Number(sale?.subtotal || 0));
+  const d = sale?.discount;
+  if(!d || !d.type) return 0;
+  let amt = 0;
+  if(d.type === 'percent'){
+    amt = Math.round(subtotal * (Number(d.value || 0) / 100));
+  } else if(d.type === 'fixed'){
+    amt = Math.round(Number(d.value || 0));
+  }
+  if(!Number.isFinite(amt)) amt = 0;
+  if(amt < 0) amt = 0;
+  if(amt > subtotal) amt = subtotal;
+  return amt;
+}
+
+function computeSaleAdvanceTotal(sale){
+  const list = Array.isArray(sale?.advancePayments) ? sale.advancePayments : [];
+  return list.reduce((sum, p) => sum + Math.round(Number(p?.amount || 0)), 0);
+}
+
+function setupSaleFinanceActions(){
+  const btnAdvance = document.getElementById('sales-btn-add-advance');
+  const btnDiscount = document.getElementById('sales-btn-set-discount');
+  const box = document.getElementById('sales-finance-summary');
+
+  if(btnAdvance){
+    btnAdvance.addEventListener('click', ()=> openAdvancePaymentModal());
+  }
+  if(btnDiscount){
+    btnDiscount.addEventListener('click', ()=> openDiscountModal());
+  }
+
+  if(box){
+    box.addEventListener('click', async (e) => {
+      const btn = e.target?.closest?.('button[data-action]');
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+
+      if(action === 'remove-advance'){
+        if(!current?._id) return;
+        if(!confirm('¿Eliminar este abono? (no se revertirá el movimiento de caja automáticamente)')) return;
+        try{
+          await API.sales.removeAdvancePayment(current._id, id);
+          current = await API.sales.get(current._id);
+          syncCurrentIntoOpenList();
+          await renderAll();
+        }catch(err){
+          alert('Error: ' + (err?.message || 'No se pudo eliminar el abono'));
+        }
+      } else if(action === 'edit-discount'){
+        openDiscountModal();
+      } else if(action === 'remove-discount'){
+        if(!current?._id) return;
+        if(!confirm('¿Quitar el descuento de esta venta?')) return;
+        try{
+          await API.sales.removeDiscount(current._id);
+          current = await API.sales.get(current._id);
+          syncCurrentIntoOpenList();
+          await renderAll();
+        }catch(err){
+          alert('Error: ' + (err?.message || 'No se pudo quitar el descuento'));
+        }
+      }
+    });
+  }
+}
+
+function renderSaleFinanceSummary(){
+  const box = document.getElementById('sales-finance-summary');
+  if(!box) return;
+
+  if(!current){
+    box.innerHTML = `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay una venta activa.</div>`;
+    return;
+  }
+
+  const isDraft = String(current.status || 'draft') === 'draft';
+  const subtotal = Math.round(Number(current.subtotal || 0));
+  const discountAmount = computeSaleDiscountAmount(current);
+  const advances = Array.isArray(current.advancePayments) ? current.advancePayments : [];
+  const advancesTotal = computeSaleAdvanceTotal(current);
+  const balance = Math.round(Number(current.total || 0));
+
+  const discountLabel = current?.discount?.type === 'percent'
+    ? `${Number(current.discount.value || 0)}%`
+    : money(Number(current?.discount?.value || 0));
+  const discountReason = String(current?.discount?.reason || '').trim();
+
+  box.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">Resumen</div>
+        <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+          <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Subtotal</div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${money(subtotal)}</div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Descuento</div>
+            <div class="font-semibold text-violet-200 dark:text-violet-200 theme-light:text-violet-700">-${money(discountAmount)}</div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Abonos</div>
+            <div class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">-${money(advancesTotal)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Saldo a pagar</div>
+        <div class="text-2xl font-extrabold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(balance)}</div>
+      </div>
+    </div>
+
+    <div class="mt-3 p-3 rounded-xl bg-violet-900/15 dark:bg-violet-900/15 theme-light:bg-violet-50 border border-violet-700/30 dark:border-violet-700/30 theme-light:border-violet-200">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-xs font-semibold text-violet-200 dark:text-violet-200 theme-light:text-violet-700 uppercase tracking-wide">Descuento</div>
+          ${discountAmount > 0 ? `
+            <div class="text-sm text-white dark:text-white theme-light:text-slate-900 font-semibold">
+              ${escapeHtml(discountLabel)} → <span class="text-violet-200 dark:text-violet-200 theme-light:text-violet-700">-${money(discountAmount)}</span>
+            </div>
+            ${discountReason ? `<div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mt-1">Razón: ${escapeHtml(discountReason)}</div>` : ''}
+          ` : `<div class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Sin descuento</div>`}
+        </div>
+        ${isDraft ? `
+          <div class="flex items-center gap-2">
+            <button data-action="edit-discount" class="px-2 py-1 text-xs rounded-md bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-200">Editar</button>
+            ${discountAmount > 0 ? `<button data-action="remove-discount" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">Quitar</button>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">Abonos</div>
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total: <span class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(advancesTotal)}</span></div>
+      </div>
+      ${advances.length ? `
+        <div class="space-y-2">
+          ${advances.map(a => `
+            <div class="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 truncate">${escapeHtml(String(a.method || 'Pago'))}</div>
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 truncate">${a.createdAt ? new Date(a.createdAt).toLocaleString('es-CO') : ''}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="text-sm font-bold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 whitespace-nowrap">${money(a.amount || 0)}</div>
+                ${isDraft ? `<button data-action="remove-advance" data-id="${a._id}" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">Quitar</button>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay abonos registrados.</div>`}
+    </div>
+
+    ${!isDraft ? `<div class="mt-3 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Nota: abonos y descuentos solo se modifican en ventas en borrador.</div>` : ''}
+  `;
+}
+
+function renderAdvanceInfoBoxForSale(sale, containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+
+  const advances = Array.isArray(sale?.advancePayments) ? sale.advancePayments : [];
+  const totalAdv = computeSaleAdvanceTotal(sale);
+  const hasAdv = advances.length > 0;
+
+  if(!hasAdv){
+    el.innerHTML = `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Abonos: no hay abonos registrados.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">Abonos registrados</div>
+      <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total: <span class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(totalAdv)}</span></div>
+    </div>
+    <div class="space-y-2">
+      ${advances.map(a => `
+        <div class="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+          <div class="min-w-0">
+            <div class="text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 truncate">${escapeHtml(String(a.method || 'Pago'))}</div>
+            <div class="text-[11px] text-slate-400 dark:text-slate-400 theme-light:text-slate-600 truncate">Cuenta: ${escapeHtml(String(a.accountId || '—'))}</div>
+          </div>
+          <div class="text-xs font-bold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 whitespace-nowrap">${money(a.amount || 0)}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="mt-2 text-[11px] text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Nota: estos abonos **no se suman** a las formas de pago del cierre; ya descuentan el saldo.</div>
+  `;
+}
+
+async function openAdvancePaymentModal(){
+  if(!current?._id){
+    alert('No hay venta activa');
+    return;
+  }
+  if(String(current.status || 'draft') !== 'draft'){
+    alert('Solo puedes agregar abonos en ventas en borrador');
+    return;
+  }
+
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal || !body) return;
+
+  // Cargar cuentas con balance para selección
+  let accounts = [];
+  try{
+    const data = await API.accounts.balances();
+    accounts = Array.isArray(data?.balances) ? data.balances : [];
+  }catch{ accounts = []; }
+
+  const accountOptions = accounts.map(acc => {
+    const id = acc.accountId || acc._id || acc.id;
+    const name = acc.name || 'Cuenta';
+    const bal = Number(acc.balance || 0);
+    return `<option value="${id}">${escapeHtml(name)} (${money(bal)})</option>`;
+  }).join('');
+
+  const closePaymentMethods = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CREDITO', 'CRÉDITO', 'NEQUI', 'DAVIPLATA', 'PSE'];
+
+  const wrap = document.createElement('div');
+  wrap.className = 'p-5 sm:p-6 space-y-4';
+  wrap.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Agregar abono</h3>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Se registra en flujo de caja según la cuenta seleccionada.</p>
+      </div>
+      <button type="button" id="adv-close" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2">Monto</label>
+        <input id="adv-amount" type="number" min="1" step="1" class="w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ej: 50000" />
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2">Método de pago</label>
+        <select id="adv-method" class="w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          ${closePaymentMethods.map(m => `<option value="${m}">${m}</option>`).join('')}
+          <option value="__CUSTOM__">OTRO (personalizado)</option>
+        </select>
+        <input id="adv-method-custom" class="hidden mt-2 w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Escribe el método..." />
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2">Cuenta (flujo de caja)</label>
+      <select id="adv-account" class="w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <option value="">-- Seleccionar cuenta --</option>
+        ${accountOptions || ''}
+      </select>
+      ${!accounts.length ? `<div class="mt-2 text-xs text-red-300 dark:text-red-300 theme-light:text-red-700">No hay cuentas disponibles. Crea una cuenta en Flujo de caja.</div>` : ''}
+    </div>
+
+    <div id="adv-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
+
+    <div class="flex flex-col sm:flex-row gap-2 pt-2">
+      <button id="adv-save" class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar abono</button>
+      <button id="adv-cancel" type="button" class="px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+    </div>
+  `;
+
+  body.innerHTML = '';
+  body.appendChild(wrap);
+  modal.classList.remove('hidden');
+
+  const close = ()=> { modal.classList.add('hidden'); };
+  document.getElementById('adv-close')?.addEventListener('click', close);
+  document.getElementById('adv-cancel')?.addEventListener('click', close);
+
+  const methodSel = document.getElementById('adv-method');
+  const methodCustom = document.getElementById('adv-method-custom');
+  const accountSel = document.getElementById('adv-account');
+  const saveBtn = document.getElementById('adv-save');
+  const msgEl = document.getElementById('adv-msg');
+
+  function syncCreditMode(){
+    const raw = String(methodSel?.value || '').trim().toUpperCase();
+    const isCustom = raw === '__CUSTOM__';
+    const method = isCustom ? String(methodCustom?.value || '').trim().toUpperCase() : raw;
+    const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+
+    // Crédito no debe registrar caja, y el abono registra caja => bloquear
+    if (isCredit) {
+      if (accountSel) accountSel.disabled = true;
+      if (saveBtn) saveBtn.disabled = true;
+      if (msgEl) msgEl.textContent = '⚠️ No puedes registrar un ABONO como CRÉDITO. Usa crédito solo en el cierre como forma de pago (no genera caja).';
+    } else {
+      if (accountSel) accountSel.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
+      if (msgEl) msgEl.textContent = '';
+    }
+  }
+
+  if(methodSel && methodCustom){
+    methodSel.addEventListener('change', ()=>{
+      const isCustom = methodSel.value === '__CUSTOM__';
+      methodCustom.classList.toggle('hidden', !isCustom);
+      if(!isCustom) methodCustom.value = '';
+      syncCreditMode();
+    });
+    methodCustom.addEventListener('input', ()=> syncCreditMode());
+  }
+  syncCreditMode();
+
+  document.getElementById('adv-save')?.addEventListener('click', async ()=>{
+    const msg = msgEl;
+    const amt = Math.round(Number(document.getElementById('adv-amount')?.value || 0));
+    const methodVal = (methodSel?.value === '__CUSTOM__')
+      ? String(methodCustom?.value || '').trim()
+      : String(methodSel?.value || '').trim();
+    const accId = String(document.getElementById('adv-account')?.value || '').trim();
+
+    if(!amt || amt <= 0){
+      if(msg) msg.textContent = 'El monto debe ser mayor a 0.';
+      return;
+    }
+    if(!methodVal){
+      if(msg) msg.textContent = 'Debes seleccionar/escribir un método de pago.';
+      return;
+    }
+    // Evitar crédito para abonos (no debe generar caja)
+    if (String(methodVal).trim().toUpperCase() === 'CREDITO' || String(methodVal).trim().toUpperCase() === 'CRÉDITO') {
+      if(msg) msg.textContent = 'No puedes registrar un abono como CRÉDITO.';
+      return;
+    }
+    if(!accId){
+      if(msg) msg.textContent = 'Debes seleccionar una cuenta.';
+      return;
+    }
+
+    const btn = saveBtn;
+    if(btn) btn.disabled = true;
+    if(msg) msg.textContent = 'Guardando...';
+
+    try{
+      await API.sales.addAdvancePayment(current._id, { amount: amt, method: methodVal, accountId: accId });
+      current = await API.sales.get(current._id);
+      syncCurrentIntoOpenList();
+      await renderAll();
+      close();
+    }catch(err){
+      if(msg) msg.textContent = 'Error: ' + (err?.message || 'No se pudo guardar el abono');
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  });
+}
+
+async function openDiscountModal(){
+  if(!current?._id){
+    alert('No hay venta activa');
+    return;
+  }
+  if(String(current.status || 'draft') !== 'draft'){
+    alert('Solo puedes agregar descuentos en ventas en borrador');
+    return;
+  }
+
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal || !body) return;
+
+  const existingType = current?.discount?.type || 'fixed';
+  const existingValue = Number(current?.discount?.value || 0) || 0;
+  const existingReason = String(current?.discount?.reason || '').trim();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'p-5 sm:p-6 space-y-4';
+  wrap.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Descuento</h3>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">El descuento puede ser valor fijo o porcentaje.</p>
+      </div>
+      <button type="button" id="disc-close" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2">Tipo</label>
+        <select id="disc-type" class="w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500">
+          <option value="fixed" ${existingType === 'fixed' ? 'selected' : ''}>Valor fijo</option>
+          <option value="percent" ${existingType === 'percent' ? 'selected' : ''}>Porcentaje (%)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2">Valor</label>
+        <input id="disc-value" type="number" min="1" step="1" value="${existingValue || ''}" class="w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Ej: 5000 o 10" />
+        <div class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Si es porcentaje, máximo 100.</div>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2">Razón</label>
+      <input id="disc-reason" type="text" value="${escapeHtml(existingReason)}" class="w-full px-3 py-2 rounded-lg bg-slate-800/60 dark:bg-slate-800/60 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Ej: Cliente frecuente" />
+    </div>
+
+    <div id="disc-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
+
+    <div class="flex flex-col sm:flex-row gap-2 pt-2">
+      <button id="disc-save" class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar descuento</button>
+      <button id="disc-cancel" type="button" class="px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+    </div>
+  `;
+
+  body.innerHTML = '';
+  body.appendChild(wrap);
+  modal.classList.remove('hidden');
+
+  const close = ()=> { modal.classList.add('hidden'); };
+  document.getElementById('disc-close')?.addEventListener('click', close);
+  document.getElementById('disc-cancel')?.addEventListener('click', close);
+
+  document.getElementById('disc-save')?.addEventListener('click', async ()=>{
+    const msg = document.getElementById('disc-msg');
+    const type = String(document.getElementById('disc-type')?.value || '').trim();
+    const value = Math.round(Number(document.getElementById('disc-value')?.value || 0));
+    const reason = String(document.getElementById('disc-reason')?.value || '').trim();
+
+    if(type !== 'fixed' && type !== 'percent'){
+      if(msg) msg.textContent = 'Tipo de descuento inválido.';
+      return;
+    }
+    if(!value || value <= 0){
+      if(msg) msg.textContent = 'El valor debe ser mayor a 0.';
+      return;
+    }
+    if(type === 'percent' && value > 100){
+      if(msg) msg.textContent = 'El porcentaje no puede ser mayor a 100.';
+      return;
+    }
+
+    const btn = document.getElementById('disc-save');
+    if(btn) btn.disabled = true;
+    if(msg) msg.textContent = 'Guardando...';
+
+    try{
+      await API.sales.setDiscount(current._id, { type, value, reason });
+      current = await API.sales.get(current._id);
+      syncCurrentIntoOpenList();
+      await renderAll();
+      close();
+    }catch(err){
+      if(msg) msg.textContent = 'Error: ' + (err?.message || 'No se pudo guardar el descuento');
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  });
 }
 
 // ---------- completar slot abierto con QR ----------
@@ -12053,6 +12531,7 @@ function buildEditCloseModalContent(sale, total) {
         <tbody id="ecv-payments-body"></tbody>
       </table>
       <div id="ecv-payments-summary" class="mt-3 text-xs"></div>
+      <div id="ecv-advance-info" class="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300"></div>
     </div>
     <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
       <div class="flex justify-between items-center mb-4">
@@ -12115,7 +12594,12 @@ async function setupEditCloseModal(sale) {
   
   // Cargar métodos de pago existentes
   if (sale.paymentMethods && Array.isArray(sale.paymentMethods) && sale.paymentMethods.length > 0) {
-    sale.paymentMethods.forEach(p => {
+    // Filtrar líneas informativas de abono si existieran por datos antiguos
+    const filtered = sale.paymentMethods.filter(p => {
+      const m = String(p?.method || '').toUpperCase();
+      return !p?.isAdvancePayment && !m.startsWith('ABONO:');
+    });
+    filtered.forEach(p => {
       payments.push({
         method: p.method || '',
         amount: Number(p.amount) || 0,
@@ -12146,6 +12630,7 @@ async function setupEditCloseModal(sale) {
 
   // Renderizar pagos
   renderEditPayments(payments);
+  try { renderAdvanceInfoBoxForSale(sale, 'ecv-advance-info'); } catch {}
   
   // Renderizar comisiones
   renderEditCommissions(commissions);

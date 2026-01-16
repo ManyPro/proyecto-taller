@@ -369,6 +369,18 @@ const API = {
     updateClose: (id, payload = {}) =>
       http.patch(`/api/v1/sales/${id}/close`, payload),
 
+    // Abonos (pagos parciales)
+    addAdvancePayment: (id, payload) =>
+      http.post(`/api/v1/sales/${id}/advance-payments`, payload),
+    removeAdvancePayment: (id, advanceId) =>
+      http.del(`/api/v1/sales/${id}/advance-payments/${advanceId}`),
+
+    // Descuentos
+    setDiscount: (id, payload) =>
+      http.post(`/api/v1/sales/${id}/discount`, payload),
+    removeDiscount: (id) =>
+      http.del(`/api/v1/sales/${id}/discount`),
+
     addByQR: (saleId, payload) =>
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
 

@@ -1,6 +1,6 @@
 ﻿import mongoose from 'mongoose';
 import { checkLowStockForMany } from '../lib/stockAlerts.js';
-import { registerSaleIncome } from './cashflow.controller.js';
+import { registerSaleIncome, ensureDefaultCashAccount, computeBalance } from './cashflow.controller.js';
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
@@ -9,6 +9,7 @@ import StockMove from '../models/StockMove.js';
 import StockEntry from '../models/StockEntry.js';
 import InvestmentItem from '../models/InvestmentItem.js';
 import CustomerProfile from '../models/CustomerProfile.js';
+import CashFlowEntry from '../models/CashFlowEntry.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
 import { createDateRange } from '../lib/dateTime.js';
@@ -41,7 +42,33 @@ function computeTotals(sale) {
   
   sale.subtotal = Math.round(subtotal);
   sale.tax = 0; // ajustar si aplicas IVA
-  sale.total = Math.round(sale.subtotal + sale.tax);
+  
+  // Calcular descuento
+  let discountAmount = 0;
+  if (sale.discount && sale.discount.type && sale.discount.value > 0) {
+    if (sale.discount.type === 'percent') {
+      discountAmount = Math.round(sale.subtotal * (sale.discount.value / 100));
+    } else if (sale.discount.type === 'fixed') {
+      discountAmount = Math.round(sale.discount.value);
+    }
+    // Asegurar que el descuento no sea mayor al subtotal
+    if (discountAmount > sale.subtotal) {
+      discountAmount = sale.subtotal;
+    }
+  }
+  
+  // Calcular suma de abonos
+  const totalAdvancePayments = (sale.advancePayments || []).reduce((sum, advance) => {
+    return sum + Math.round(asNum(advance.amount));
+  }, 0);
+  
+  // Total = subtotal - descuento - abonos
+  sale.total = Math.round(sale.subtotal - discountAmount - totalAdvancePayments + sale.tax);
+  
+  // Asegurar que el total no sea negativo
+  if (sale.total < 0) {
+    sale.total = 0;
+  }
 }
 
 function cleanString(value) {
@@ -1068,6 +1095,174 @@ export const removeItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
+// ===== Abonos (pagos parciales) =====
+export const addAdvancePayment = async (req, res) => {
+  const { id } = req.params;
+  const { amount, method, accountId } = req.body || {};
+  
+  if (!amount || Number(amount) <= 0) {
+    return res.status(400).json({ error: 'El monto del abono debe ser mayor a 0' });
+  }
+  
+  if (!method || !method.trim()) {
+    return res.status(400).json({ error: 'El método de pago es requerido' });
+  }
+  
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+  
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Solo se pueden agregar abonos a ventas en borrador' });
+  
+  const advanceAmount = Math.round(Number(amount));
+  
+  // Agregar abono
+  const advancePayment = {
+    amount: advanceAmount,
+    method: String(method).trim(),
+    accountId: accountId ? new mongoose.Types.ObjectId(accountId) : null,
+    createdAt: new Date()
+  };
+  
+  sale.advancePayments = sale.advancePayments || [];
+  sale.advancePayments.push(advancePayment);
+  
+  // Recalcular totales
+  computeTotals(sale);
+  await sale.save();
+  
+  // Registrar en flujo de caja (si no viene accountId, usar cuenta "Caja" por defecto)
+  try {
+    let accId = accountId ? new mongoose.Types.ObjectId(accountId) : null;
+    if (!accId) {
+      const acc = await ensureDefaultCashAccount(req.companyId);
+      accId = acc._id;
+    }
+
+    const prevBal = await computeBalance(accId, req.companyId);
+    const newBal = prevBal + advanceAmount;
+
+    await CashFlowEntry.create({
+      companyId: req.companyId,
+      accountId: accId,
+      kind: 'IN',
+      source: 'SALE',
+      sourceRef: sale._id,
+      description: `Abono - Venta #${String(sale.number || '').padStart(5, '0')} (${advancePayment.method})`,
+      amount: advanceAmount,
+      balanceAfter: newBal,
+      date: new Date(),
+      meta: {
+        saleNumber: sale.number,
+        salePlate: sale.vehicle?.plate || '',
+        paymentMethod: advancePayment.method,
+        isAdvancePayment: true
+      }
+    });
+
+    try { await publish(req.companyId, 'cashflow:created', { accountId: accId }); } catch {}
+  } catch (err) {
+    logger.error('[addAdvancePayment] Error registrando en flujo de caja', { error: err.message, saleId: id });
+    // No fallar si no se puede registrar en flujo de caja
+  }
+  
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  res.json(sale.toObject());
+};
+
+export const removeAdvancePayment = async (req, res) => {
+  const { id, advanceId } = req.params;
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+  
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Solo se pueden eliminar abonos de ventas en borrador' });
+  
+  const advanceIndex = sale.advancePayments.findIndex(a => String(a._id) === String(advanceId));
+  if (advanceIndex === -1) {
+    return res.status(404).json({ error: 'Abono no encontrado' });
+  }
+  
+  // Eliminar abono
+  sale.advancePayments.splice(advanceIndex, 1);
+  
+  // Recalcular totales
+  computeTotals(sale);
+  await sale.save();
+  
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  res.json(sale.toObject());
+};
+
+// ===== Descuentos =====
+export const setDiscount = async (req, res) => {
+  const { id } = req.params;
+  const { type, value, reason } = req.body || {};
+  
+  if (!type || !['fixed', 'percent'].includes(type)) {
+    return res.status(400).json({ error: 'Tipo de descuento inválido. Debe ser "fixed" o "percent"' });
+  }
+  
+  if (!value || Number(value) <= 0) {
+    return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
+  }
+  
+  if (type === 'percent' && Number(value) > 100) {
+    return res.status(400).json({ error: 'El porcentaje de descuento no puede ser mayor a 100' });
+  }
+  
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+  
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Solo se pueden agregar descuentos a ventas en borrador' });
+  
+  // Establecer descuento
+  sale.discount = {
+    type: type,
+    value: Math.round(Number(value)),
+    reason: reason ? String(reason).trim() : ''
+  };
+  
+  // Recalcular totales
+  computeTotals(sale);
+  await sale.save();
+  
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  res.json(sale.toObject());
+};
+
+export const removeDiscount = async (req, res) => {
+  const { id } = req.params;
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+  
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Solo se pueden eliminar descuentos de ventas en borrador' });
+  
+  // Eliminar descuento
+  sale.discount = {
+    type: null,
+    value: 0,
+    reason: ''
+  };
+  
+  // Recalcular totales
+  computeTotals(sale);
+  await sale.save();
+  
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  res.json(sale.toObject());
+};
+
 // ===== TÃ©cnico asignado =====
 export const updateSale = async (req, res) => {
   const { id } = req.params;
@@ -1919,6 +2114,7 @@ export const closeSale = async (req, res) => {
           }
           // Redondear montos a enteros para consistencia (COP sin decimales)
           sale.paymentMethods = cleaned.map(m => ({ method: m.method, amount: Math.round(m.amount), accountId: m.accountId }));
+
           // Mantener legacy paymentMethod con el primero (para compatibilidad con reportes antiguos)
           if (sale.paymentMethods.length) sale.paymentMethod = sale.paymentMethods[0].method;
         }

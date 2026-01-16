@@ -58,6 +58,19 @@ const SaleSchema = new mongoose.Schema({
   subtotal: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
+  // Descuento aplicado a la venta
+  discount: {
+    type: { type: String, enum: ['fixed', 'percent'], default: null },
+    value: { type: Number, default: 0 },
+    reason: { type: String, default: '' }
+  },
+  // Abonos (pagos parciales) realizados antes del cierre
+  advancePayments: { type: [{
+    amount: { type: Number, required: true },
+    method: { type: String, required: true },
+    accountId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' },
+    createdAt: { type: Date, default: Date.now }
+  }], default: [] },
   // Datos de pago y mano de obra (se establecen al cerrar la venta)
   paymentMethod: { type: String, default: '' },
   paymentMethods: { type: [{ method: String, amount: Number, accountId: { type: mongoose.Schema.Types.ObjectId } }], default: [] },
@@ -122,8 +135,12 @@ SaleSchema.pre('save', function(next){
         this.subtotal = itemsSum;
       }
     }
-    // Si total no coincide con subtotal+tax y total es 0, recalcular
-    if((!this.total || this.total === 0) && (this.subtotal || itemsSum)){
+    // Si total es 0 puede ser válido (p.ej. descuento/abonos cubren el total).
+    // Solo recalcular total automáticamente si NO hay descuento ni abonos.
+    const hasDiscount = !!(this.discount && this.discount.type && Number(this.discount.value) > 0);
+    const advancesSum = (this.advancePayments || []).reduce((a, p) => a + (Number(p?.amount) || 0), 0);
+
+    if((this.total == null || (this.total === 0 && !hasDiscount && advancesSum <= 0)) && (this.subtotal || itemsSum)){
       this.total = (this.subtotal || itemsSum) + (this.tax||0);
     }
   }

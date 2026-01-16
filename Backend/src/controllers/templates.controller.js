@@ -596,16 +596,35 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       
       ctx.sale = saleObj;
       
+      // Calcular descuento si existe
+      const subtotalRaw = Number(saleObj.subtotal) || 0;
+      let discountAmount = 0;
+      if (saleObj.discount && saleObj.discount.type && Number(saleObj.discount.value) > 0) {
+        if (saleObj.discount.type === 'percent') {
+          discountAmount = Math.round(subtotalRaw * (Number(saleObj.discount.value) / 100));
+        } else if (saleObj.discount.type === 'fixed') {
+          discountAmount = Math.round(Number(saleObj.discount.value));
+        }
+        if (discountAmount > subtotalRaw) discountAmount = subtotalRaw;
+        if (discountAmount < 0) discountAmount = 0;
+      }
+
+      const hasDiscount = discountAmount > 0;
+      
       // Para facturas (invoice-factura), calcular subtotal, IVA y total
       // El total de la venta es el subtotal, calcular IVA (19%) y total con IVA
       if (effective === 'invoice-factura') {
-        const subtotal = Number(saleObj.total) || 0;
-        const iva = subtotal * 0.19;
-        const totalWithIva = subtotal + iva;
+        const subtotal = subtotalRaw;
+        const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
+        const iva = subtotalAfterDiscount * 0.19;
+        const totalWithIva = subtotalAfterDiscount + iva;
         
         // Crear objeto S con valores calculados para facturas
         ctx.S = {
           subtotal: subtotal,
+          discount: discountAmount,
+          hasDiscount,
+          subtotalAfterDiscount: subtotalAfterDiscount,
           iva: iva,
           total: totalWithIva,
           'nº': saleObj.formattedNumber || saleObj.number || '',
@@ -616,7 +635,11 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
         };
       } else {
         // Para remisiones, S.total es igual al total de la venta (sin IVA)
+        const subtotal = subtotalRaw;
         ctx.S = {
+          subtotal: subtotal,
+          discount: discountAmount,
+          hasDiscount,
           total: Number(saleObj.total) || 0,
           'nº': saleObj.formattedNumber || saleObj.number || '',
           fecha: saleObj.date || saleObj.createdAt || new Date(),
@@ -625,6 +648,10 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
           C: saleObj.itemsGrouped?.hasCombos || false
         };
       }
+      
+      // Exponer descuento calculado en sale (útil para plantillas)
+      saleObj.discountAmount = discountAmount;
+      saleObj.hasDiscount = hasDiscount;
     } else {
       // Log si no se encontró la venta
       if (process.env.NODE_ENV !== 'production') {
