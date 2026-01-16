@@ -12,6 +12,7 @@ import Company from '../models/Company.js';
 import { computeBalance } from './cashflow.controller.js';
 import mongoose from 'mongoose';
 import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC } from '../lib/dateTime.js';
+import { publish } from '../lib/live.js';
 
 export const listConcepts = async (req, res) => {
   try {
@@ -1243,6 +1244,22 @@ export const paySettlement = async (req, res) => {
     }
     
     await st.save();
+
+    // Publicar eventos de actualización en vivo para cada cuenta afectada
+    // Agrupar por accountId para evitar múltiples eventos innecesarios
+    const accountIds = new Set();
+    for (const entry of createdEntries) {
+      accountIds.add(String(entry.accountId));
+    }
+    
+    // Intentar publicar para cada cuenta, sin fallar si alguna publicación falla
+    for (const accId of accountIds) {
+      try {
+        await publish(req.companyId, 'cashflow:created', { accountId: accId });
+      } catch (e) {
+        // No fallar si no se puede publicar para esta cuenta
+      }
+    }
 
     res.json({ 
       ok: true, 

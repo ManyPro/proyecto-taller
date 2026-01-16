@@ -1,4 +1,4 @@
-﻿import { API } from './api.esm.js';
+import { API } from './api.esm.js';
 import { dateInputToISO, datetimeLocalToISO } from './dateTime.js';
 
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
@@ -28,6 +28,31 @@ export function initCashFlow(){
   loadAccounts();
   loadMovements(true);
   connectLive(); // Conectar actualizaciones en vivo
+  
+  // Limpiar conexión SSE cuando se sale de la página
+  window.addEventListener('beforeunload', () => {
+    if (cfSSE) {
+      cfSSE.close();
+      cfSSE = null;
+    }
+  });
+  
+  // También limpiar cuando se oculta la página (pestaña cambia)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Opcional: cerrar cuando se oculta para ahorrar recursos
+      // Comentado para mantener conexión activa
+      // if (cfSSE) {
+      //   cfSSE.close();
+      //   cfSSE = null;
+      // }
+    } else {
+      // Reconectar si se perdió la conexión al volver a la página
+      if (!cfSSE || cfSSE.readyState === EventSource.CLOSED) {
+        connectLive();
+      }
+    }
+  });
 }
 
 function connectLive() {
@@ -48,8 +73,9 @@ function connectLive() {
       // Manejar eventos de cashflow
       if (eventType === 'cashflow:created' || eventType === 'cashflow:updated' || eventType === 'cashflow:deleted') {
         // Recargar cuentas y movimientos cuando hay cambios
+        // Preservar filtros y página actual al recargar
         loadAccounts();
-        loadMovements();
+        loadMovements(false); // false = no resetear página, preservar filtros
       }
     });
     
@@ -64,8 +90,20 @@ function connectLive() {
       }, 3000);
     });
     
+    // Manejar cierre de conexión para reconectar automáticamente
+    cfSSE.addEventListener('close', () => {
+      console.warn('[CashFlow SSE] Conexión cerrada, reconectando...');
+      setTimeout(() => {
+        if (!cfSSE || cfSSE.readyState === EventSource.CLOSED) {
+          connectLive();
+        }
+      }, 2000);
+    });
+    
   } catch (e) {
     console.error('[CashFlow SSE] Error al conectar:', e);
+    // Reintentar después de 3 segundos en caso de error
+    setTimeout(connectLive, 3000);
   }
 }
 

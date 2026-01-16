@@ -6,6 +6,7 @@ import Sale from "../models/Sale.js";
 import CashFlowEntry from "../models/CashFlowEntry.js";
 import Account from "../models/Account.js";
 import { computeBalance } from "./cashflow.controller.js";
+import { publish } from '../lib/live.js';
 
 // ===== LISTAR INVERSIONES POR INVERSOR =====
 export const getInvestorInvestments = async (req, res) => {
@@ -202,6 +203,13 @@ export const payInvestment = async (req, res) => {
         }
       }
     );
+    
+    // Publicar evento de actualización en vivo
+    try {
+      await publish(req.companyId, 'cashflow:created', { id: cashFlowEntry._id, accountId: accountId });
+    } catch (e) {
+      // No fallar si no se puede publicar
+    }
     
     // Obtener items actualizados
     const updatedItems = await InvestmentItem.find({

@@ -7,6 +7,7 @@ import Account from '../models/Account.js';
 import { computeBalance, ensureDefaultCashAccount } from './cashflow.controller.js';
 import mongoose from 'mongoose';
 import { createDateRange } from '../lib/dateTime.js';
+import { publish } from '../lib/live.js';
 
 // ===== Empresas de Cartera =====
 
@@ -407,6 +408,13 @@ export const addPayment = async (req, res) => {
       plate: receivable.vehicle?.plate || ''
     }
   });
+
+  // Publicar evento de actualización en vivo
+  try {
+    await publish(companyId, 'cashflow:created', { id: cashFlowEntry._id, accountId: cashAccountId });
+  } catch (e) {
+    // No fallar si no se puede publicar
+  }
 
   const populated = await AccountReceivable.findById(receivable._id)
     .populate('saleId', 'number total')

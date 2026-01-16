@@ -60,6 +60,13 @@ export const createLoan = async (req, res) => {
       notes: notes || ''
     });
 
+    // Publicar evento de actualización en vivo
+    try {
+      await publish(req.companyId, 'cashflow:created', { id: cashFlowEntry._id, accountId: account._id });
+    } catch (e) {
+      // No fallar si no se puede publicar
+    }
+
     res.status(201).json(loan);
   } catch (err) {
     console.error('Error creating loan:', err);
