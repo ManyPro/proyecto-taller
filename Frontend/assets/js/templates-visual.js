@@ -6711,7 +6711,7 @@
               }
               .tpl-element { position: relative !important; }
             </style>
-            ` : ''}
+            `}
             ${templateCss ? `<style>${templateCss}</style>` : ''}
           </head>
           <body>

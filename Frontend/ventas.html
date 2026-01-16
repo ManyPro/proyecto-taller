@@ -808,6 +808,19 @@
               </table>
             </div>
 
+            <!-- Total visible debajo de los ítems (mejor UX en móvil/tablet) -->
+            <div class="mt-4">
+              <div id="sales-iva-row-secondary" class="hidden flex items-center justify-between gap-3 px-4 py-2 rounded-lg bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+                <div class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">IVA (19%)</div>
+                <div id="sales-iva-amount-secondary" class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">$0</div>
+              </div>
+
+              <div class="mt-2 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+                <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Total</div>
+                <div id="sales-total-secondary" class="text-right font-bold text-xl text-white dark:text-white theme-light:text-slate-900">$0</div>
+              </div>
+            </div>
+
             <!-- Resumen financiero (descuentos / abonos) + Acciones rápidas -->
             <div class="mt-4 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
