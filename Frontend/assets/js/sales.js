@@ -4448,8 +4448,6 @@ async function renderSale(){
   // Total (considera descuento + abonos) y opcionalmente IVA (solo visual)
   const ivaRow = document.getElementById('sales-iva-row');
   const ivaAmount = document.getElementById('sales-iva-amount');
-  const ivaRow2 = document.getElementById('sales-iva-row-secondary');
-  const ivaAmount2 = document.getElementById('sales-iva-amount-secondary');
 
   const saleSubtotal = Math.round(Number(current?.subtotal || 0));
   const discountAmount = computeSaleDiscountAmount(current);
@@ -4467,18 +4465,11 @@ async function renderSale(){
       ivaRow.classList.remove('hidden');
       if (ivaAmount) ivaAmount.textContent = money(ivaValue);
     }
-    if (ivaRow2) {
-      ivaRow2.classList.remove('hidden');
-      if (ivaAmount2) ivaAmount2.textContent = money(ivaValue);
-    }
   } else {
     if (ivaRow) ivaRow.classList.add('hidden');
-    if (ivaRow2) ivaRow2.classList.add('hidden');
   }
 
   if (total) total.textContent = money(displayTotal);
-  const total2 = document.getElementById('sales-total-secondary');
-  if (total2) total2.textContent = money(displayTotal);
 
   renderMini(); renderCapsules(); setupTechnicianSelect();
   renderSaleFinanceSummary();
