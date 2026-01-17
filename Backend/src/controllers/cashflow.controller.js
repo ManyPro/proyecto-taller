@@ -320,7 +320,10 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
     const existing = await CashFlowEntry.find({ 
       companyId, 
       source: 'SALE', 
-      sourceRef: sale._id 
+      sourceRef: sale._id,
+      // IMPORTANTE: Ignorar abonos (advance payments) para no bloquear el registro
+      // del pago restante al cerrar la venta.
+      'meta.isAdvancePayment': { $ne: true }
     }).lean();
     if (existing.length) return existing;
   }

@@ -1,6 +1,6 @@
 ﻿import mongoose from 'mongoose';
 import { checkLowStockForMany } from '../lib/stockAlerts.js';
-import { registerSaleIncome, ensureDefaultCashAccount, computeBalance } from './cashflow.controller.js';
+import { registerSaleIncome, ensureDefaultCashAccount, computeBalance, recomputeAccountBalances } from './cashflow.controller.js';
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
@@ -1127,6 +1127,7 @@ export const addAdvancePayment = async (req, res) => {
   
   sale.advancePayments = sale.advancePayments || [];
   sale.advancePayments.push(advancePayment);
+  const lastAdvance = sale.advancePayments[sale.advancePayments.length - 1]; // subdocument (tiene _id)
   
   // Recalcular totales
   computeTotals(sale);
@@ -1152,12 +1153,13 @@ export const addAdvancePayment = async (req, res) => {
       description: `Abono - Venta #${String(sale.number || '').padStart(5, '0')} (${advancePayment.method})`,
       amount: advanceAmount,
       balanceAfter: newBal,
-      date: new Date(),
+      date: advancePayment.createdAt || new Date(),
       meta: {
         saleNumber: sale.number,
         salePlate: sale.vehicle?.plate || '',
         paymentMethod: advancePayment.method,
-        isAdvancePayment: true
+        isAdvancePayment: true,
+        advancePaymentId: lastAdvance?._id ? String(lastAdvance._id) : undefined
       }
     });
 
@@ -1185,6 +1187,9 @@ export const removeAdvancePayment = async (req, res) => {
   if (advanceIndex === -1) {
     return res.status(404).json({ error: 'Abono no encontrado' });
   }
+
+  // Preservar datos del abono removido (para poder revertir movimiento de caja legacy si aplica)
+  const removedAdvance = sale.advancePayments[advanceIndex];
   
   // Eliminar abono
   sale.advancePayments.splice(advanceIndex, 1);
@@ -1192,6 +1197,60 @@ export const removeAdvancePayment = async (req, res) => {
   // Recalcular totales
   computeTotals(sale);
   await sale.save();
+
+  // Intentar eliminar también el movimiento de caja asociado a este abono (si existe)
+  // Nota: abonos antiguos pueden no tener meta.advancePaymentId; en ese caso no se toca caja.
+  try {
+    let entry = await CashFlowEntry.findOne({
+      companyId: req.companyId,
+      source: 'SALE',
+      sourceRef: sale._id,
+      'meta.isAdvancePayment': true,
+      'meta.advancePaymentId': String(advanceId)
+    });
+
+    // Fallback legacy (sin advancePaymentId): intentar match exacto por monto + método (+ cuenta si existe)
+    if (!entry && removedAdvance) {
+      const amt = Math.round(Number(removedAdvance.amount || 0));
+      const method = String(removedAdvance.method || '').trim();
+
+      if (amt > 0 && method) {
+        const q = {
+          companyId: req.companyId,
+          source: 'SALE',
+          sourceRef: sale._id,
+          'meta.isAdvancePayment': true,
+          amount: amt,
+          'meta.paymentMethod': method
+        };
+        if (removedAdvance.accountId) q.accountId = removedAdvance.accountId;
+
+        const matches = await CashFlowEntry.find(q).sort({ date: -1, createdAt: -1 }).limit(2);
+        if (matches.length === 1) {
+          entry = matches[0];
+        } else if (matches.length > 1) {
+          logger.warn('[removeAdvancePayment] Múltiples movimientos candidatos para abono, no se elimina por seguridad', {
+            saleId: id,
+            advanceId,
+            amount: amt,
+            method,
+            accountId: removedAdvance.accountId ? String(removedAdvance.accountId) : null
+          });
+        }
+      }
+    }
+
+    if (entry) {
+      const accId = entry.accountId;
+      await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
+      if (accId) {
+        await recomputeAccountBalances(req.companyId, new mongoose.Types.ObjectId(String(accId)));
+        try { await publish(req.companyId, 'cashflow:deleted', { id: entry._id, accountId: String(accId) }); } catch {}
+      }
+    }
+  } catch (err) {
+    logger.warn('[removeAdvancePayment] Error eliminando movimiento de caja del abono', { error: err?.message, saleId: id, advanceId });
+  }
   
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
   try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
@@ -2472,7 +2531,9 @@ export const updateCloseSale = async (req, res) => {
       const existingEntries = await CashFlowEntry.find({ 
         companyId: req.companyId, 
         source: 'SALE', 
-        sourceRef: sale._id 
+        sourceRef: sale._id,
+        // IMPORTANTE: No tocar entradas de abonos (advance payments)
+        'meta.isAdvancePayment': { $ne: true }
       }).session(session);
       
       // Si cambiaron los métodos de pago O si no hay entradas en el flujo de caja, actualizar/crear
@@ -2682,7 +2743,9 @@ export const registerSaleCashflow = async (req, res) => {
     const existingEntries = await CashFlowEntry.find({ 
       companyId: req.companyId, 
       source: 'SALE', 
-      sourceRef: sale._id 
+      sourceRef: sale._id,
+      // Ignorar abonos para permitir registrar el restante si faltaba
+      'meta.isAdvancePayment': { $ne: true }
     });
     
     if (existingEntries.length > 0) {
