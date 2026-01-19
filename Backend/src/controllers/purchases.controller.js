@@ -504,3 +504,230 @@ export const deletePurchaseItems = async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar items de compra', message: err.message });
   }
 };
+
+// ===== ACTUALIZAR COMPRA =====
+export const updatePurchase = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { supplierId, investorId, purchaseDate, items, notes } = req.body || {};
+    
+    const purchase = await Purchase.findOne({ _id: id, companyId: req.companyId });
+    if (!purchase) {
+      return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+    
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
+    try {
+      // Guardar items originales para comparar
+      const originalItems = purchase.items.map(item => ({
+        itemId: item.itemId,
+        qty: item.qty,
+        unitPrice: item.unitPrice
+      }));
+      
+      // Actualizar campos básicos
+      if (supplierId !== undefined) {
+        if (supplierId && supplierId !== 'GENERAL' && mongoose.Types.ObjectId.isValid(supplierId)) {
+          const supplier = await Supplier.findOne({ _id: supplierId, companyId: req.companyId }).session(session);
+          if (!supplier) {
+            throw new Error('Proveedor no encontrado');
+          }
+          purchase.supplierId = supplier._id;
+        } else {
+          purchase.supplierId = null;
+        }
+      }
+      
+      if (investorId !== undefined) {
+        if (investorId && investorId !== 'GENERAL' && mongoose.Types.ObjectId.isValid(investorId)) {
+          const investor = await Investor.findOne({ _id: investorId, companyId: req.companyId }).session(session);
+          if (!investor) {
+            throw new Error('Inversor no encontrado');
+          }
+          purchase.investorId = investor._id;
+        } else {
+          purchase.investorId = null;
+        }
+      }
+      
+      if (purchaseDate !== undefined) {
+        purchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : new Date();
+      }
+      
+      if (notes !== undefined) {
+        purchase.notes = (notes || '').trim();
+      }
+      
+      // Si se proporcionan items, actualizar
+      if (Array.isArray(items)) {
+        // Primero, revertir cambios de items originales (reducir stock, eliminar InvestmentItems)
+        for (const originalItem of originalItems) {
+          const stockEntry = await StockEntry.findOne({
+            companyId: req.companyId,
+            itemId: originalItem.itemId,
+            purchaseId: purchase._id
+          }).session(session);
+          
+          if (stockEntry) {
+            // Reducir cantidad en StockEntry
+            stockEntry.qty = Math.max(0, stockEntry.qty - originalItem.qty);
+            await stockEntry.save({ session });
+            
+            // Si el StockEntry queda en 0, eliminarlo
+            if (stockEntry.qty <= 0) {
+              await StockEntry.deleteOne({ _id: stockEntry._id }).session(session);
+            }
+            
+            // Eliminar InvestmentItems relacionados
+            if (purchase.investorId && stockEntry.investorId) {
+              await InvestmentItem.deleteMany({
+                companyId: req.companyId,
+                stockEntryId: stockEntry._id,
+                status: 'available'
+              }).session(session);
+            }
+          }
+          
+          // Reducir stock del item
+          await Item.findOneAndUpdate(
+            { _id: originalItem.itemId, companyId: req.companyId },
+            { $inc: { stock: -originalItem.qty } },
+            { session }
+          );
+        }
+        
+        // Validar nuevos items
+        if (items.length === 0) {
+          throw new Error('Debe incluir al menos un item');
+        }
+        
+        // Procesar nuevos items (similar a createPurchase)
+        const newItems = [];
+        for (const purchaseItem of items) {
+          const { itemId, qty, unitPrice } = purchaseItem;
+          
+          if (!mongoose.Types.ObjectId.isValid(itemId)) {
+            throw new Error(`ID de item inválido: ${itemId}`);
+          }
+          
+          // Verificar que el item existe
+          const item = await Item.findOne({ _id: itemId, companyId: req.companyId }).session(session);
+          if (!item) {
+            throw new Error(`Item no encontrado: ${itemId}`);
+          }
+          
+          newItems.push({
+            itemId: item._id,
+            qty: qty || 1,
+            unitPrice: unitPrice || 0
+          });
+          
+          // Buscar o crear StockEntry
+          const searchFilter = {
+            companyId: req.companyId,
+            itemId: item._id,
+            supplierId: purchase.supplierId,
+            investorId: purchase.investorId,
+            vehicleIntakeId: null
+          };
+          
+          let stockEntry = await StockEntry.findOne(searchFilter).session(session);
+          
+          if (stockEntry) {
+            // Actualizar cantidad existente
+            stockEntry.qty += qty;
+            if (unitPrice !== null && stockEntry.entryPrice === null) {
+              stockEntry.entryPrice = unitPrice;
+            }
+            // Vincular purchaseId si no está vinculado
+            if (!stockEntry.purchaseId) {
+              stockEntry.purchaseId = purchase._id;
+            }
+            await stockEntry.save({ session });
+          } else {
+            // Crear nuevo StockEntry
+            const newEntries = await StockEntry.create([{
+              companyId: req.companyId,
+              itemId: item._id,
+              vehicleIntakeId: null,
+              supplierId: purchase.supplierId,
+              investorId: purchase.investorId,
+              purchaseId: purchase._id,
+              qty: qty,
+              entryPrice: unitPrice,
+              entryDate: purchase.purchaseDate || new Date(),
+              meta: {
+                note: purchase.notes || '',
+                supplier: '',
+                purchaseOrder: ''
+              }
+            }], { session });
+            stockEntry = newEntries[0];
+          }
+          
+          // Incrementar stock del item
+          await Item.findOneAndUpdate(
+            { _id: itemId, companyId: req.companyId },
+            { $inc: { stock: qty } },
+            { session }
+          );
+          
+          // Registrar movimiento de stock
+          const StockMove = (await import("../models/StockMove.js")).default;
+          await StockMove.create([{
+            companyId: req.companyId,
+            itemId: item._id,
+            qty,
+            reason: 'IN',
+            meta: {
+              note: `Compra actualizada ${purchase._id}`,
+              purchaseId: purchase._id,
+              supplierId: purchase.supplierId,
+              investorId: purchase.investorId
+            }
+          }], { session });
+          
+          // Crear InvestmentItem si hay inversor
+          if (purchase.investorId && stockEntry) {
+            await InvestmentItem.create([{
+              companyId: req.companyId,
+              investorId: purchase.investorId,
+              purchaseId: purchase._id,
+              itemId: item._id,
+              stockEntryId: stockEntry._id,
+              purchasePrice: unitPrice,
+              qty: qty,
+              status: 'available'
+            }], { session });
+          }
+        }
+        
+        // Actualizar items y total
+        purchase.items = newItems;
+        purchase.totalAmount = newItems.reduce((sum, item) => {
+          return sum + (item.qty || 0) * (item.unitPrice || 0);
+        }, 0);
+      }
+      
+      await purchase.save({ session });
+      await session.commitTransaction();
+      
+      const populated = await Purchase.findById(purchase._id)
+        .populate('supplierId', 'name contactInfo')
+        .populate('investorId', 'name contactInfo')
+        .populate('items.itemId', 'sku name')
+        .lean();
+      
+      res.json(populated);
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al actualizar compra', message: err.message });
+  }
+};

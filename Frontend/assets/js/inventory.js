@@ -4783,6 +4783,9 @@ async function openInvestorDetailModal(investorId) {
               <button onclick="event.stopPropagation(); openPurchaseStickersModal('${purchase._id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
                 🏷️ Stickers
               </button>
+              <button onclick="event.stopPropagation(); editPurchase('${purchase._id}', '${investorId}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">
+                ✏️ Editar
+              </button>
               <button onclick="event.stopPropagation(); deletePurchaseItems('${purchase._id}', '${investorId}')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors">
                 🗑️ Eliminar Items
               </button>
@@ -4910,6 +4913,383 @@ async function openInvestorDetailModal(investorId) {
     `;
     
     invOpenModal(modalContent);
+    
+    // Función global para editar compra
+    window.editPurchase = async function(purchaseId, investorId) {
+      try {
+        // Cargar datos de la compra
+        const purchase = await API.purchases.purchases.get(purchaseId);
+        
+        // Cargar proveedores e inversores
+        const [suppliers, investors, itemsData] = await Promise.all([
+          API.purchases.suppliers.list(),
+          API.purchases.investors.list(),
+          invAPI.listItems({ limit: 1000 })
+        ]);
+        
+        const items = itemsData.data || [];
+        window.purchaseItemsData = items;
+        
+        const supplierOptions = [
+          '<option value="GENERAL">GENERAL</option>',
+          ...suppliers.map(s => `<option value="${s._id}" ${purchase.supplierId && String(s._id) === String(purchase.supplierId) ? 'selected' : ''}>${escapeHtml(s.name)}</option>`)
+        ].join('');
+        
+        const investorOptions = [
+          '<option value="GENERAL">GENERAL</option>',
+          ...investors.map(i => `<option value="${i._id}" ${purchase.investorId && String(i._id) === String(purchase.investorId) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`)
+        ].join('');
+        
+        const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        
+        const modalContent = `
+          <div class="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-2xl shadow-lg">
+                ✏️
+              </div>
+              <div>
+                <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Editar Compra</h3>
+                <p class="text-sm text-slate-400 theme-light:text-slate-600">Modifica los datos de la compra</p>
+              </div>
+            </div>
+            
+            <div class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                  <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                    <span>🏪</span>
+                    <span>Proveedor</span>
+                  </label>
+                  <select id="edit-purchase-supplier" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                    ${supplierOptions}
+                  </select>
+                </div>
+                <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                  <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                    <span>💰</span>
+                    <span>Inversor</span>
+                  </label>
+                  <select id="edit-purchase-investor" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                    ${investorOptions}
+                  </select>
+                </div>
+              </div>
+              
+              <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                  <span>📅</span>
+                  <span>Fecha de compra</span>
+                </label>
+                <input id="edit-purchase-date" type="date" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" value="${purchaseDate}" />
+              </div>
+              
+              <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                  <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 flex items-center gap-2">
+                    <span>📦</span>
+                    <span>Items de la compra</span>
+                  </label>
+                  <button id="btn-add-edit-purchase-item" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center gap-2">
+                    <span>➕</span>
+                    <span>Agregar Item</span>
+                  </button>
+                </div>
+                <div id="edit-purchase-items" class="space-y-3">
+                  <!-- Se agregarán dinámicamente -->
+                </div>
+              </div>
+              
+              <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                  <span>📝</span>
+                  <span>Notas (opcional)</span>
+                </label>
+                <textarea id="edit-purchase-notes" rows="3" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Agrega notas adicionales sobre esta compra...">${escapeHtml(purchase.notes || '')}</textarea>
+              </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6 pt-6 border-t border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+              <button id="edit-purchase-save" class="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center justify-center gap-2">
+                <span>💾</span>
+                <span>Guardar Cambios</span>
+              </button>
+              <button onclick="invCloseModal()" class="px-6 py-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-all duration-200 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 flex items-center gap-2">
+                <span>❌</span>
+                <span>Cancelar</span>
+              </button>
+            </div>
+          </div>
+        `;
+        
+        invOpenModal(modalContent);
+        
+        // Cargar items existentes
+        const itemsContainer = document.getElementById('edit-purchase-items');
+        let itemCounter = 0;
+        let purchaseItems = [];
+        
+        // Función para agregar fila de item (reutilizar lógica de openPurchaseModal)
+        function addEditPurchaseItemRow(itemData = null) {
+          const id = `edit-item-${itemCounter++}`;
+          const row = document.createElement('div');
+          row.className = 'bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-3 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200';
+          row.id = id;
+          
+          const selectedItemId = itemData?.itemId?._id || itemData?.itemId || '';
+          const selectedItemName = itemData?.itemId?.name || itemData?.itemId?.sku || '';
+          const qty = itemData?.qty || 1;
+          const unitPrice = itemData?.unitPrice || 0;
+          
+          row.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+              <div class="md:col-span-1 relative">
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">🔍 Buscar Item</label>
+                <div class="relative">
+                  <input 
+                    type="text" 
+                    class="edit-purchase-item-search w-full px-3 py-2 pl-10 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="Buscar por SKU o nombre..."
+                    value="${escapeHtml(selectedItemName)}"
+                    autocomplete="off"
+                  />
+                  <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                  <div class="edit-purchase-item-dropdown hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg shadow-xl max-h-60 overflow-auto custom-scrollbar"></div>
+                </div>
+                <input type="hidden" class="edit-purchase-item-id" value="${selectedItemId}" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">📦 Cantidad</label>
+                <input type="number" min="1" step="1" class="edit-purchase-item-qty w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value="${qty}" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+                  💰 Precio por Unidad *
+                </label>
+                <input type="number" min="0" step="0.01" class="edit-purchase-item-price w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value="${unitPrice}" placeholder="0.00" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+                  💵 Precio Total (opcional)
+                </label>
+                <input type="number" min="0" step="0.01" class="edit-purchase-item-total w-full px-3 py-2 rounded-lg bg-slate-700/30 border border-slate-600/30 text-white theme-light:bg-slate-50 theme-light:text-slate-900 theme-light:border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" value="" placeholder="Opcional" />
+              </div>
+              <div>
+                <button class="remove-edit-purchase-item w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center justify-center gap-1">
+                  <span>🗑️</span>
+                  <span>Eliminar</span>
+                </button>
+              </div>
+            </div>
+            <div class="edit-purchase-item-selected mt-2 ${selectedItemId ? '' : 'hidden'}">
+              <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-2 border border-blue-500/30 flex items-center gap-2">
+                <span class="text-blue-400 theme-light:text-blue-600">✅</span>
+                <span class="text-sm text-blue-300 theme-light:text-blue-700 edit-purchase-item-display">${escapeHtml(selectedItemName)}</span>
+              </div>
+            </div>
+          `;
+          
+          itemsContainer.appendChild(row);
+          
+          // Setup search functionality (similar to openPurchaseModal)
+          const searchInput = row.querySelector('.edit-purchase-item-search');
+          const dropdown = row.querySelector('.edit-purchase-item-dropdown');
+          const itemIdInput = row.querySelector('.edit-purchase-item-id');
+          const itemDisplay = row.querySelector('.edit-purchase-item-display');
+          const selectedDiv = row.querySelector('.edit-purchase-item-selected');
+          
+          // Setup search functionality
+          let selectedItem = null;
+          
+          function filterEditItems(query) {
+            if (!query || query.trim() === '') {
+              dropdown.classList.add('hidden');
+              return;
+            }
+            
+            const lowerQuery = query.toLowerCase();
+            const filtered = window.purchaseItemsData.filter(item => {
+              const sku = (item.sku || '').toLowerCase();
+              const name = (item.name || '').toLowerCase();
+              return sku.includes(lowerQuery) || name.includes(lowerQuery);
+            }).slice(0, 10);
+            
+            if (filtered.length === 0) {
+              dropdown.innerHTML = `
+                <div class="p-3 text-center text-slate-400 theme-light:text-slate-500 text-sm">
+                  No se encontraron items
+                </div>
+              `;
+            } else {
+              dropdown.innerHTML = filtered.map(item => {
+                const sku = escapeHtml(item.sku || 'Sin SKU');
+                const name = escapeHtml(item.name || 'Sin nombre');
+                const stock = item.stock || 0;
+                return `
+                  <div 
+                    class="edit-purchase-item-option p-3 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 last:border-b-0 transition-colors"
+                    data-id="${item._id}"
+                    data-sku="${sku}"
+                    data-name="${name}"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${sku}</div>
+                        <div class="text-xs text-slate-400 theme-light:text-slate-600">${name}</div>
+                      </div>
+                      <div class="text-xs text-slate-500 theme-light:text-slate-500">
+                        Stock: ${stock}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            }
+            
+            dropdown.classList.remove('hidden');
+            
+            dropdown.querySelectorAll('.edit-purchase-item-option').forEach(option => {
+              option.addEventListener('click', () => {
+                const itemId = option.dataset.id;
+                const sku = option.dataset.sku;
+                const name = option.dataset.name;
+                
+                selectedItem = window.purchaseItemsData.find(i => i._id === itemId);
+                itemIdInput.value = itemId;
+                searchInput.value = `${sku} - ${name}`;
+                itemDisplay.textContent = `${sku} - ${name}`;
+                selectedDiv.classList.remove('hidden');
+                dropdown.classList.add('hidden');
+                
+                if (selectedItem && selectedItem.entryPrice) {
+                  if (parseFloat(priceInput.value) === 0) {
+                    priceInput.value = selectedItem.entryPrice;
+                  }
+                }
+              });
+            });
+          }
+          
+          searchInput.addEventListener('input', (e) => {
+            filterEditItems(e.target.value);
+          });
+          
+          searchInput.addEventListener('focus', () => {
+            if (searchInput.value && !selectedItem) {
+              filterEditItems(searchInput.value);
+            }
+          });
+          
+          document.addEventListener('click', (e) => {
+            if (!row.contains(e.target)) {
+              dropdown.classList.add('hidden');
+            }
+          });
+          
+          // Setup remove button
+          row.querySelector('.remove-edit-purchase-item').onclick = () => {
+            row.remove();
+            purchaseItems = purchaseItems.filter(p => p.id !== id);
+          };
+          
+          // Setup price calculations
+          const qtyInput = row.querySelector('.edit-purchase-item-qty');
+          const priceInput = row.querySelector('.edit-purchase-item-price');
+          const totalInput = row.querySelector('.edit-purchase-item-total');
+          
+          qtyInput.addEventListener('input', () => {
+            const qty = Number(qtyInput.value) || 0;
+            const price = Number(priceInput.value) || 0;
+            totalInput.value = (qty * price).toFixed(2);
+          });
+          
+          priceInput.addEventListener('input', () => {
+            const qty = Number(qtyInput.value) || 0;
+            const price = Number(priceInput.value) || 0;
+            totalInput.value = (qty * price).toFixed(2);
+          });
+          
+          totalInput.addEventListener('input', () => {
+            const total = Number(totalInput.value) || 0;
+            const qty = Number(qtyInput.value) || 1;
+            if (qty > 0) {
+              priceInput.value = (total / qty).toFixed(2);
+            }
+          });
+          
+          if (selectedItemId) {
+            purchaseItems.push({ id, itemId: selectedItemId, qty, unitPrice });
+          }
+        }
+        
+        // Cargar items existentes
+        if (purchase.items && purchase.items.length > 0) {
+          purchase.items.forEach(item => {
+            addEditPurchaseItemRow(item);
+          });
+        } else {
+          addEditPurchaseItemRow();
+        }
+        
+        // Botón agregar item
+        document.getElementById('btn-add-edit-purchase-item').onclick = () => {
+          addEditPurchaseItemRow();
+        };
+        
+        // Botón guardar
+        document.getElementById('edit-purchase-save').onclick = async () => {
+          try {
+            // Recopilar items
+            const itemsToSave = [];
+            document.querySelectorAll('#edit-purchase-items > div').forEach(row => {
+              const itemId = row.querySelector('.edit-purchase-item-id')?.value;
+              const qty = Number(row.querySelector('.edit-purchase-item-qty')?.value) || 0;
+              const unitPrice = Number(row.querySelector('.edit-purchase-item-price')?.value) || 0;
+              
+              if (itemId && qty > 0) {
+                itemsToSave.push({ itemId, qty, unitPrice });
+              }
+            });
+            
+            if (itemsToSave.length === 0) {
+              alert('Debe agregar al menos un item');
+              return;
+            }
+            
+            const supplierId = document.getElementById('edit-purchase-supplier')?.value || 'GENERAL';
+            const investorId = document.getElementById('edit-purchase-investor')?.value || 'GENERAL';
+            const purchaseDate = document.getElementById('edit-purchase-date')?.value || new Date().toISOString().split('T')[0];
+            const notes = document.getElementById('edit-purchase-notes')?.value || '';
+            
+            const btn = document.getElementById('edit-purchase-save');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            
+            await API.put(`/api/v1/purchases/${purchaseId}`, {
+              supplierId,
+              investorId,
+              purchaseDate,
+              items: itemsToSave,
+              notes
+            });
+            
+            // Recargar modal del inversor
+            invCloseModal();
+            await openInvestorDetailModal(investorId !== 'GENERAL' ? investorId : purchase.investorId);
+            
+            alert('Compra actualizada correctamente');
+          } catch (err) {
+            console.error('Error actualizando compra:', err);
+            alert('Error al actualizar compra: ' + (err.message || 'Error desconocido'));
+            document.getElementById('edit-purchase-save').disabled = false;
+            document.getElementById('edit-purchase-save').textContent = 'Guardar Cambios';
+          }
+        };
+      } catch (err) {
+        console.error('Error cargando compra:', err);
+        alert('Error: ' + (err.message || 'Error desconocido'));
+      }
+    };
     
     // Función global para eliminar items de compra
     window.deletePurchaseItems = async function(purchaseId, investorId) {
