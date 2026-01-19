@@ -802,7 +802,13 @@ export function initQuotes({ getCompanyEmail }) {
     const rows = readRows(); 
     
     let subP = 0, subS = 0;
-    rows.forEach(({type, qty, price}) => {
+    rows.forEach(({type, qty, price, comboParent}) => {
+      // CRÍTICO: NO sumar items que tienen comboParent (son ilustrativos para la factura)
+      // Solo sumar el precio del combo principal, no los items anidados
+      if (comboParent) {
+        return; // Saltar items anidados de combos
+      }
+      
       const q = qty > 0 ? qty : 1;
       const st = q * (price || 0);
       if ((type || 'PRODUCTO') === 'PRODUCTO') subP += st;
@@ -3246,11 +3252,16 @@ export function initQuotes({ getCompanyEmail }) {
       let itemType = 'PRODUCTO';
       if (k === 'SERVICIO') itemType = 'SERVICIO';
       else if (k === 'COMBO') itemType = 'COMBO';
+      
+      // Preservar el precio original del item (no recalcular)
+      // Esto evita que los precios cambien al editar
+      const originalPrice = it.unitPrice || 0;
+      
       addRowFromData({
         type: itemType,
         desc:it.description||'',
         qty:it.qty??'',
-        price:it.unitPrice||0,
+        price:originalPrice,
         source, refId:it.refId, sku:it.sku, comboParent:it.comboParent
       });
     });

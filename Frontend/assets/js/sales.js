@@ -2524,7 +2524,7 @@ function buildCloseModalContent(){
           </thead>
           <tbody id="cv-comm-body">
             <tr>
-              <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+              <td colspan="7" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
                 <div class="flex flex-col items-center gap-2">
                   <span>No hay líneas de participación técnica</span>
                   <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
@@ -2788,8 +2788,10 @@ function fillCloseModal(){
       console.log('laborKindsList procesado:', laborKindsList);
       
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
+      const itemName = pref.itemName || '';
       tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
       tr.innerHTML = `
+        <td class="py-2.5 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-xs" data-role="item-name">${itemName || '-'}</td>
         <td class="py-2.5 px-3"><select data-role="tech" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${techOpts}</select></td>
         <td class="py-2.5 px-3"><select data-role="kind" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${kindOpts}</select></td>
         <td class="py-2.5 px-3 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-28 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0"></td>
@@ -2883,7 +2885,7 @@ function fillCloseModal(){
         if (!emptyRow) {
           const newEmptyRow = document.createElement('tr');
           newEmptyRow.innerHTML = `
-            <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+            <td colspan="7" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
               <div class="flex flex-col items-center gap-2">
                 <span>No hay líneas de participación técnica</span>
                 <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
@@ -2926,15 +2928,8 @@ function fillCloseModal(){
     // Detectar automáticamente items con laborValue y laborKind del PriceEntry
     async function autoAddLaborFromItems() {
       if (!current || !current.items || current.items.length === 0) return;
-      // Si ya hay comisiones guardadas en la venta, respetarlas (no autogenerar)
-      if (current.laborCommissions && Array.isArray(current.laborCommissions) && current.laborCommissions.length > 0) {
-        return;
-      }
       // Evitar duplicar autollenado si el modal se abre varias veces
       if (current._autoLaborFilled) return;
-      // Si el usuario ya agregó líneas manuales, no autogenerar
-      const hasManualRows = Array.from(tbody.querySelectorAll('tr')).some(tr => !tr.querySelector('td[colspan]'));
-      if (hasManualRows) return;
       
       // Obtener el técnico de la venta actual (initialTechnician o technician)
       const saleTechnician = (current.technician || current.initialTechnician || '').trim().toUpperCase();
@@ -2944,42 +2939,30 @@ function fillCloseModal(){
       }
       
       try {
-        // Mapear refId -> qty total (para multiplicar mano de obra por cantidad)
-        const qtyByRef = new Map();
+        // Obtener todos los refIds únicos para buscar PriceEntries de una vez
+        const refIdsSet = new Set();
+        const itemsWithRefId = [];
         for (const it of current.items) {
           const refId = String(it?.refId || '').trim();
-          if (!refId) continue;
-          const qty = Number(it?.qty || 1) || 1;
-          qtyByRef.set(refId, (qtyByRef.get(refId) || 0) + qty);
+          if (refId) {
+            refIdsSet.add(refId);
+            itemsWithRefId.push({ item: it, refId });
+          }
         }
 
-        const refIds = Array.from(qtyByRef.keys());
-        if (refIds.length === 0) return;
+        if (refIdsSet.size === 0) return;
 
         // Buscar PriceEntries por ID (mucho más eficiente que listar todo)
-        const priceEntries = await Promise.all(refIds.map(async (refId) => {
+        const refIds = Array.from(refIdsSet);
+        const priceEntriesMap = new Map();
+        await Promise.all(refIds.map(async (refId) => {
           try {
-            return await API.prices.get(refId);
+            const pe = await API.prices.get(refId);
+            if (pe) priceEntriesMap.set(refId, pe);
           } catch (err) {
             console.error('Error obteniendo precio:', err);
-            return null;
           }
         }));
-
-        // Preparar líneas por PRECIO (refId) considerando qty (para mostrar ambos valores)
-        const laborLines = []; // [{ kind, laborValue }]
-        for (let i = 0; i < refIds.length; i++) {
-          const pe = priceEntries[i];
-          if (!pe) continue;
-          const lv = Number(pe.laborValue || 0);
-          const kind = String(pe.laborKind || '').trim().toUpperCase();
-          if (!Number.isFinite(lv) || lv <= 0 || !kind) continue;
-          const qty = qtyByRef.get(refIds[i]) || 1;
-          const totalLv = Math.round(lv * qty);
-          laborLines.push({ kind, laborValue: totalLv });
-        }
-
-        if (laborLines.length === 0) return;
 
         // Buscar el técnico exacto en la lista (para usar el valor correcto del select)
         const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
@@ -2989,9 +2972,27 @@ function fillCloseModal(){
         }
         const technician = foundTech;
 
-        // Agregar líneas por precio (refId) para que se vean ambos valores
-        for (const { kind, laborValue } of laborLines) {
-          if (!laborValue || laborValue <= 0) continue;
+        // Crear una línea por cada item individual con mano de obra
+        for (const { item, refId } of itemsWithRefId) {
+          const pe = priceEntriesMap.get(refId);
+          if (!pe) continue;
+          
+          const lv = Number(pe.laborValue || 0);
+          const kind = String(pe.laborKind || '').trim().toUpperCase();
+          if (!Number.isFinite(lv) || lv <= 0 || !kind) continue;
+          
+          const qty = Number(item?.qty || 1) || 1;
+          const totalLv = Math.round(lv * qty);
+          const itemName = String(item?.name || pe?.name || 'Item').trim();
+          
+          // Verificar si ya existe una línea para este item (evitar duplicados)
+          const existingRows = Array.from(tbody.querySelectorAll('tr')).filter(tr => {
+            const itemNameCell = tr.querySelector('[data-role="item-name"]');
+            return itemNameCell && itemNameCell.textContent.trim() === itemName;
+          });
+          
+          // Si ya hay líneas para este item, no agregar otra (permitir que el usuario las edite/elimine)
+          if (existingRows.length > 0) continue;
 
           // Obtener el porcentaje del perfil del técnico o del tipo
           let percent = 0;
@@ -3016,7 +3017,7 @@ function fillCloseModal(){
             }
           }
 
-          await addLine({ technician, kind, laborValue, percent });
+          await addLine({ technician, kind, laborValue: totalLv, percent, itemName });
           updateEmptyMessage();
         }
         current._autoLaborFilled = true;
@@ -3549,10 +3550,11 @@ function fillCloseModal(){
           const kind = tr.querySelector('select[data-role=kind]')?.value?.trim().toUpperCase();
           const lv = Number(tr.querySelector('input[data-role=lv]')?.value||0)||0;
           const pc = Number(tr.querySelector('input[data-role=pc]')?.value||0)||0;
+          const itemName = tr.querySelector('[data-role=item-name]')?.textContent?.trim() || '';
           
           // Validar que tenga técnico, tipo, valor y porcentaje
           if(tech && kind && lv>0 && pc>0) {
-            comm.push({ technician: tech, kind, laborValue: lv, percent: pc });
+            comm.push({ technician: tech, kind, laborValue: lv, percent: pc, itemName });
           } else if(tech || kind || lv>0 || pc>0) {
             // Si tiene algún valor pero no está completo, mostrar error
             msg.textContent = 'Todas las líneas de participación técnica deben tener: técnico, tipo, valor MO y % completos.';
@@ -12756,6 +12758,7 @@ function buildEditCloseModalContent(sale, total) {
         <table class="w-full text-xs border-collapse">
           <thead>
             <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-200">
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Item</th>
               <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
               <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
               <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
@@ -12766,7 +12769,7 @@ function buildEditCloseModalContent(sale, total) {
           </thead>
           <tbody id="ecv-comm-body">
             <tr>
-              <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+              <td colspan="7" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
                 <div class="flex flex-col items-center gap-2">
                   <span>No hay líneas de participación técnica</span>
                   <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
@@ -12834,7 +12837,8 @@ async function setupEditCloseModal(sale) {
         kind: c.kind || '',
         laborValue: Number(c.laborValue) || 0,
         percent: Number(c.percent) || 0,
-        share: Number(c.share) || 0
+        share: Number(c.share) || 0,
+        itemName: c.itemName || ''
       });
     });
   }
@@ -12917,7 +12921,7 @@ function renderEditCommissions(commissions) {
   if (commissions.length === 0) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+        <td colspan="7" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
           <div class="flex flex-col items-center gap-2">
             <span>No hay líneas de participación técnica</span>
             <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
@@ -12932,7 +12936,9 @@ function renderEditCommissions(commissions) {
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
     const share = c.share || (c.laborValue * c.percent / 100);
+    const itemName = c.itemName || '';
     tr.innerHTML = `
+      <td class="py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-xs">${itemName || '-'}</td>
       <td class="py-2 px-3">
         <select class="ecv-comm-technician w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
           <option value="">Seleccionar técnico</option>
@@ -13279,12 +13285,15 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
           if (techSelect && techSelect.value && (laborValueInput?.value || percentInput?.value)) {
             const laborValue = Number(laborValueInput?.value || 0);
             const percent = Number(percentInput?.value || 0);
+            const itemNameCell = tr.querySelector('td:first-child');
+            const itemName = itemNameCell && !itemNameCell.querySelector('select') ? (itemNameCell.textContent?.trim() || '') : '';
             comm.push({
               technician: techSelect.value,
               kind: kindSelect?.value || '',
               laborValue,
               percent,
-              share: Math.round(laborValue * percent / 100)
+              share: Math.round(laborValue * percent / 100),
+              itemName
             });
           }
         });

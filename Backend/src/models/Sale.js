@@ -92,7 +92,8 @@ const SaleSchema = new mongoose.Schema({
     kind: { type: String, default: '' },              // tipo de maniobra (motor, suspensión, etc.)
     laborValue: { type: Number, default: 0 },         // base de mano de obra para esta línea
     percent: { type: Number, default: 0 },            // % de participación
-    share: { type: Number, default: 0 }               // valor = laborValue * percent/100
+    share: { type: Number, default: 0 },               // valor = laborValue * percent/100
+    itemName: { type: String, default: '' }            // nombre del item asociado (para identificar la línea)
   }], default: [] },
   investmentAmount: { type: Number, default: 0 },      // inversión aplicada al cierre de venta
   closedAt: { type: Date },
