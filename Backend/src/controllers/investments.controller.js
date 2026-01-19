@@ -229,3 +229,93 @@ export const payInvestment = async (req, res) => {
     res.status(500).json({ error: 'Error al procesar pago de inversión', message: err.message });
   }
 };
+
+// ===== ELIMINAR ITEM DISPONIBLE =====
+export const deleteAvailableItem = async (req, res) => {
+  try {
+    const { investorId, itemId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(investorId)) {
+      return res.status(400).json({ error: 'ID de inversor inválido' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(itemId)) {
+      return res.status(400).json({ error: 'ID de item de inversión inválido' });
+    }
+    
+    // Buscar el InvestmentItem
+    const investmentItem = await InvestmentItem.findOne({
+      _id: itemId,
+      companyId: req.companyId,
+      investorId: investorId,
+      status: 'available' // Solo se pueden eliminar items disponibles
+    })
+      .populate('itemId')
+      .populate('stockEntryId');
+    
+    if (!investmentItem) {
+      return res.status(404).json({ error: 'Item de inversión no encontrado o no está disponible' });
+    }
+    
+    // Validar que no esté vendido o pagado
+    if (investmentItem.status !== 'available') {
+      return res.status(400).json({ error: 'Solo se pueden eliminar items disponibles' });
+    }
+    
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
+    try {
+      const qtyToRemove = investmentItem.qty;
+      const itemIdToUpdate = investmentItem.itemId._id;
+      const stockEntryId = investmentItem.stockEntryId._id;
+      
+      // Eliminar el InvestmentItem
+      await InvestmentItem.deleteOne({ _id: itemId }).session(session);
+      
+      // Reducir stock del item
+      await Item.findOneAndUpdate(
+        { _id: itemIdToUpdate, companyId: req.companyId },
+        { $inc: { stock: -qtyToRemove } },
+        { session }
+      );
+      
+      // Reducir cantidad en StockEntry
+      const stockEntry = await StockEntry.findOne({ _id: stockEntryId, companyId: req.companyId }).session(session);
+      if (stockEntry) {
+        stockEntry.qty = Math.max(0, stockEntry.qty - qtyToRemove);
+        await stockEntry.save({ session });
+        
+        // Si el StockEntry queda en 0, eliminarlo
+        if (stockEntry.qty <= 0) {
+          await StockEntry.deleteOne({ _id: stockEntryId }).session(session);
+        }
+      }
+      
+      // Registrar movimiento de stock (OUT)
+      const { default: StockMove } = await import("../models/StockMove.js");
+      await StockMove.create([{
+        companyId: req.companyId,
+        itemId: itemIdToUpdate,
+        qty: -qtyToRemove,
+        reason: 'OUT',
+        meta: {
+          note: `Eliminación de item de inversión disponible`,
+          investmentItemId: itemId,
+          investorId: investorId
+        }
+      }], { session });
+      
+      await session.commitTransaction();
+      
+      res.json({ ok: true, message: 'Item eliminado correctamente' });
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar item disponible', message: err.message });
+  }
+};
