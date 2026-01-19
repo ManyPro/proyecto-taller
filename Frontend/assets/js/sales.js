@@ -2954,21 +2954,33 @@ function fillCloseModal(){
     updateEmptyMessage();
     
     // Cargar comisiones guardadas si existen
-    if (current.laborCommissions && Array.isArray(current.laborCommissions) && current.laborCommissions.length > 0) {
-      for (const c of current.laborCommissions) {
-        await addLine({
-          technician: c.technician || '',
-          kind: c.kind || '',
-          laborValue: Number(c.laborValue || 0),
-          percent: Number(c.percent || 0),
-          itemName: c.itemName || ''
-        });
-        updateEmptyMessage();
+    (async () => {
+      if (current.laborCommissions && Array.isArray(current.laborCommissions) && current.laborCommissions.length > 0) {
+        for (const c of current.laborCommissions) {
+          await addLine({
+            technician: c.technician || '',
+            kind: c.kind || '',
+            laborValue: Number(c.laborValue || 0),
+            percent: Number(c.percent || 0),
+            itemName: c.itemName || ''
+          });
+          updateEmptyMessage();
+        }
+        updateLaborTotal(); // Actualizar valor MO acumulado después de cargar comisiones guardadas
+        current._autoLaborFilled = true; // Marcar como cargado para evitar duplicados
+        return; // No ejecutar autoAddLaborFromItems si ya hay comisiones guardadas
       }
-      updateLaborTotal(); // Actualizar valor MO acumulado después de cargar comisiones guardadas
-      current._autoLaborFilled = true; // Marcar como cargado para evitar duplicados
-      return; // No ejecutar autoAddLaborFromItems si ya hay comisiones guardadas
-    }
+      
+      // Si no hay comisiones guardadas, ejecutar autoAddLaborFromItems
+      // Ejecutar después de un pequeño delay para asegurar que todo esté cargado
+      setTimeout(() => {
+        autoAddLaborFromItems().then(() => {
+          updateLaborTotal(); // Actualizar valor MO acumulado después de cargar
+        }).catch(() => {
+          updateLaborTotal(); // Actualizar incluso si hay error
+        });
+      }, 500);
+    })();
     
     // Detectar automáticamente items con laborValue y laborKind del PriceEntry
     async function autoAddLaborFromItems() {
@@ -3071,15 +3083,6 @@ function fillCloseModal(){
         console.error('Error agregando líneas automáticas de mano de obra:', err);
       }
     }
-    
-    // Ejecutar después de un pequeño delay para asegurar que todo esté cargado
-    setTimeout(() => {
-      autoAddLaborFromItems().then(() => {
-        updateLaborTotal(); // Actualizar valor MO acumulado después de cargar
-      }).catch(() => {
-        updateLaborTotal(); // Actualizar incluso si hay error
-      });
-    }, 500);
   } catch{}
 
   // Dynamic payments
