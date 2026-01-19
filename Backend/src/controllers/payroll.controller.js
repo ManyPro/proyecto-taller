@@ -701,9 +701,11 @@ export const previewSettlement = async (req, res) => {
     items.push(...conceptItems);
     
     // Calcular valores de porcentajes antes de aplicar concepto variable
+    // IMPORTANTE: NO recalcular items de comisión (laborPercent) porque ya tienen el valor correcto
     const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
     items.forEach(item => {
-      if (item.isPercent && item.percentValue) {
+      // Excluir items de comisión de ventas del recálculo (ya tienen el valor correcto)
+      if (item.isPercent && item.percentValue && !item.calcRule?.startsWith('laborPercent')) {
         let baseAmount = 0;
         
         // Determinar la base según la configuración
@@ -1042,9 +1044,11 @@ export const approveSettlement = async (req, res) => {
     items.push(...conceptItems);
     
     // Calcular valores de porcentajes antes de aplicar concepto variable
+    // IMPORTANTE: NO recalcular items de comisión (laborPercent) porque ya tienen el valor correcto
     const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
     items.forEach(item => {
-      if (item.isPercent && item.percentValue) {
+      // Excluir items de comisión de ventas del recálculo (ya tienen el valor correcto)
+      if (item.isPercent && item.percentValue && !item.calcRule?.startsWith('laborPercent')) {
         let baseAmount = 0;
         
         // Determinar la base según la configuración
