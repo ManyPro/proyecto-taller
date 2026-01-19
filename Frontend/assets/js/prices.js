@@ -432,6 +432,7 @@ export function openQRForItem() {
 
 export function initPrices(){
   const tab = $('#tab-precios'); if(!tab) return;
+  const hasVehicularSection = !!document.querySelector('[data-subsection="prices-vehicular"]');
 
   // Elementos del nuevo sistema de menús colapsables
   const fMakesToggle=$('#pf-makes-toggle'), fMakesToggleText=$('#pf-makes-toggle-text'), fMakesToggleIcon=$('#pf-makes-toggle-icon');
@@ -471,6 +472,7 @@ export function initPrices(){
   // Función para cambiar entre tabs (definirla temprano para que esté disponible)
   // Se asignará completamente después de que loadPrices y loadGeneralPrices estén definidas
   let switchSubTab = function(name) {
+    if (name === 'prices-vehicular') name = 'prices-general';
     document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
       const isActive = b.dataset.subtab === name;
       b.classList.toggle('active', isActive);
@@ -483,7 +485,7 @@ export function initPrices(){
     });
     
     // Mostrar/ocultar elementos según la pestaña activa
-    const isVehicular = name === 'prices-vehicular';
+    const isVehicular = false;
     const isGeneral = name === 'prices-general';
     const isInversion = name === 'prices-inversion';
     
@@ -990,6 +992,7 @@ export function initPrices(){
   }
 
   loadPrices = async function(params={}){
+    if (!hasVehicularSection) return;
     // Determinar qué vehículo usar: si hay múltiples seleccionados, usar el activo en las pestañas
     const vehicleToUse = selectedVehicles.length > 1 
       ? (activeTabVehicleId ? selectedVehicles.find(v => v._id === activeTabVehicleId) : selectedVehicles[0])

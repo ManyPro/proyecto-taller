@@ -805,25 +805,6 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .qh-item .actions{ display:flex; gap:6px; justify-content:flex-end; }
 
 /* ===== Lista de precios ===== */
-body[data-page="precios"] .max-w-7xl,
-body[data-page="precios"] .max-w-6xl,
-body[data-page="precios"] .max-w-5xl{
-  max-width: 100% !important;
-}
-body[data-page="precios"] .max-w-7xl,
-body[data-page="precios"] .max-w-6xl,
-body[data-page="precios"] .max-w-5xl{
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
-}
-@media (min-width: 1280px){
-  body[data-page="precios"] .max-w-7xl,
-  body[data-page="precios"] .max-w-6xl,
-  body[data-page="precios"] .max-w-5xl{
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-  }
-}
 #tab-precios{ overflow-x:auto; }
 #tab-precios table.table{ width:100%; border-collapse:separate; border-spacing:0; table-layout:auto; }
 #tab-precios th, #tab-precios td{ padding:10px 12px; word-wrap:break-word; }
