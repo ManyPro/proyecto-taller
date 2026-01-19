@@ -589,7 +589,7 @@ export const previewSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -603,8 +603,27 @@ export const previewSettlement = async (req, res) => {
       }
       
       const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
-      fromSale.forEach(d => commissionDetails.push(d));
-      return acc + fromSale.reduce((a, b) => a + (Number(b.share) || 0), 0);
+      // Agregar información de la venta y recalcular share correctamente
+      fromSale.forEach(d => {
+        // Recalcular share para asegurar que sea correcto: share = laborValue * (percent / 100)
+        const laborValue = Number(d.laborValue || 0);
+        const percent = Number(d.percent || 0);
+        const calculatedShare = Math.round(laborValue * (percent / 100));
+        
+        commissionDetails.push({
+          ...d,
+          share: calculatedShare, // Usar el cálculo correcto
+          saleNumber: s.number || null,
+          saleId: s._id || null
+        });
+      });
+      return acc + fromSale.reduce((a, b) => {
+        // Recalcular share para el total también
+        const laborValue = Number(b.laborValue || 0);
+        const percent = Number(b.percent || 0);
+        const calculatedShare = Math.round(laborValue * (percent / 100));
+        return a + calculatedShare;
+      }, 0);
     }, 0);
     
     const commissionRounded = Math.round(commission * 100) / 100;
@@ -613,10 +632,11 @@ export const previewSettlement = async (req, res) => {
     let commissionNotes = '';
     if (commissionDetails.length > 0) {
       const details = commissionDetails.map(d => {
+        const saleInfo = d.saleNumber ? ` (Venta #${d.saleNumber})` : '';
         if (d.kind) {
-          return `${d.kind}: ${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+          return `${d.kind}: ${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}${saleInfo}`;
         }
-        return `${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+        return `${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}${saleInfo}`;
       }).join('; ');
       commissionNotes = details;
     }
@@ -629,23 +649,32 @@ export const previewSettlement = async (req, res) => {
       if (commissionDetails.length > 0) {
         // Agregar un item por cada línea de comisión con su porcentaje
         commissionDetails.forEach(detail => {
+          // Recalcular share para asegurar que sea correcto
+          const laborValue = Number(detail.laborValue || 0);
+          const percent = Number(detail.percent || 0);
+          const calculatedShare = Math.round(laborValue * (percent / 100));
+          
+          const saleInfo = detail.saleNumber ? ` (Venta #${detail.saleNumber})` : '';
           const itemName = detail.kind 
-            ? `Participación ${detail.kind} (${detail.percent}%)`
-            : `Participación técnico (${detail.percent}%)`;
+            ? `Participación ${detail.kind} (${detail.percent}%)${saleInfo}`
+            : `Participación técnico (${detail.percent}%)${saleInfo}`;
+          
           items.push({
             conceptId: null,
             name: itemName,
             type: 'earning',
-            base: Math.round(detail.laborValue),
-            value: Math.round(detail.share),
+            base: Math.round(laborValue),
+            value: calculatedShare, // Usar el cálculo correcto
             calcRule: `laborPercent:${detail.percent}`,
-            notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`,
+            notes: `${detail.percent}% sobre ${Math.round(laborValue).toLocaleString('es-CO')}${saleInfo}`,
             // Guardar información de porcentaje para liquidación
             isPercent: true,
             percentValue: detail.percent,
             percentBaseType: 'total_gross',
             percentBaseConceptId: null,
-            percentBaseFixedValue: 0
+            percentBaseFixedValue: 0,
+            saleNumber: detail.saleNumber || null,
+            saleId: detail.saleId || null
           });
         });
       } else if (commissionRounded > 0) {
@@ -884,7 +913,7 @@ export const approveSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -898,8 +927,27 @@ export const approveSettlement = async (req, res) => {
       }
       
       const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
-      fromSale.forEach(d => commissionDetails.push(d));
-      return acc + fromSale.reduce((a, b) => a + (Number(b.share) || 0), 0);
+      // Agregar información de la venta y recalcular share correctamente
+      fromSale.forEach(d => {
+        // Recalcular share para asegurar que sea correcto: share = laborValue * (percent / 100)
+        const laborValue = Number(d.laborValue || 0);
+        const percent = Number(d.percent || 0);
+        const calculatedShare = Math.round(laborValue * (percent / 100));
+        
+        commissionDetails.push({
+          ...d,
+          share: calculatedShare, // Usar el cálculo correcto
+          saleNumber: s.number || null,
+          saleId: s._id || null
+        });
+      });
+      return acc + fromSale.reduce((a, b) => {
+        // Recalcular share para el total también
+        const laborValue = Number(b.laborValue || 0);
+        const percent = Number(b.percent || 0);
+        const calculatedShare = Math.round(laborValue * (percent / 100));
+        return a + calculatedShare;
+      }, 0);
     }, 0);
     
     const commissionRounded = Math.round(commission * 100) / 100;
@@ -908,10 +956,11 @@ export const approveSettlement = async (req, res) => {
     let commissionNotes = '';
     if (commissionDetails.length > 0) {
       const details = commissionDetails.map(d => {
+        const saleInfo = d.saleNumber ? ` (Venta #${d.saleNumber})` : '';
         if (d.kind) {
-          return `${d.kind}: ${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+          return `${d.kind}: ${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}${saleInfo}`;
         }
-        return `${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+        return `${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}${saleInfo}`;
       }).join('; ');
       commissionNotes = details;
     }
@@ -932,28 +981,41 @@ export const approveSettlement = async (req, res) => {
       if (commissionDetails.length > 0) {
         // Agregar un item por cada línea de comisión con su porcentaje
         // Distribuir el monto total proporcionalmente si fue editado
-        const totalOriginal = commissionDetails.reduce((sum, d) => sum + d.share, 0);
+        const totalOriginal = commissionDetails.reduce((sum, d) => {
+          const laborValue = Number(d.laborValue || 0);
+          const percent = Number(d.percent || 0);
+          return sum + Math.round(laborValue * (percent / 100));
+        }, 0);
         const ratio = totalOriginal > 0 ? finalCommissionAmount / totalOriginal : 1;
         
         commissionDetails.forEach(detail => {
+          // Recalcular share base correctamente
+          const laborValue = Number(detail.laborValue || 0);
+          const percent = Number(detail.percent || 0);
+          const baseShare = Math.round(laborValue * (percent / 100));
+          const adjustedValue = Math.round(baseShare * ratio);
+          
+          const saleInfo = detail.saleNumber ? ` (Venta #${detail.saleNumber})` : '';
           const itemName = detail.kind 
-            ? `Participación ${detail.kind} (${detail.percent}%)`
-            : `Participación técnico (${detail.percent}%)`;
-          const adjustedValue = Math.round(detail.share * ratio);
+            ? `Participación ${detail.kind} (${detail.percent}%)${saleInfo}`
+            : `Participación técnico (${detail.percent}%)${saleInfo}`;
+          
           items.push({
             conceptId: null,
             name: itemName,
             type: 'earning',
-            base: Math.round(detail.laborValue),
+            base: Math.round(laborValue),
             value: adjustedValue,
             calcRule: `laborPercent:${detail.percent}`,
-            notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`,
+            notes: `${detail.percent}% sobre ${Math.round(laborValue).toLocaleString('es-CO')}${saleInfo}`,
             // Guardar información de porcentaje para liquidación
             isPercent: true,
             percentValue: detail.percent,
             percentBaseType: 'total_gross',
             percentBaseConceptId: null,
-            percentBaseFixedValue: 0
+            percentBaseFixedValue: 0,
+            saleNumber: detail.saleNumber || null,
+            saleId: detail.saleId || null
           });
         });
       } else if (finalCommissionAmount > 0) {

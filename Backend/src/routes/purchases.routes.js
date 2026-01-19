@@ -32,8 +32,10 @@ router.delete('/investors/:id', deleteInvestor);
 // Purchases
 router.get('/purchases', listPurchases);
 router.post('/purchases', createPurchase);
+// Rutas más específicas primero (antes de /purchases/:id)
+router.post('/purchases/:id/items/delete', deletePurchaseItems);
+// Rutas generales después
 router.get('/purchases/:id', getPurchase);
 router.put('/purchases/:id', updatePurchase);
-router.post('/purchases/:id/items/delete', deletePurchaseItems);
 
 export default router;
