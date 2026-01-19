@@ -46,12 +46,17 @@ async function loadConcepts(){
       'percent': 'Porcentaje'
     };
     
+    const isSystemConcept = (c) => ['PAGO_PRESTAMOS','MANO_OBRA'].includes(String(c?.code || '').toUpperCase());
+
     const rows = list.map(c => {
       const typeInfo = typeLabels[c.type] || { label: c.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
       const amountLabel = amountTypeLabels[c.amountType] || c.amountType;
       const valueDisplay = c.amountType === 'percent' 
         ? `${c.defaultValue}%` 
         : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(c.defaultValue || 0);
+      const systemBadge = isSystemConcept(c)
+        ? '<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300">Automático</span>'
+        : '';
       
       return `<div class="concept-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
         <div class="flex items-center justify-between flex-wrap gap-2">
@@ -63,6 +68,7 @@ async function loadConcepts(){
               <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
                 <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-xs mr-1.5">${htmlEscape(c.code)}</span>
                 ${htmlEscape(c.name)}
+                ${systemBadge}
               </div>
               <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
                 ${amountLabel}: <strong class="text-white dark:text-white theme-light:text-slate-900">${valueDisplay}</strong>
@@ -70,9 +76,9 @@ async function loadConcepts(){
             </div>
           </div>
           <div class="flex gap-1.5 items-center">
-            <button data-id="${c._id}" class="x-del px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300" title="Eliminar concepto">
+            ${isSystemConcept(c) ? '' : `<button data-id="${c._id}" class="x-del px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300" title="Eliminar concepto">
               🗑️ Eliminar
-            </button>
+            </button>`}
           </div>
         </div>
       </div>`;
@@ -940,7 +946,11 @@ async function loadConceptsForTechnician(){
       console.error('Error loading loans:', err);
     }
     
-    // Obtener comisiones del período (preview temporal para calcular comisiones)
+    // Obtener conceptos de empresa (incluye MANO_OBRA automático)
+    const allConcepts = await api.get('/api/v1/payroll/concepts');
+    const laborConcept = allConcepts.find(c => String(c.code || '').toUpperCase() === 'MANO_OBRA') || null;
+
+    // Obtener mano de obra del período (preview temporal para calcular)
     let commissionTotal = 0;
     let commissionDetails = [];
     try {
@@ -967,8 +977,6 @@ async function loadConceptsForTechnician(){
     let assignedConcepts = [];
     
     if (conceptIds.length > 0) {
-    // Obtener detalles de los conceptos
-    const allConcepts = await api.get('/api/v1/payroll/concepts');
       assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
     }
     
@@ -987,37 +995,22 @@ async function loadConceptsForTechnician(){
     
     let html = '';
     
-    // Renderizar comisiones como concepto seleccionable
-    if (commissionTotal > 0) {
-      const storedCommission = editedLoanPayments[`${technicianName}_commission`] || commissionTotal;
-      html += `<div class="concept-card commission-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200">
+    // Renderizar MANO_OBRA (automático) como concepto seleccionable
+    if (laborConcept && commissionTotal > 0) {
+      html += `<div class="concept-card labor-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200">
         <label class="flex items-center gap-2.5 cursor-pointer mb-2.5">
-          <input type="checkbox" value="COMMISSION" data-commission-concept="true" class="cursor-pointer w-[18px] h-[18px] m-0" />
+          <input type="checkbox" value="${laborConcept._id}" data-labor-concept="true" class="cursor-pointer w-[18px] h-[18px] m-0" checked />
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-1.5">
               <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 text-green-500 dark:text-green-400 theme-light:text-green-700 border border-green-500 dark:border-green-500 theme-light:border-green-300">
                 Ingreso
               </span>
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">💰 Comisiones</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">🔧 Mano de obra</span>
             </div>
-            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">Participación por ventas</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${commissionDetails.length} participación(es) · Total calculado: ${formatMoney(commissionTotal)}</div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">${htmlEscape(laborConcept.name || 'Mano de obra')}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${commissionDetails.length} participación(es) · Total: <strong>${formatMoney(commissionTotal)}</strong></div>
           </div>
         </label>
-        <div class="flex gap-2 items-center flex-wrap">
-          <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Monto a liquidar:</label>
-          <input type="number" 
-                 id="commission-amount" 
-                 data-technician="${technicianName}"
-                 data-max="${commissionTotal}"
-                 min="0" 
-                 max="${commissionTotal}" 
-                 step="1" 
-                 value="${storedCommission}"
-                 class="w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 onchange="saveCommissionAmount('${technicianName}')" />
-          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Máx: ${formatMoney(commissionTotal)}</span>
-        </div>
       </div>`;
     }
     
@@ -1133,24 +1126,7 @@ window.saveLoanPaymentAmount = function(technicianName) {
   }
 };
 
-// Función para guardar el monto editado de comisiones (desde la lista de conceptos)
-window.saveCommissionAmount = function(technicianName) {
-  const input = document.getElementById('commission-amount');
-  if (!input) return;
-  
-  const amount = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
-  input.value = amount;
-  editedLoanPayments[`${technicianName}_commission`] = amount;
-  
-  // Mostrar feedback visual
-  const card = input.closest('.commission-card');
-  if (card) {
-    card.style.borderColor = '#10b981';
-    setTimeout(() => {
-    card.style.borderColor = '#3b82f6';
-    }, 1000);
-  }
-};
+// (Mano de obra es automática desde ventas cerradas; no se edita aquí)
 
 // Función para guardar el monto editado del préstamo (desde el preview)
 window.saveLoanPaymentFromPreview = function(loanId, inputId) {
@@ -1187,23 +1163,11 @@ function getSelectedConceptIds(){
   const container = document.getElementById('pl-concepts-container');
   if (!container) return [];
   const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
-  // Incluir VARIABLE, COMMISSION y LOAN_PAYMENT como strings especiales, filtrar solo valores vacíos
+  // Incluir conceptIds normales y LOAN_PAYMENT como string especial, filtrar solo valores vacíos
   return Array.from(checkboxes).map(cb => cb.value).filter(id => id);
 }
 
-// Obtener comisiones configuradas para el técnico
-function getCommissionForTechnician(technicianName) {
-  const commissionCheckbox = document.querySelector('input[data-commission-concept="true"]');
-  if (!commissionCheckbox || !commissionCheckbox.checked) {
-    return null;
-  }
-  
-  const input = document.getElementById('commission-amount');
-  if (!input) return null;
-  
-  const amount = editedLoanPayments[`${technicianName}_commission`] || Number(input.value) || 0;
-  return amount > 0 ? amount : null;
-}
+// Mano de obra: se incluye/excluye según el checkbox (data-labor-concept)
 
 // Obtener préstamos configurados para el técnico
 function getLoanPaymentsForTechnician(technicianName) {
@@ -1242,26 +1206,16 @@ async function preview(){
       return;
     }
     
-    // Verificar si se seleccionaron comisiones o préstamos
-    const commissionSelected = document.querySelector('input[data-commission-concept="true"]:checked');
+    // Verificar si se seleccionaron mano de obra o préstamos
+    const laborSelected = document.querySelector('input[data-labor-concept="true"]:checked');
     const loanSelected = document.querySelector('input[data-loan-concept="true"]:checked');
     
-    if (selectedConceptIds.length === 0 && !commissionSelected && !loanSelected) {
-      alert('⚠️ Selecciona al menos un concepto, comisión o préstamo para aplicar');
+    if (selectedConceptIds.length === 0 && !laborSelected && !loanSelected) {
+      alert('⚠️ Selecciona al menos un concepto, mano de obra o préstamo para aplicar');
       return;
     }
     
-    // Agregar comisiones y préstamos a los conceptos seleccionados si están marcados
-    if (commissionSelected) {
-      selectedConceptIds.push('COMMISSION');
-      // Asegurar que el valor editado de comisiones se guarde antes de hacer preview
-      const commissionInput = document.getElementById('commission-amount');
-      if (commissionInput) {
-        const amount = Math.max(0, Math.min(Number(commissionInput.value) || 0, Number(commissionInput.dataset.max) || 0));
-        commissionInput.value = amount;
-        editedLoanPayments[`${technicianName}_commission`] = amount;
-      }
-    }
+    // Mano de obra se envía como conceptId MANO_OBRA seleccionado (no requiere strings especiales)
     if (loanSelected) {
       selectedConceptIds.push('LOAN_PAYMENT');
       // Asegurar que el valor editado del préstamo se guarde antes de hacer preview
@@ -1277,7 +1231,6 @@ async function preview(){
       periodId,
       technicianName,
       selectedConceptIds,
-      commissionAmount: commissionSelected ? getCommissionForTechnician(technicianName) : null,
       loanPayments: loanSelected ? getLoanPaymentsForTechnician(technicianName) : []
     };
     
@@ -1461,9 +1414,8 @@ async function approve(){
       return;
     }
     
-    // Recolectar pagos de préstamos y comisiones desde la configuración inicial
+    // Recolectar pagos de préstamos desde la configuración inicial
     const loanPayments = [];
-    const commissionAmount = getCommissionForTechnician(technicianName);
     
     // Obtener préstamos desde la lista de conceptos
     const loanCheckbox = document.querySelector('input[data-loan-concept="true"]');
@@ -1474,17 +1426,9 @@ async function approve(){
       }
     }
     
-    // Verificar si se seleccionaron comisiones o préstamos
-    const commissionSelected = document.querySelector('input[data-commission-concept="true"]:checked');
+    // Agregar préstamo como string especial si está marcado (compat backend)
     const loanSelected = document.querySelector('input[data-loan-concept="true"]:checked');
-    
-    // Agregar comisiones y préstamos a los conceptos seleccionados si están marcados
-    if (commissionSelected) {
-      selectedConceptIds.push('COMMISSION');
-    }
-    if (loanSelected) {
-      selectedConceptIds.push('LOAN_PAYMENT');
-    }
+    if (loanSelected) selectedConceptIds.push('LOAN_PAYMENT');
     
     // Confirmar aprobación
     const periodText = document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'este período';
@@ -1496,7 +1440,6 @@ async function approve(){
       periodId,
       technicianName,
       selectedConceptIds,
-      commissionAmount, // Monto editado de comisiones
       loanPayments // Array de { technicianName, totalAmount } para préstamos
     };
     

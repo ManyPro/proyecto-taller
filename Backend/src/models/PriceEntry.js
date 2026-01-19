@@ -40,6 +40,9 @@ const PriceEntrySchema = new mongoose.Schema({
   variables: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
 
   total: { type: Number, default: 0 },
+
+  // Valor de inversión sugerido para este precio (se usa para autocompletar en cierre de venta)
+  investmentValue: { type: Number, default: 0, min: 0 },
   
   // Valor de mano de obra y tipo (para combos y productos)
   laborValue: { type: Number, default: 0, min: 0 }, // Valor base de mano de obra

@@ -2645,6 +2645,36 @@ function fillCloseModal(){
     laborTotalEl.innerHTML = `Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(current?.laborValue || 0)}</strong>`;
   }
 
+  // Autocompletar inversión sugerida desde los PriceEntry de la venta (si el input está vacío/0).
+  // Se calcula como suma(priceEntry.investmentValue * qty) para items con source='price'.
+  (async () => {
+    try {
+      const investmentInput = document.getElementById('cv-investment-amount');
+      if (!investmentInput) return;
+      const currentVal = Number(investmentInput.value || 0) || 0;
+      if (currentVal > 0) return; // respetar valor manual / seleccionado desde lista
+
+      const items = Array.isArray(current?.items) ? current.items : [];
+      const priceItems = items.filter(it => String(it?.source || '') === 'price' && it?.refId);
+      if (!priceItems.length) return;
+
+      let sum = 0;
+      for (const it of priceItems) {
+        const pe = await getPriceEntryCached(it.refId);
+        const inv = Number(pe?.investmentValue || 0) || 0;
+        if (inv <= 0) continue;
+        const qty = Number(it?.qty || 1) || 1;
+        sum += inv * qty;
+      }
+
+      if (Number.isFinite(sum) && sum > 0) {
+        investmentInput.value = Math.round(sum);
+      }
+    } catch (e) {
+      console.warn('No se pudo autocompletar inversión:', e?.message || e);
+    }
+  })();
+
   // Labor percent options
   const percSel = document.getElementById('cv-laborPercent');
   const perc = (companyPrefs?.laborPercents||[]);
@@ -2786,7 +2816,20 @@ function fillCloseModal(){
           }
         }
       }
-      if(pref.kind) kindSel2.value = pref.kind;
+      if(pref.kind) {
+        // Si el tipo no existe en el select (no está configurado en tech-config), agregarlo para que se vea correcto
+        const desired = String(pref.kind || '').trim().toUpperCase();
+        if (desired) {
+          const exists = Array.from(kindSel2.options || []).some(o => String(o.value || '').trim().toUpperCase() === desired);
+          if (!exists) {
+            const opt = document.createElement('option');
+            opt.value = desired;
+            opt.textContent = desired;
+            kindSel2.appendChild(opt);
+          }
+          kindSel2.value = desired;
+        }
+      }
       function recalc(){
         const lv = Number(lvInp.value||0)||0; const pc=Number(pcInp.value||0)||0; const sh = Math.round(lv*pc/100);
         shareCell.textContent = money(sh);
@@ -2883,6 +2926,15 @@ function fillCloseModal(){
     // Detectar automáticamente items con laborValue y laborKind del PriceEntry
     async function autoAddLaborFromItems() {
       if (!current || !current.items || current.items.length === 0) return;
+      // Si ya hay comisiones guardadas en la venta, respetarlas (no autogenerar)
+      if (current.laborCommissions && Array.isArray(current.laborCommissions) && current.laborCommissions.length > 0) {
+        return;
+      }
+      // Evitar duplicar autollenado si el modal se abre varias veces
+      if (current._autoLaborFilled) return;
+      // Si el usuario ya agregó líneas manuales, no autogenerar
+      const hasManualRows = Array.from(tbody.querySelectorAll('tr')).some(tr => !tr.querySelector('td[colspan]'));
+      if (hasManualRows) return;
       
       // Obtener el técnico de la venta actual (initialTechnician o technician)
       const saleTechnician = (current.technician || current.initialTechnician || '').trim().toUpperCase();
@@ -2892,94 +2944,82 @@ function fillCloseModal(){
       }
       
       try {
-        // Obtener todos los refIds de los items de la venta
-        const refIds = current.items
-          .map(item => item.refId)
-          .filter(refId => refId && refId.trim() !== '');
-        
-        if (refIds.length === 0) return;
-        
-        // Buscar los PriceEntries correspondientes
-        const priceEntries = await Promise.all(
-          refIds.map(async (refId) => {
-            try {
-              // Buscar el precio usando pricesList con el ID
-              const prices = await API.pricesList({ limit: 1000 }); // Obtener todos los precios
-              const price = prices?.items?.find(p => String(p._id) === String(refId)) || null;
-              return price || null;
-            } catch (err) {
-              console.error('Error obteniendo precio:', err);
-              return null;
-            }
-          })
-        );
-        
-        // Filtrar los que tienen laborValue y laborKind
-        const itemsWithLabor = priceEntries
-          .filter(pe => pe && pe.laborValue > 0 && pe.laborKind && pe.laborKind.trim() !== '')
-          .map(pe => ({
-            laborValue: Number(pe.laborValue || 0),
-            laborKind: String(pe.laborKind || '').trim().toUpperCase()
-          }));
-        
-        // Agregar líneas automáticamente para cada item con mano de obra
-        for (const item of itemsWithLabor) {
-          // Buscar el técnico exacto en la lista (para usar el valor correcto del select)
-          const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
-          if (!foundTech) {
-            console.log(`Técnico "${saleTechnician}" no encontrado en la lista de técnicos`);
-            continue; // Saltar si el técnico no está en la lista
-          }
-          
-          const technician = foundTech; // Usar el valor exacto de la lista
-          const kind = item.laborKind;
-          const laborValue = item.laborValue;
-          
-          // Verificar si ya existe una línea con este técnico y tipo
-          const existingRows = Array.from(tbody.querySelectorAll('tr'));
-          const alreadyExists = existingRows.some(tr => {
-            if (tr.querySelector('td[colspan]')) return false; // Ignorar mensaje vacío
-            const techSelect = tr.querySelector('select[data-role=tech]');
-            const kindSelect = tr.querySelector('select[data-role=kind]');
-            return techSelect?.value?.trim().toUpperCase() === technician.toUpperCase() &&
-                   kindSelect?.value?.trim().toUpperCase() === kind;
-          });
-          
-          if (!alreadyExists && technician && kind && laborValue > 0) {
-            // Obtener el porcentaje del perfil del técnico o del tipo
-            let percent = 0;
-            const techNameUpper = String(technician).trim().toUpperCase();
-            const prof = (techConfig?.technicians||[]).find(t=> String(t.name||'').toUpperCase() === techNameUpper);
-            if(prof && kind){ 
-              const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase() === kind); 
-              if(r && r.percent > 0){ 
-                percent = Number(r.percent||0);
-              }
-            }
-            
-            // Si no está en el perfil, usar el defaultPercent del tipo
-            if (percent === 0) {
-              const laborKinds = await getLaborKinds();
-              const laborKind = laborKinds.find(k=> {
-                const kindName = typeof k === 'string' ? k : (k?.name || '');
-                return String(kindName).toUpperCase() === kind;
-              });
-              if(laborKind && typeof laborKind === 'object' && laborKind.defaultPercent > 0){
-                percent = Number(laborKind.defaultPercent||0);
-              }
-            }
-            
-            // Agregar la línea
-            await addLine({
-              technician: technician,
-              kind: kind,
-              laborValue: laborValue,
-              percent: percent
-            });
-            // Actualizar mensaje vacío después de agregar línea automática
-            updateEmptyMessage();
-          }
+        // Mapear refId -> qty total (para multiplicar mano de obra por cantidad)
+        const qtyByRef = new Map();
+        for (const it of current.items) {
+          const refId = String(it?.refId || '').trim();
+          if (!refId) continue;
+          const qty = Number(it?.qty || 1) || 1;
+          qtyByRef.set(refId, (qtyByRef.get(refId) || 0) + qty);
         }
+
+        const refIds = Array.from(qtyByRef.keys());
+        if (refIds.length === 0) return;
+
+        // Buscar PriceEntries por ID (mucho más eficiente que listar todo)
+        const priceEntries = await Promise.all(refIds.map(async (refId) => {
+          try {
+            return await API.prices.get(refId);
+          } catch (err) {
+            console.error('Error obteniendo precio:', err);
+            return null;
+          }
+        }));
+
+        // Preparar líneas por PRECIO (refId) considerando qty (para mostrar ambos valores)
+        const laborLines = []; // [{ kind, laborValue }]
+        for (let i = 0; i < refIds.length; i++) {
+          const pe = priceEntries[i];
+          if (!pe) continue;
+          const lv = Number(pe.laborValue || 0);
+          const kind = String(pe.laborKind || '').trim().toUpperCase();
+          if (!Number.isFinite(lv) || lv <= 0 || !kind) continue;
+          const qty = qtyByRef.get(refIds[i]) || 1;
+          const totalLv = Math.round(lv * qty);
+          laborLines.push({ kind, laborValue: totalLv });
+        }
+
+        if (laborLines.length === 0) return;
+
+        // Buscar el técnico exacto en la lista (para usar el valor correcto del select)
+        const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
+        if (!foundTech) {
+          console.log(`Técnico "${saleTechnician}" no encontrado en la lista de técnicos`);
+          return;
+        }
+        const technician = foundTech;
+
+        // Agregar líneas por precio (refId) para que se vean ambos valores
+        for (const { kind, laborValue } of laborLines) {
+          if (!laborValue || laborValue <= 0) continue;
+
+          // Obtener el porcentaje del perfil del técnico o del tipo
+          let percent = 0;
+          const techNameUpper = String(technician).trim().toUpperCase();
+          const prof = (techConfig?.technicians||[]).find(t=> String(t.name||'').toUpperCase() === techNameUpper);
+          if(prof && kind){ 
+            const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase() === kind); 
+            if(r && r.percent > 0){ 
+              percent = Number(r.percent||0);
+            }
+          }
+
+          // Si no está en el perfil, usar el defaultPercent del tipo
+          if (percent === 0) {
+            const laborKinds = await getLaborKinds();
+            const laborKindObj = laborKinds.find(k=> {
+              const kindName = typeof k === 'string' ? k : (k?.name || '');
+              return String(kindName).toUpperCase() === kind;
+            });
+            if(laborKindObj && typeof laborKindObj === 'object' && laborKindObj.defaultPercent > 0){
+              percent = Number(laborKindObj.defaultPercent||0);
+            }
+          }
+
+          await addLine({ technician, kind, laborValue, percent });
+          updateEmptyMessage();
+        }
+        current._autoLaborFilled = true;
       } catch (err) {
         console.error('Error agregando líneas automáticas de mano de obra:', err);
       }

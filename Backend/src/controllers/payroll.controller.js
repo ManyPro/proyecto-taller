@@ -16,12 +16,22 @@ import { publish } from '../lib/live.js';
 
 export const listConcepts = async (req, res) => {
   try {
+    // Asegurar conceptos automáticos del sistema
+    await Promise.all([
+      ensureLoanConcept(req.companyId),
+      ensureLaborConcept(req.companyId)
+    ]);
     const concepts = await CompanyPayrollConcept.find({ companyId: req.companyId, isActive: true }).sort({ ordering: 1, name: 1 });
     res.json(concepts);
   } catch (err) {
     res.status(500).json({ error: 'Error al listar conceptos', message: err.message });
   }
 };
+
+function isSystemConceptCode(code) {
+  const c = String(code || '').trim().toUpperCase();
+  return c === 'PAGO_PRESTAMOS' || c === 'MANO_OBRA';
+}
 
 export const upsertConcept = async (req, res) => {
   try {
@@ -71,11 +81,16 @@ export const upsertConcept = async (req, res) => {
       }
     }
     
+    const normalizedCode = code.trim().toUpperCase();
+    if (!id && isSystemConceptCode(normalizedCode)) {
+      return res.status(403).json({ error: 'Concepto reservado del sistema. No se puede crear manualmente.' });
+    }
+
     const data = {
       companyId: req.companyId,
       type,
       amountType,
-      code: code.trim().toUpperCase(),
+      code: normalizedCode,
       name: name.trim(),
       defaultValue,
       isActive: isActive !== false,
@@ -94,6 +109,10 @@ export const upsertConcept = async (req, res) => {
       const existing = await CompanyPayrollConcept.findOne({ _id: id, companyId: req.companyId });
       if (!existing) {
         return res.status(404).json({ error: 'Concepto no encontrado' });
+      }
+      // No permitir editar conceptos automáticos del sistema
+      if (isSystemConceptCode(existing.code)) {
+        return res.status(403).json({ error: 'Concepto del sistema. No se puede editar.' });
       }
       // Verificar duplicado de código (si cambió)
       if (data.code !== existing.code) {
@@ -138,6 +157,13 @@ export const upsertConcept = async (req, res) => {
 export const deleteConcept = async (req, res) => {
   try {
     const { id } = req.params;
+    const existing = await CompanyPayrollConcept.findOne({ _id: id, companyId: req.companyId }).select({ code: 1 });
+    if (!existing) {
+      return res.status(404).json({ error: 'Concepto no encontrado' });
+    }
+    if (isSystemConceptCode(existing.code)) {
+      return res.status(403).json({ error: 'Concepto del sistema. No se puede eliminar.' });
+    }
     const result = await CompanyPayrollConcept.deleteOne({ _id: id, companyId: req.companyId });
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'Concepto no encontrado' });
@@ -394,11 +420,93 @@ async function ensureLoanConcept(companyId) {
   return concept;
 }
 
+// Asegurar que el concepto MANO_OBRA existe (concepto automático para liquidación desde ventas)
+async function ensureLaborConcept(companyId) {
+  let concept = await CompanyPayrollConcept.findOne({
+    companyId,
+    code: 'MANO_OBRA'
+  });
+  if (!concept) {
+    concept = await CompanyPayrollConcept.create({
+      companyId,
+      code: 'MANO_OBRA',
+      name: 'Mano de obra',
+      type: 'earning',
+      amountType: 'fixed',
+      defaultValue: 0,
+      ordering: 50,
+      isActive: true
+    });
+  }
+  return concept;
+}
+
 function calculateTotals(items){
   const grossTotal = items.filter(i => i.type !== 'deduction').reduce((a,b)=>a+b.value,0);
   const deductionsTotal = items.filter(i => i.type === 'deduction').reduce((a,b)=>a+b.value,0);
   const netTotal = grossTotal - deductionsTotal;
   return { grossTotal, deductionsTotal, netTotal };
+}
+
+function normalizeTechName(name) {
+  return String(name || '').trim().toUpperCase();
+}
+
+/**
+ * Extrae detalles de comisión para un técnico desde una venta.
+ * - Si hay `laborCommissions`, son la fuente de verdad.
+ * - Si NO hay `laborCommissions`, hace fallback a `laborShare/laborValue/laborPercent` (legacy),
+ *   pero SOLO cuando la venta está asociada al técnico por los campos de técnico.
+ */
+function extractCommissionDetailsFromSale(sale, techNameUpper) {
+  const details = [];
+  const tech = normalizeTechName(techNameUpper);
+  if (!tech) return details;
+
+  const lines = Array.isArray(sale?.laborCommissions) ? sale.laborCommissions : [];
+
+  // Si existen comisiones por línea, son la fuente de verdad.
+  if (lines.length > 0) {
+    for (const lc of lines) {
+      const lineTech = normalizeTechName(lc?.technician || lc?.technicianName);
+      if (lineTech !== tech) continue;
+      details.push({
+        kind: lc?.kind || '',
+        laborValue: Number(lc?.laborValue || 0),
+        percent: Number(lc?.percent || 0),
+        share: Number(lc?.share || 0)
+      });
+    }
+    return details;
+  }
+
+  // Fallback legacy: solo si la venta corresponde al técnico (evitar duplicar cuando existen líneas para otros)
+  const saleTechMatch =
+    normalizeTechName(sale?.closingTechnician) === tech ||
+    normalizeTechName(sale?.technician) === tech ||
+    normalizeTechName(sale?.initialTechnician) === tech;
+  if (!saleTechMatch) return details;
+
+  const laborValue = Number(sale?.laborValue || 0);
+  const laborPercent = Number(sale?.laborPercent || 0);
+  let laborShare = Number(sale?.laborShare || 0);
+  if ((!Number.isFinite(laborShare) || laborShare <= 0) && Number.isFinite(laborValue) && laborValue > 0 && Number.isFinite(laborPercent) && laborPercent > 0) {
+    laborShare = Math.round(laborValue * (laborPercent / 100));
+  }
+
+  if (Number.isFinite(laborShare) && laborShare > 0) {
+    const pct = Number.isFinite(laborPercent) && laborPercent > 0
+      ? laborPercent
+      : (Number.isFinite(laborValue) && laborValue > 0 ? Math.round((laborShare / laborValue) * 100) : 0);
+    details.push({
+      kind: '',
+      laborValue: Number.isFinite(laborValue) ? laborValue : 0,
+      percent: Number.isFinite(pct) ? pct : 0,
+      share: laborShare
+    });
+  }
+
+  return details;
 }
 
 export const previewSettlement = async (req, res) => {
@@ -437,6 +545,12 @@ export const previewSettlement = async (req, res) => {
     // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT)
     const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
     const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
+
+    const laborConcept = await ensureLaborConcept(req.companyId);
+    const includeCommission =
+      specialConcepts.includes('COMMISSION') || // compat legacy
+      selectedConceptIds.length === 0 ||        // modo "solo cálculo" desde frontend
+      normalConceptIds.some(id => String(id) === String(laborConcept?._id));
     
     // Buscar conceptos asignados que el usuario seleccionó (debe estar en ambos arrays)
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -462,27 +576,17 @@ export const previewSettlement = async (req, res) => {
         { 'laborCommissions.technician': techNameUpper },
         { 'laborCommissions.technicianName': techNameUpper },
         { closingTechnician: techNameUpper },
-        { technician: techNameUpper }
+        { technician: techNameUpper },
+        { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     const commissionDetails = [];
     const commission = sales.reduce((acc, s) => {
-      const fromBreakdown = (s.laborCommissions||[])
-        .filter(lc => {
-          const techMatch = String(lc.technician || lc.technicianName || '').toUpperCase();
-          return techMatch === techNameUpper;
-        });
-      fromBreakdown.forEach(lc => {
-        commissionDetails.push({
-          kind: lc.kind || '',
-          laborValue: Number(lc.laborValue || 0),
-          percent: Number(lc.percent || 0),
-          share: Number(lc.share || 0)
-        });
-      });
-      return acc + fromBreakdown.reduce((a,b)=> a + (Number(b.share)||0), 0);
+      const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
+      fromSale.forEach(d => commissionDetails.push(d));
+      return acc + fromSale.reduce((a, b) => a + (Number(b.share) || 0), 0);
     }, 0);
     
     const commissionRounded = Math.round(commission * 100) / 100;
@@ -499,43 +603,45 @@ export const previewSettlement = async (req, res) => {
       commissionNotes = details;
     }
     
-    // PRIMERO agregar las comisiones de ventas (siempre se agregan automáticamente)
+    // PRIMERO agregar las comisiones de ventas (solo si están incluidas, o si este preview es "solo cálculo" sin conceptos)
     const items = [];
     
-    // Agregar items individuales para cada porcentaje de participación de las ventas
-    if (commissionDetails.length > 0) {
-      // Agregar un item por cada línea de comisión con su porcentaje
-      commissionDetails.forEach(detail => {
-        const itemName = detail.kind 
-          ? `Participación ${detail.kind} (${detail.percent}%)`
-          : `Participación técnico (${detail.percent}%)`;
+    if (includeCommission) {
+      // Agregar items individuales para cada porcentaje de participación de las ventas
+      if (commissionDetails.length > 0) {
+        // Agregar un item por cada línea de comisión con su porcentaje
+        commissionDetails.forEach(detail => {
+          const itemName = detail.kind 
+            ? `Participación ${detail.kind} (${detail.percent}%)`
+            : `Participación técnico (${detail.percent}%)`;
+          items.push({
+            conceptId: null,
+            name: itemName,
+            type: 'earning',
+            base: Math.round(detail.laborValue),
+            value: Math.round(detail.share),
+            calcRule: `laborPercent:${detail.percent}`,
+            notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`,
+            // Guardar información de porcentaje para liquidación
+            isPercent: true,
+            percentValue: detail.percent,
+            percentBaseType: 'total_gross',
+            percentBaseConceptId: null,
+            percentBaseFixedValue: 0
+          });
+        });
+      } else if (commissionRounded > 0) {
+        // Fallback: si no hay detalles pero hay comisión, agregar item genérico
         items.push({
           conceptId: null,
-          name: itemName,
+          name: 'Comisión por ventas',
           type: 'earning',
-          base: Math.round(detail.laborValue),
-          value: Math.round(detail.share),
-          calcRule: `laborPercent:${detail.percent}`,
-          notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`,
-          // Guardar información de porcentaje para liquidación
-          isPercent: true,
-          percentValue: detail.percent,
-          percentBaseType: 'total_gross',
-          percentBaseConceptId: null,
-          percentBaseFixedValue: 0
+          base: 0,
+          value: commissionRounded,
+          calcRule: 'sales.laborCommissions',
+          notes: commissionNotes
         });
-      });
-    } else if (commissionRounded > 0) {
-      // Fallback: si no hay detalles pero hay comisión, agregar item genérico
-      items.push({
-        conceptId: null,
-        name: 'Comisión por ventas',
-        type: 'earning',
-        base: 0,
-        value: commissionRounded,
-        calcRule: 'sales.laborCommissions',
-        notes: commissionNotes
-      });
+      }
     }
     
     // DESPUÉS agregar los conceptos seleccionados (excluyendo variables)
@@ -747,27 +853,17 @@ export const approveSettlement = async (req, res) => {
         { 'laborCommissions.technician': techNameUpper },
         { 'laborCommissions.technicianName': techNameUpper },
         { closingTechnician: techNameUpper },
-        { technician: techNameUpper }
+        { technician: techNameUpper },
+        { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     const commissionDetails = [];
     const commission = sales.reduce((acc, s) => {
-      const fromBreakdown = (s.laborCommissions||[])
-        .filter(lc => {
-          const techMatch = String(lc.technician || lc.technicianName || '').toUpperCase();
-          return techMatch === techNameUpper;
-        });
-      fromBreakdown.forEach(lc => {
-        commissionDetails.push({
-          kind: lc.kind || '',
-          laborValue: Number(lc.laborValue || 0),
-          percent: Number(lc.percent || 0),
-          share: Number(lc.share || 0)
-        });
-      });
-      return acc + fromBreakdown.reduce((a,b)=> a + (Number(b.share)||0), 0);
+      const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
+      fromSale.forEach(d => commissionDetails.push(d));
+      return acc + fromSale.reduce((a, b) => a + (Number(b.share) || 0), 0);
     }, 0);
     
     const commissionRounded = Math.round(commission * 100) / 100;
@@ -786,7 +882,10 @@ export const approveSettlement = async (req, res) => {
     
     // PRIMERO agregar las comisiones de ventas (solo si están seleccionadas)
     const items = [];
-    const includeCommission = specialConcepts.includes('COMMISSION');
+    const laborConcept = await ensureLaborConcept(req.companyId);
+    const includeCommission =
+      specialConcepts.includes('COMMISSION') || // compat legacy
+      normalConceptIds.some(id => String(id) === String(laborConcept?._id));
     
     if (includeCommission && commissionRounded > 0) {
       // Usar monto editado si existe, sino usar el calculado

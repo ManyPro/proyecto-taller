@@ -8,8 +8,10 @@ import {
   updatePrice,
   deletePrice,
   importPrices,
+  importGeneralPrices,
   exportPrices,
   downloadImportTemplate,
+  downloadGeneralImportTemplate,
   deleteAllPrices,
   getLastPriceForVehicle
 } from '../controllers/prices.controller.js';
@@ -34,7 +36,9 @@ r.delete('/', deleteAllPrices);
 
 // Importar/Exportar Excel
 r.get('/import/template', downloadImportTemplate);
+r.get('/import/template-general', downloadGeneralImportTemplate);
 r.post('/import', upload.single('file'), importPrices);
+r.post('/import/general', upload.single('file'), importGeneralPrices);
 r.get('/export', exportPrices);
 
 export default r;

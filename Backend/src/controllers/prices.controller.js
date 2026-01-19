@@ -448,7 +448,7 @@ export const getPrice = async (req, res) => {
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, isGeneral = false } = req.body || {};
+  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, investmentValue, isGeneral = false } = req.body || {};
   
   // name es siempre requerido
   if (!name || !name.trim()) return res.status(400).json({ error: 'name requerido' });
@@ -552,6 +552,7 @@ export const createPrice = async (req, res) => {
     year: null,
     variables: isInversion ? {} : (variables || {}),
     total,
+    investmentValue: isInversion ? 0 : Math.max(0, num(investmentValue || 0)),
     laborValue: (isInversion || laborValue === undefined || laborValue === null || laborValue === '') ? 0 : Math.max(0, num(laborValue)),
     laborKind: (isInversion || laborKind === undefined || laborKind === null || laborKind === '') ? '' : String(laborKind).trim()
   };
@@ -592,7 +593,7 @@ export const createPrice = async (req, res) => {
 // ============ update ============
 export const updatePrice = async (req, res) => {
   const id = req.params.id;
-  const { name, type, variables = {}, total: totalRaw, serviceId, itemId, comboProducts, yearFrom, yearTo, laborValue, laborKind } = req.body || {};
+  const { name, type, variables = {}, total: totalRaw, serviceId, itemId, comboProducts, yearFrom, yearTo, laborValue, laborKind, investmentValue } = req.body || {};
   const row = await PriceEntry.findOne({ _id: id, companyId: req.companyId });
   if (!row) return res.status(404).json({ error: 'No encontrado' });
 
@@ -714,6 +715,10 @@ export const updatePrice = async (req, res) => {
   if (laborKind !== undefined) {
     row.laborKind = (laborKind !== null && laborKind !== '') ? String(laborKind).trim() : '';
   }
+  if (investmentValue !== undefined) {
+    row.investmentValue = (investmentValue !== null && investmentValue !== '') ? Math.max(0, num(investmentValue)) : 0;
+    if (row.type === 'inversion') row.investmentValue = 0;
+  }
 
   row.variables = variables || row.variables;
   row.total = total;
@@ -759,6 +764,115 @@ export const downloadImportTemplate = async (req, res) => {
   xlsx.utils.book_append_sheet(wb, ws, 'PRECIOS');
   const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
   res.setHeader('Content-Disposition', `attachment; filename="plantilla-precios-${vehicle.make}-${vehicle.line}.xlsx"`);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+};
+
+// ============ download import template (GENERAL) ============
+export const downloadGeneralImportTemplate = async (_req, res) => {
+  // Formato unificado para lista de precios general:
+  // - SERVICIO / PRODUCTO / COMBO
+  // - COMBO soporta hasta 5 productos (nombre, qty, precio, sku/id opcional, slot abierto)
+
+  const headers = [
+    'Nombre*',
+    'Tipo* (SERVICIO|PRODUCTO|COMBO)',
+    'Precio total',
+    'Valor inversión (opcional)',
+    'Valor mano de obra (opcional)',
+    'Tipo mano de obra (opcional)',
+    'Año desde (opcional)',
+    'Año hasta (opcional)',
+  ];
+
+  // Combo product columns (1..5)
+  for (let i = 1; i <= 5; i++) {
+    headers.push(
+      `Combo${i} Nombre`,
+      `Combo${i} Cantidad`,
+      `Combo${i} Precio unitario`,
+      `Combo${i} ItemSKU (opcional)`,
+      `Combo${i} ItemId (opcional)`,
+      `Combo${i} Slot abierto (SI|NO)`
+    );
+  }
+
+  const examples = [
+    // Servicio
+    [
+      'Cambio de aceite',
+      'SERVICIO',
+      '50000',
+      '0',
+      '0',
+      '',
+      '',
+      '',
+      // combos (vacío)
+      ...Array.from({ length: 5 }, () => ['', '', '', '', '', ''])
+    ],
+    // Producto (por SKU)
+    [
+      'Filtro de aceite',
+      'PRODUCTO',
+      '45000',
+      '0',
+      '0',
+      '',
+      '',
+      '',
+      ...Array.from({ length: 5 }, () => ['', '', '', '', '', ''])
+    ],
+    // Combo con 2 productos, uno slot abierto
+    [
+      'Combo mantenimiento básico',
+      'COMBO',
+      '0', // si queda 0, el import calcula suma de productos
+      '25000',
+      '15000',
+      'MOTOR',
+      '2021',
+      '2025',
+      // Combo1
+      'Aceite 5W30',
+      '1',
+      '80000',
+      'SKU-ACEITE-5W30',
+      '',
+      'NO',
+      // Combo2 (slot abierto)
+      'Filtro (slot abierto)',
+      '1',
+      '20000',
+      '',
+      '',
+      'SI',
+      // Combo3..5 vacíos
+      ...Array.from({ length: 3 }, () => ['', '', '', '', '', ''])
+    ]
+  ];
+
+  const wsData = [headers, ...examples];
+  const wb = xlsx.utils.book_new();
+  const ws = xlsx.utils.aoa_to_sheet(wsData);
+  xlsx.utils.book_append_sheet(wb, ws, 'PRECIOS');
+
+  const info = [
+    ['INSTRUCCIONES'],
+    ['- Columnas con * son obligatorias.'],
+    ['- Tipo debe ser: SERVICIO, PRODUCTO o COMBO.'],
+    ['- "Valor inversión" es opcional: se usará para autocompletar inversión al cerrar la venta (se suma por ítems).'],
+    ['- PRODUCTO: se importa solo con nombre y precio (sin SKU/ItemId).'],
+    ['- COMBO: llena hasta 5 productos (Combo1..Combo5).'],
+    ['  - Si "Slot abierto" es SI, NO debes indicar SKU/ItemId (se asigna al cerrar venta/QR).'],
+    ['  - Si "Precio total" es 0, se calculará como suma(qty * precio unitario).'],
+    ['- Año desde/hasta son opcionales (aplica solo si el año del vehículo cae en el rango).'],
+  ];
+  const wsInfo = xlsx.utils.aoa_to_sheet(info);
+  xlsx.utils.book_append_sheet(wb, wsInfo, 'INFO');
+
+  const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition', 'attachment; filename="plantilla-import-precios-general.xlsx"');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.send(buf);
 };
@@ -836,6 +950,217 @@ export const importPrices = async (req, res) => {
       else updated++;
     } catch (e) {
       errors.push({ row: i + 2, error: e.message || 'Error desconocido' });
+    }
+  }
+
+  res.json({ inserted, updated, errors });
+};
+
+function parseBool(v) {
+  const s = String(v ?? '').trim().toUpperCase();
+  return s === 'SI' || s === 'SÍ' || s === 'YES' || s === 'TRUE' || s === '1';
+}
+
+function parseType(v) {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (s === 'SERVICIO' || s === 'SERVICE') return 'service';
+  if (s === 'PRODUCTO' || s === 'PRODUCT') return 'product';
+  if (s === 'COMBO') return 'combo';
+  return null;
+}
+
+async function findItemBySkuOrId({ sku, id, req }) {
+  const itemCompanyFilter = await getItemQueryCompanyFilter(req);
+  if (id) {
+    const it = await Item.findOne({ _id: id, companyId: itemCompanyFilter });
+    if (it) return it;
+  }
+  if (sku) {
+    const skuNorm = String(sku).trim();
+    if (!skuNorm) return null;
+    const it = await Item.findOne({ sku: skuNorm, companyId: itemCompanyFilter });
+    if (it) return it;
+  }
+  return null;
+}
+
+async function findServiceById({ serviceId, req }) {
+  if (!serviceId) return null;
+  return await getService(req.companyId, serviceId);
+}
+
+// ============ import XLSX (GENERAL) ============
+export const importGeneralPrices = async (req, res) => {
+  const { mode = 'upsert' } = req.body || {};
+  if (!req.file?.buffer) return res.status(400).json({ error: 'Archivo .xlsx requerido en campo "file"' });
+
+  // Leer primera hoja
+  let rows = [];
+  try {
+    const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = wb.SheetNames[0];
+    rows = xlsx.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+  } catch {
+    return res.status(400).json({ error: 'XLSX inválido' });
+  }
+
+  const creationCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  if (!creationCompanyId) return res.status(400).json({ error: 'Company ID missing' });
+
+  if (mode === 'overwrite') {
+    // Solo borra precios generales (vehicleId=null)
+    await PriceEntry.deleteMany({ companyId: creationCompanyId, vehicleId: null });
+  }
+
+  let inserted = 0;
+  let updated = 0;
+  const errors = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const raw = rows[i];
+    const row = Object.fromEntries(Object.entries(raw).map(([k, v]) => [String(k).toLowerCase().trim(), v]));
+
+    const name = String(row['nombre*'] || row.nombre || row.name || '').trim();
+    const type = parseType(row['tipo* (servicio|producto|combo)'] || row.tipo || row.type);
+    const totalRaw = row['precio total'] ?? row.precio ?? row.price ?? row.total ?? '';
+
+    if (!name) {
+      errors.push({ row: i + 2, error: 'Nombre requerido' });
+      continue;
+    }
+    if (!type) {
+      errors.push({ row: i + 2, error: 'Tipo inválido (SERVICIO|PRODUCTO|COMBO)' });
+      continue;
+    }
+
+    try {
+      const investmentValueRaw =
+        row['valor inversión (opcional)'] ??
+        row['valor inversion (opcional)'] ??
+        row['valor inversión'] ??
+        row['valor inversion'] ??
+        row['inversion'] ??
+        row['investment'] ??
+        row['investmentvalue'] ??
+        '';
+      // service/product/combo extra fields
+      const laborValue = row['valor mano de obra (opcional)'] ?? row.laborvalue ?? row.labor ?? '';
+      const laborKind = String(row['tipo mano de obra (opcional)'] || row.laborkind || '').trim();
+
+      const yearFrom = row['año desde (opcional)'] ?? row['ano desde (opcional)'] ?? row.yearfrom ?? '';
+      const yearTo = row['año hasta (opcional)'] ?? row['ano hasta (opcional)'] ?? row.yearto ?? '';
+
+      // En import general NO vinculamos serviceId ni itemId (se eliminan columnas).
+      const svc = null;
+      const item = null;
+
+      // Combo products 1..5
+      const comboProducts = [];
+      if (type === 'combo') {
+        for (let n = 1; n <= 5; n++) {
+          const cpName = String(row[`combo${n} nombre`] || '').trim();
+          if (!cpName) continue;
+          const cpQty = Math.max(1, num(row[`combo${n} cantidad`] ?? 1));
+          const cpUnitPrice = Math.max(0, num(row[`combo${n} precio unitario`] ?? 0));
+          const cpSku = String(row[`combo${n} itemsku (opcional)`] || '').trim();
+          const cpId = String(row[`combo${n} itemid (opcional)`] || '').trim();
+          const isOpenSlot = parseBool(row[`combo${n} slot abierto (si|no)`]);
+
+          let cpItemId = null;
+          if (!isOpenSlot && (cpSku || cpId)) {
+            const it = await findItemBySkuOrId({ sku: cpSku, id: cpId, req });
+            if (!it) {
+              errors.push({ row: i + 2, error: `Combo${n}: ItemSKU/ItemId no encontrado` });
+              continue;
+            }
+            cpItemId = it._id;
+          }
+          if (isOpenSlot && (cpSku || cpId)) {
+            errors.push({ row: i + 2, error: `Combo${n}: si es slot abierto no debe tener SKU/ItemId` });
+            continue;
+          }
+
+          comboProducts.push({
+            name: cpName,
+            qty: cpQty,
+            unitPrice: cpUnitPrice,
+            itemId: cpItemId,
+            isOpenSlot
+          });
+        }
+
+        if (!comboProducts.length) {
+          errors.push({ row: i + 2, error: 'COMBO requiere al menos 1 producto (Combo1..Combo5)' });
+          continue;
+        }
+      }
+
+      // Calcular total
+      let total = num(totalRaw);
+      if (type === 'product' && (!total || total <= 0)) {
+        errors.push({ row: i + 2, error: 'PRODUCTO requiere un Precio total mayor a 0' });
+        continue;
+      }
+      if (type === 'combo') {
+        if (!total || total <= 0) {
+          total = comboProducts.reduce((sum, cp) => sum + (num(cp.unitPrice) * num(cp.qty)), 0);
+        }
+      }
+      const investmentValue = Math.max(0, num(investmentValueRaw || 0));
+
+      // Años
+      const yearFromNum = (yearFrom === '' || yearFrom == null) ? null : Number(yearFrom);
+      const yearToNum = (yearTo === '' || yearTo == null) ? null : Number(yearTo);
+      if (yearFromNum != null && (isNaN(yearFromNum) || yearFromNum < 1900 || yearFromNum > 2100)) {
+        errors.push({ row: i + 2, error: 'Año desde inválido' });
+        continue;
+      }
+      if (yearToNum != null && (isNaN(yearToNum) || yearToNum < 1900 || yearToNum > 2100)) {
+        errors.push({ row: i + 2, error: 'Año hasta inválido' });
+        continue;
+      }
+      if (yearFromNum != null && yearToNum != null && yearFromNum > yearToNum) {
+        errors.push({ row: i + 2, error: 'Año desde no puede ser mayor que Año hasta' });
+        continue;
+      }
+
+      const filter = {
+        companyId: creationCompanyId,
+        vehicleId: null,
+        name,
+        type
+      };
+
+      const existed = await PriceEntry.findOne(filter).select('_id').lean();
+
+      const doc = {
+        ...filter,
+        serviceId: null,
+        itemId: null,
+        comboProducts: (type === 'combo') ? comboProducts : [],
+        yearFrom: yearFromNum,
+        yearTo: yearToNum,
+        brand: '',
+        line: '',
+        engine: '',
+        year: null,
+        variables: {},
+        total,
+        investmentValue,
+        laborValue: Math.max(0, num(laborValue || 0)),
+        laborKind: String(laborKind || '').trim()
+      };
+
+      await PriceEntry.findOneAndUpdate(
+        filter,
+        doc,
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      if (existed) updated++;
+      else inserted++;
+    } catch (e) {
+      errors.push({ row: i + 2, error: e?.message || 'Error desconocido' });
     }
   }
 

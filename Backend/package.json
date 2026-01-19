@@ -24,6 +24,7 @@
     "link:vehicles": "node scripts/link_vehicles_to_existing_data.js",
     "seed:admin": "node scripts/seed_admin.js",
     "purge:prices": "node scripts/purge_prices.js",
+    "generate:prices:template": "node scripts/generate_prices_import_template.js",
     "backfill:price-history": "node scripts/backfill_price_history.js",
     "export:prices": "node scripts/export_all_prices.js"
   },

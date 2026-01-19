@@ -618,7 +618,7 @@ export function initPrices(){
       } else if (r.type === 'product' && r.itemId) {
         itemInfoCell.innerHTML = `
           <div style="color:var(--success, #10b981);">✓ ${r.itemId.name || r.itemId.sku}</div>
-,          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
+          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
         `;
       } else if (r.type === 'product') {
         itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">Sin vincular</span>';
@@ -635,7 +635,8 @@ export function initPrices(){
       const newEditBtn = editBtn.cloneNode(true);
       editBtn.parentNode.replaceChild(newEditBtn, editBtn);
       newEditBtn.addEventListener('click', () => {
-        openCreateModal(r.type, r);
+        const isGeneral = (!r.vehicleId && r.type !== 'inversion');
+        openCreateModal(r.type, r, isGeneral);
       });
     }
 
@@ -1978,8 +1979,10 @@ export function initPrices(){
   function openCreateModal(type, existingPrice = null, isGeneral = false, isInversion = false) {
     // Si es precio general o inversión, no requiere vehículo
     const isInversionPrice = isInversion || type === 'inversion';
+    const isExistingGeneral = !!(existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion');
+    const isGeneralEffective = Boolean(isGeneral) || isExistingGeneral;
     // Si no es precio general ni inversión, verificar que haya al menos un vehículo seleccionado
-    if (!isGeneral && !isInversionPrice && !existingPrice?.vehicleId && !selectedVehicle && selectedVehicles.length === 0) {
+    if (!isGeneralEffective && !isInversionPrice && !existingPrice?.vehicleId && !selectedVehicle && selectedVehicles.length === 0) {
       return alert('Selecciona un vehículo primero o crea un precio general');
     }
     const body=$('#modalBody'), closeBtn=$('#modalClose');
@@ -1993,7 +1996,7 @@ export function initPrices(){
     
     // Determinar si es precio general o inversión
     // IMPORTANTE: isInversionPrice y isGeneralPrice son mutuamente excluyentes
-    const isGeneralPrice = isInversionPrice ? false : ((isGeneral) || (existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion'));
+    const isGeneralPrice = isInversionPrice ? false : (isGeneralEffective || (existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion'));
     
     // Determinar qué vehículos usar para la creación
     // Si es precio general, no usar vehículos
@@ -2144,6 +2147,13 @@ export function initPrices(){
         <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
       </div>
       `}
+      ${!isInversionPrice ? `
+      <div class="mb-4 p-3 bg-orange-500/10 dark:bg-orange-500/10 theme-light:bg-orange-50 rounded-lg border border-orange-500/30 dark:border-orange-500/30 theme-light:border-orange-300">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-700 mb-2">Valor inversión (opcional)</label>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Se usa para autocompletar inversión al cerrar la venta (se suma por ítems).</p>
+        <input id="pe-modal-investment-value" type="number" min="0" step="1" placeholder="0" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.investmentValue || ''}" />
+      </div>
+      ` : ''}
       ${isCombo || isProduct || isService ? `
       <div class="mb-4 p-3 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded-lg border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300">
         <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Mano de obra (opcional)</label>
@@ -3141,6 +3151,12 @@ export function initPrices(){
           yearFrom: yearFrom,
           yearTo: yearTo
         };
+
+        // Valor inversión (opcional) - para autocompletar al cierre de venta
+        if (!isInversionPrice) {
+          const invInput = node.querySelector('#pe-modal-investment-value');
+          basePayload.investmentValue = normalizeNumber(invInput?.value || 0);
+        }
         
         if (isProduct) {
           // Leer itemId del input hidden como fuente de verdad (más confiable que selectedItem)

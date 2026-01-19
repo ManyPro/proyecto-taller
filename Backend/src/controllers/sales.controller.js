@@ -2264,6 +2264,28 @@ export const closeSale = async (req, res) => {
         if (Number.isFinite(investment) && investment >= 0) {
           sale.investmentAmount = Math.round(investment);
         }
+      } else {
+        // Si no viene inversión desde el frontend, autocalcularla desde los PriceEntry de la venta
+        // (suma investmentValue por ítem * qty). Esto asegura que se guarde para reportes.
+        try {
+          const priceItems = (sale.items || []).filter(it => String(it?.source || '') === 'price' && it?.refId);
+          const ids = priceItems.map(it => it.refId).filter(Boolean);
+          if (ids.length) {
+            const pes = await PriceEntry.find({ _id: { $in: ids } }, { investmentValue: 1 }).session(session).lean();
+            const map = new Map(pes.map(pe => [String(pe._id), Number(pe.investmentValue || 0)]));
+            const sum = priceItems.reduce((acc, it) => {
+              const v = map.get(String(it.refId)) || 0;
+              const qty = Number(it.qty || 1) || 1;
+              return acc + (Number(v || 0) * qty);
+            }, 0);
+            if (Number.isFinite(sum) && sum >= 0) {
+              sale.investmentAmount = Math.round(sum);
+            }
+          }
+        } catch (e) {
+          // No fallar el cierre por este cálculo (fallback)
+          logger.warn('[closeSale] Error autocalculando inversión desde PriceEntry', { error: e?.message });
+        }
       }
       
       await sale.save({ session });
