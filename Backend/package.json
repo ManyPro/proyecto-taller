@@ -23,6 +23,7 @@
     "import:vehicles": "node scripts/import_vehicles_from_excel.js",
     "link:vehicles": "node scripts/link_vehicles_to_existing_data.js",
     "seed:admin": "node scripts/seed_admin.js",
+    "backfill:price-history": "node scripts/backfill_price_history.js",
     "export:prices": "node scripts/export_all_prices.js"
   },
   "dependencies": {
