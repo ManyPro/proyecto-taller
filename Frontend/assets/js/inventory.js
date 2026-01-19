@@ -4687,15 +4687,21 @@ async function openInvestorDetailModal(investorId) {
     const availableItems = (items.available || []).map(item => {
       const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
       const total = (item.purchasePrice || 0) * (item.qty || 0);
+      const itemId = item._id || item.id;
       return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300" data-investment-item-id="${itemId}">
           <td class="px-4 py-3">${escapeHtml(itemName)}</td>
           <td class="px-4 py-3 text-right">${item.qty || 0}</td>
           <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
           <td class="px-4 py-3 text-right">${money(total)}</td>
+          <td class="px-4 py-3 text-center">
+            <button class="delete-available-item-btn px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors" data-investment-item-id="${itemId}" data-investor-id="${investorId}">
+              🗑️ Eliminar
+            </button>
+          </td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
     
     // Renderizar items vendidos con checkboxes para selección
     const soldItems = (items.sold || []).map(item => {
@@ -4796,7 +4802,8 @@ async function openInvestorDetailModal(investorId) {
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
-                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Valor Total</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Acciones</th>
                 </tr>
               </thead>
               <tbody class="text-white dark:text-white theme-light:text-slate-900">${availableItems}</tbody>
@@ -4896,6 +4903,43 @@ async function openInvestorDetailModal(investorId) {
       if (btnCobrar) {
         btnCobrar.onclick = () => openPayInvestorItemsModal(investorId, items.sold || []);
       }
+      
+      // Botones de eliminar items disponibles
+      document.querySelectorAll('.delete-available-item-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const investmentItemId = btn.getAttribute('data-investment-item-id');
+          const investorIdFromBtn = btn.getAttribute('data-investor-id');
+          
+          if (!investmentItemId || !investorIdFromBtn) {
+            alert('Error: No se pudo identificar el item a eliminar');
+            return;
+          }
+          
+          // Confirmar eliminación
+          if (!confirm('¿Estás seguro de que deseas eliminar este item disponible? Esta acción no se puede deshacer y reducirá el stock del inventario.')) {
+            return;
+          }
+          
+          try {
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+            
+            // Llamar al endpoint para eliminar
+            await API.del(`/api/v1/investments/investors/${investorIdFromBtn}/items/${investmentItemId}`);
+            
+            // Recargar el modal para actualizar la vista
+            await openInvestorDetailModal(investorId);
+            
+            // Mostrar mensaje de éxito
+            alert('Item eliminado correctamente');
+          } catch (err) {
+            console.error('Error eliminando item:', err);
+            alert('Error al eliminar item: ' + (err.message || 'Error desconocido'));
+            btn.disabled = false;
+            btn.textContent = '🗑️ Eliminar';
+          }
+        };
+      });
     }
   } catch (err) {
     console.error('Error cargando detalle de inversor:', err);
