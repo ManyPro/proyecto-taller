@@ -385,3 +385,122 @@ export const getPurchase = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener compra', message: err.message });
   }
 };
+
+// ===== ELIMINAR ITEMS DE UNA COMPRA =====
+export const deletePurchaseItems = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { itemIds } = req.body || {}; // Array de índices o IDs de items a eliminar
+    
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      return res.status(400).json({ error: 'Debe proporcionar un array de itemIds a eliminar' });
+    }
+    
+    const purchase = await Purchase.findOne({ _id: id, companyId: req.companyId });
+    if (!purchase) {
+      return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+    
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
+    try {
+      const itemsToDelete = [];
+      const itemsToKeep = [];
+      
+      // Separar items a eliminar y a mantener
+      purchase.items.forEach((item, index) => {
+        if (itemIds.includes(String(item._id)) || itemIds.includes(index)) {
+          itemsToDelete.push(item);
+        } else {
+          itemsToKeep.push(item);
+        }
+      });
+      
+      if (itemsToDelete.length === 0) {
+        await session.abortTransaction();
+        return res.status(400).json({ error: 'No se encontraron items para eliminar' });
+      }
+      
+      // Procesar cada item a eliminar
+      for (const purchaseItem of itemsToDelete) {
+        const { itemId, qty, unitPrice } = purchaseItem;
+        
+        if (!mongoose.Types.ObjectId.isValid(itemId)) {
+          continue;
+        }
+        
+        // Buscar StockEntry relacionado con esta compra
+        const stockEntry = await StockEntry.findOne({
+          companyId: req.companyId,
+          itemId: itemId,
+          purchaseId: purchase._id
+        }).session(session);
+        
+        if (stockEntry) {
+          // Reducir cantidad en StockEntry
+          stockEntry.qty = Math.max(0, stockEntry.qty - qty);
+          await stockEntry.save({ session });
+          
+          // Si el StockEntry queda en 0, eliminarlo
+          if (stockEntry.qty <= 0) {
+            await StockEntry.deleteOne({ _id: stockEntry._id }).session(session);
+          }
+          
+          // Eliminar InvestmentItems relacionados con este StockEntry
+          if (purchase.investorId && stockEntry.investorId) {
+            await InvestmentItem.deleteMany({
+              companyId: req.companyId,
+              stockEntryId: stockEntry._id,
+              status: 'available'
+            }).session(session);
+          }
+        }
+        
+        // Reducir stock del item
+        await Item.findOneAndUpdate(
+          { _id: itemId, companyId: req.companyId },
+          { $inc: { stock: -qty } },
+          { session }
+        );
+        
+        // Registrar movimiento de stock (OUT)
+        const StockMove = (await import("../models/StockMove.js")).default;
+        await StockMove.create([{
+          companyId: req.companyId,
+          itemId: itemId,
+          qty: -qty,
+          reason: 'OUT',
+          meta: {
+            note: `Eliminación de item de compra ${purchase._id}`,
+            purchaseId: purchase._id
+          }
+        }], { session });
+      }
+      
+      // Actualizar compra: remover items y recalcular total
+      purchase.items = itemsToKeep;
+      purchase.totalAmount = itemsToKeep.reduce((sum, item) => {
+        return sum + (item.qty || 0) * (item.unitPrice || 0);
+      }, 0);
+      
+      await purchase.save({ session });
+      
+      await session.commitTransaction();
+      
+      const populated = await Purchase.findById(purchase._id)
+        .populate('supplierId', 'name')
+        .populate('investorId', 'name')
+        .lean();
+      
+      res.json({ ok: true, purchase: populated, deletedCount: itemsToDelete.length });
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar items de compra', message: err.message });
+  }
+};

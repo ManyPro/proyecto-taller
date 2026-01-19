@@ -10,7 +10,8 @@ import {
   deleteInvestor,
   listPurchases,
   createPurchase,
-  getPurchase
+  getPurchase,
+  deletePurchaseItems
 } from '../controllers/purchases.controller.js';
 
 const router = Router();
@@ -31,5 +32,6 @@ router.delete('/investors/:id', deleteInvestor);
 router.get('/purchases', listPurchases);
 router.post('/purchases', createPurchase);
 router.get('/purchases/:id', getPurchase);
+router.post('/purchases/:id/items/delete', deletePurchaseItems);
 
 export default router;

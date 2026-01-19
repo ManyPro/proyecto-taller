@@ -4683,25 +4683,48 @@ async function openInvestorDetailModal(investorId) {
     const purchases = purchasesData.items || [];
     const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     
-    // Renderizar items disponibles
-    const availableItems = (items.available || []).map(item => {
+    // Agrupar items disponibles por itemId y calcular totales y precio ponderado
+    const availableItemsMap = {};
+    (items.available || []).forEach(item => {
+      const itemId = item.itemId?._id || item.itemId?.id || null;
+      if (!itemId) return;
+      
       const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
-      const total = (item.purchasePrice || 0) * (item.qty || 0);
-      const itemId = item._id || item.id;
+      const qty = item.qty || 0;
+      const purchasePrice = item.purchasePrice || 0;
+      
+      if (!availableItemsMap[itemId]) {
+        availableItemsMap[itemId] = {
+          itemId: itemId,
+          itemName: itemName,
+          totalQty: 0,
+          totalValue: 0,
+          weightedPrice: 0
+        };
+      }
+      
+      availableItemsMap[itemId].totalQty += qty;
+      availableItemsMap[itemId].totalValue += (purchasePrice * qty);
+    });
+    
+    // Calcular precio ponderado para cada item
+    Object.values(availableItemsMap).forEach(item => {
+      if (item.totalQty > 0) {
+        item.weightedPrice = item.totalValue / item.totalQty;
+      }
+    });
+    
+    // Renderizar items disponibles agrupados
+    const availableItems = Object.values(availableItemsMap).map(item => {
       return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300" data-investment-item-id="${itemId}">
-          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
-          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
-          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
-          <td class="px-4 py-3 text-right">${money(total)}</td>
-          <td class="px-4 py-3 text-center">
-            <button class="delete-available-item-btn px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors" data-investment-item-id="${itemId}" data-investor-id="${investorId}">
-              🗑️ Eliminar
-            </button>
-          </td>
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <td class="px-4 py-3">${escapeHtml(item.itemName)}</td>
+          <td class="px-4 py-3 text-right">${item.totalQty}</td>
+          <td class="px-4 py-3 text-right">${money(item.weightedPrice)}</td>
+          <td class="px-4 py-3 text-right font-semibold">${money(item.totalValue)}</td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="5" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
     
     // Renderizar items vendidos con checkboxes para selección
     const soldItems = (items.sold || []).map(item => {
@@ -4756,9 +4779,14 @@ async function openInvestorDetailModal(investorId) {
           <td class="px-4 py-3 text-right font-semibold cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${totalAmount}</td>
           <td class="px-4 py-3 cursor-pointer" onclick="openPurchaseDetailModal('${purchase._id}')">${escapeHtml(notes || '-')}</td>
           <td class="px-4 py-3">
-            <button onclick="event.stopPropagation(); openPurchaseStickersModal('${purchase._id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
-              🏷️ Stickers
-            </button>
+            <div class="flex gap-2 items-center justify-end">
+              <button onclick="event.stopPropagation(); openPurchaseStickersModal('${purchase._id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                🏷️ Stickers
+              </button>
+              <button onclick="event.stopPropagation(); deletePurchaseItems('${purchase._id}', '${investorId}')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors">
+                🗑️ Eliminar Items
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -4800,10 +4828,9 @@ async function openInvestorDetailModal(investorId) {
               <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
                 <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
-                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
-                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
-                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
-                  <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Acciones</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad Total</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Ponderado</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Valor Total</th>
                 </tr>
               </thead>
               <tbody class="text-white dark:text-white theme-light:text-slate-900">${availableItems}</tbody>
@@ -4884,6 +4911,110 @@ async function openInvestorDetailModal(investorId) {
     
     invOpenModal(modalContent);
     
+    // Función global para eliminar items de compra
+    window.deletePurchaseItems = async function(purchaseId, investorId) {
+      try {
+        // Obtener detalles de la compra
+        const purchase = await API.purchases.purchases.get(purchaseId);
+        
+        if (!purchase || !purchase.items || purchase.items.length === 0) {
+          alert('Esta compra no tiene items para eliminar');
+          return;
+        }
+        
+        // Mostrar modal para seleccionar items a eliminar
+        const itemsHtml = purchase.items.map((item, index) => {
+          const itemName = item.itemId?.name || item.itemId?.sku || item.name || 'N/A';
+          const qty = item.qty || 0;
+          const unitPrice = item.unitPrice || 0;
+          const total = qty * unitPrice;
+          return `
+            <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+              <td class="px-4 py-3 text-center">
+                <input type="checkbox" class="delete-item-checkbox" data-item-index="${index}" data-item-id="${item._id || item.id || index}" />
+              </td>
+              <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+              <td class="px-4 py-3 text-right">${qty}</td>
+              <td class="px-4 py-3 text-right">${money(unitPrice)}</td>
+              <td class="px-4 py-3 text-right font-semibold">${money(total)}</td>
+            </tr>
+          `;
+        }).join('');
+        
+        const deleteModalContent = `
+          <div class="p-6">
+            <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Eliminar Items de Compra</h3>
+            <p class="text-sm text-slate-400 theme-light:text-slate-600 mb-4">
+              Selecciona los items que deseas eliminar de esta compra. Esta acción reducirá el stock y eliminará los items disponibles relacionados.
+            </p>
+            <div class="max-h-[400px] overflow-auto custom-scrollbar mb-4">
+              <table class="w-full text-sm border-collapse">
+                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                  <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Seleccionar</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Item</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cantidad</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Precio Unitario</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                  ${itemsHtml}
+                </tbody>
+              </table>
+            </div>
+            <div class="flex gap-3 mt-6">
+              <button id="confirm-delete-items" class="flex-1 px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
+                Eliminar Seleccionados
+              </button>
+              <button onclick="invCloseModal()" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        `;
+        
+        invOpenModal(deleteModalContent);
+        
+        // Configurar botón de confirmar
+        document.getElementById('confirm-delete-items').onclick = async () => {
+          const checkboxes = document.querySelectorAll('.delete-item-checkbox:checked');
+          if (checkboxes.length === 0) {
+            alert('Selecciona al menos un item para eliminar');
+            return;
+          }
+          
+          if (!confirm(`¿Estás seguro de que deseas eliminar ${checkboxes.length} item(s)? Esta acción no se puede deshacer y reducirá el stock del inventario.`)) {
+            return;
+          }
+          
+          const itemIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-item-id'));
+          
+          try {
+            const btn = document.getElementById('confirm-delete-items');
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+            
+            await API.post(`/api/v1/purchases/${purchaseId}/items/delete`, { itemIds });
+            
+            // Recargar el modal del inversor
+            invCloseModal();
+            await openInvestorDetailModal(investorId);
+            
+            alert('Items eliminados correctamente');
+          } catch (err) {
+            console.error('Error eliminando items:', err);
+            alert('Error al eliminar items: ' + (err.message || 'Error desconocido'));
+            document.getElementById('confirm-delete-items').disabled = false;
+            document.getElementById('confirm-delete-items').textContent = 'Eliminar Seleccionados';
+          }
+        };
+      } catch (err) {
+        console.error('Error cargando compra:', err);
+        alert('Error: ' + (err.message || 'Error desconocido'));
+      }
+    };
+    
     // Configurar funcionalidad de cobro si hay items vendidos
     if (items.sold && items.sold.length > 0) {
       // Checkbox "Seleccionar todos"
@@ -4903,43 +5034,6 @@ async function openInvestorDetailModal(investorId) {
       if (btnCobrar) {
         btnCobrar.onclick = () => openPayInvestorItemsModal(investorId, items.sold || []);
       }
-      
-      // Botones de eliminar items disponibles
-      document.querySelectorAll('.delete-available-item-btn').forEach(btn => {
-        btn.onclick = async () => {
-          const investmentItemId = btn.getAttribute('data-investment-item-id');
-          const investorIdFromBtn = btn.getAttribute('data-investor-id');
-          
-          if (!investmentItemId || !investorIdFromBtn) {
-            alert('Error: No se pudo identificar el item a eliminar');
-            return;
-          }
-          
-          // Confirmar eliminación
-          if (!confirm('¿Estás seguro de que deseas eliminar este item disponible? Esta acción no se puede deshacer y reducirá el stock del inventario.')) {
-            return;
-          }
-          
-          try {
-            btn.disabled = true;
-            btn.textContent = 'Eliminando...';
-            
-            // Llamar al endpoint para eliminar
-            await API.del(`/api/v1/investments/investors/${investorIdFromBtn}/items/${investmentItemId}`);
-            
-            // Recargar el modal para actualizar la vista
-            await openInvestorDetailModal(investorId);
-            
-            // Mostrar mensaje de éxito
-            alert('Item eliminado correctamente');
-          } catch (err) {
-            console.error('Error eliminando item:', err);
-            alert('Error al eliminar item: ' + (err.message || 'Error desconocido'));
-            btn.disabled = false;
-            btn.textContent = '🗑️ Eliminar';
-          }
-        };
-      });
     }
   } catch (err) {
     console.error('Error cargando detalle de inversor:', err);
