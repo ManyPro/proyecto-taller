@@ -1369,20 +1369,53 @@ async function renderQuoteForCurrentSale(){
   }
 }
 
-function mapQuoteItemToSale(it){
+function buildComboOverrides(items = []) {
+  const map = new Map();
+  (items || []).forEach(it => {
+    const parent = it.comboParent || it.combo_parent;
+    if (!parent) return;
+    const parentId = String(parent).trim();
+    if (!parentId) return;
+    const list = map.get(parentId) || [];
+    const name = it.description || it.name || 'Item';
+    const qty = Number(it.qty || 1) || 1;
+    const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
+    const source = it.source || it.kindSource || '';
+    const refId = it.refId || it.refID || it.ref_id || null;
+    list.push({
+      name: String(name || '').trim(),
+      qty,
+      unitPrice: unit,
+      itemId: (source === 'inventory' && refId) ? refId : null,
+      isOpenSlot: false
+    });
+    map.set(parentId, list);
+  });
+  return map;
+}
+
+function mapQuoteItemToSale(it, comboOverrides = null){
   const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
   const qty  = Number(it.qty || 1) || 1;
   let source = it.source || it.kindSource || '';
   const refId = it.refId || it.refID || it.ref_id || null;
   const kindUpper = String(it.kind || it.type || '').toUpperCase();
   const hasComboParent = it.comboParent || it.combo_parent;
+  const comboCustom = (comboOverrides && refId) ? comboOverrides.get(String(refId)) : null;
   
   // Si es tipo COMBO y tiene refId (es el combo principal), usar source='price' con refId
   // Los items anidados del combo (que también tienen kind='Combo' pero tienen comboParent)
   // NO deben pasarse como combos separados, sino que el backend los expandirá desde el combo principal
   if (kindUpper === 'COMBO' && !hasComboParent && refId) {
     // Es el combo principal, pasarlo como price con refId
-    return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
+    return { 
+      source:'price', 
+      refId: refId || undefined, 
+      qty, 
+      unitPrice: unit,
+      customPrice: unit,
+      customComboProducts: Array.isArray(comboCustom) && comboCustom.length ? comboCustom : undefined
+    };
   }
   
   // Si es un item anidado de combo (tiene comboParent), NO pasarlo
@@ -1408,7 +1441,7 @@ function mapQuoteItemToSale(it){
     return { source:'inventory', refId: refId || undefined, sku: it.sku || undefined, qty, unitPrice:unit };
   }
   if(source === 'price'){
-    return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
+    return { source:'price', refId: refId || undefined, qty, unitPrice:unit, customPrice: unit };
   }
   return {
     source:'service',
@@ -2473,6 +2506,7 @@ function buildCloseModalContent(){
         <div>
           <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
+          <p id="cv-labor-total" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(current?.laborValue || 0)}</strong></p>
         </div>
         <button id="cv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
       </div>
@@ -2604,6 +2638,11 @@ function fillCloseModal(){
     } else if(current.technician){
       techSel.value = current.technician;
     }
+  }
+
+  const laborTotalEl = document.getElementById('cv-labor-total');
+  if (laborTotalEl) {
+    laborTotalEl.innerHTML = `Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(current?.laborValue || 0)}</strong>`;
   }
 
   // Labor percent options
@@ -6220,6 +6259,114 @@ function showManualView(parentNode) {
   renderView();
 }
 
+async function showPriceConfirmationModal({ price, vehicleId }) {
+  const basePrice = Math.round(Number(price?.total || price?.price || 0) || 0);
+  let lastInfo = null;
+  if (vehicleId && price?._id) {
+    try {
+      lastInfo = await API.prices.lastForVehicle(price._id, vehicleId);
+    } catch {
+      lastInfo = null;
+    }
+  }
+  const lastPrice = (lastInfo && lastInfo.lastPrice != null) ? Number(lastInfo.lastPrice) : null;
+  const suggestedText = lastPrice != null
+    ? `Último precio usado para este vehículo: ${money(lastPrice)}`
+    : 'Sin precio anterior para este vehículo';
+
+  const comboProducts = Array.isArray(price?.comboProducts) ? price.comboProducts : [];
+  const isCombo = price?.type === 'combo' && comboProducts.length > 0;
+
+  const node = document.createElement('div');
+  node.className = 'p-6 bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 w-full max-w-3xl';
+  node.innerHTML = `
+    <div class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Confirmar precio</h2>
+        <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${price?.name || 'Item'} (${String(price?.type || '').toUpperCase()})</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio a asignar</label>
+        <input id="pc-price" type="number" step="1" min="0" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${basePrice}" />
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">${suggestedText}</p>
+      </div>
+      <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 p-3">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Precio de lista</div>
+        <div class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mt-1">${money(basePrice)}</div>
+      </div>
+    </div>
+    ${isCombo ? `
+    <div class="mb-5">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Productos del combo</h3>
+        <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Marca los que se incluirán</span>
+      </div>
+      <div class="space-y-2 max-h-64 overflow-auto custom-scrollbar" id="pc-combo-list">
+        ${comboProducts.map((cp, idx) => `
+          <label class="flex items-center gap-3 p-2 rounded-lg border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/40 dark:bg-slate-900/40 theme-light:bg-slate-50">
+            <input type="checkbox" data-idx="${idx}" class="h-4 w-4 accent-blue-500" checked />
+            <div class="flex-1">
+              <div class="text-sm text-white dark:text-white theme-light:text-slate-900">${cp?.name || 'Producto'}</div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant: ${cp?.qty || 1} · ${money(cp?.unitPrice || 0)}${cp?.isOpenSlot ? ' · Slot abierto' : ''}</div>
+            </div>
+          </label>
+        `).join('')}
+      </div>
+    </div>` : ''}
+    <div class="flex items-center justify-end gap-2">
+      <button id="pc-cancel" class="px-4 py-2 rounded-lg border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-700/50 transition">Cancelar</button>
+      <button id="pc-confirm" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">Confirmar</button>
+    </div>
+  `;
+
+  return await new Promise((resolve) => {
+    openModal(node);
+    const confirmBtn = node.querySelector('#pc-confirm');
+    const cancelBtn = node.querySelector('#pc-cancel');
+    const priceInput = node.querySelector('#pc-price');
+
+    let resolved = false;
+    const finish = (value) => {
+      if (resolved) return;
+      resolved = true;
+      closeModal();
+      resolve(value);
+    };
+
+    cancelBtn.onclick = () => finish(null);
+    confirmBtn.onclick = () => {
+      const priceValue = Math.round(Number(priceInput.value || 0) || 0);
+      if (priceValue <= 0) {
+        priceInput.focus();
+        return;
+      }
+      let customComboProducts = null;
+      if (isCombo) {
+        const checks = Array.from(node.querySelectorAll('#pc-combo-list input[type="checkbox"]'));
+        const selected = checks
+          .filter(ch => ch.checked)
+          .map(ch => comboProducts[Number(ch.dataset.idx)])
+          .filter(Boolean)
+          .map(cp => ({
+            name: String(cp?.name || '').trim(),
+            qty: Number(cp?.qty || 1) || 1,
+            unitPrice: Number(cp?.unitPrice || 0) || 0,
+            itemId: cp?.itemId || null,
+            isOpenSlot: Boolean(cp?.isOpenSlot)
+          }))
+          .filter(cp => cp.name);
+        if (!selected.length) {
+          return;
+        }
+        customComboProducts = selected;
+      }
+      finish({ price: priceValue, customComboProducts });
+    };
+  });
+}
+
 // Vista de Lista de precios
 async function renderPricesView(container, vehicleId) {
   container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
@@ -6355,8 +6502,21 @@ async function renderPricesView(container, vehicleId) {
               throw new Error(`La venta está en estado "${verifySale.status}" y no se pueden agregar items. Por favor, crea una nueva venta.`);
             }
             
+            const confirmation = await showPriceConfirmationModal({ price: pe, vehicleId });
+            if (!confirmation) {
+              btn.textContent = originalText;
+              btn.disabled = false;
+              return;
+            }
+            
             console.log('Agregando item a venta:', { saleId, priceId: pe._id, saleStatus: verifySale.status });
-            current = await API.sales.addItem(saleId, { source:'price', refId: pe._id, qty:1 });
+            current = await API.sales.addItem(saleId, { 
+              source:'price', 
+              refId: pe._id, 
+              qty: 1,
+              customPrice: confirmation.price,
+              customComboProducts: confirmation.customComboProducts
+            });
             syncCurrentIntoOpenList();
             await renderAll();
             
@@ -7442,7 +7602,15 @@ async function openPickerPrices(){
       const priceCell = tr.querySelector('[data-price]');
       if (priceCell) priceCell.textContent = money(pe.total||pe.price||0);
       tr.querySelector('button.add').onclick = async ()=>{
-        current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
+        const confirmation = await showPriceConfirmationModal({ price: pe, vehicleId: currentVehicleId });
+        if (!confirmation) return;
+        current = await API.sales.addItem(current._id, { 
+          source:'price', 
+          refId: pe._id, 
+          qty: 1,
+          customPrice: confirmation.price,
+          customComboProducts: confirmation.customComboProducts
+        });
         syncCurrentIntoOpenList();
         await renderAll();
       };
@@ -7571,6 +7739,8 @@ function renderQuoteMini(q){
 
   const itemsAlready = Array.isArray(current?.items) ? current.items : [];
 
+  const comboOverrides = buildComboOverrides(q?.items || []);
+
   (q?.items || []).forEach(it => {
     const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
     const qty = Number(it.qty || 1) || 1;
@@ -7606,7 +7776,8 @@ function renderQuoteMini(q){
         }
         ensureSaleQuoteLink(q);
         try {
-          const payload = mapQuoteItemToSale(it);
+          const payload = mapQuoteItemToSale(it, comboOverrides);
+          if (!payload) return;
           current = await API.sales.addItem(current._id, payload);
           syncCurrentIntoOpenList();
           await renderAll();
@@ -7647,7 +7818,7 @@ function renderQuoteMini(q){
       // Estrategia: enviar todos los items, pero el backend verificará si un producto
       // ya viene en el batch antes de expandirlo desde el combo
       // También omitir items anidados del combo (que tienen comboParent)
-      const filteredItems = q.items.map(mapQuoteItemToSale).filter(item => item !== null);
+      const filteredItems = q.items.map(it => mapQuoteItemToSale(it, comboOverrides)).filter(item => item !== null);
       
       try {
         current = await API.sales.addItemsBatch(current._id, filteredItems);

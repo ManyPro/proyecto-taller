@@ -10,7 +10,8 @@ import {
   importPrices,
   exportPrices,
   downloadImportTemplate,
-  deleteAllPrices
+  deleteAllPrices,
+  getLastPriceForVehicle
 } from '../controllers/prices.controller.js';
 
 const upload = multer({
@@ -22,6 +23,7 @@ const r = Router();
 
 // CRUD básico
 r.get('/', listPrices);
+r.get('/:priceId/last-for-vehicle/:vehicleId', getLastPriceForVehicle);
 r.get('/:id', getPrice);
 r.post('/', createPrice);
 r.put('/:id', updatePrice);

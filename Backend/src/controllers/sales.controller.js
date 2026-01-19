@@ -4,6 +4,7 @@ import { registerSaleIncome, ensureDefaultCashAccount, computeBalance } from './
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
+import PriceHistory from '../models/PriceHistory.js';
 import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
 import StockEntry from '../models/StockEntry.js';
@@ -443,7 +444,7 @@ export const getSale = async (req, res) => {
 
 export const addItem = async (req, res) => {
   const { id } = req.params;
-  const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
+  const { source, refId, sku, qty = 1, unitPrice, customPrice, customComboProducts } = req.body || {};
 
   // Log para debugging (siempre, no solo en desarrollo)
   const originalCompanyId = req.originalCompanyId || req.company?.id;
@@ -595,14 +596,44 @@ export const addItem = async (req, res) => {
         }
       }
       const q = asNum(qty) || 1;
-      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
+      const customPriceValue = Number.isFinite(Number(customPrice)) ? Number(customPrice) : null;
+      const up = customPriceValue !== null
+        ? customPriceValue
+        : (Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price));
       // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
       const itemName = pe.name && pe.name.trim() 
         ? pe.name.trim()
         : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
+
+      // Acumular mano de obra si el precio tiene valor definido
+      const laborVal = Number(pe.laborValue || 0);
+      if (laborVal > 0) {
+        const currentLabor = Number(sale.laborValue || 0);
+        sale.laborValue = Math.round(currentLabor + (laborVal * q));
+      }
+
+      const comboProductsToUse = Array.isArray(customComboProducts) && customComboProducts.length > 0
+        ? customComboProducts
+        : (Array.isArray(pe.comboProducts) ? pe.comboProducts : []);
+
+      const vehicleId = sale.vehicle?.vehicleId;
+      if (vehicleId && pe?._id) {
+        await PriceHistory.findOneAndUpdate(
+          { companyId: sale.companyId, priceId: pe._id, vehicleId },
+          {
+            $set: {
+              lastPrice: up,
+              lastComboProducts: comboProductsToUse,
+              lastUsedAt: new Date()
+            },
+            $inc: { usedCount: 1 }
+          },
+          { upsert: true, new: true }
+        );
+      }
       
       // Si es combo, agregar todos los productos del combo
-      if (pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+      if (pe.type === 'combo' && Array.isArray(comboProductsToUse) && comboProductsToUse.length > 0) {
         // Los combos se agregan como múltiples items, así que usamos addItemsBatch
         // Por ahora, agregamos el combo como un item principal y luego agregamos los productos
         // Primero agregamos el combo principal como price
@@ -617,8 +648,8 @@ export const addItem = async (req, res) => {
         });
         
         // Luego agregamos cada producto del combo
-        for (let idx = 0; idx < pe.comboProducts.length; idx++) {
-          const cp = pe.comboProducts[idx];
+        for (let idx = 0; idx < comboProductsToUse.length; idx++) {
+          const cp = comboProductsToUse[idx];
           const comboQty = q * (cp.qty || 1);
           
           // Si es slot abierto, agregarlo a openSlots en lugar de items
@@ -633,7 +664,7 @@ export const addItem = async (req, res) => {
               completed: false,
               completedItemId: null
             });
-          } else if (cp.itemId) {
+          } else if (cp.itemId && typeof cp.itemId === 'object' && cp.itemId._id) {
             // Producto vinculado: agregar como inventory para que se descuente
             // CRÍTICO: Usar SKU que empiece con "CP-" para que se identifique como parte del combo
             const comboItem = cp.itemId;
@@ -756,6 +787,8 @@ export const addItemsBatch = async (req, res) => {
   if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
+  let laborSum = 0;
+
   // Pre-procesar para identificar combos en el batch y sus productos
   // Esto nos ayuda a evitar duplicados cuando los productos del combo ya vienen en el batch
   const combosInBatch = new Set(); // IDs de combos que vienen en el batch
@@ -784,12 +817,16 @@ export const addItemsBatch = async (req, res) => {
           .populate('comboProducts.itemId', 'sku name stock salePrice')
           .lean();
       }
-      if (pe && pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+      const comboProducts = Array.isArray(raw.customComboProducts) && raw.customComboProducts.length > 0
+        ? raw.customComboProducts
+        : pe?.comboProducts;
+      if (pe && pe.type === 'combo' && Array.isArray(comboProducts) && comboProducts.length > 0) {
         combosInBatch.add(String(raw.refId));
         // Marcar los itemIds de los productos del combo y a qué combo pertenecen
-        pe.comboProducts.forEach(cp => {
+        comboProducts.forEach(cp => {
           if (cp.itemId) {
-            comboProductRefIds.set(String(cp.itemId), String(raw.refId));
+            const itemId = typeof cp.itemId === 'object' && cp.itemId?._id ? cp.itemId._id : cp.itemId;
+            if (itemId) comboProductRefIds.set(String(itemId), String(raw.refId));
           }
         });
       }
@@ -806,6 +843,10 @@ export const addItemsBatch = async (req, res) => {
       const source = (raw.source === 'service') ? 'service' : (raw.source === 'price' ? 'price' : (raw.source === 'inventory' ? 'inventory' : 'service'));
       const qty = asNum(raw.qty) || 1;
       const unitCandidate = raw.unitPrice;
+      const customPriceValue = Number.isFinite(Number(raw.customPrice)) ? Number(raw.customPrice) : null;
+      const comboProductsOverride = Array.isArray(raw.customComboProducts) && raw.customComboProducts.length > 0
+        ? raw.customComboProducts
+        : null;
 
       if (source === 'inventory') {
         // Si este item es un producto de un combo que se va a expandir, omitirlo
@@ -884,14 +925,45 @@ export const addItemsBatch = async (req, res) => {
               throw new Error('PriceEntry not found');
             }
           }
-          const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
+          const up = customPriceValue !== null
+            ? customPriceValue
+            : (Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price));
           // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
           const itemName = pe.name && pe.name.trim() 
             ? pe.name.trim()
             : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
           
+          const laborVal = Number(pe.laborValue || 0);
+          if (laborVal > 0) {
+            laborSum += laborVal * qty;
+          }
+
+          const comboProductsToUse = comboProductsOverride
+            ? comboProductsOverride
+            : (Array.isArray(pe.comboProducts) ? pe.comboProducts : []);
+
+          const vehicleId = sale.vehicle?.vehicleId;
+          if (vehicleId && pe?._id) {
+            try {
+              await PriceHistory.findOneAndUpdate(
+                { companyId: sale.companyId, priceId: pe._id, vehicleId },
+                {
+                  $set: {
+                    lastPrice: up,
+                    lastComboProducts: comboProductsToUse,
+                    lastUsedAt: new Date()
+                  },
+                  $inc: { usedCount: 1 }
+                },
+                { upsert: true, new: true }
+              );
+            } catch (err) {
+              logger.warn('[addItemsBatch] Error guardando PriceHistory', { error: err?.message });
+            }
+          }
+          
           // Si es combo, agregar todos los productos del combo
-          if (pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+          if (pe.type === 'combo' && Array.isArray(comboProductsToUse) && comboProductsToUse.length > 0) {
             // Primero agregamos el combo principal como price
             added.push({
               source: 'price',
@@ -905,8 +977,8 @@ export const addItemsBatch = async (req, res) => {
             
             // Luego agregamos cada producto del combo
             // Siempre agregar los productos del combo, a menos que ya vengan explícitamente en el batch
-            for (let idx = 0; idx < pe.comboProducts.length; idx++) {
-              const cp = pe.comboProducts[idx];
+            for (let idx = 0; idx < comboProductsToUse.length; idx++) {
+              const cp = comboProductsToUse[idx];
               const comboQty = qty * (cp.qty || 1);
               
               // Si es slot abierto, agregarlo a openSlots en lugar de items
@@ -921,7 +993,7 @@ export const addItemsBatch = async (req, res) => {
                   completed: false,
                   completedItemId: null
                 });
-              } else if (cp.itemId) {
+              } else if (cp.itemId && typeof cp.itemId === 'object' && cp.itemId._id) {
                 // Verificar si este producto ya viene explícitamente en el batch como item independiente
                 // (no como parte de otro combo, sino como item de inventario directo)
                 const productAlreadyInBatch = list.some(r => 
@@ -1033,6 +1105,9 @@ export const addItemsBatch = async (req, res) => {
   }
 
   if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningÃºn item' });
+  if (laborSum > 0) {
+    sale.laborValue = Math.round(Number(sale.laborValue || 0) + laborSum);
+  }
   sale.items.push(...added);
   computeTotals(sale);
   await sale.save();

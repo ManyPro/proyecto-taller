@@ -298,6 +298,7 @@ const API = {
     create: (payload) => http.post('/api/v1/prices', payload),
     update: (id, body) => http.put(`/api/v1/prices/${id}`, body),
     delete: (id) => http.del(`/api/v1/prices/${id}`),
+    lastForVehicle: (priceId, vehicleId) => http.get(`/api/v1/prices/${priceId}/last-for-vehicle/${vehicleId}`)
   },
   // Mantener compatibilidad con nombres antiguos
   pricesList: (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),

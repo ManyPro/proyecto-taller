@@ -415,6 +415,114 @@ export function initQuotes({ getCompanyEmail }) {
   }
   function closeModal(){ const m=document.getElementById('modal'); if(m) m.classList.add('hidden'); }
 
+  async function showPriceConfirmationModal({ price, vehicleId }) {
+    const basePrice = Math.round(Number(price?.total || price?.price || 0) || 0);
+    let lastInfo = null;
+    if (vehicleId && price?._id) {
+      try {
+        lastInfo = await API.prices.lastForVehicle(price._id, vehicleId);
+      } catch {
+        lastInfo = null;
+      }
+    }
+    const lastPrice = (lastInfo && lastInfo.lastPrice != null) ? Number(lastInfo.lastPrice) : null;
+    const suggestedText = lastPrice != null
+      ? `Último precio usado para este vehículo: ${money(lastPrice)}`
+      : 'Sin precio anterior para este vehículo';
+
+    const comboProducts = Array.isArray(price?.comboProducts) ? price.comboProducts : [];
+    const isCombo = price?.type === 'combo' && comboProducts.length > 0;
+
+    const node = document.createElement('div');
+    node.className = 'p-6 bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 w-full max-w-3xl';
+    node.innerHTML = `
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Confirmar precio</h2>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${price?.name || 'Item'} (${String(price?.type || '').toUpperCase()})</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio a asignar</label>
+          <input id="pcq-price" type="number" step="1" min="0" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${basePrice}" />
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">${suggestedText}</p>
+        </div>
+        <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 p-3">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Precio de lista</div>
+          <div class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mt-1">${money(basePrice)}</div>
+        </div>
+      </div>
+      ${isCombo ? `
+      <div class="mb-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Productos del combo</h3>
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Marca los que se incluirán</span>
+        </div>
+        <div class="space-y-2 max-h-64 overflow-auto custom-scrollbar" id="pcq-combo-list">
+          ${comboProducts.map((cp, idx) => `
+            <label class="flex items-center gap-3 p-2 rounded-lg border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/40 dark:bg-slate-900/40 theme-light:bg-slate-50">
+              <input type="checkbox" data-idx="${idx}" class="h-4 w-4 accent-blue-500" checked />
+              <div class="flex-1">
+                <div class="text-sm text-white dark:text-white theme-light:text-slate-900">${cp?.name || 'Producto'}</div>
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant: ${cp?.qty || 1} · ${money(cp?.unitPrice || 0)}${cp?.isOpenSlot ? ' · Slot abierto' : ''}</div>
+              </div>
+            </label>
+          `).join('')}
+        </div>
+      </div>` : ''}
+      <div class="flex items-center justify-end gap-2">
+        <button id="pcq-cancel" class="px-4 py-2 rounded-lg border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-700/50 transition">Cancelar</button>
+        <button id="pcq-confirm" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">Confirmar</button>
+      </div>
+    `;
+
+    return await new Promise((resolve) => {
+      openModal(node);
+      const confirmBtn = node.querySelector('#pcq-confirm');
+      const cancelBtn = node.querySelector('#pcq-cancel');
+      const priceInput = node.querySelector('#pcq-price');
+
+      let resolved = false;
+      const finish = (value) => {
+        if (resolved) return;
+        resolved = true;
+        closeModal();
+        resolve(value);
+      };
+
+      cancelBtn.onclick = () => finish(null);
+      confirmBtn.onclick = () => {
+        const priceValue = Math.round(Number(priceInput.value || 0) || 0);
+        if (priceValue <= 0) {
+          priceInput.focus();
+          return;
+        }
+        let customComboProducts = null;
+        if (isCombo) {
+          const checks = Array.from(node.querySelectorAll('#pcq-combo-list input[type="checkbox"]'));
+          const selected = checks
+            .filter(ch => ch.checked)
+            .map(ch => comboProducts[Number(ch.dataset.idx)])
+            .filter(Boolean)
+            .map(cp => ({
+              name: String(cp?.name || '').trim(),
+              qty: Number(cp?.qty || 1) || 1,
+              unitPrice: Number(cp?.unitPrice || 0) || 0,
+              itemId: cp?.itemId || null,
+              isOpenSlot: Boolean(cp?.isOpenSlot)
+            }))
+            .filter(cp => cp.name);
+          if (!selected.length) {
+            return;
+          }
+          customComboProducts = selected;
+        }
+        finish({ price: priceValue, customComboProducts });
+      };
+    });
+  }
+
   function nextNumber(){
     const raw = localStorage.getItem(kLast());
     let n = Number(raw||0); n = isNaN(n)?0:n;
@@ -3869,21 +3977,26 @@ export function initQuotes({ getCompanyEmail }) {
             <button class="add-price-btn px-4 py-1.5 rounded-md border-none cursor-pointer font-semibold bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white transition-all duration-200" data-price-id="${pe._id}">Agregar</button>
           `;
           
-          card.querySelector('.add-price-btn').onclick = () => {
-            if (pe.type === 'combo' && pe.comboProducts && pe.comboProducts.length > 0) {
+          card.querySelector('.add-price-btn').onclick = async () => {
+            const confirmation = await showPriceConfirmationModal({ price: pe, vehicleId });
+            if (!confirmation) return;
+            const finalPrice = confirmation.price;
+            const comboProductsToUse = confirmation.customComboProducts || pe.comboProducts || [];
+
+            if (pe.type === 'combo' && comboProductsToUse.length > 0) {
               // Agregar el combo principal - tipo COMBO
               const comboRow = ctx.cloneRow();
               comboRow.querySelector('select').value = 'COMBO';
               comboRow.querySelectorAll('input')[0].value = pe.name || '';
               comboRow.querySelectorAll('input')[1].value = 1;
-              comboRow.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
+              comboRow.querySelectorAll('input')[2].value = Math.round(finalPrice || 0);
               comboRow.dataset.source = 'price';
               if (pe._id) comboRow.dataset.refId = String(pe._id);
               ctx.updateRowSubtotal(comboRow);
               ctx.rowsBox.appendChild(comboRow);
               
               // Agregar cada producto del combo - tipo COMBO para items anidados
-              pe.comboProducts.forEach(cp => {
+              comboProductsToUse.forEach(cp => {
                 const row = ctx.cloneRow();
                 row.querySelector('select').value = 'COMBO'; // Items anidados del combo también son tipo COMBO
                 // Para slots abiertos, solo mostrar el nombre (sin indicadores)
@@ -3915,7 +4028,7 @@ export function initQuotes({ getCompanyEmail }) {
               row.querySelector('select').value = pe.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
               row.querySelectorAll('input')[0].value = pe.name || '';
               row.querySelectorAll('input')[1].value = 1;
-              row.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
+              row.querySelectorAll('input')[2].value = Math.round(finalPrice || 0);
               row.dataset.source = 'price';
               if (pe._id) row.dataset.refId = String(pe._id);
               ctx.updateRowSubtotal(row);

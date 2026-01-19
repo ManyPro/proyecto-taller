@@ -1,4 +1,5 @@
 import PriceEntry from '../models/PriceEntry.js';
+import PriceHistory from '../models/PriceHistory.js';
 import Service from '../models/Service.js';
 import Vehicle from '../models/Vehicle.js';
 import Item from '../models/Item.js';
@@ -242,11 +243,15 @@ export const listPrices = async (req, res) => {
   const total = await PriceEntry.countDocuments(q);
   
   // Obtener items paginados con populate
+  const sort = (vehicleId && (includeGeneral === 'true' || includeGeneral === true))
+    ? { vehicleId: -1, type: 1, name: 1, createdAt: -1 }
+    : { type: 1, name: 1, createdAt: -1 };
+
   const items = await PriceEntry.find(q)
     .populate('vehicleId', 'make line displacement modelYear')
     .populate('itemId', 'sku name stock salePrice')
     .populate('comboProducts.itemId', 'sku name stock salePrice')
-    .sort({ type: 1, name: 1, createdAt: -1 })
+    .sort(sort)
     .skip(skip)
     .limit(lim)
     .lean();
@@ -455,8 +460,9 @@ export const createPrice = async (req, res) => {
   }
   
   // vehicleId es opcional: si isGeneral es true, isInversion es true, o vehicleId es null/undefined, crear precio general
+  const isGeneralEffective = Boolean(isGeneral) || !vehicleId || isInversion;
   let vehicle = null;
-  if (vehicleId && !isGeneral && !isInversion) {
+  if (vehicleId && !isGeneralEffective) {
     vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
     if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
@@ -532,7 +538,7 @@ export const createPrice = async (req, res) => {
   
   const doc = {
     companyId: creationCompanyId,
-    vehicleId: (isInversion || isGeneral) ? null : (vehicle?._id || null), // null para precios generales e inversión
+    vehicleId: isGeneralEffective ? null : (vehicle?._id || null), // null para precios generales e inversión
     name: String(name).trim(),
     type: isInversion ? 'inversion' : (type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service')),
     serviceId: isInversion ? null : (svc?._id || null),
@@ -540,9 +546,9 @@ export const createPrice = async (req, res) => {
     comboProducts: (isInversion || type !== 'combo') ? [] : processedComboProducts,
     yearFrom: yearFromNum,
     yearTo: yearToNum,
-    brand: (isInversion || isGeneral) ? '' : (vehicle?.make || ''),
-    line: (isInversion || isGeneral) ? '' : (vehicle?.line || ''),
-    engine: (isInversion || isGeneral) ? '' : (vehicle?.displacement || ''),
+    brand: isGeneralEffective ? '' : (vehicle?.make || ''),
+    line: isGeneralEffective ? '' : (vehicle?.line || ''),
+    engine: isGeneralEffective ? '' : (vehicle?.displacement || ''),
     year: null,
     variables: isInversion ? {} : (variables || {}),
     total,
@@ -868,4 +874,34 @@ export const exportPrices = async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.send(buf);
+};
+
+// ============ last price used for vehicle ============
+export const getLastPriceForVehicle = async (req, res) => {
+  const { priceId, vehicleId } = req.params || {};
+  if (!priceId || !vehicleId) {
+    return res.status(400).json({ error: 'priceId y vehicleId requeridos' });
+  }
+
+  const row = await PriceHistory.findOne({
+    companyId: req.companyId,
+    priceId,
+    vehicleId
+  }).lean();
+
+  if (!row) {
+    return res.json({
+      lastPrice: null,
+      lastComboProducts: [],
+      lastUsedAt: null,
+      usedCount: 0
+    });
+  }
+
+  res.json({
+    lastPrice: row.lastPrice ?? null,
+    lastComboProducts: row.lastComboProducts || [],
+    lastUsedAt: row.lastUsedAt || null,
+    usedCount: row.usedCount || 0
+  });
 };

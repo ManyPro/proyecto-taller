@@ -3565,7 +3565,7 @@ export function initPrices(){
   observer.observe(tab, { childList: true, subtree: true });
 
   // Inicializar con la pestaña vehicular activa
-  switchSubTab('prices-vehicular');
+  switchSubTab('prices-general');
   
   // Renderizar tabla vacía inicialmente
   renderTableHeader();
