@@ -545,6 +545,7 @@ export function initPrices(){
   const btnExport=$('#pe-export');
 
   function renderTableHeader(){
+    if (!head) return;
     head.replaceChildren();
     // Determinar qué vehículo usar: si hay múltiples seleccionados, usar el activo en las pestañas
     const vehicleToUse = selectedVehicles.length > 1 
