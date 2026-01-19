@@ -568,10 +568,20 @@ export const previewSettlement = async (req, res) => {
     }
     
     // Calcular comisión del técnico en el período
+    // IMPORTANTE: Asegurar que las fechas se conviertan a Date objects y que closedAt no sea null
+    const startDate = new Date(period.startDate);
+    const endDate = new Date(period.endDate);
+    // Ajustar endDate para incluir todo el día (hasta 23:59:59.999)
+    endDate.setHours(23, 59, 59, 999);
+    
     const sales = await Sale.find({
       companyId: req.companyId,
       status: 'closed',
-      closedAt: { $gte: period.startDate, $lte: period.endDate },
+      closedAt: { 
+        $ne: null,  // Excluir ventas sin fecha de cierre
+        $gte: startDate, 
+        $lte: endDate 
+      },
       $or: [
         { 'laborCommissions.technician': techNameUpper },
         { 'laborCommissions.technicianName': techNameUpper },
@@ -579,11 +589,19 @@ export const previewSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
+    // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
     const commissionDetails = [];
     const commission = sales.reduce((acc, s) => {
+      // Verificar que la venta esté dentro del período (doble verificación)
+      const saleClosedAt = s.closedAt ? new Date(s.closedAt) : null;
+      if (!saleClosedAt || saleClosedAt < startDate || saleClosedAt > endDate) {
+        // Si la venta no está en el período, ignorarla
+        return acc;
+      }
+      
       const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
       fromSale.forEach(d => commissionDetails.push(d));
       return acc + fromSale.reduce((a, b) => a + (Number(b.share) || 0), 0);
@@ -845,10 +863,20 @@ export const approveSettlement = async (req, res) => {
     }
     
     // Calcular comisión
+    // IMPORTANTE: Asegurar que las fechas se conviertan a Date objects y que closedAt no sea null
+    const startDate = new Date(period.startDate);
+    const endDate = new Date(period.endDate);
+    // Ajustar endDate para incluir todo el día (hasta 23:59:59.999)
+    endDate.setHours(23, 59, 59, 999);
+    
     const sales = await Sale.find({
       companyId: req.companyId,
       status: 'closed',
-      closedAt: { $gte: period.startDate, $lte: period.endDate },
+      closedAt: { 
+        $ne: null,  // Excluir ventas sin fecha de cierre
+        $gte: startDate, 
+        $lte: endDate 
+      },
       $or: [
         { 'laborCommissions.technician': techNameUpper },
         { 'laborCommissions.technicianName': techNameUpper },
@@ -856,11 +884,19 @@ export const approveSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
+    // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
     const commissionDetails = [];
     const commission = sales.reduce((acc, s) => {
+      // Verificar que la venta esté dentro del período (doble verificación)
+      const saleClosedAt = s.closedAt ? new Date(s.closedAt) : null;
+      if (!saleClosedAt || saleClosedAt < startDate || saleClosedAt > endDate) {
+        // Si la venta no está en el período, ignorarla
+        return acc;
+      }
+      
       const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
       fromSale.forEach(d => commissionDetails.push(d));
       return acc + fromSale.reduce((a, b) => a + (Number(b.share) || 0), 0);
