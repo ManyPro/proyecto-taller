@@ -3909,19 +3909,19 @@ export function initQuotes({ getCompanyEmail }) {
     };
     container.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</div>';
     
-    if (!vehicleId) {
-      container.innerHTML = `
-        <div class="text-center py-12 px-12">
-          <div class="text-5xl mb-4">🚗</div>
-          <h4 class="mb-2 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">No hay vehículo vinculado</h4>
-          <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Vincula un vehículo a la cotización para ver los precios disponibles.</p>
-        </div>
-      `;
-      return;
-    }
+    // Ya no requerimos vehículo - los precios ahora son generales
+    // Si hay vehículo, podemos usarlo para filtrar, pero no es obligatorio
     
     try {
-      const vehicle = await API.vehicles.get(vehicleId);
+      // Si hay vehículo, intentar obtenerlo (opcional)
+      let vehicle = null;
+      if (vehicleId) {
+        try {
+          vehicle = await API.vehicles.get(vehicleId);
+        } catch (err) {
+          console.warn('No se pudo obtener vehículo, continuando con precios generales:', err);
+        }
+      }
       
       // Variables de estado para filtros y paginación
       let currentPage = 1;
@@ -3932,11 +3932,17 @@ export function initQuotes({ getCompanyEmail }) {
       
       async function loadPrices() {
         try {
+          // Cargar precios generales (sin vehicleId) ya que ahora son generales
+          // Si hay vehicleId, se puede usar para filtrar precios específicos también
           const pricesParams = { 
-            vehicleId, 
             page: currentPage, 
             limit: pageSize 
           };
+          // Solo agregar vehicleId si existe y queremos filtrar por vehículo específico
+          // Por ahora, cargamos solo precios generales (sin vehicleId)
+          // Si en el futuro queremos mostrar también precios específicos del vehículo,
+          // podemos agregar: if (vehicleId) pricesParams.vehicleId = vehicleId;
+          
           if (filterType) {
             pricesParams.type = filterType;
           }
@@ -3989,7 +3995,8 @@ export function initQuotes({ getCompanyEmail }) {
           `;
           
           card.querySelector('.add-price-btn').onclick = async () => {
-            const confirmation = await showPriceConfirmationModal({ price: pe, vehicleId });
+            // vehicleId es opcional ahora (puede ser null para precios generales)
+            const confirmation = await showPriceConfirmationModal({ price: pe, vehicleId: vehicleId || null });
             if (!confirmation) return;
             const finalPrice = confirmation.price;
             const comboProductsToUse = confirmation.customComboProducts || pe.comboProducts || [];
@@ -5534,7 +5541,8 @@ export function initQuotes({ getCompanyEmail }) {
     if (!container) return;
     
     const isModal = !!window._modalQuoteContext;
-    let currentView = vehicleId ? 'prices' : 'inventory';
+    // Ya no requerimos vehículo para mostrar precios - ahora son generales
+    let currentView = 'prices'; // Por defecto mostrar lista de precios
     
     function renderView() {
       container.innerHTML = `

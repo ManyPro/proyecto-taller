@@ -2835,11 +2835,13 @@ function fillCloseModal(){
       function recalc(){
         const lv = Number(lvInp.value||0)||0; const pc=Number(pcInp.value||0)||0; const sh = Math.round(lv*pc/100);
         shareCell.textContent = money(sh);
+        updateLaborTotal(); // Actualizar valor MO acumulado cuando cambia el valor
       }
       [lvInp, pcInp, techSel2, kindSel2].forEach(el=> el.addEventListener('input', recalc));
       delBtn.addEventListener('click', ()=> {
         tr.remove();
         updateEmptyMessage(); // Actualizar mensaje vacío después de eliminar
+        updateLaborTotal(); // Actualizar valor MO acumulado después de eliminar
       });
       recalc();
       // autocompletar % desde perfil del técnico o desde defaultPercent del tipo
@@ -2872,6 +2874,30 @@ function fillCloseModal(){
       kindSel2.addEventListener('change', autoFillPercent);
       return tr;
     }
+    // Función para recalcular y actualizar el valor MO acumulado
+    function updateLaborTotal() {
+      const laborTotalEl = document.getElementById('cv-labor-total');
+      if (!laborTotalEl) return;
+      
+      // Sumar los valores MO de todas las líneas activas
+      let total = 0;
+      const rows = Array.from(tbody.querySelectorAll('tr')).filter(tr => {
+        // Filtrar filas ocultas y filas de mensaje vacío
+        return !tr.querySelector('td[colspan]') && tr.style.display !== 'none';
+      });
+      
+      rows.forEach(tr => {
+        const lvInput = tr.querySelector('input[data-role=lv]');
+        if (lvInput) {
+          const lv = Number(lvInput.value || 0) || 0;
+          total += lv;
+        }
+      });
+      
+      // Actualizar el elemento con el total calculado
+      laborTotalEl.innerHTML = `Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>`;
+    }
+    
     // Función para verificar si hay líneas y mostrar/ocultar mensaje vacío
     function updateEmptyMessage() {
       const rows = Array.from(tbody.querySelectorAll('tr')).filter(tr => {
@@ -2912,7 +2938,9 @@ function fillCloseModal(){
         const saleTechnician = (current?.technician || current?.initialTechnician || '').trim().toUpperCase();
         const pref = saleTechnician ? { technician: saleTechnician } : {};
         
-        addLine(pref).catch(err => console.error('Error agregando línea:', err));
+        addLine(pref).then(() => {
+          updateLaborTotal(); // Actualizar valor MO acumulado después de agregar
+        }).catch(err => console.error('Error agregando línea:', err));
       });
     }
     
@@ -2924,6 +2952,23 @@ function fillCloseModal(){
     
     // Inicializar mensaje vacío
     updateEmptyMessage();
+    
+    // Cargar comisiones guardadas si existen
+    if (current.laborCommissions && Array.isArray(current.laborCommissions) && current.laborCommissions.length > 0) {
+      for (const c of current.laborCommissions) {
+        await addLine({
+          technician: c.technician || '',
+          kind: c.kind || '',
+          laborValue: Number(c.laborValue || 0),
+          percent: Number(c.percent || 0),
+          itemName: c.itemName || ''
+        });
+        updateEmptyMessage();
+      }
+      updateLaborTotal(); // Actualizar valor MO acumulado después de cargar comisiones guardadas
+      current._autoLaborFilled = true; // Marcar como cargado para evitar duplicados
+      return; // No ejecutar autoAddLaborFromItems si ya hay comisiones guardadas
+    }
     
     // Detectar automáticamente items con laborValue y laborKind del PriceEntry
     async function autoAddLaborFromItems() {
@@ -3021,6 +3066,7 @@ function fillCloseModal(){
           updateEmptyMessage();
         }
         current._autoLaborFilled = true;
+        updateLaborTotal(); // Actualizar valor MO acumulado después de agregar líneas automáticas
       } catch (err) {
         console.error('Error agregando líneas automáticas de mano de obra:', err);
       }
@@ -3028,7 +3074,11 @@ function fillCloseModal(){
     
     // Ejecutar después de un pequeño delay para asegurar que todo esté cargado
     setTimeout(() => {
-      autoAddLaborFromItems();
+      autoAddLaborFromItems().then(() => {
+        updateLaborTotal(); // Actualizar valor MO acumulado después de cargar
+      }).catch(() => {
+        updateLaborTotal(); // Actualizar incluso si hay error
+      });
     }, 500);
   } catch{}
 
