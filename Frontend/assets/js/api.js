@@ -445,7 +445,8 @@ const API = {
     purchases: {
       list: (params) => http.get(`/api/v1/purchases/purchases${toQuery(params || {})}`),
       create: (payload) => http.post('/api/v1/purchases/purchases', payload),
-      get: (id) => http.get(`/api/v1/purchases/purchases/${id}`)
+      get: (id) => http.get(`/api/v1/purchases/purchases/${id}`),
+      update: (id, payload) => http.put(`/api/v1/purchases/purchases/${id}`, payload)
     }
   },
   cashflow: {

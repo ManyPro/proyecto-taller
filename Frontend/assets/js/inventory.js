@@ -5265,7 +5265,7 @@ async function openInvestorDetailModal(investorId) {
             btn.disabled = true;
             btn.textContent = 'Guardando...';
             
-            await API.put(`/api/v1/purchases/${purchaseId}`, {
+            await API.purchases.purchases.update(purchaseId, {
               supplierId,
               investorId,
               purchaseDate,
