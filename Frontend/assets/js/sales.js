@@ -7456,8 +7456,13 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       const yearFrom = yearFromInput?.value?.trim() || null;
       const yearTo = yearToInput?.value?.trim() || null;
       
+      // IMPORTANTE: los precios creados desde la venta deben ser GENERALES
+      // para poder reutilizarlos en otros vehículos. Por eso:
+      // - Enviamos isGeneral: true
+      // - No asociamos vehicleId (queda null)
       const payload = {
-        vehicleId: vehicleId,
+        vehicleId: null,
+        isGeneral: true,
         name: name,
         type: type,
         total: total,
