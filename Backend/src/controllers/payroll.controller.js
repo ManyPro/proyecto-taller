@@ -5,6 +5,7 @@ import PayrollSettlement from '../models/PayrollSettlement.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Sale from '../models/Sale.js';
 import EmployeeLoan from '../models/EmployeeLoan.js';
+import PriceEntry from '../models/PriceEntry.js';
 import PDFDocument from 'pdfkit';
 import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
@@ -537,6 +538,85 @@ function pickServiceNameFromSale(sale) {
   return sku || '';
 }
 
+async function pickServiceNameFromSaleForLabor({ sale, targetLaborValue, companyId, priceCache }) {
+  const items = Array.isArray(sale?.items) ? sale.items : [];
+  if (items.length === 0) return pickServiceNameFromSale(sale);
+
+  const target = Number(targetLaborValue || 0);
+  if (!Number.isFinite(target) || target <= 0) return pickServiceNameFromSale(sale);
+
+  const candidates = [];
+
+  for (const it of items) {
+    const src = String(it?.source || '').toLowerCase();
+    if (src !== 'price' && src !== 'service') continue;
+
+    const refId = it?.refId;
+    const refStr = refId ? String(refId) : '';
+    if (!mongoose.Types.ObjectId.isValid(refStr)) continue;
+
+    let pe = priceCache.get(refStr);
+    if (pe === undefined) {
+      pe = await PriceEntry.findOne({ _id: refStr, companyId }).select({ name: 1, laborValue: 1, type: 1 }).lean();
+      priceCache.set(refStr, pe || null);
+    }
+    if (!pe) continue;
+
+    const lv = Number(pe.laborValue || 0);
+    const qty = Number(it?.qty || 1) || 1;
+    const base = lv * qty;
+    if (!Number.isFinite(base) || base <= 0) continue;
+
+    const label = String(pe.name || it?.name || it?.sku || '').trim();
+    if (!label) continue;
+
+    candidates.push({ label, base, diff: Math.abs(base - target) });
+  }
+
+  if (candidates.length === 0) return pickServiceNameFromSale(sale);
+
+  candidates.sort((a, b) => a.diff - b.diff);
+  return candidates[0].label;
+}
+
+async function collectCommissionDetailsForSales({ sales, techNameUpper, startDate, endDate, companyId }) {
+  const commissionDetails = [];
+  let commission = 0;
+  const priceCache = new Map(); // PriceEntryId -> doc|null
+
+  for (const s of sales) {
+    const saleClosedAt = s.closedAt ? new Date(s.closedAt) : null;
+    if (!saleClosedAt || saleClosedAt < startDate || saleClosedAt > endDate) continue;
+
+    const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
+    for (const d of fromSale) {
+      const laborValue = Number(d.laborValue || 0);
+      const percent = Number(d.percent || 0);
+      const calculatedShare = Math.round(laborValue * (percent / 100));
+
+      const serviceName = await pickServiceNameFromSaleForLabor({
+        sale: s,
+        targetLaborValue: laborValue,
+        companyId,
+        priceCache
+      });
+
+      commissionDetails.push({
+        ...d,
+        share: calculatedShare,
+        saleNumber: s.number || null,
+        saleId: s._id || null,
+        vehiclePlate: s.vehicle?.plate || null,
+        serviceName: serviceName || null
+      });
+
+      commission += calculatedShare;
+    }
+  }
+
+  return { commissionDetails, commission };
+}
+
 export const previewSettlement = async (req, res) => {
   try {
     const { periodId, technicianId, technicianName, selectedConceptIds = [] } = req.body;
@@ -621,40 +701,13 @@ export const previewSettlement = async (req, res) => {
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
-    const commissionDetails = [];
-    const commission = sales.reduce((acc, s) => {
-      // Verificar que la venta esté dentro del período (doble verificación)
-      const saleClosedAt = s.closedAt ? new Date(s.closedAt) : null;
-      if (!saleClosedAt || saleClosedAt < startDate || saleClosedAt > endDate) {
-        // Si la venta no está en el período, ignorarla
-        return acc;
-      }
-      
-      const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
-      // Agregar información de la venta y recalcular share correctamente
-      fromSale.forEach(d => {
-        // Recalcular share para asegurar que sea correcto: share = laborValue * (percent / 100)
-        const laborValue = Number(d.laborValue || 0);
-        const percent = Number(d.percent || 0);
-        const calculatedShare = Math.round(laborValue * (percent / 100));
-        
-        commissionDetails.push({
-          ...d,
-          share: calculatedShare, // Usar el cálculo correcto
-          saleNumber: s.number || null,
-          saleId: s._id || null,
-          vehiclePlate: s.vehicle?.plate || null,
-          serviceName: pickServiceNameFromSale(s) || null
-        });
-      });
-      return acc + fromSale.reduce((a, b) => {
-        // Recalcular share para el total también
-        const laborValue = Number(b.laborValue || 0);
-        const percent = Number(b.percent || 0);
-        const calculatedShare = Math.round(laborValue * (percent / 100));
-        return a + calculatedShare;
-      }, 0);
-    }, 0);
+    const { commissionDetails, commission } = await collectCommissionDetailsForSales({
+      sales,
+      techNameUpper,
+      startDate,
+      endDate,
+      companyId: req.companyId
+    });
     
     const commissionRounded = Math.round(commission * 100) / 100;
     
@@ -954,40 +1007,13 @@ export const approveSettlement = async (req, res) => {
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
-    const commissionDetails = [];
-    const commission = sales.reduce((acc, s) => {
-      // Verificar que la venta esté dentro del período (doble verificación)
-      const saleClosedAt = s.closedAt ? new Date(s.closedAt) : null;
-      if (!saleClosedAt || saleClosedAt < startDate || saleClosedAt > endDate) {
-        // Si la venta no está en el período, ignorarla
-        return acc;
-      }
-      
-      const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
-      // Agregar información de la venta y recalcular share correctamente
-      fromSale.forEach(d => {
-        // Recalcular share para asegurar que sea correcto: share = laborValue * (percent / 100)
-        const laborValue = Number(d.laborValue || 0);
-        const percent = Number(d.percent || 0);
-        const calculatedShare = Math.round(laborValue * (percent / 100));
-        
-        commissionDetails.push({
-          ...d,
-          share: calculatedShare, // Usar el cálculo correcto
-          saleNumber: s.number || null,
-          saleId: s._id || null,
-          vehiclePlate: s.vehicle?.plate || null,
-          serviceName: pickServiceNameFromSale(s) || null
-        });
-      });
-      return acc + fromSale.reduce((a, b) => {
-        // Recalcular share para el total también
-        const laborValue = Number(b.laborValue || 0);
-        const percent = Number(b.percent || 0);
-        const calculatedShare = Math.round(laborValue * (percent / 100));
-        return a + calculatedShare;
-      }, 0);
-    }, 0);
+    const { commissionDetails, commission } = await collectCommissionDetailsForSales({
+      sales,
+      techNameUpper,
+      startDate,
+      endDate,
+      companyId: req.companyId
+    });
     
     const commissionRounded = Math.round(commission * 100) / 100;
     
