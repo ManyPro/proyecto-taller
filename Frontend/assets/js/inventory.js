@@ -5146,7 +5146,8 @@ async function openInvestorDetailModal(investorId) {
     invOpenModal(modalContent);
     
     // Función global para editar compra
-    window.editPurchase = async function(purchaseId, investorId) {
+    // Nota: `investorIdCtx` es el inversor del contexto (desde el modal del inversor), NO el select del formulario.
+    window.editPurchase = async function(purchaseId, investorIdCtx) {
       try {
         // Cargar datos de la compra
         const purchase = await API.purchases.purchases.get(purchaseId);
@@ -5488,7 +5489,7 @@ async function openInvestorDetailModal(investorId) {
             }
             
             const supplierId = document.getElementById('edit-purchase-supplier')?.value || 'GENERAL';
-            const investorId = document.getElementById('edit-purchase-investor')?.value || 'GENERAL';
+            const investorIdSel = document.getElementById('edit-purchase-investor')?.value || 'GENERAL';
             const purchaseDate = document.getElementById('edit-purchase-date')?.value || new Date().toISOString().split('T')[0];
             const notes = document.getElementById('edit-purchase-notes')?.value || '';
             
@@ -5498,7 +5499,7 @@ async function openInvestorDetailModal(investorId) {
             
             await API.purchases.purchases.update(purchaseId, {
               supplierId,
-              investorId,
+              investorId: investorIdSel,
               purchaseDate,
               items: itemsToSave,
               notes
@@ -5506,7 +5507,17 @@ async function openInvestorDetailModal(investorId) {
             
             // Recargar modal del inversor
             invCloseModal();
-            await openInvestorDetailModal(investorId !== 'GENERAL' ? investorId : purchase.investorId);
+            // Evitar pasar objetos (p.ej. `purchase.investorId` viene populated) y terminar con "[object Object]" en query params.
+            const purchaseInvestorId =
+              (purchase?.investorId && typeof purchase.investorId === 'object')
+                ? (purchase.investorId._id || purchase.investorId.id || '')
+                : (purchase?.investorId || '');
+            const reopenInvestorId = (investorIdSel && investorIdSel !== 'GENERAL')
+              ? investorIdSel
+              : (purchaseInvestorId || investorIdCtx || '');
+            if (reopenInvestorId && reopenInvestorId !== 'GENERAL') {
+              await openInvestorDetailModal(String(reopenInvestorId));
+            }
             
             alert('Compra actualizada correctamente');
           } catch (err) {

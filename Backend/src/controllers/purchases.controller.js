@@ -7,6 +7,21 @@ import StockEntry from "../models/StockEntry.js";
 import InvestmentItem from "../models/InvestmentItem.js";
 import StockMove from "../models/StockMove.js";
 
+function normalizeIdValue(val) {
+  if (val == null) return '';
+  if (typeof val === 'object') {
+    return String(val._id || val.id || val.value || '');
+  }
+  return String(val);
+}
+
+function normalizeObjectIdOrNull(val) {
+  const s = normalizeIdValue(val).trim();
+  if (!s || s === 'GENERAL') return null;
+  if (!mongoose.Types.ObjectId.isValid(s)) return null;
+  return s;
+}
+
 // ===== SUPPLIERS =====
 
 export const listSuppliers = async (req, res) => {
@@ -180,8 +195,22 @@ export const listPurchases = async (req, res) => {
     const { supplierId, investorId, startDate, endDate, limit = 50, skip = 0 } = req.query;
     
     const filter = { companyId: req.companyId };
-    if (supplierId) filter.supplierId = supplierId;
-    if (investorId) filter.investorId = investorId;
+
+    // Evitar CastError por valores inválidos como "[object Object]"
+    if (supplierId != null && supplierId !== '' && String(supplierId) !== 'GENERAL') {
+      const supplierObjId = normalizeObjectIdOrNull(supplierId);
+      if (!supplierObjId) {
+        return res.status(400).json({ error: 'supplierId inválido' });
+      }
+      filter.supplierId = supplierObjId;
+    }
+    if (investorId != null && investorId !== '' && String(investorId) !== 'GENERAL') {
+      const investorObjId = normalizeObjectIdOrNull(investorId);
+      if (!investorObjId) {
+        return res.status(400).json({ error: 'investorId inválido' });
+      }
+      filter.investorId = investorObjId;
+    }
     if (startDate || endDate) {
       filter.purchaseDate = {};
       if (startDate) filter.purchaseDate.$gte = new Date(startDate);
@@ -215,8 +244,9 @@ export const createPurchase = async (req, res) => {
     
     // Validar supplierId si se proporciona (puede ser "GENERAL" o null)
     let supplierObjId = null;
-    if (supplierId && supplierId !== 'GENERAL' && mongoose.Types.ObjectId.isValid(supplierId)) {
-      const supplier = await Supplier.findOne({ _id: supplierId, companyId: req.companyId });
+    const supplierIdNorm = normalizeObjectIdOrNull(supplierId);
+    if (supplierIdNorm) {
+      const supplier = await Supplier.findOne({ _id: supplierIdNorm, companyId: req.companyId });
       if (!supplier) {
         return res.status(404).json({ error: 'Proveedor no encontrado' });
       }
@@ -225,8 +255,9 @@ export const createPurchase = async (req, res) => {
     
     // Validar investorId si se proporciona (puede ser "GENERAL" o null)
     let investorObjId = null;
-    if (investorId && investorId !== 'GENERAL' && mongoose.Types.ObjectId.isValid(investorId)) {
-      const investor = await Investor.findOne({ _id: investorId, companyId: req.companyId });
+    const investorIdNorm = normalizeObjectIdOrNull(investorId);
+    if (investorIdNorm) {
+      const investor = await Investor.findOne({ _id: investorIdNorm, companyId: req.companyId });
       if (!investor) {
         return res.status(404).json({ error: 'Inversor no encontrado' });
       }
@@ -529,8 +560,9 @@ export const updatePurchase = async (req, res) => {
       
       // Actualizar campos básicos
       if (supplierId !== undefined) {
-        if (supplierId && supplierId !== 'GENERAL' && mongoose.Types.ObjectId.isValid(supplierId)) {
-          const supplier = await Supplier.findOne({ _id: supplierId, companyId: req.companyId }).session(session);
+        const supplierIdNorm = normalizeObjectIdOrNull(supplierId);
+        if (supplierIdNorm) {
+          const supplier = await Supplier.findOne({ _id: supplierIdNorm, companyId: req.companyId }).session(session);
           if (!supplier) {
             throw new Error('Proveedor no encontrado');
           }
@@ -541,8 +573,9 @@ export const updatePurchase = async (req, res) => {
       }
       
       if (investorId !== undefined) {
-        if (investorId && investorId !== 'GENERAL' && mongoose.Types.ObjectId.isValid(investorId)) {
-          const investor = await Investor.findOne({ _id: investorId, companyId: req.companyId }).session(session);
+        const investorIdNorm = normalizeObjectIdOrNull(investorId);
+        if (investorIdNorm) {
+          const investor = await Investor.findOne({ _id: investorIdNorm, companyId: req.companyId }).session(session);
           if (!investor) {
             throw new Error('Inversor no encontrado');
           }

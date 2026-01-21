@@ -1276,24 +1276,49 @@ async function preview(){
         if (!items || items.length === 0) return '';
         return `
           <div class="mb-4">
-            <h4 class="m-0 mb-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">${title}</h4>
+            <h4 class="m-0 mb-3 text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">${title}</h4>
             ${items.map((i, idx) => {
               const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
               const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
               
-              return `<div class="flex items-center justify-between p-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md mb-1.5 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white">
-                <div class="flex-1">
-                  <div class="flex gap-2.5 items-center mb-${i.notes ? '1' : '0'}">
-                  <span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
-                    ${htmlEscape(typeInfo.label)}
-                  </span>
-                  <span class="font-medium text-white dark:text-white theme-light:text-slate-900">${htmlEscape(i.name)}</span>
-                  ${i.calcRule ? `<span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(i.calcRule)})</span>` : ''}
+              // Información adicional para items de comisión
+              const isCommissionItem = i.saleNumber && (i.laborName || i.vehiclePlate);
+              const laborName = i.laborName || '';
+              const vehiclePlate = i.vehiclePlate || '';
+              const saleNumber = i.saleNumber ? `#${i.saleNumber}` : '';
+              
+              // Construir descripción más amigable
+              let friendlyDescription = '';
+              if (isCommissionItem) {
+                const parts = [];
+                if (laborName) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(laborName)}</span>`);
+                if (vehiclePlate) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehiclePlate)}</span>`);
+                if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
+                friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
+              }
+              
+              // Título principal del item
+              let mainTitle = htmlEscape(i.name);
+              if (isCommissionItem && laborName) {
+                // Si hay nombre de mano de obra, simplificar el título
+                mainTitle = `Participación ${laborName}`;
+              }
+              
+              return `<div class="flex items-start justify-between p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2.5 bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-white hover:bg-slate-800/60 dark:hover:bg-slate-800/60 theme-light:hover:bg-slate-50 transition-all duration-200 shadow-sm">
+                <div class="flex-1 min-w-0">
+                  <div class="flex gap-2.5 items-center mb-2 flex-wrap">
+                    <span class="px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
+                      ${htmlEscape(typeInfo.label)}
+                    </span>
+                    <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${mainTitle}</span>
                   </div>
-                  ${i.notes ? `<div class="text-xs mt-1 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(i.notes)}</div>` : ''}
+                  ${friendlyDescription}
+                  ${!isCommissionItem && i.notes ? `<div class="text-xs mt-1.5 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(i.notes)}</div>` : ''}
                 </div>
-                <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">
-                  ${formatMoney(i.value)}
+                <div class="ml-4 flex-shrink-0">
+                  <div class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg">
+                    ${formatMoney(i.value)}
+                  </div>
                 </div>
               </div>`;
             }).join('')}
@@ -1334,15 +1359,24 @@ async function preview(){
       };
       
       el('pl-result').innerHTML = `
-        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4">
-          <div class="mb-4 pb-4 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-            <h4 class="m-0 mb-2 text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Vista previa de liquidación</h4>
-            <div class="flex gap-4 flex-wrap">
-              <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-                <strong>Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl p-5 shadow-lg">
+          <div class="mb-5 pb-4 border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <h4 class="m-0 mb-3 text-lg font-bold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+              <span class="text-2xl">📋</span>
+              Vista previa de liquidación
+            </h4>
+            <div class="flex gap-6 flex-wrap">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">👤</span>
+                <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+                  <strong class="text-white dark:text-white theme-light:text-slate-900">Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
+                </span>
               </div>
-              <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-                <strong>Período:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">📅</span>
+                <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+                  <strong class="text-white dark:text-white theme-light:text-slate-900">Período:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
+                </span>
               </div>
             </div>
           </div>
@@ -1351,18 +1385,21 @@ async function preview(){
           ${renderItems(surcharges, 'Recargos')}
           ${renderItems(deductions, 'Descuentos')}
           
-          <div class="mt-4 pt-4 border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900">Total bruto:</span>
+          <div class="mt-6 pt-4 border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <div class="flex items-center justify-between mb-3 py-2">
+              <span class="font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-sm">Total bruto:</span>
               <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-base" data-total="gross">${formatMoney(r.grossTotal)}</span>
             </div>
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900">Total descuentos:</span>
+            <div class="flex items-center justify-between mb-3 py-2">
+              <span class="font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-sm">Total descuentos:</span>
               <span class="font-semibold text-red-500 dark:text-red-400 theme-light:text-red-600 text-base" data-total="deductions">-${formatMoney(r.deductionsTotal)}</span>
             </div>
-            <div class="flex items-center justify-between p-3 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 rounded-md mt-2">
-              <span class="font-bold text-white dark:text-white theme-light:text-slate-900 text-base">Neto a pagar:</span>
-              <span class="font-bold text-green-500 dark:text-green-400 theme-light:text-green-600 text-xl" data-total="net">${formatMoney(r.netTotal)}</span>
+            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/20 to-green-500/20 dark:from-blue-500/20 dark:to-green-500/20 theme-light:from-blue-100 theme-light:to-green-100 rounded-lg mt-3 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300">
+              <span class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg flex items-center gap-2">
+                <span>💰</span>
+                Neto a pagar:
+              </span>
+              <span class="font-bold text-green-400 dark:text-green-400 theme-light:text-green-600 text-2xl" data-total="net">${formatMoney(r.netTotal)}</span>
             </div>
           </div>
         </div>
