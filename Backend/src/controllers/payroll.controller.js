@@ -509,6 +509,34 @@ function extractCommissionDetailsFromSale(sale, techNameUpper) {
   return details;
 }
 
+function pickServiceNameFromSale(sale) {
+  const items = Array.isArray(sale?.items) ? sale.items : [];
+  if (items.length === 0) return '';
+
+  // Preferir líneas que representan servicio/combo (no inventario físico)
+  const preferred = items.filter(it => {
+    const src = String(it?.source || '').toLowerCase();
+    return src === 'service' || src === 'price';
+  });
+  const pool = preferred.length ? preferred : items;
+
+  // Elegir la línea más representativa: por total más alto, fallback primera.
+  let best = pool[0];
+  let bestTotal = Number(best?.total) || (Number(best?.qty || 0) * Number(best?.unitPrice || 0)) || 0;
+  for (const it of pool) {
+    const tot = Number(it?.total) || (Number(it?.qty || 0) * Number(it?.unitPrice || 0)) || 0;
+    if (tot > bestTotal) {
+      best = it;
+      bestTotal = tot;
+    }
+  }
+
+  const name = String(best?.name || '').trim();
+  if (name) return name;
+  const sku = String(best?.sku || '').trim();
+  return sku || '';
+}
+
 export const previewSettlement = async (req, res) => {
   try {
     const { periodId, technicianId, technicianName, selectedConceptIds = [] } = req.body;
@@ -589,7 +617,7 @@ export const previewSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1, items: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -615,7 +643,8 @@ export const previewSettlement = async (req, res) => {
           share: calculatedShare, // Usar el cálculo correcto
           saleNumber: s.number || null,
           saleId: s._id || null,
-          vehiclePlate: s.vehicle?.plate || null
+          vehiclePlate: s.vehicle?.plate || null,
+          serviceName: pickServiceNameFromSale(s) || null
         });
       });
       return acc + fromSale.reduce((a, b) => {
@@ -677,7 +706,8 @@ export const previewSettlement = async (req, res) => {
             saleNumber: detail.saleNumber || null,
             saleId: detail.saleId || null,
             laborName: detail.kind || null,
-            vehiclePlate: detail.vehiclePlate || null
+            vehiclePlate: detail.vehiclePlate || null,
+            serviceName: detail.serviceName || null
           });
         });
       } else if (commissionRounded > 0) {
@@ -918,7 +948,7 @@ export const approveSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1, items: 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -944,7 +974,8 @@ export const approveSettlement = async (req, res) => {
           share: calculatedShare, // Usar el cálculo correcto
           saleNumber: s.number || null,
           saleId: s._id || null,
-          vehiclePlate: s.vehicle?.plate || null
+          vehiclePlate: s.vehicle?.plate || null,
+          serviceName: pickServiceNameFromSale(s) || null
         });
       });
       return acc + fromSale.reduce((a, b) => {
@@ -1023,7 +1054,8 @@ export const approveSettlement = async (req, res) => {
             saleNumber: detail.saleNumber || null,
             saleId: detail.saleId || null,
             laborName: detail.kind || null,
-            vehiclePlate: detail.vehiclePlate || null
+            vehiclePlate: detail.vehiclePlate || null,
+            serviceName: detail.serviceName || null
           });
         });
       } else if (finalCommissionAmount > 0) {

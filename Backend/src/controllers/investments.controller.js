@@ -3,6 +3,7 @@ import InvestmentItem from "../models/InvestmentItem.js";
 import StockEntry from "../models/StockEntry.js";
 import Item from "../models/Item.js";
 import Sale from "../models/Sale.js";
+import Purchase from "../models/Purchase.js";
 import CashFlowEntry from "../models/CashFlowEntry.js";
 import Account from "../models/Account.js";
 import { computeBalance } from "./cashflow.controller.js";
@@ -35,29 +36,59 @@ export const getInvestorInvestments = async (req, res) => {
       investorId: investorId
     })
       .populate('itemId', 'sku name salePrice')
-      .populate('stockEntryId', 'qty entryPrice entryDate')
+      .populate('stockEntryId', 'qty entryPrice entryDate purchaseId investorId companyId')
       .populate('purchaseId', 'investorId companyId purchaseDate')
       .populate('saleId', 'number status closedAt')
       .sort({ createdAt: -1 })
       .lean();
 
-    // Filtrar items inconsistentes: sin compra, compra inexistente, o compra de otro inversor/empresa.
-    // Esto evita que aparezcan "Items Disponibles" que no tienen compra registrada bajo este inversor.
+    // Construir mapa de compras para validar existencia y pertenencia.
+    // Soporta casos legacy donde InvestmentItem.purchaseId es null pero StockEntry.purchaseId sí existe.
+    const purchaseIds = new Set();
+    for (const inv of investmentItems) {
+      const pidDirect = idStr(inv?.purchaseId);
+      const pidFromStock = idStr(inv?.stockEntryId?.purchaseId);
+      if (pidDirect) purchaseIds.add(pidDirect);
+      if (pidFromStock) purchaseIds.add(pidFromStock);
+    }
+
+    const purchases = purchaseIds.size
+      ? await Purchase.find({
+          companyId: req.companyId,
+          _id: { $in: Array.from(purchaseIds) }
+        }).select({ investorId: 1, companyId: 1, purchaseDate: 1 }).lean()
+      : [];
+
+    const purchaseMap = new Map(purchases.map(p => [idStr(p?._id), p]));
+
+    // Filtrar items inconsistentes: sin compra resoluble, compra inexistente, o compra de otro inversor/empresa.
+    // Esto evita que aparezcan "Items Disponibles" que no tienen compra registrada bajo este inversor,
+    // pero NO elimina items válidos que vienen sin purchaseId (legacy) si se puede resolver via stockEntryId.
     const validItems = [];
     let orphanedOrMismatchedCount = 0;
     for (const inv of investmentItems) {
-      if (!inv?.purchaseId) {
+      const pid = idStr(inv?.purchaseId) || idStr(inv?.stockEntryId?.purchaseId);
+      if (!pid) {
         orphanedOrMismatchedCount++;
         continue;
       }
-      if (!sameId(inv.purchaseId.companyId, req.companyId)) {
+
+      const purchase = purchaseMap.get(pid);
+      if (!purchase) {
         orphanedOrMismatchedCount++;
         continue;
       }
-      if (!sameId(inv.purchaseId.investorId, investorId)) {
+      if (!sameId(purchase.companyId, req.companyId)) {
         orphanedOrMismatchedCount++;
         continue;
       }
+      if (!sameId(purchase.investorId, investorId)) {
+        orphanedOrMismatchedCount++;
+        continue;
+      }
+
+      // Adjuntar purchaseId "efectivo" al objeto (para UI/debug), sin mutar DB.
+      if (!inv.purchaseId) inv.purchaseId = purchase;
       validItems.push(inv);
     }
     
@@ -123,15 +154,33 @@ export const listInvestorsSummary = async (req, res) => {
           investorId: investor._id
         })
           .populate('purchaseId', 'investorId companyId')
+          .populate('stockEntryId', 'purchaseId investorId companyId')
           .lean();
 
         // Aplicar la misma regla de consistencia que en el detalle:
         // solo contar items con compra existente y perteneciente al inversor.
-        const items = (itemsRaw || []).filter(inv =>
-          inv?.purchaseId &&
-          sameId(inv.purchaseId.companyId, req.companyId) &&
-          sameId(inv.purchaseId.investorId, investor._id)
-        );
+        const purchaseIds = new Set();
+        for (const inv of (itemsRaw || [])) {
+          const pidDirect = idStr(inv?.purchaseId);
+          const pidFromStock = idStr(inv?.stockEntryId?.purchaseId);
+          if (pidDirect) purchaseIds.add(pidDirect);
+          if (pidFromStock) purchaseIds.add(pidFromStock);
+        }
+        const purchases = purchaseIds.size
+          ? await Purchase.find({
+              companyId: req.companyId,
+              _id: { $in: Array.from(purchaseIds) }
+            }).select({ investorId: 1, companyId: 1 }).lean()
+          : [];
+        const purchaseMap = new Map(purchases.map(p => [idStr(p?._id), p]));
+
+        const items = (itemsRaw || []).filter(inv => {
+          const pid = idStr(inv?.purchaseId) || idStr(inv?.stockEntryId?.purchaseId);
+          if (!pid) return false;
+          const p = purchaseMap.get(pid);
+          if (!p) return false;
+          return sameId(p.companyId, req.companyId) && sameId(p.investorId, investor._id);
+        });
         
         const totalInvestment = items.reduce((sum, inv) => sum + (inv.purchasePrice * inv.qty), 0);
         const availableValue = items
