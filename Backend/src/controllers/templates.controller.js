@@ -1435,6 +1435,19 @@ function normalizeTemplateHtml(html='') {
         }
       });
     }
+
+    // Ocultar fila de descuento si no hay descuento (solo remisión/factura)
+    const hasRemissionTable = output.includes('remission-table') || output.includes('items-table');
+    if (hasRemissionTable) {
+      // Si la plantilla no tiene condición, la agregamos alrededor de la fila de descuento.
+      const discountRowRegex = /<tr[^>]*>[\s\S]*?(DESCUENTO|Descuento|descuento)[\s\S]*?<\/tr>/gi;
+      output = output.replace(discountRowRegex, (row, _label, offset, full) => {
+        const prefix = full.slice(Math.max(0, offset - 120), offset);
+        if (/\{\{#if\s+(S\.hasDiscount|sale\.hasDiscount)\s*\}\}\s*$/.test(prefix)) return row;
+        const ifCond = row.includes('sale.') ? '{{#if sale.hasDiscount}}' : '{{#if S.hasDiscount}}';
+        return `${ifCond}${row}{{/if}}`;
+      });
+    }
   }
   
   // Para cotizaciones - convertir a estructura agrupada igual que remisiones

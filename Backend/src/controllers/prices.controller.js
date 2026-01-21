@@ -448,25 +448,14 @@ export const getPrice = async (req, res) => {
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, investmentValue, isGeneral = false } = req.body || {};
+  const { name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, investmentValue } = req.body || {};
   
   // name es siempre requerido
   if (!name || !name.trim()) return res.status(400).json({ error: 'name requerido' });
   
-  // Para precios de inversión, vehicleId debe ser null (siempre generales)
+  // Todos los precios deben ser GENERALES. Ignorar vehicleId y forzar general.
   const isInversion = type === 'inversion';
-  if (isInversion && vehicleId) {
-    return res.status(400).json({ error: 'Los precios de inversión no pueden estar vinculados a un vehículo' });
-  }
-  
-  // vehicleId es opcional: si isGeneral es true, isInversion es true, o vehicleId es null/undefined, crear precio general
-  const isGeneralEffective = Boolean(isGeneral) || !vehicleId || isInversion;
-  let vehicle = null;
-  if (vehicleId && !isGeneralEffective) {
-    vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
-    if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
-  }
+  const vehicle = null;
 
   // Si hay serviceId, validar servicio (opcional)
   let svc = null;
@@ -538,7 +527,7 @@ export const createPrice = async (req, res) => {
   
   const doc = {
     companyId: creationCompanyId,
-    vehicleId: isGeneralEffective ? null : (vehicle?._id || null), // null para precios generales e inversión
+    vehicleId: null, // Siempre general
     name: String(name).trim(),
     type: isInversion ? 'inversion' : (type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service')),
     serviceId: isInversion ? null : (svc?._id || null),
@@ -546,9 +535,9 @@ export const createPrice = async (req, res) => {
     comboProducts: (isInversion || type !== 'combo') ? [] : processedComboProducts,
     yearFrom: yearFromNum,
     yearTo: yearToNum,
-    brand: isGeneralEffective ? '' : (vehicle?.make || ''),
-    line: isGeneralEffective ? '' : (vehicle?.line || ''),
-    engine: isGeneralEffective ? '' : (vehicle?.displacement || ''),
+    brand: '',
+    line: '',
+    engine: '',
     year: null,
     variables: isInversion ? {} : (variables || {}),
     total,
@@ -624,6 +613,13 @@ export const updatePrice = async (req, res) => {
   
   // Para precios de inversión, no permitir actualizar serviceId, itemId ni comboProducts
   const isInversion = row.type === 'inversion';
+
+  // Todos los precios deben ser GENERALES: limpiar vínculo al vehículo y legacy fields.
+  row.vehicleId = null;
+  row.brand = '';
+  row.line = '';
+  row.engine = '';
+  row.year = null;
   
   // Actualizar serviceId si se proporciona (solo si no es inversión)
   if (serviceId !== undefined && !isInversion) {
@@ -880,12 +876,12 @@ export const downloadGeneralImportTemplate = async (_req, res) => {
 // ============ import XLSX ============
 export const importPrices = async (req, res) => {
   const { vehicleId, mode = 'upsert' } = req.body || {};
-  if (!vehicleId) return res.status(400).json({ error: 'vehicleId es requerido' });
   if (!req.file?.buffer) return res.status(400).json({ error: 'Archivo .xlsx requerido en campo "file"' });
-
-  const vehicle = await Vehicle.findById(vehicleId);
-  if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
-  if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
+  
+  // Todos los precios deben ser GENERALES: ignorar vehicleId si se envía.
+  if (vehicleId) {
+    // No usar vehicleId, pero permitir compatibilidad con payloads antiguos.
+  }
 
   // Leer primera hoja
   let rows = [];
@@ -898,7 +894,7 @@ export const importPrices = async (req, res) => {
   }
 
   if (mode === 'overwrite') {
-    await PriceEntry.deleteMany({ companyId: req.companyId, vehicleId });
+    await PriceEntry.deleteMany({ companyId: req.companyId, vehicleId: null, type: { $ne: 'inversion' } });
   }
 
   let inserted = 0, updated = 0, errors = [];
@@ -926,16 +922,16 @@ export const importPrices = async (req, res) => {
     try {
       const filter = {
         companyId: req.companyId,
-        vehicleId: vehicle._id,
+        vehicleId: null,
         name: name,
         type: type
       };
       
       const doc = {
         ...filter,
-        brand: vehicle.make,
-        line: vehicle.line,
-        engine: vehicle.displacement,
+        brand: '',
+        line: '',
+        engine: '',
         year: null,
         variables: {},
         total
