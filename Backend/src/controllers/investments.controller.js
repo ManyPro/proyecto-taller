@@ -8,6 +8,18 @@ import Account from "../models/Account.js";
 import { computeBalance } from "./cashflow.controller.js";
 import { publish } from '../lib/live.js';
 
+function idStr(v) {
+  if (!v) return '';
+  if (typeof v === 'object') return String(v._id || v.id || '');
+  return String(v);
+}
+
+function sameId(a, b) {
+  const as = idStr(a);
+  const bs = idStr(b);
+  return !!as && !!bs && as === bs;
+}
+
 // ===== LISTAR INVERSIONES POR INVERSOR =====
 export const getInvestorInvestments = async (req, res) => {
   try {
@@ -24,17 +36,38 @@ export const getInvestorInvestments = async (req, res) => {
     })
       .populate('itemId', 'sku name salePrice')
       .populate('stockEntryId', 'qty entryPrice entryDate')
+      .populate('purchaseId', 'investorId companyId purchaseDate')
       .populate('saleId', 'number status closedAt')
       .sort({ createdAt: -1 })
       .lean();
+
+    // Filtrar items inconsistentes: sin compra, compra inexistente, o compra de otro inversor/empresa.
+    // Esto evita que aparezcan "Items Disponibles" que no tienen compra registrada bajo este inversor.
+    const validItems = [];
+    let orphanedOrMismatchedCount = 0;
+    for (const inv of investmentItems) {
+      if (!inv?.purchaseId) {
+        orphanedOrMismatchedCount++;
+        continue;
+      }
+      if (!sameId(inv.purchaseId.companyId, req.companyId)) {
+        orphanedOrMismatchedCount++;
+        continue;
+      }
+      if (!sameId(inv.purchaseId.investorId, investorId)) {
+        orphanedOrMismatchedCount++;
+        continue;
+      }
+      validItems.push(inv);
+    }
     
     // Agrupar por status
-    const available = investmentItems.filter(i => i.status === 'available');
-    const sold = investmentItems.filter(i => i.status === 'sold');
-    const paid = investmentItems.filter(i => i.status === 'paid');
+    const available = validItems.filter(i => i.status === 'available');
+    const sold = validItems.filter(i => i.status === 'sold');
+    const paid = validItems.filter(i => i.status === 'paid');
     
     // Calcular totales
-    const totalInvestment = investmentItems.reduce((sum, inv) => {
+    const totalInvestment = validItems.reduce((sum, inv) => {
       return sum + (inv.purchasePrice * inv.qty);
     }, 0);
     
@@ -59,7 +92,8 @@ export const getInvestorInvestments = async (req, res) => {
         availableValue,
         soldValue,
         paidValue,
-        pendingPayment
+        pendingPayment,
+        orphanedOrMismatchedCount
       },
       items: {
         available,
@@ -84,10 +118,20 @@ export const listInvestorsSummary = async (req, res) => {
     
     const summaries = await Promise.all(
       investors.map(async (investor) => {
-        const items = await InvestmentItem.find({
+        const itemsRaw = await InvestmentItem.find({
           companyId: req.companyId,
           investorId: investor._id
-        }).lean();
+        })
+          .populate('purchaseId', 'investorId companyId')
+          .lean();
+
+        // Aplicar la misma regla de consistencia que en el detalle:
+        // solo contar items con compra existente y perteneciente al inversor.
+        const items = (itemsRaw || []).filter(inv =>
+          inv?.purchaseId &&
+          sameId(inv.purchaseId.companyId, req.companyId) &&
+          sameId(inv.purchaseId.investorId, investor._id)
+        );
         
         const totalInvestment = items.reduce((sum, inv) => sum + (inv.purchasePrice * inv.qty), 0);
         const availableValue = items
