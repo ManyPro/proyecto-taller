@@ -1798,11 +1798,11 @@ export const printSettlementHtml = async (req, res) => {
         }
       `;
     }
-    // Agregar estilos para media carta y encoding UTF-8 con mejoras para PDF
+    // Agregar estilos para tamaño carta y encoding UTF-8 con mejoras para PDF
     const pageStyles = `
       @page {
-        size: 5.5in 8.5in; /* Half-letter size */
-        margin: 0.4in;
+        size: 8.5in 11in; /* Carta */
+        margin: 0.5in;
       }
       @media print {
         body {

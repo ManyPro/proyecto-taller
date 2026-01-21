@@ -3399,6 +3399,67 @@ function openMarketplaceHelper(item){
     return segmented;
   }
 
+  // Función auxiliar para calcular el tamaño de fuente óptimo del SKU (en píxeles)
+  function calculateOptimalSkuFontSize(text, containerWidth, baseFontSize) {
+    if (!text || !containerWidth || containerWidth <= 0) {
+      return Math.max(8, baseFontSize || 8);
+    }
+    
+    // Tamaño mínimo de fuente
+    const minFontSize = 8;
+    // Tamaño base de fuente
+    const fontSize = Math.max(minFontSize, baseFontSize || 12);
+    
+    // Aproximación: en fuentes bold, cada carácter ocupa aproximadamente 0.6-0.7 veces el tamaño de fuente
+    // Usamos 0.65 como factor promedio para texto en mayúsculas y bold
+    const charWidthFactor = 0.65;
+    
+    // Calcular el ancho estimado del texto con el tamaño de fuente base
+    const estimatedTextWidth = text.length * fontSize * charWidthFactor;
+    
+    // Si el texto cabe en el ancho disponible, usar el tamaño base
+    if (estimatedTextWidth <= containerWidth * 0.95) { // 95% para dejar un poco de margen
+      return fontSize;
+    }
+    
+    // Si no cabe, calcular el tamaño de fuente necesario para que quepa
+    // Fórmula: fontSize = containerWidth / (textLength * charWidthFactor)
+    const optimalFontSize = (containerWidth * 0.95) / (text.length * charWidthFactor);
+    
+    // Asegurar que no sea menor que el mínimo
+    return Math.max(minFontSize, Math.floor(optimalFontSize));
+  }
+
+  // Función auxiliar para calcular el tamaño de fuente óptimo del SKU en milímetros (para jsPDF)
+  function calculateOptimalSkuFontSizeMm(text, containerWidthMm, baseFontSizeMm) {
+    if (!text || !containerWidthMm || containerWidthMm <= 0) {
+      return Math.max(6, baseFontSizeMm || 6);
+    }
+    
+    // Tamaño mínimo de fuente en mm
+    const minFontSize = 6;
+    // Tamaño base de fuente
+    const fontSize = Math.max(minFontSize, baseFontSizeMm || 10);
+    
+    // En jsPDF con fuente bold, cada carácter ocupa aproximadamente 0.5-0.6 veces el tamaño de fuente en mm
+    // Usamos 0.55 como factor promedio para texto en mayúsculas y bold
+    const charWidthFactor = 0.55;
+    
+    // Calcular el ancho estimado del texto con el tamaño de fuente base
+    const estimatedTextWidth = text.length * fontSize * charWidthFactor;
+    
+    // Si el texto cabe en el ancho disponible, usar el tamaño base
+    if (estimatedTextWidth <= containerWidthMm * 0.95) { // 95% para dejar un poco de margen
+      return fontSize;
+    }
+    
+    // Si no cabe, calcular el tamaño de fuente necesario para que quepa
+    const optimalFontSize = (containerWidthMm * 0.95) / (text.length * charWidthFactor);
+    
+    // Asegurar que no sea menor que el mínimo
+    return Math.max(minFontSize, Math.round(optimalFontSize * 10) / 10); // Redondear a 1 decimal
+  }
+
   function createStickerHTML(item, layout, widthPx, heightPx) {
     console.log('🏷️ [HTML] Creando HTML del sticker');
     console.log('🏷️ [HTML] Dimensiones del sticker:', { widthPx, heightPx });
@@ -3450,14 +3511,15 @@ function openMarketplaceHelper(item){
     if (skuEl) {
       const alignStyle = skuEl.align === 'center' ? 'center' : (skuEl.align === 'flex-end' ? 'flex-end' : 'flex-start');
       const justifyStyle = skuEl.vAlign === 'center' ? 'center' : (skuEl.vAlign === 'flex-end' ? 'flex-end' : 'flex-start');
-      // Asegurar tamaño mínimo de fuente visible (mínimo 8px)
-      const skuFontSize = Math.max(8, skuEl.fontSize || 8);
       const skuText = sku || 'NO SKU'; // Mostrar placeholder si está vacío
-      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuFontSize, text: skuText, original: sku });
+      // Calcular tamaño de fuente óptimo para que el SKU quepa en una sola línea
+      const baseFontSize = skuEl.fontSize || 12;
+      const skuFontSize = calculateOptimalSkuFontSize(skuText, skuEl.w, baseFontSize);
+      console.log('🏷️ [HTML] Agregando SKU:', { x: skuEl.x, y: skuEl.y, w: skuEl.w, h: skuEl.h, fontSize: skuFontSize, baseFontSize, text: skuText, original: sku, textLength: skuText.length });
       // Escapar HTML y asegurar visibilidad
       const skuEscaped = skuText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       // Simplificar HTML y asegurar visibilidad - usar display:block para texto
-      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;box-sizing:border-box;padding:2px;margin:0;z-index:20;background:transparent;overflow:visible;"><div style="font-size:${skuFontSize}px !important;font-weight:bold !important;color:#000000 !important;width:100% !important;height:100% !important;display:block !important;text-align:center !important;line-height:${skuEl.h}px !important;vertical-align:middle !important;visibility:visible !important;opacity:1 !important;">${skuEscaped}</div></div>`);
+      htmlParts.push(`<div class="st-el st-text" data-id="sku" style="position:absolute;left:${skuEl.x}px;top:${skuEl.y}px;width:${skuEl.w}px;height:${skuEl.h}px;box-sizing:border-box;padding:2px;margin:0;z-index:20;background:transparent;overflow:visible;"><div style="font-size:${skuFontSize}px !important;font-weight:bold !important;color:#000000 !important;width:100% !important;height:100% !important;display:block !important;text-align:center !important;line-height:${skuEl.h}px !important;vertical-align:middle !important;visibility:visible !important;opacity:1 !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;">${skuEscaped}</div></div>`);
     } else {
       console.warn('🏷️ [HTML] SKU element no encontrado en layout');
     }
@@ -3581,7 +3643,10 @@ function openMarketplaceHelper(item){
 
         // SKU centrado en la izquierda
         const skuText = String(it.sku || '').toUpperCase();
-        const skuFontSize = 10; // Reducido de 14 a 10 para que sea más pequeño
+        // Calcular tamaño de fuente óptimo para que el SKU quepa en una sola línea
+        const baseFontSizeMm = 10;
+        const skuBoxW = leftColW;
+        const skuFontSize = calculateOptimalSkuFontSizeMm(skuText, skuBoxW, baseFontSizeMm);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(skuFontSize);
 
@@ -3604,7 +3669,6 @@ function openMarketplaceHelper(item){
         }
 
         // SKU
-        const skuBoxW = leftColW;
         const skuBoxH = heightMm * 0.34;
         const skuBoxY = (heightMm - skuBoxH) / 2;
         doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
