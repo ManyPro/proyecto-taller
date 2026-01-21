@@ -1980,7 +1980,8 @@ export function initPrices(){
     // Si es precio general o inversión, no requiere vehículo
     const isInversionPrice = isInversion || type === 'inversion';
     const isExistingGeneral = !!(existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion');
-    const isGeneralEffective = Boolean(isGeneral) || isExistingGeneral;
+    const forceGeneralPrices = true;
+    const isGeneralEffective = !isInversionPrice && (forceGeneralPrices || Boolean(isGeneral) || isExistingGeneral);
     // Si no es precio general ni inversión, verificar que haya al menos un vehículo seleccionado
     if (!isGeneralEffective && !isInversionPrice && !existingPrice?.vehicleId && !selectedVehicle && selectedVehicles.length === 0) {
       return alert('Selecciona un vehículo primero o crea un precio general');
@@ -1996,7 +1997,7 @@ export function initPrices(){
     
     // Determinar si es precio general o inversión
     // IMPORTANTE: isInversionPrice y isGeneralPrice son mutuamente excluyentes
-    const isGeneralPrice = isInversionPrice ? false : (isGeneralEffective || (existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion'));
+    const isGeneralPrice = !isInversionPrice;
     
     // Determinar qué vehículos usar para la creación
     // Si es precio general, no usar vehículos

@@ -5116,10 +5116,23 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
     const manualInput = node.querySelector('#qr-manual');
     const manualBtn = node.querySelector('#qr-add-manual');
     
+    // Agregar botón "OMITIR" para usar nombre placeholder
+    const skipBtn = document.createElement('button');
+    skipBtn.id = 'qr-skip-slot';
+    skipBtn.className = 'px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-200 mt-2';
+    skipBtn.textContent = '⏭️ OMITIR (usar nombre placeholder)';
+    skipBtn.style.width = '100%';
+    
+    // Insertar el botón después del input manual
+    const manualContainer = manualInput?.parentElement;
+    if (manualContainer) {
+      manualContainer.insertAdjacentElement('afterend', skipBtn);
+    }
+    
     let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
     let cameraDisabled = false;
     
-    msg.textContent = `Escanea el código QR del item para completar el slot: "${slot.slotName}"`;
+    msg.textContent = `Escanea el código QR del item para completar el slot: "${slot.slotName}" (o usa OMITIR para usar el nombre placeholder)`;
     
     async function fillCams() {
       try {
@@ -5366,6 +5379,81 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
       }
     }
     
+    // Función para omitir y usar nombre placeholder
+    async function handleSkip() {
+      cameraDisabled = true;
+      stop();
+      
+      try {
+        // Validar que el slot tenga comboPriceId antes de hacer la llamada
+        if (!slot || !slot.comboPriceId) {
+          throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
+        }
+        
+        // Asegurar que comboPriceId sea un string (puede venir como ObjectId de MongoDB)
+        const comboPriceId = slot.comboPriceId ? String(slot.comboPriceId) : null;
+        if (!comboPriceId) {
+          throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
+        }
+        
+        // Completar slot sin itemId ni sku (usará nombre placeholder)
+        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, null, null);
+        current = result.sale;
+        syncCurrentIntoOpenList();
+        await renderAll();
+        closeModal();
+        
+        // Reproducir sonido de confirmación
+        try {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.frequency.value = 600;
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (err) {
+          console.warn('No se pudo reproducir sonido:', err);
+        }
+        
+        // Mostrar popup de confirmación
+        const popup = document.createElement('div');
+        popup.textContent = '✓ Slot completado con nombre placeholder!';
+        popup.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: var(--success, #10b981);
+          color: white;
+          padding: 20px 40px;
+          border-radius: 8px;
+          font-size: 18px;
+          font-weight: bold;
+          z-index: 10000;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+          animation: fadeInOut 1.5s ease-in-out;
+        `;
+        document.body.appendChild(popup);
+        setTimeout(() => {
+          if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+          }
+        }, 1500);
+        
+        resolve(result);
+      } catch (err) {
+        cameraDisabled = false;
+        msg.textContent = 'Error: ' + (err?.message || 'No se pudo completar el slot');
+        msg.style.color = 'var(--danger, #ef4444)';
+        reject(err);
+      }
+    }
+    
     async function tickNative() {
       if (!running || cameraDisabled) return;
       try {
@@ -5413,6 +5501,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
         if (val) handleCode(val, true);
       }
     });
+    skipBtn.addEventListener('click', handleSkip);
     
     // Cargar cámaras y luego iniciar automáticamente
     fillCams().then(() => {
@@ -11455,6 +11544,7 @@ let historialTotal = 0;
 let historialDateFrom = null;
 let historialDateTo = null;
 let historialPlate = null; // Filtro por placa
+let historialNumber = null; // Filtro por número de venta
 let historialTechnician = null; // Filtro por técnico
 let historialLoading = false; // Flag para evitar múltiples cargas simultáneas
 let historialCache = null; // Cache simple para evitar recargas innecesarias
@@ -11497,6 +11587,7 @@ function initInternalNavigation() {
   const fechaDesde = document.getElementById('historial-fecha-desde');
   const fechaHasta = document.getElementById('historial-fecha-hasta');
   const placaInput = document.getElementById('historial-placa');
+  const numeroInput = document.getElementById('historial-numero');
   const tecnicoSelect = document.getElementById('historial-tecnico');
   
   // Cargar lista de técnicos al inicializar
@@ -11543,6 +11634,7 @@ function initInternalNavigation() {
     historialDateFrom = fechaDesde?.value || null;
     historialDateTo = fechaHasta?.value || null;
     historialPlate = placaInput?.value?.trim().toUpperCase() || null;
+    historialNumber = numeroInput?.value?.trim() || null;
     historialTechnician = tecnicoSelect?.value?.trim() || null;
     historialCurrentPage = 1;
     historialCache = null; // Invalidar cache al cambiar filtros
@@ -11561,10 +11653,12 @@ function initInternalNavigation() {
       if (fechaDesde) fechaDesde.value = '';
       if (fechaHasta) fechaHasta.value = '';
       if (placaInput) placaInput.value = '';
+      if (numeroInput) numeroInput.value = '';
       if (tecnicoSelect) tecnicoSelect.value = '';
       historialDateFrom = null;
       historialDateTo = null;
       historialPlate = null;
+      historialNumber = null;
       historialTechnician = null;
       historialCurrentPage = 1;
       historialCache = null; // Invalidar cache al limpiar filtros
@@ -11572,9 +11666,17 @@ function initInternalNavigation() {
     });
   }
   
-  // Permitir filtrar con Enter en el campo de placa
+  // Permitir filtrar con Enter en los campos de texto
   if (placaInput) {
     placaInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyFilters();
+      }
+    });
+  }
+  if (numeroInput) {
+    numeroInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         applyFilters();
@@ -11659,9 +11761,8 @@ async function loadHistorial(forceRefresh = false) {
     if (historialDateFrom) params.from = historialDateFrom;
     if (historialDateTo) params.to = historialDateTo;
     if (historialPlate) params.plate = historialPlate;
-    // NOTA: El filtro de técnico se envía al backend, no se filtra en frontend
-    // El backend no soporta filtro por técnico en listSales, así que lo mantenemos en frontend por ahora
-    // pero sin afectar la paginación
+    if (historialNumber) params.number = historialNumber;
+    if (historialTechnician) params.technician = historialTechnician;
 
     // Generar clave de cache (incluye página para evitar conflictos)
     const cacheKey = JSON.stringify(params);
@@ -11675,17 +11776,7 @@ async function loadHistorial(forceRefresh = false) {
     }
 
     const res = await API.sales.list(params);
-    let sales = Array.isArray(res?.items) ? res.items : [];
-    
-    // Filtrar por técnico en el frontend si está especificado (solo para visualización)
-    // NOTA: Esto puede causar que se muestren menos items de los esperados por página
-    // pero es necesario porque el backend no soporta filtro por técnico en listSales
-    if (historialTechnician) {
-      sales = sales.filter(sale => {
-        const tech = sale?.technician || sale?.closingTechnician || sale?.initialTechnician || '';
-        return String(tech).trim().toUpperCase() === String(historialTechnician).trim().toUpperCase();
-      });
-    }
+    const sales = Array.isArray(res?.items) ? res.items : [];
     
     // Actualizar cache
     historialCache = sales;
@@ -11694,13 +11785,6 @@ async function loadHistorial(forceRefresh = false) {
     // Actualizar totales desde la respuesta del backend
     historialTotal = res?.total || sales.length;
     historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
-    
-    // Si se filtró por técnico en frontend, ajustar totales (pero mantener paginación del backend)
-    // Esto es un workaround hasta que el backend soporte filtro por técnico
-    if (historialTechnician && res?.total) {
-      // El total del backend no refleja el filtro de técnico, pero mantenemos la paginación
-      // para evitar problemas de navegación
-    }
 
     renderHistorialSales(sales);
     updateHistorialPagination();
@@ -11894,7 +11978,38 @@ async function createHistorialSaleCard(sale) {
   const closedDate = formatClosedDate(sale?.closedAt);
   const saleNumber = padSaleNumber(sale?.number || sale?._id || '');
   const technician = sale?.technician || sale?.closingTechnician || 'Sin asignar';
+  const customerName = sale?.customer?.name || 'Sin cliente';
+  const vehicleMileage = sale?.vehicle?.mileage ? `${Number(sale.vehicle.mileage).toLocaleString('es-CO')} km` : 'Sin KM';
   const { services, combos } = await extractServicesAndCombos(sale);
+  
+  // Calcular total pagado y métodos de pago
+  const totalPaid = calculateTotalPaid(sale);
+  const paymentMethods = sale?.paymentMethods || [];
+  let paymentMethodsText = '';
+  if (paymentMethods.length > 0) {
+    // Filtrar métodos de pago válidos (excluir abonos informativos)
+    const validMethods = paymentMethods.filter(p => {
+      const m = String(p?.method || '').toUpperCase();
+      return !p?.isAdvancePayment && !m.startsWith('ABONO:');
+    });
+    if (validMethods.length > 0) {
+      paymentMethodsText = validMethods.map(pm => {
+        const method = pm.method || 'N/A';
+        const amount = Number(pm.amount) || 0;
+        return `${method} ${money(amount)}`;
+      }).join(', ');
+    } else if (sale?.paymentMethod) {
+      // Fallback a método único legacy
+      paymentMethodsText = `${sale.paymentMethod} ${money(totalPaid)}`;
+    } else {
+      paymentMethodsText = 'Sin método de pago';
+    }
+  } else if (sale?.paymentMethod) {
+    // Fallback a método único legacy
+    paymentMethodsText = `${sale.paymentMethod} ${money(totalPaid)}`;
+  } else {
+    paymentMethodsText = 'Sin método de pago';
+  }
   
   // Crear resumen de servicios y combos como tarjetas pequeñas
   const summaryItems = [...services, ...combos];
@@ -11922,8 +12037,19 @@ async function createHistorialSaleCard(sale) {
         <div class="flex flex-wrap gap-2">
           ${summaryCardsHTML}
         </div>
+        <!-- Cliente y KM entre resumen y botones -->
+        <div class="flex items-center gap-4 mt-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cliente:</span>
+            <span class="text-sm text-white dark:text-white theme-light:text-slate-900 font-semibold">${htmlEscape(customerName)}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">KM:</span>
+            <span class="text-sm text-white dark:text-white theme-light:text-slate-900 font-semibold">${htmlEscape(vehicleMileage)}</span>
+          </div>
+        </div>
         <!-- Técnico debajo del resumen -->
-        <div class="flex items-center gap-2 mt-3">
+        <div class="flex items-center gap-2 mt-2">
           <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Técnico:</span>
           <span class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 font-semibold">${htmlEscape(technician)}</span>
           <button class="btn-historial-edit-technician ml-1 p-1 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 hover:text-blue-300 dark:hover:text-blue-300 theme-light:hover:text-blue-700 transition-colors" data-sale-id="${sale._id}" title="Editar técnico">
@@ -11945,9 +12071,22 @@ async function createHistorialSaleCard(sale) {
         </button>
       </div>
     </div>
-    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center">
-      <span class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">Venta #${saleNumber}</span>
-      <span class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cerrada: ${closedDate}</span>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">Venta #${saleNumber}</span>
+        <span class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cerrada: ${closedDate}</span>
+      </div>
+      <!-- Valor pagado y método de pago en la parte inferior -->
+      <div class="flex justify-between items-center pt-2 border-t border-slate-700/20 dark:border-slate-700/20 theme-light:border-slate-300/20">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Pagado:</span>
+          <span class="text-sm font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(totalPaid)}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Método:</span>
+          <span class="text-sm font-medium text-white dark:text-white theme-light:text-slate-900">${htmlEscape(paymentMethodsText)}</span>
+        </div>
+      </div>
     </div>
   `;
 
@@ -12556,17 +12695,38 @@ function buildSaleSummaryHTML(sale) {
   const customer = sale?.customer?.name || 'Sin cliente';
   const customerId = sale?.customer?.idNumber || '';
   const customerPhone = sale?.customer?.phone || '';
+  const customerEmail = sale?.customer?.email || '';
   const total = Number(sale?.total) || 0;
-  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : 'Sin fecha';
+  
+  // Separar fecha y hora
+  let closedDate = 'Sin fecha';
+  let closedTime = 'Sin hora';
+  if (sale?.closedAt) {
+    const dateObj = new Date(sale.closedAt);
+    closedDate = dateObj.toLocaleDateString('es-CO', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric'
+    });
+    closedTime = dateObj.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+  
+  // Estado en español
+  const status = sale?.status === 'closed' ? 'CERRADA' : (sale?.status === 'draft' ? 'BORRADOR' : (sale?.status || 'N/A').toUpperCase());
+  
   const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
   const paymentMethods = sale?.paymentMethods || [];
   const laborCommissions = sale?.laborCommissions || [];
+  
+  // Datos del vehículo
+  const vehicleBrand = sale?.vehicle?.brand || '';
+  const vehicleLine = sale?.vehicle?.line || '';
+  const vehicleYear = sale?.vehicle?.year || '';
+  const vehicleMileage = sale?.vehicle?.mileage ? `${Number(sale.vehicle.mileage).toLocaleString('es-CO')} km` : '';
+  const vehicleEngine = sale?.vehicle?.engine || sale?.vehicle?.displacement || '';
 
   let itemsHTML = '';
   if (sale.items && sale.items.length > 0) {
@@ -12616,18 +12776,105 @@ function buildSaleSummaryHTML(sale) {
         </button>
       </div>
 
-      <!-- Información General -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
-          <h4 class="text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 uppercase tracking-wide">Cliente</h4>
-          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${customer}</div>
-          ${customerId ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 flex items-center gap-2"><span class="font-medium">ID:</span> <span>${customerId}</span></div>` : ''}
-          ${customerPhone ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 flex items-center gap-2 mt-1"><span class="font-medium">Tel:</span> <span>${customerPhone}</span></div>` : ''}
+      <!-- Información General con Burbujas -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+          <span class="text-2xl">ℹ️</span>
+          <span>Información General</span>
+        </h4>
+        
+        <!-- Estado y Número de Venta -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <div class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r ${status === 'CERRADA' ? 'from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600' : 'from-yellow-600 to-yellow-700 dark:from-yellow-600 dark:to-yellow-700 theme-light:from-yellow-500 theme-light:to-yellow-600'} text-white font-semibold rounded-lg shadow-md text-sm">
+            <span class="mr-1.5">${status === 'CERRADA' ? '✓' : '📝'}</span>
+            <span>${status}</span>
+          </div>
+          <div class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white font-semibold rounded-lg shadow-md text-sm">
+            <span class="mr-1.5">#</span>
+            <span>${saleNumber}</span>
+          </div>
         </div>
-        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
-          <h4 class="text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 uppercase tracking-wide">Vehículo</h4>
-          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${plate.toUpperCase()}</div>
-          ${sale.vehicle?.brand ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${sale.vehicle.brand} ${sale.vehicle.line || ''} ${sale.vehicle.year ? `(${sale.vehicle.year})` : ''}</div>` : ''}
+        
+        <!-- Datos del Cliente -->
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md mb-4">
+          <h5 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3 uppercase tracking-wide flex items-center gap-2">
+            <span>👤</span>
+            <span>Cliente</span>
+          </h5>
+          <div class="flex flex-wrap gap-2">
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">📛</span>
+              <span>${htmlEscape(customer)}</span>
+            </div>
+            ${customerId ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">🆔</span>
+              <span>${htmlEscape(customerId)}</span>
+            </div>
+            ` : ''}
+            ${customerPhone ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">📱</span>
+              <span>${htmlEscape(customerPhone)}</span>
+            </div>
+            ` : ''}
+            ${customerEmail ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">📧</span>
+              <span>${htmlEscape(customerEmail)}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <!-- Datos del Vehículo -->
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md mb-4">
+          <h5 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3 uppercase tracking-wide flex items-center gap-2">
+            <span>🚗</span>
+            <span>Vehículo</span>
+          </h5>
+          <div class="flex flex-wrap gap-2">
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">🚙</span>
+              <span>${htmlEscape(plate.toUpperCase())}</span>
+            </div>
+            ${vehicleBrand ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">🏷️</span>
+              <span>${htmlEscape(vehicleBrand)}${vehicleLine ? ` ${htmlEscape(vehicleLine)}` : ''}</span>
+            </div>
+            ` : ''}
+            ${vehicleYear ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">📅</span>
+              <span>${htmlEscape(vehicleYear)}</span>
+            </div>
+            ` : ''}
+            ${vehicleEngine ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">⚙️</span>
+              <span>${htmlEscape(vehicleEngine)}</span>
+            </div>
+            ` : ''}
+            ${vehicleMileage ? `
+            <div class="inline-flex items-center px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">
+              <span class="mr-1.5">📊</span>
+              <span>${htmlEscape(vehicleMileage)}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <!-- Fecha y Hora -->
+        <div class="flex flex-wrap gap-2">
+          <div class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 text-white font-semibold rounded-lg shadow-md text-sm">
+            <span class="mr-1.5">📅</span>
+            <span>${htmlEscape(closedDate)}</span>
+          </div>
+          <div class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-600 dark:to-indigo-700 theme-light:from-indigo-500 theme-light:to-indigo-600 text-white font-semibold rounded-lg shadow-md text-sm">
+            <span class="mr-1.5">🕐</span>
+            <span>${htmlEscape(closedTime)}</span>
+          </div>
         </div>
       </div>
 
@@ -12718,12 +12965,6 @@ function buildSaleSummaryHTML(sale) {
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-center">
-        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-          <span class="font-medium">Cerrada el:</span> <span>${closedDate}</span>
-        </div>
-      </div>
     </div>
   `;
 }

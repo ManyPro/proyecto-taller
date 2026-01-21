@@ -2961,30 +2961,40 @@ export const completeOpenSlot = async (req, res) => {
     item = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: itemCompanyFilter });
   }
   
-  if (!item) {
+  // Si no hay itemId ni sku, se permite completar el slot usando solo el nombre placeholder
+  // Esto permite "omitir" el escaneo de QR y usar el nombre del slot directamente
+  const usePlaceholderName = !itemId && !sku;
+  
+  if (!item && !usePlaceholderName) {
     return res.status(404).json({ error: 'Item del inventario no encontrado' });
   }
   
   // Completar el slot
   slot.completed = true;
-  slot.completedItemId = item._id;
+  if (item) {
+    slot.completedItemId = item._id;
+  } else {
+    // Si no hay item, no se asigna completedItemId (usará nombre placeholder)
+    slot.completedItemId = null;
+  }
   
   // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
-  // Solo si estimatedPrice no está definido, usar el precio del item (salePrice)
+  // Solo si estimatedPrice no está definido, usar el precio del item (salePrice) o 0 si no hay item
   // Esto respeta el precio del slot, incluso si es 0 (el item del combo puede venir sin precio)
   const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
     ? slot.estimatedPrice 
-    : (item.salePrice || 0);
+    : (item ? (item.salePrice || 0) : 0);
   
   // CRÍTICO: Verificar que el item NO esté ya en sale.items para este slot específico
   // Esto previene duplicación si completeOpenSlot se llama dos veces por error
   // Buscar SOLO por refId - no comparar cantidad ni SKU porque pueden variar
-  const existingItemForSlot = sale.items.find(it => {
+  // Solo buscar si hay item (no aplica para slots con nombre placeholder)
+  const existingItemForSlot = item ? sale.items.find(it => {
     const itRefId = it.refId ? String(it.refId) : '';
     return itRefId === String(item._id);
-  });
+  }) : null;
   
-  if (existingItemForSlot) {
+  if (existingItemForSlot && item) {
     // El item ya existe para este slot, actualizar el precio según el slot
     // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
     // Solo si estimatedPrice no está definido, usar el precio del item (salePrice)
@@ -3107,24 +3117,65 @@ export const completeOpenSlot = async (req, res) => {
         insertIndex++;
       }
       
-      // IMPORTANTE: Siempre usar SKU que empiece con "CP-" para que se identifique como parte del combo
-      // Incluso si el item tiene su propio SKU, lo prefijamos con CP- para asegurar que se agrupe correctamente
-      const comboItemSku = item.sku && !item.sku.toUpperCase().startsWith('CP-') 
-        ? `CP-${item.sku}` 
-        : (item.sku || `CP-${String(item._id).slice(-6)}`);
-      
-      // Agregar el item del slot completado como parte del combo
-      sale.items.splice(insertIndex, 0, {
-        source: 'inventory',
-        refId: item._id,
-        sku: comboItemSku,
-        name: item.name || slot.slotName,
-        qty: slot.qty || 1,
-        unitPrice: realPrice,
-        total: Math.round((slot.qty || 1) * realPrice)
-      });
+      if (item) {
+        // IMPORTANTE: Siempre usar SKU que empiece con "CP-" para que se identifique como parte del combo
+        // Incluso si el item tiene su propio SKU, lo prefijamos con CP- para asegurar que se agrupe correctamente
+        const comboItemSku = item.sku && !item.sku.toUpperCase().startsWith('CP-') 
+          ? `CP-${item.sku}` 
+          : (item.sku || `CP-${String(item._id).slice(-6)}`);
+        
+        // Agregar el item del slot completado como parte del combo
+        sale.items.splice(insertIndex, 0, {
+          source: 'inventory',
+          refId: item._id,
+          sku: comboItemSku,
+          name: item.name || slot.slotName,
+          qty: slot.qty || 1,
+          unitPrice: realPrice,
+          total: Math.round((slot.qty || 1) * realPrice)
+        });
+      } else {
+        // Si no hay item, usar nombre placeholder (slot.slotName) y crear un SKU único
+        const placeholderSku = `CP-PLACEHOLDER-${String(slot.comboPriceId).slice(-6)}-${slotIndex}`;
+        sale.items.splice(insertIndex, 0, {
+          source: 'price',
+          refId: new mongoose.Types.ObjectId(),
+          sku: placeholderSku,
+          name: slot.slotName || 'Producto del combo',
+          qty: slot.qty || 1,
+          unitPrice: realPrice,
+          total: Math.round((slot.qty || 1) * realPrice)
+        });
+      }
     } else {
       // Si el item no pertenece al combo, agregar al final
+      if (item) {
+        sale.items.push({
+          source: 'inventory',
+          refId: item._id,
+          sku: item.sku || `SLOT-${String(item._id).slice(-6)}`,
+          name: item.name || slot.slotName,
+          qty: slot.qty || 1,
+          unitPrice: realPrice,
+          total: Math.round((slot.qty || 1) * realPrice)
+        });
+      } else {
+        // Si no hay item, usar nombre placeholder
+        const placeholderSku = `SLOT-PLACEHOLDER-${String(slot.comboPriceId).slice(-6)}-${slotIndex}`;
+        sale.items.push({
+          source: 'price',
+          refId: new mongoose.Types.ObjectId(),
+          sku: placeholderSku,
+          name: slot.slotName || 'Producto del combo',
+          qty: slot.qty || 1,
+          unitPrice: realPrice,
+          total: Math.round((slot.qty || 1) * realPrice)
+        });
+      }
+    }
+  } else {
+    // Si no encontramos el combo (no debería pasar), agregar al final
+    if (item) {
       sale.items.push({
         source: 'inventory',
         refId: item._id,
@@ -3134,18 +3185,19 @@ export const completeOpenSlot = async (req, res) => {
         unitPrice: realPrice,
         total: Math.round((slot.qty || 1) * realPrice)
       });
+    } else {
+      // Si no hay item, usar nombre placeholder
+      const placeholderSku = `SLOT-PLACEHOLDER-${String(slot.comboPriceId).slice(-6)}-${slotIndex}`;
+      sale.items.push({
+        source: 'price',
+        refId: new mongoose.Types.ObjectId(),
+        sku: placeholderSku,
+        name: slot.slotName || 'Producto del combo',
+        qty: slot.qty || 1,
+        unitPrice: realPrice,
+        total: Math.round((slot.qty || 1) * realPrice)
+      });
     }
-  } else {
-    // Si no encontramos el combo (no debería pasar), agregar al final
-    sale.items.push({
-      source: 'inventory',
-      refId: item._id,
-      sku: item.sku || `SLOT-${String(item._id).slice(-6)}`,
-      name: item.name || slot.slotName,
-      qty: slot.qty || 1,
-      unitPrice: realPrice,
-      total: Math.round((slot.qty || 1) * realPrice)
-    });
   }
   
   // Recalcular totales
@@ -3162,11 +3214,14 @@ export const completeOpenSlot = async (req, res) => {
       slotIndex,
       slotName: slot.slotName,
       completed: true,
-      item: {
+      item: item ? {
         _id: item._id,
         sku: item.sku,
         name: item.name,
         salePrice: item.salePrice
+      } : {
+        name: slot.slotName,
+        placeholder: true
       }
     }
   });
@@ -3367,7 +3422,7 @@ export const getProfileByIdNumber = async (req, res) => {
   res.json(primary?.toObject?.() || null);
 };
 export const listSales = async (req, res) => {
-  const { status, from, to, plate, companyAccountId, page = 1, limit = 50 } = req.query || {};
+  const { status, from, to, plate, number, technician, companyAccountId, page = 1, limit = 50 } = req.query || {};
   const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
   const hasSharedDatabase = req.hasSharedDatabase;
@@ -3420,6 +3475,35 @@ export const listSales = async (req, res) => {
   if (plate) {
     const plateUpper = String(plate).trim().toUpperCase();
     q['vehicle.plate'] = plateUpper;
+  }
+  // Filtrar por número de venta si se proporciona
+  if (number) {
+    const numberStr = String(number).trim();
+    // Intentar convertir a número si es posible
+    const numberNum = Number(numberStr);
+    if (!isNaN(numberNum) && isFinite(numberNum)) {
+      // Buscar por número exacto
+      q.number = numberNum;
+    }
+  }
+  
+  // Filtrar por técnico si se proporciona
+  // El técnico puede estar en technician, closingTechnician o initialTechnician
+  if (technician) {
+    const technicianUpper = String(technician).trim().toUpperCase();
+    const technicianConditions = [
+      { technician: { $regex: technicianUpper, $options: 'i' } },
+      { closingTechnician: { $regex: technicianUpper, $options: 'i' } },
+      { initialTechnician: { $regex: technicianUpper, $options: 'i' } }
+    ];
+    // Si solo hay una condición de técnico, usar directamente; si hay múltiples, usar $or
+    if (technicianConditions.length === 1) {
+      Object.assign(q, technicianConditions[0]);
+    } else {
+      // Si ya hay un $or en q (por ejemplo, de otro filtro), necesitamos combinarlo con $and
+      // Pero en este caso, técnico es el único que usa $or, así que simplemente lo agregamos
+      q.$or = technicianConditions;
+    }
   }
   // Filtrar por empresa si se proporciona
   if (companyAccountId) {
@@ -3479,7 +3563,17 @@ export const listSales = async (req, res) => {
     }
     
     if (dateConditions.length > 0) {
-      q.$expr = { $or: dateConditions };
+      // Si ya hay $or en q (por número o técnico), combinar con $and
+      // Esto asegura que se cumplan AMBAS condiciones: el filtro de número/técnico Y el filtro de fecha
+      if (q.$or) {
+        q.$and = [
+          { $or: q.$or },
+          { $expr: { $or: dateConditions } }
+        ];
+        delete q.$or;
+      } else {
+        q.$expr = { $or: dateConditions };
+      }
     }
   }
   const pg = Math.max(1, Number(page || 1));
@@ -3489,7 +3583,9 @@ export const listSales = async (req, res) => {
     Sale.find(q).sort({ closedAt: -1, createdAt: -1 }).skip((pg - 1) * lim).limit(lim).lean(),
     Sale.countDocuments(q)
   ]);
-  res.json({ items, page: pg, limit: lim, total });
+  
+  const totalPages = Math.ceil(total / lim);
+  res.json({ items, page: pg, limit: lim, total, pages: totalPages });
 };
 
 export const summarySales = async (req, res) => {
