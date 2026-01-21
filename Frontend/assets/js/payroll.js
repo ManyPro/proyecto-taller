@@ -1274,59 +1274,114 @@ async function preview(){
       
       const renderItems = (items, title) => {
         if (!items || items.length === 0) return '';
+        const isCommissionLine = (i) => i && i.saleNumber && (i.saleId || i.saleNumber) && (i.serviceName || i.laborName || i.vehiclePlate);
+
+        const renderLine = (i, idx) => {
+          const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
+          const isCommissionItem = isCommissionLine(i);
+          const serviceName = i.serviceName || '';
+          const laborName = i.laborName || '';
+          const vehiclePlate = i.vehiclePlate || '';
+          const saleNumber = i.saleNumber ? `#${i.saleNumber}` : '';
+
+          // Construir descripción más amigable
+          let friendlyDescription = '';
+          if (isCommissionItem) {
+            const parts = [];
+            const blueText = serviceName || laborName;
+            if (blueText) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(blueText)}</span>`);
+            if (serviceName && laborName) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">MO: ${htmlEscape(laborName)}</span>`);
+            if (vehiclePlate) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehiclePlate)}</span>`);
+            if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
+            friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
+          }
+
+          // Título principal del item
+          let mainTitle = htmlEscape(i.name);
+          if (isCommissionItem) mainTitle = 'Participación';
+
+          return `<div class="flex items-start justify-between p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-white hover:bg-slate-800/60 dark:hover:bg-slate-800/60 theme-light:hover:bg-slate-50 transition-all duration-200 shadow-sm">
+            <div class="flex-1 min-w-0">
+              <div class="flex gap-2.5 items-center mb-2 flex-wrap">
+                <span class="px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
+                  ${htmlEscape(typeInfo.label)}
+                </span>
+                <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${mainTitle}</span>
+              </div>
+              ${friendlyDescription}
+              ${!isCommissionItem && i.notes ? `<div class="text-xs mt-1.5 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(i.notes)}</div>` : ''}
+            </div>
+            <div class="ml-4 flex-shrink-0">
+              <div class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg">
+                ${formatMoney(i.value)}
+              </div>
+            </div>
+          </div>`;
+        };
+
+        // Agrupar líneas de la misma venta (solo comisiones) si hay varias
+        const groups = new Map(); // key -> { saleId, saleNumber, vehiclePlate, items: [] }
+        const singles = [];
+        items.forEach((it) => {
+          if (!isCommissionLine(it)) {
+            singles.push(it);
+            return;
+          }
+          const key = String(it.saleId || it.saleNumber || '');
+          if (!groups.has(key)) {
+            groups.set(key, {
+              saleId: it.saleId || null,
+              saleNumber: it.saleNumber || null,
+              vehiclePlate: it.vehiclePlate || null,
+              items: []
+            });
+          }
+          groups.get(key).items.push(it);
+        });
+
+        const renderedBlocks = [];
+        let idx = 0;
+
+        // Primero: grupos (2+ líneas) con “cuadro” destacado
+        for (const [key, g] of groups.entries()) {
+          if (!key || (g.items || []).length < 2) continue;
+          const groupTotal = (g.items || []).reduce((s, x) => s + (Number(x.value) || 0), 0);
+          const saleLabel = g.saleNumber ? `Venta #${g.saleNumber}` : 'Venta';
+          const plateLabel = g.vehiclePlate ? `🚗 ${htmlEscape(g.vehiclePlate)}` : '';
+
+          renderedBlocks.push(`
+            <div class="mb-3 p-3 rounded-xl border-2 border-indigo-500/40 dark:border-indigo-500/40 theme-light:border-indigo-400 bg-indigo-500/10 dark:bg-indigo-500/10 theme-light:bg-indigo-50">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <div class="text-sm font-semibold text-indigo-200 dark:text-indigo-200 theme-light:text-indigo-700">
+                  <span class="mr-2">🧾</span>${saleLabel}${plateLabel ? ` <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 font-normal">· ${plateLabel}</span>` : ''}
+                </div>
+                <div class="text-sm font-bold text-indigo-200 dark:text-indigo-200 theme-light:text-indigo-700">
+                  ${formatMoney(groupTotal)}
+                </div>
+              </div>
+              <div class="space-y-2">
+                ${(g.items || []).map((it) => renderLine(it, idx++)).join('')}
+              </div>
+            </div>
+          `);
+        }
+
+        // Luego: items sueltos + grupos de 1 (sin cuadro)
+        // (mantener el orden original lo más posible: renderizar en el orden dado)
+        items.forEach((it) => {
+          const key = String(it?.saleId || it?.saleNumber || '');
+          const g = key ? groups.get(key) : null;
+          if (g && (g.items || []).length >= 2) {
+            // ya lo pintó el bloque de grupo
+            return;
+          }
+          renderedBlocks.push(`<div class="mb-2.5">${renderLine(it, idx++)}</div>`);
+        });
+
         return `
           <div class="mb-4">
             <h4 class="m-0 mb-3 text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">${title}</h4>
-            ${items.map((i, idx) => {
-              const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
-              const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
-              
-              // Información adicional para items de comisión
-              const isCommissionItem = i.saleNumber && (i.serviceName || i.laborName || i.vehiclePlate);
-              const serviceName = i.serviceName || '';
-              const laborName = i.laborName || '';
-              const vehiclePlate = i.vehiclePlate || '';
-              const saleNumber = i.saleNumber ? `#${i.saleNumber}` : '';
-              
-              // Construir descripción más amigable
-              let friendlyDescription = '';
-              if (isCommissionItem) {
-                const parts = [];
-                // El texto azul debe ser el nombre del servicio/combo (si existe). Fallback: laborName.
-                const blueText = serviceName || laborName;
-                if (blueText) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(blueText)}</span>`);
-                // Mostrar tipo de mano de obra como dato secundario (si hay serviceName)
-                if (serviceName && laborName) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">MO: ${htmlEscape(laborName)}</span>`);
-                if (vehiclePlate) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehiclePlate)}</span>`);
-                if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
-                friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
-              }
-              
-              // Título principal del item
-              let mainTitle = htmlEscape(i.name);
-              if (isCommissionItem) {
-                // Mantener título corto y no técnico
-                mainTitle = 'Participación';
-              }
-              
-              return `<div class="flex items-start justify-between p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2.5 bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-white hover:bg-slate-800/60 dark:hover:bg-slate-800/60 theme-light:hover:bg-slate-50 transition-all duration-200 shadow-sm">
-                <div class="flex-1 min-w-0">
-                  <div class="flex gap-2.5 items-center mb-2 flex-wrap">
-                    <span class="px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
-                      ${htmlEscape(typeInfo.label)}
-                    </span>
-                    <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${mainTitle}</span>
-                  </div>
-                  ${friendlyDescription}
-                  ${!isCommissionItem && i.notes ? `<div class="text-xs mt-1.5 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(i.notes)}</div>` : ''}
-                </div>
-                <div class="ml-4 flex-shrink-0">
-                  <div class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg">
-                    ${formatMoney(i.value)}
-                  </div>
-                </div>
-              </div>`;
-            }).join('')}
+            ${renderedBlocks.join('')}
           </div>`;
       };
       
