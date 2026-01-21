@@ -2246,6 +2246,14 @@ if (__ON_INV_PAGE__) {
             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Ubicación</label>
             <input id="e-it-location" value="${it.location || ''}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
           </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vehículo / destino (opcional)</label>
+            <div class="space-y-1">
+              <input id="e-it-vehicle-search" placeholder="Buscar vehículo en base de datos (marca, línea, cilindraje...)" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <div id="e-it-vehicle-dropdown" class="mt-1 max-h-56 overflow-auto rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 bg-slate-900/90 dark:bg-slate-900/90 theme-light:bg-white text-sm hidden shadow-lg custom-scrollbar"></div>
+              <p id="e-it-vehicle-selected" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${it.vehicleTarget ? `Destino actual: ${it.vehicleTarget}` : ''}</p>
+            </div>
+          </div>
           <div>
             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio venta</label>
             <input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
@@ -2286,6 +2294,10 @@ if (__ON_INV_PAGE__) {
     const viewer = document.getElementById("e-it-viewer");
     const save = document.getElementById("e-it-save");
     const cancel = document.getElementById("e-it-cancel");
+    const eVehicleSearch = document.getElementById("e-it-vehicle-search");
+    const eVehicleDropdown = document.getElementById("e-it-vehicle-dropdown");
+    const eVehicleSelected = document.getElementById("e-it-vehicle-selected");
+    let editSelectedVehicleTarget = "";
 
     // Track ongoing uploads to prevent saving while media is uploading
     let pendingUploads = 0;
@@ -2302,6 +2314,77 @@ if (__ON_INV_PAGE__) {
         save.textContent = save.dataset._label || 'Guardar cambios';
       }
     };
+
+    // --- Búsqueda de vehículo / destino en modal de edición ---
+    async function searchVehiclesForEdit(query) {
+      if (!eVehicleDropdown) return;
+      if (!query || query.trim().length < 1) {
+        eVehicleDropdown.classList.add('hidden');
+        eVehicleDropdown.innerHTML = '';
+        return;
+      }
+      try {
+        const r = await API.vehicles.search({ q: query.trim(), limit: 30 });
+        const vehicles = Array.isArray(r?.items) ? r.items : [];
+        if (!vehicles.length) {
+          eVehicleDropdown.innerHTML = '<div class="px-4 py-2 text-xs text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
+          eVehicleDropdown.classList.remove('hidden');
+          return;
+        }
+        eVehicleDropdown.innerHTML = '';
+        vehicles.forEach(v => {
+          const div = document.createElement('div');
+          div.className = 'px-4 py-2 text-sm cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-slate-100';
+          const line = `${v.make || ''} ${v.line || ''}`.trim();
+          const disp = v.displacement ? `Cilindraje: ${v.displacement}` : '';
+          const year = v.modelYear ? ` | Modelo: ${v.modelYear}` : '';
+          div.innerHTML = `
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${line || 'Vehículo'}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${[disp, year].join('')}</div>
+          `;
+          div.addEventListener('click', () => {
+            const target = `${(v.make || '').toString().toUpperCase()} ${(v.line || '').toString().toUpperCase()} ${(v.displacement || '').toString().toUpperCase()}${v.modelYear ? ' ' + String(v.modelYear).toUpperCase() : ''}`
+              .replace(/\s+/g, ' ')
+              .trim();
+            editSelectedVehicleTarget = target;
+            if (eVehicleSearch) {
+              eVehicleSearch.value = `${v.make || ''} ${v.line || ''} ${v.displacement || ''}`.trim();
+            }
+            if (eVehicleSelected) {
+              eVehicleSelected.textContent = target
+                ? `Destino seleccionado: ${target}`
+                : '';
+            }
+            eVehicleDropdown.classList.add('hidden');
+          });
+          eVehicleDropdown.appendChild(div);
+        });
+        eVehicleDropdown.classList.remove('hidden');
+      } catch (e) {
+        console.error('Error buscando vehículos en edición de ítem:', e);
+        eVehicleDropdown.classList.add('hidden');
+        eVehicleDropdown.innerHTML = '';
+      }
+    }
+
+    if (eVehicleSearch) {
+      let editVehicleSearchTimeout = null;
+      eVehicleSearch.addEventListener('input', () => {
+        const q = eVehicleSearch.value || '';
+        editSelectedVehicleTarget = ''; // reset hasta elegir uno de la lista
+        if (eVehicleSelected && it.vehicleTarget) {
+          // Si el usuario borra la búsqueda, mostramos el destino actual
+          eVehicleSelected.textContent = it.vehicleTarget ? `Destino actual: ${it.vehicleTarget}` : '';
+        }
+        if (editVehicleSearchTimeout) clearTimeout(editVehicleSearchTimeout);
+        editVehicleSearchTimeout = setTimeout(() => searchVehiclesForEdit(q), 300);
+      });
+      eVehicleSearch.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (eVehicleDropdown) eVehicleDropdown.classList.add('hidden');
+        }, 200);
+      });
+    }
 
     function renderThumbs() {
       thumbs.innerHTML = "";
@@ -2394,6 +2477,10 @@ if (__ON_INV_PAGE__) {
         if (msRaw !== undefined && msRaw !== null && String(msRaw).trim() !== "") {
           const ms = parseInt(msRaw, 10);
           if (Number.isFinite(ms) && ms >= 0) body.minStock = ms;
+        }
+        // vehicleTarget opcional desde selector de vehículos en edición
+        if (editSelectedVehicleTarget) {
+          body.vehicleTarget = editSelectedVehicleTarget;
         }
         await invAPI.updateItem(it._id, body);
         invCloseModal();
