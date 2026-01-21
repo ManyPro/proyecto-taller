@@ -589,7 +589,7 @@ export const previewSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -614,7 +614,8 @@ export const previewSettlement = async (req, res) => {
           ...d,
           share: calculatedShare, // Usar el cálculo correcto
           saleNumber: s.number || null,
-          saleId: s._id || null
+          saleId: s._id || null,
+          vehiclePlate: s.vehicle?.plate || null
         });
       });
       return acc + fromSale.reduce((a, b) => {
@@ -674,7 +675,9 @@ export const previewSettlement = async (req, res) => {
             percentBaseConceptId: null,
             percentBaseFixedValue: 0,
             saleNumber: detail.saleNumber || null,
-            saleId: detail.saleId || null
+            saleId: detail.saleId || null,
+            laborName: detail.kind || null,
+            vehiclePlate: detail.vehiclePlate || null
           });
         });
       } else if (commissionRounded > 0) {
@@ -915,7 +918,7 @@ export const approveSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1 });
+    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1 });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -940,7 +943,8 @@ export const approveSettlement = async (req, res) => {
           ...d,
           share: calculatedShare, // Usar el cálculo correcto
           saleNumber: s.number || null,
-          saleId: s._id || null
+          saleId: s._id || null,
+          vehiclePlate: s.vehicle?.plate || null
         });
       });
       return acc + fromSale.reduce((a, b) => {
@@ -1017,7 +1021,9 @@ export const approveSettlement = async (req, res) => {
             percentBaseConceptId: null,
             percentBaseFixedValue: 0,
             saleNumber: detail.saleNumber || null,
-            saleId: detail.saleId || null
+            saleId: detail.saleId || null,
+            laborName: detail.kind || null,
+            vehiclePlate: detail.vehiclePlate || null
           });
         });
       } else if (finalCommissionAmount > 0) {
