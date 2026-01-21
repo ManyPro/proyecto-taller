@@ -820,6 +820,10 @@ if (__ON_INV_PAGE__) {
   const itFiles = document.getElementById("it-files");
   const itSave = document.getElementById("it-save");
   const itMinStock = document.getElementById("it-minStock");
+  const itVehicleSearch = document.getElementById("it-vehicle-search");
+  const itVehicleDropdown = document.getElementById("it-vehicle-dropdown");
+  const itVehicleSelected = document.getElementById("it-vehicle-selected");
+  let itSelectedVehicleTarget = "";
 
   const itemsList = document.getElementById("itemsList");
 
@@ -828,6 +832,7 @@ if (__ON_INV_PAGE__) {
   const qApply = document.getElementById("q-apply");
   const qSku = document.getElementById("q-sku");
   const qBrand = document.getElementById("q-brand");
+  const qVehicle = document.getElementById("q-vehicle");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
   const btnUnpublishZero = document.getElementById('btn-unpublish-zero');
@@ -1986,6 +1991,74 @@ if (__ON_INV_PAGE__) {
 
 
   // ---- Guardar ítem ----
+  // ---- Búsqueda de vehículo para nuevo ítem ----
+  async function searchVehiclesForItem(query) {
+    if (!itVehicleDropdown) return;
+    if (!query || query.trim().length < 1) {
+      itVehicleDropdown.classList.add('hidden');
+      itVehicleDropdown.innerHTML = '';
+      return;
+    }
+    try {
+      const r = await API.vehicles.search({ q: query.trim(), limit: 30 });
+      const vehicles = Array.isArray(r?.items) ? r.items : [];
+      if (!vehicles.length) {
+        itVehicleDropdown.innerHTML = '<div class="px-4 py-2 text-xs text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
+        itVehicleDropdown.classList.remove('hidden');
+        return;
+      }
+      itVehicleDropdown.innerHTML = '';
+      vehicles.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'px-4 py-2 text-sm cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-slate-100';
+        const line = `${v.make || ''} ${v.line || ''}`.trim();
+        const disp = v.displacement ? `Cilindraje: ${v.displacement}` : '';
+        const year = v.modelYear ? ` | Modelo: ${v.modelYear}` : '';
+        div.innerHTML = `
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${line || 'Vehículo'}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${[disp, year].join('')}</div>
+        `;
+        div.addEventListener('click', () => {
+          const target = `${(v.make || '').toString().toUpperCase()} ${(v.line || '').toString().toUpperCase()} ${(v.displacement || '').toString().toUpperCase()}${v.modelYear ? ' ' + String(v.modelYear).toUpperCase() : ''}`
+            .replace(/\s+/g, ' ')
+            .trim();
+          itSelectedVehicleTarget = target;
+          if (itVehicleSearch) {
+            itVehicleSearch.value = `${v.make || ''} ${v.line || ''} ${v.displacement || ''}`.trim();
+          }
+          if (itVehicleSelected) {
+            itVehicleSelected.textContent = target
+              ? `Destino seleccionado: ${target}`
+              : '';
+          }
+          itVehicleDropdown.classList.add('hidden');
+        });
+        itVehicleDropdown.appendChild(div);
+      });
+      itVehicleDropdown.classList.remove('hidden');
+    } catch (e) {
+      console.error('Error buscando vehículos para ítem:', e);
+      itVehicleDropdown.classList.add('hidden');
+      itVehicleDropdown.innerHTML = '';
+    }
+  }
+
+  if (itVehicleSearch) {
+    let itVehicleSearchTimeout = null;
+    itVehicleSearch.addEventListener('input', () => {
+      const q = itVehicleSearch.value || '';
+      itSelectedVehicleTarget = ''; // reset hasta que elijan uno de la lista
+      if (itVehicleSelected) itVehicleSelected.textContent = '';
+      if (itVehicleSearchTimeout) clearTimeout(itVehicleSearchTimeout);
+      itVehicleSearchTimeout = setTimeout(() => searchVehiclesForItem(q), 300);
+    });
+    itVehicleSearch.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (itVehicleDropdown) itVehicleDropdown.classList.add('hidden');
+      }, 200);
+    });
+  }
+
   if (itSave) {
   itSave.onclick = async () => {
     let images = [];
@@ -2010,6 +2083,11 @@ if (__ON_INV_PAGE__) {
     if (msRaw !== undefined && msRaw !== null && String(msRaw).trim() !== "") {
       const ms = parseInt(msRaw, 10);
       if (Number.isFinite(ms) && ms >= 0) body.minStock = ms;
+    }
+
+    // vehicleTarget opcional (desde selector de vehículos)
+    if (itSelectedVehicleTarget) {
+      body.vehicleTarget = itSelectedVehicleTarget;
     }
 
     if (!body.sku || !body.name || !body.salePrice) return alert("Completa SKU, nombre y precio de venta");
@@ -2037,6 +2115,7 @@ if (__ON_INV_PAGE__) {
       name: qName?.value.trim() || "",
       sku: qSku?.value.trim() || "",
       brand: qBrand ? qBrand.value.trim() : undefined,
+      vehicleTarget: qVehicle ? qVehicle.value.trim() : undefined,
       vehicleIntakeId: qIntake?.value || undefined,
     };
     // When searching, start from first page and keep current limit
@@ -2049,11 +2128,12 @@ if (__ON_INV_PAGE__) {
       if (qName) qName.value = "";
       if (qSku) qSku.value = "";
     if (qBrand) qBrand.value = "";
+    if (qVehicle) qVehicle.value = "";
       if (qIntake) qIntake.value = "";
     refreshItems({ page: 1, limit: state.paging?.limit || 10 });
   };
   }
-  [qName, qSku, qBrand].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
+  [qName, qSku, qBrand, qVehicle].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
   if (qIntake) qIntake.addEventListener("change", doSearch);
   if (btnReadQr) {
     btnReadQr.onclick = () => openQRReader();
@@ -5265,7 +5345,7 @@ async function openInvestorDetailModal(investorId) {
             btn.disabled = true;
             btn.textContent = 'Guardando...';
             
-            await API.put(`/api/v1/purchases/${purchaseId}`, {
+            await API.purchases.purchases.update(purchaseId, {
               supplierId,
               investorId,
               purchaseDate,
