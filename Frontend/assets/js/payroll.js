@@ -1282,7 +1282,8 @@ async function preview(){
               const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
               
               // Información adicional para items de comisión
-              const isCommissionItem = i.saleNumber && (i.laborName || i.vehiclePlate);
+              const isCommissionItem = i.saleNumber && (i.serviceName || i.laborName || i.vehiclePlate);
+              const serviceName = i.serviceName || '';
               const laborName = i.laborName || '';
               const vehiclePlate = i.vehiclePlate || '';
               const saleNumber = i.saleNumber ? `#${i.saleNumber}` : '';
@@ -1291,7 +1292,11 @@ async function preview(){
               let friendlyDescription = '';
               if (isCommissionItem) {
                 const parts = [];
-                if (laborName) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(laborName)}</span>`);
+                // El texto azul debe ser el nombre del servicio/combo (si existe). Fallback: laborName.
+                const blueText = serviceName || laborName;
+                if (blueText) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(blueText)}</span>`);
+                // Mostrar tipo de mano de obra como dato secundario (si hay serviceName)
+                if (serviceName && laborName) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">MO: ${htmlEscape(laborName)}</span>`);
                 if (vehiclePlate) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehiclePlate)}</span>`);
                 if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
                 friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
@@ -1299,9 +1304,9 @@ async function preview(){
               
               // Título principal del item
               let mainTitle = htmlEscape(i.name);
-              if (isCommissionItem && laborName) {
-                // Si hay nombre de mano de obra, simplificar el título
-                mainTitle = `Participación ${laborName}`;
+              if (isCommissionItem) {
+                // Mantener título corto y no técnico
+                mainTitle = 'Participación';
               }
               
               return `<div class="flex items-start justify-between p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2.5 bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-white hover:bg-slate-800/60 dark:hover:bg-slate-800/60 theme-light:hover:bg-slate-50 transition-all duration-200 shadow-sm">
