@@ -685,9 +685,11 @@ export const previewSettlement = async (req, res) => {
           const calculatedShare = Math.round(laborValue * (percent / 100));
           
           const saleInfo = detail.saleNumber ? ` (Venta #${detail.saleNumber})` : '';
-          const itemName = detail.kind 
-            ? `Participación ${detail.kind} (${detail.percent}%)${saleInfo}`
-            : `Participación técnico (${detail.percent}%)${saleInfo}`;
+          // Preferir nombre del servicio/combo (más útil que el tipo de MO)
+          const serviceLabel = String(detail.serviceName || '').trim();
+          const kindLabel = String(detail.kind || '').trim();
+          const mainLabel = serviceLabel || kindLabel || 'técnico';
+          const itemName = `Participación ${mainLabel} (${detail.percent}%)${saleInfo}`;
           
           items.push({
             conceptId: null,
@@ -696,7 +698,7 @@ export const previewSettlement = async (req, res) => {
             base: Math.round(laborValue),
             value: calculatedShare, // Usar el cálculo correcto
             calcRule: `laborPercent:${detail.percent}`,
-            notes: `${detail.percent}% sobre ${Math.round(laborValue).toLocaleString('es-CO')}${saleInfo}`,
+            notes: `${detail.percent}% sobre ${Math.round(laborValue).toLocaleString('es-CO')}${saleInfo}${serviceLabel && kindLabel ? ` · MO: ${kindLabel}` : ''}`,
             // Guardar información de porcentaje para liquidación
             isPercent: true,
             percentValue: detail.percent,
@@ -1033,9 +1035,11 @@ export const approveSettlement = async (req, res) => {
           const adjustedValue = Math.round(baseShare * ratio);
           
           const saleInfo = detail.saleNumber ? ` (Venta #${detail.saleNumber})` : '';
-          const itemName = detail.kind 
-            ? `Participación ${detail.kind} (${detail.percent}%)${saleInfo}`
-            : `Participación técnico (${detail.percent}%)${saleInfo}`;
+          // Preferir nombre del servicio/combo (más útil que el tipo de MO)
+          const serviceLabel = String(detail.serviceName || '').trim();
+          const kindLabel = String(detail.kind || '').trim();
+          const mainLabel = serviceLabel || kindLabel || 'técnico';
+          const itemName = `Participación ${mainLabel} (${detail.percent}%)${saleInfo}`;
           
           items.push({
             conceptId: null,
@@ -1044,7 +1048,7 @@ export const approveSettlement = async (req, res) => {
             base: Math.round(laborValue),
             value: adjustedValue,
             calcRule: `laborPercent:${detail.percent}`,
-            notes: `${detail.percent}% sobre ${Math.round(laborValue).toLocaleString('es-CO')}${saleInfo}`,
+            notes: `${detail.percent}% sobre ${Math.round(laborValue).toLocaleString('es-CO')}${saleInfo}${serviceLabel && kindLabel ? ` · MO: ${kindLabel}` : ''}`,
             // Guardar información de porcentaje para liquidación
             isPercent: true,
             percentValue: detail.percent,
