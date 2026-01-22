@@ -5480,7 +5480,7 @@ async function renderWO(){
   
   if (!current?.items || current.items.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `<td colspan="2" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay items en la orden de trabajo</td>`;
+    emptyRow.innerHTML = `<td colspan="3" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay items en la orden de trabajo</td>`;
     b.appendChild(emptyRow);
     return;
   }
@@ -5561,12 +5561,35 @@ async function renderWO(){
     }
   });
   
+  const makeRemoveCell = (it) => {
+    const btn = document.createElement('button');
+    btn.textContent = '✕';
+    btn.className = 'wo-remove';
+    btn.style.cssText = 'padding: 2px 6px; font-size: 12px; border-radius: 6px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.2); color: #fca5a5; cursor: pointer;';
+    btn.onclick = async () => {
+      if (!current?._id || !it?._id) return;
+      if (!confirm('¿Eliminar este item de la venta?')) return;
+      try {
+        await API.sales.removeItemGroup(current._id, it._id);
+        current = await API.sales.get(current._id);
+        syncCurrentIntoOpenList();
+        await renderAll();
+      } catch (err) {
+        alert(err?.message || 'No se pudo eliminar el item');
+      }
+    };
+    const td = document.createElement('td');
+    td.className = 't-center py-1.5 px-1';
+    td.appendChild(btn);
+    return td;
+  };
+
   // Renderizar Combos primero (morado)
   if (combos.length > 0) {
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-2 px-1" style="background: #9333ea; color: white; border-bottom: 2px solid #7e22ce;">
+      <td colspan="3" class="py-2 px-1" style="background: #9333ea; color: white; border-bottom: 2px solid #7e22ce;">
         <div class="flex items-center gap-2">
           <span class="text-lg">🎁</span>
           <span class="font-semibold">Combos</span>
@@ -5583,6 +5606,7 @@ async function renderWO(){
         <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
         <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
+      tr.appendChild(makeRemoveCell(it));
       b.appendChild(tr);
     });
   }
@@ -5591,14 +5615,14 @@ async function renderWO(){
   if (products.length > 0) {
     if (combos.length > 0) {
       const spacerRow = document.createElement('tr');
-      spacerRow.innerHTML = `<td colspan="2" class="py-2"></td>`;
+      spacerRow.innerHTML = `<td colspan="3" class="py-2"></td>`;
       b.appendChild(spacerRow);
     }
     
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-2 px-1" style="background: #22c55e; color: white; border-bottom: 2px solid #16a34a;">
+      <td colspan="3" class="py-2 px-1" style="background: #22c55e; color: white; border-bottom: 2px solid #16a34a;">
         <div class="flex items-center gap-2">
           <span class="text-lg">📦</span>
           <span class="font-semibold">Productos</span>
@@ -5615,6 +5639,7 @@ async function renderWO(){
         <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
         <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
+      tr.appendChild(makeRemoveCell(it));
       b.appendChild(tr);
     });
   }
@@ -5623,14 +5648,14 @@ async function renderWO(){
   if (services.length > 0) {
     if (combos.length > 0 || products.length > 0) {
       const spacerRow = document.createElement('tr');
-      spacerRow.innerHTML = `<td colspan="2" class="py-2"></td>`;
+      spacerRow.innerHTML = `<td colspan="3" class="py-2"></td>`;
       b.appendChild(spacerRow);
     }
     
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-2 px-1" style="background: #3b82f6; color: white; border-bottom: 2px solid #2563eb;">
+      <td colspan="3" class="py-2 px-1" style="background: #3b82f6; color: white; border-bottom: 2px solid #2563eb;">
         <div class="flex items-center gap-2">
           <span class="text-lg">🔧</span>
           <span class="font-semibold">Servicios</span>
@@ -5647,6 +5672,7 @@ async function renderWO(){
         <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
         <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
+      tr.appendChild(makeRemoveCell(it));
       b.appendChild(tr);
     });
   }

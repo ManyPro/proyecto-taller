@@ -1170,6 +1170,99 @@ export const removeItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
+export const removeItemGroup = async (req, res) => {
+  const { id, itemId } = req.params;
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
+
+  const item = sale.items.id(itemId);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  const sku = String(item.sku || '').toUpperCase();
+  let removedCount = 0;
+
+  // Si es combo, eliminar combo + items anidados + slots abiertos
+  if (item.source === 'price' && item.refId && sku.startsWith('COMBO-')) {
+    const comboPriceId = item.refId;
+    // Cargar PriceEntry del combo (búsqueda robusta por companyId)
+    let comboPE = await PriceEntry.findOne({ _id: comboPriceId, companyId: req.companyId })
+      .populate('comboProducts.itemId', '_id')
+      .lean();
+    const originalCompanyId = req.originalCompanyId || req.company?.id;
+    if (!comboPE && originalCompanyId && String(originalCompanyId) !== String(req.companyId)) {
+      comboPE = await PriceEntry.findOne({ _id: comboPriceId, companyId: originalCompanyId })
+        .populate('comboProducts.itemId', '_id')
+        .lean();
+    }
+
+    const comboProductRefIds = new Set();
+    if (comboPE?.comboProducts) {
+      comboPE.comboProducts.forEach(cp => {
+        if (cp.itemId && cp.itemId._id) {
+          comboProductRefIds.add(String(cp.itemId._id));
+        }
+      });
+    }
+
+    // Eliminar el combo principal
+    const comboIndex = sale.items.indexOf(item);
+    if (comboIndex >= 0) {
+      sale.items.splice(comboIndex, 1);
+      removedCount++;
+    }
+
+    // Eliminar items anidados consecutivos que pertenecen al combo
+    let idx = comboIndex;
+    while (idx < sale.items.length) {
+      const nextItem = sale.items[idx];
+      const nextSku = String(nextItem.sku || '').toUpperCase();
+
+      if (nextSku.startsWith('COMBO-')) break;
+
+      if (
+        nextSku.startsWith('CP-') ||
+        (nextItem.source === 'inventory' && nextItem.refId && comboProductRefIds.has(String(nextItem.refId)))
+      ) {
+        sale.items.splice(idx, 1);
+        removedCount++;
+        continue;
+      }
+
+      if (nextItem.source === 'price' && nextItem.refId && String(nextItem.refId) !== String(comboPriceId)) {
+        break;
+      }
+
+      if (nextItem.source === 'inventory' && nextItem.sku && !nextItem.sku.startsWith('CP-')) {
+        const alreadyInSlots = (sale.openSlots || []).some(s =>
+          s.completed && s.completedItemId && String(s.completedItemId) === String(nextItem.refId)
+        );
+        if (!alreadyInSlots) break;
+      }
+
+      idx++;
+    }
+
+    // Eliminar slots abiertos del combo
+    if (sale.openSlots && sale.openSlots.length > 0) {
+      sale.openSlots = sale.openSlots.filter(s => String(s.comboPriceId) !== String(comboPriceId));
+    }
+  } else {
+    // Para productos/servicios normales, eliminar solo el item
+    sale.items.id(itemId)?.deleteOne();
+    removedCount = 1;
+  }
+
+  computeTotals(sale);
+  await sale.save();
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  try { await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) } catch {}
+
+  res.json({ sale: sale.toObject(), removedCount });
+};
+
 // ===== Abonos (pagos parciales) =====
 export const addAdvancePayment = async (req, res) => {
   const { id } = req.params;
