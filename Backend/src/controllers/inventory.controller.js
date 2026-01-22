@@ -1360,9 +1360,9 @@ export const getItemStockEntries = async (req, res) => {
 
   const itemObj = item.toObject();
   // Ajustar stock en respuesta para evitar desajustes visuales cuando se filtran entradas generales
-  const totalInEntries = enriched.reduce((sum, se) => sum + (se.qty || 0), 0);
-  if (Number.isFinite(totalInEntries)) {
-    itemObj.stock = totalInEntries;
+  const totalInEntriesAdjusted = enriched.reduce((sum, se) => sum + (se.qty || 0), 0);
+  if (Number.isFinite(totalInEntriesAdjusted)) {
+    itemObj.stock = totalInEntriesAdjusted;
   }
   res.json({ item: itemObj, stockEntries: enriched });
 };
