@@ -1038,7 +1038,17 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       }
     };
 
-    list.forEach(n => {
+    // Cargar template una sola vez para todos los items
+    let itemTemplate = null;
+    if (window.TemplateLoader && window.TemplateRenderer) {
+      try {
+        itemTemplate = await window.TemplateLoader.loadTemplate('notifications/item.html');
+      } catch (err) {
+        console.warn('Error loading notification item template:', err);
+      }
+    }
+    
+    for (const n of list) {
       lastIds.add(String(n._id));
       const info = fmt(n);
       const div = document.createElement('div');
@@ -1059,36 +1069,21 @@ if(typeof window !== 'undefined' && window.addEventListener) {
         'opacity:1;margin:4px 0;color:#fff;' : 
         'opacity:.9;margin:4px 0;';
       
-      // Cargar template de item de notificación
-      if (window.TemplateLoader && window.TemplateRenderer) {
-        const templateEl = await window.TemplateLoader.loadTemplate('notifications/item.html');
-        if (templateEl) {
-          const templateHtml = templateEl.outerHTML;
-          const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, {
-            icon: info.icon,
-            title: info.title,
-            body: info.body,
-            meta: info.meta,
-            id: n._id,
-            titleStyle: titleStyle,
-            bodyStyle: bodyStyle
-          }, { safe: true }); // safe: true para permitir HTML en icon
-          div.innerHTML = renderedHtml;
-        } else {
-          // Fallback
-          div.innerHTML = `
-            <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
-            <div style="flex:1;min-width:0;">
-              <div style='${titleStyle}'>${info.title}</div>
-              <div style='${bodyStyle}'>${info.body}</div>
-              <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
-                <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
-                <button data-read='${n._id}' class='px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'>Marcar leído</button>
-              </div>
-            </div>`;
-        }
+      // Usar template si está disponible
+      if (itemTemplate && window.TemplateRenderer) {
+        const templateHtml = itemTemplate.outerHTML;
+        const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, {
+          icon: info.icon,
+          title: info.title,
+          body: info.body,
+          meta: info.meta,
+          id: n._id,
+          titleStyle: titleStyle,
+          bodyStyle: bodyStyle
+        }, { safe: true }); // safe: true para permitir HTML en icon
+        div.innerHTML = renderedHtml;
       } else {
-        // Fallback si las utilidades no están disponibles
+        // Fallback
         div.innerHTML = `
           <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
           <div style="flex:1;min-width:0;">
@@ -1102,7 +1097,7 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       }
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
       ul.appendChild(div);
-    });
+    }
     if(!list.length){ ul.innerHTML = '<div style="text-align:center;opacity:.6;">Sin nuevas notificaciones</div>'; }
   }
   async function markRead(id, el){

@@ -1,0 +1,5 @@
+<div class="flex items-center gap-2 justify-center p-3">
+  <button class="secondary {{#unless hasPrev}}disabled{{/unless}}" id="{{prevId}}" {{#unless hasPrev}}disabled{{/unless}}>← Anterior</button>
+  <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Página {{currentPage}} de {{totalPages}} ({{totalItems}} total)</span>
+  <button class="secondary {{#unless hasNext}}disabled{{/unless}}" id="{{nextId}}" {{#unless hasNext}}disabled{{/unless}}>Siguiente →</button>
+</div>

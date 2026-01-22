@@ -45,24 +45,10 @@ export function openQRForItem() {
     qrModal.style.background = 'rgba(0,0,0,0.9)'; // Mantener background específico
     qrModal.id = 'qr-modal-item-scanner';
     
-    const qrContent = document.createElement('div');
-    qrContent.style.cssText = 'background:var(--card);border-radius:12px;padding:24px;max-width:90vw;max-height:90vh;width:600px;position:relative;z-index:100000;';
-    qrContent.innerHTML = `
-      <button class="close" style="position:absolute;top:8px;right:8px;font-size:24px;background:none;border:none;color:var(--text);cursor:pointer;padding:4px 12px;">&times;</button>
-      <h3 style="margin-top:0;margin-bottom:16px;">Escanear código QR</h3>
-      <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;min-height:300px;">
-        <video id="qr-video-single" playsinline muted autoplay style="width:100%;height:auto;display:block;object-fit:contain;"></video>
-        <canvas id="qr-canvas-single" style="display:none;"></canvas>
-      </div>
-      <div style="margin-bottom:12px;">
-        <input id="qr-manual-single" placeholder="O ingresa el código manualmente" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-      </div>
-      <div id="qr-msg-single" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
-      <div style="display:flex;gap:8px;">
-        <button id="qr-start-camera-single" class="primary" style="flex:1;padding:10px;display:none;">▶ Iniciar cámara</button>
-        <button id="qr-cancel-single" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
-      </div>
-    `;
+    // Cargar template del modal QR
+    const templateHtml = await window.TemplateLoader.loadTemplate('modals/qr-scanner.html');
+    const qrContentHtml = window.TemplateRenderer.renderTemplate(templateHtml, {});
+    const qrContent = window.DOMHelpers.parseHTML(qrContentHtml);
     
     qrModal.appendChild(qrContent);
     document.body.appendChild(qrModal);
@@ -628,32 +614,30 @@ export function initPrices(){
 
   const rowTemplateId='tpl-price-edit-row';
 
-  function rowToNode(r){
+  async function rowToNode(r){
     const tr=clone(rowTemplateId);
     if (!tr) {
       console.error('Template no encontrado:', rowTemplateId);
       const fallback = document.createElement('tr');
-      fallback.innerHTML = `<td colspan="4">Error: Template no disponible</td>`;
+      const errorTemplate = await window.TemplateLoader.loadTemplate('components/price-error-row.html');
+      const errorHtml = window.TemplateRenderer.renderTemplate(errorTemplate, { colspan: 4, errorMessage: 'Template no disponible' });
+      const errorTd = window.DOMHelpers.parseHTML(errorHtml);
+      fallback.appendChild(errorTd);
       return fallback;
     }
     
     // Mostrar tipo y badge de general si aplica
     const vehicleCell = tr.querySelector('[data-vehicle]');
     if (vehicleCell) {
-      let typeBadge = '';
-      if (r.type === 'combo') {
-        typeBadge = '<span class="inline-block px-2 py-0.5 bg-purple-600 dark:bg-purple-600 theme-light:bg-purple-500 text-white text-xs font-semibold rounded">COMBO</span>';
-      } else if (r.type === 'product') {
-        typeBadge = '<span class="inline-block px-2 py-0.5 bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 text-white text-xs font-semibold rounded">PRODUCTO</span>';
-      } else {
-        typeBadge = '<span class="inline-block px-2 py-0.5 bg-green-600 dark:bg-green-600 theme-light:bg-green-500 text-white text-xs font-semibold rounded">SERVICIO</span>';
-      }
-      // Agregar badge de general si no tiene vehicleId
       const isGeneral = !r.vehicleId || r.isGeneral;
-      if (isGeneral) {
-        typeBadge += ' <span class="inline-block px-2 py-0.5 bg-cyan-600 dark:bg-cyan-600 theme-light:bg-cyan-500 text-white text-xs font-semibold rounded ml-1">🌐 GENERAL</span>';
-      }
-      vehicleCell.innerHTML = typeBadge;
+      const badgeTemplate = await window.TemplateLoader.loadTemplate('components/price-type-badge.html');
+      const badgeHtml = window.TemplateRenderer.renderTemplate(badgeTemplate, {
+        isCombo: r.type === 'combo',
+        isProduct: r.type === 'product',
+        isInvestment: r.type === 'inversion',
+        isGeneral: isGeneral
+      });
+      vehicleCell.innerHTML = badgeHtml;
     }
     
     // Mostrar nombre
@@ -666,25 +650,31 @@ export function initPrices(){
     // Mostrar item vinculado o productos del combo
     const itemInfoCell = tr.querySelector('[data-item-info]');
     if (itemInfoCell) {
+      let itemInfoData = {};
       if (r.type === 'combo' && Array.isArray(r.comboProducts) && r.comboProducts.length > 0) {
-        const productsList = r.comboProducts.map(cp => {
-          const linked = cp.itemId ? `✓ ${cp.itemId.name || cp.itemId.sku}` : cp.name;
-          return `<div style="font-size:10px;margin:2px 0;">• ${linked} (x${cp.qty || 1})</div>`;
-        }).join('');
-        itemInfoCell.innerHTML = `
-          <div style="color:#9333ea;font-weight:600;margin-bottom:4px;">${r.comboProducts.length} producto(s)</div>
-          ${productsList}
-        `;
+        itemInfoData = {
+          isCombo: true,
+          productsCount: r.comboProducts.length,
+          products: r.comboProducts.map(cp => ({
+            linkedName: cp.itemId ? `✓ ${cp.itemId.name || cp.itemId.sku}` : cp.name,
+            qty: cp.qty || 1
+          }))
+        };
       } else if (r.type === 'product' && r.itemId) {
-        itemInfoCell.innerHTML = `
-          <div style="color:var(--success, #10b981);">✓ ${r.itemId.name || r.itemId.sku}</div>
-          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
-        `;
+        itemInfoData = {
+          hasItemId: true,
+          itemName: r.itemId.name || r.itemId.sku,
+          itemDetails: `<strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}`
+        };
       } else if (r.type === 'product') {
-        itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">Sin vincular</span>';
+        itemInfoData = { isUnlinked: true };
       } else {
-        itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">-</span>';
+        itemInfoData = { isEmpty: true };
       }
+      
+      const itemInfoTemplate = await window.TemplateLoader.loadTemplate('components/price-item-info.html');
+      const itemInfoHtml = window.TemplateRenderer.renderTemplate(itemInfoTemplate, itemInfoData);
+      itemInfoCell.innerHTML = itemInfoHtml;
     }
     
     const inPrice=tr.querySelector('input[data-price]'); 
@@ -741,7 +731,7 @@ export function initPrices(){
     return tr;
   }
 
-  function renderPagination() {
+  async function renderPagination() {
     const paginationEl = $('#pe-pagination');
     if (!paginationEl) return;
     // Mostrar paginación incluso si no hay vehículo seleccionado (para precios generales)
@@ -751,12 +741,17 @@ export function initPrices(){
       return;
     }
     
-    let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
-    html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev">← Anterior</button>`;
-    html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
-    html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next">Siguiente →</button>`;
-    html += '</div>';
-    paginationEl.innerHTML = html;
+    const paginationTemplate = await window.TemplateLoader.loadTemplate('components/price-pagination.html');
+    const paginationHtml = window.TemplateRenderer.renderTemplate(paginationTemplate, {
+      currentPage: paging.page,
+      totalPages: paging.pages,
+      totalItems: paging.total,
+      hasPrev: paging.page > 1,
+      hasNext: paging.page < paging.pages,
+      prevId: 'pe-prev',
+      nextId: 'pe-next'
+    });
+    paginationEl.innerHTML = paginationHtml;
     
     $('#pe-prev')?.addEventListener('click', () => {
       if (paging.page > 1) {
@@ -814,17 +809,25 @@ export function initPrices(){
         if (rows.length === 0) {
           bodyInversion.replaceChildren();
           const emptyRow = document.createElement('tr');
-          emptyRow.innerHTML = `<td colspan="3" style="text-align:center;padding:24px;color:var(--muted);">
-            <div style="margin-bottom:8px;">💼 No hay precios de inversión disponibles</div>
-            <div style="font-size:12px;">Usa el botón de arriba para crear precios de inversión</div>
-          </td>`;
+          const emptyTemplate = await window.TemplateLoader.loadTemplate('components/price-empty-row.html');
+          const emptyHtml = window.TemplateRenderer.renderTemplate(emptyTemplate, {
+            colspan: 3,
+            icon: '💼',
+            message: 'No hay precios de inversión disponibles',
+            submessage: 'Usa el botón de arriba para crear precios de inversión'
+          });
+          const emptyTd = window.DOMHelpers.parseHTML(emptyHtml);
+          emptyRow.appendChild(emptyTd);
           bodyInversion.appendChild(emptyRow);
         } else {
-          bodyInversion.replaceChildren(...rows.map(r => {
+          bodyInversion.replaceChildren(...await Promise.all(rows.map(async r => {
             const tr = clone(rowTemplateId);
             if (!tr) {
               const fallback = document.createElement('tr');
-              fallback.innerHTML = `<td colspan="3">Error: Template no disponible</td>`;
+              const errorTemplate = await window.TemplateLoader.loadTemplate('components/price-error-row.html');
+              const errorHtml = window.TemplateRenderer.renderTemplate(errorTemplate, { colspan: 3, errorMessage: 'Template no disponible' });
+              const errorTd = window.DOMHelpers.parseHTML(errorHtml);
+              fallback.appendChild(errorTd);
               return fallback;
             }
             
@@ -841,7 +844,11 @@ export function initPrices(){
             // Ocultar celdas que no aplican para inversión
             const vehicleCell = tr.querySelector('[data-vehicle]');
             if (vehicleCell) {
-              vehicleCell.innerHTML = '<span class="inline-block px-2 py-0.5 bg-orange-600 dark:bg-orange-600 theme-light:bg-orange-500 text-white text-xs font-semibold rounded">💼 INVERSIÓN</span>';
+              const badgeTemplate = await window.TemplateLoader.loadTemplate('components/price-type-badge.html');
+              const badgeHtml = window.TemplateRenderer.renderTemplate(badgeTemplate, {
+                isInvestment: true
+              });
+              vehicleCell.innerHTML = badgeHtml;
             }
             
             const itemInfoCell = tr.querySelector('[data-item-info]');
@@ -913,12 +920,17 @@ export function initPrices(){
         if (paging.pages <= 1) {
           paginationInversion.innerHTML = '';
         } else {
-          let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
-          html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev-inversion">← Anterior</button>`;
-          html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
-          html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next-inversion">Siguiente →</button>`;
-          html += '</div>';
-          paginationInversion.innerHTML = html;
+          const paginationTemplate = await window.TemplateLoader.loadTemplate('components/price-pagination.html');
+          const paginationHtml = window.TemplateRenderer.renderTemplate(paginationTemplate, {
+            currentPage: paging.page,
+            totalPages: paging.pages,
+            totalItems: paging.total,
+            hasPrev: paging.page > 1,
+            hasNext: paging.page < paging.pages,
+            prevId: 'pe-prev-inversion',
+            nextId: 'pe-next-inversion'
+          });
+          paginationInversion.innerHTML = paginationHtml;
           
           $('#pe-prev-inversion')?.addEventListener('click', () => {
             if (paging.page > 1) {
@@ -946,7 +958,13 @@ export function initPrices(){
         headInversion.replaceChildren(tr);
         bodyInversion.replaceChildren();
         const errorRow = document.createElement('tr');
-        errorRow.innerHTML = `<td colspan="3" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+        const errorTemplate = await window.TemplateLoader.loadTemplate('components/price-error-row.html');
+        const errorHtml = window.TemplateRenderer.renderTemplate(errorTemplate, {
+          colspan: 3,
+          errorMessage: err?.message || 'Error desconocido'
+        });
+        const errorTd = window.DOMHelpers.parseHTML(errorHtml);
+        errorRow.appendChild(errorTd);
         bodyInversion.appendChild(errorRow);
       }
     }
@@ -998,13 +1016,18 @@ export function initPrices(){
         if (rows.length === 0) {
           bodyGeneral.replaceChildren();
           const emptyRow = document.createElement('tr');
-          emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">
-            <div style="margin-bottom:8px;">🌐 No hay precios generales disponibles</div>
-            <div style="font-size:12px;">Usa los botones de arriba para crear precios generales</div>
-          </td>`;
+          const emptyTemplate = await window.TemplateLoader.loadTemplate('components/price-empty-row.html');
+          const emptyHtml = window.TemplateRenderer.renderTemplate(emptyTemplate, {
+            colspan: 5,
+            icon: '🌐',
+            message: 'No hay precios generales disponibles',
+            submessage: 'Usa los botones de arriba para crear precios generales'
+          });
+          const emptyTd = window.DOMHelpers.parseHTML(emptyHtml);
+          emptyRow.appendChild(emptyTd);
           bodyGeneral.appendChild(emptyRow);
         } else {
-          bodyGeneral.replaceChildren(...rows.map(rowToNode));
+          bodyGeneral.replaceChildren(...await Promise.all(rows.map(rowToNode)));
         }
       }
       
@@ -1014,12 +1037,17 @@ export function initPrices(){
         if (paging.pages <= 1) {
           paginationGeneral.innerHTML = '';
         } else {
-          let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
-          html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev-general">← Anterior</button>`;
-          html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
-          html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next-general">Siguiente →</button>`;
-          html += '</div>';
-          paginationGeneral.innerHTML = html;
+          const paginationTemplate = await window.TemplateLoader.loadTemplate('components/price-pagination.html');
+          const paginationHtml = window.TemplateRenderer.renderTemplate(paginationTemplate, {
+            currentPage: paging.page,
+            totalPages: paging.pages,
+            totalItems: paging.total,
+            hasPrev: paging.page > 1,
+            hasNext: paging.page < paging.pages,
+            prevId: 'pe-prev-general',
+            nextId: 'pe-next-general'
+          });
+          paginationGeneral.innerHTML = paginationHtml;
           
           $('#pe-prev-general')?.addEventListener('click', () => {
             if (paging.page > 1) {
@@ -1047,7 +1075,13 @@ export function initPrices(){
         headGeneral.replaceChildren(tr);
         bodyGeneral.replaceChildren();
         const errorRow = document.createElement('tr');
-        errorRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+        const errorTemplate = await window.TemplateLoader.loadTemplate('components/price-error-row.html');
+        const errorHtml = window.TemplateRenderer.renderTemplate(errorTemplate, {
+          colspan: 5,
+          errorMessage: err?.message || 'Error desconocido'
+        });
+        const errorTd = window.DOMHelpers.parseHTML(errorHtml);
+        errorRow.appendChild(errorTd);
         bodyGeneral.appendChild(errorRow);
       }
     }
@@ -1099,27 +1133,46 @@ export function initPrices(){
       if (rows.length === 0 && !selectedVehicle && selectedVehicles.length === 0) {
         body.replaceChildren();
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">
-          <div style="margin-bottom:8px;">🌐 No hay precios generales disponibles</div>
-          <div style="font-size:12px;">Usa los botones de arriba para crear precios generales (🌐 Servicio general, 🌐 Producto general, 🌐 Combo general)</div>
-        </td>`;
+        const emptyTemplate = await window.TemplateLoader.loadTemplate('components/price-empty-row.html');
+        const emptyHtml = window.TemplateRenderer.renderTemplate(emptyTemplate, {
+          colspan: 5,
+          icon: '🌐',
+          message: 'No hay precios generales disponibles',
+          submessage: 'Usa los botones de arriba para crear precios generales (🌐 Servicio general, 🌐 Producto general, 🌐 Combo general)'
+        });
+        const emptyTd = window.DOMHelpers.parseHTML(emptyHtml);
+        emptyRow.appendChild(emptyTd);
         body.appendChild(emptyRow);
       } else if (rows.length === 0) {
         body.replaceChildren();
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</td>`;
+        const emptyTemplate = await window.TemplateLoader.loadTemplate('components/price-empty-row.html');
+        const emptyHtml = window.TemplateRenderer.renderTemplate(emptyTemplate, {
+          colspan: 5,
+          icon: '',
+          message: 'No hay precios que coincidan con los filtros.',
+          submessage: ''
+        });
+        const emptyTd = window.DOMHelpers.parseHTML(emptyHtml);
+        emptyRow.appendChild(emptyTd);
         body.appendChild(emptyRow);
       } else {
-        body.replaceChildren(...rows.map(rowToNode));
+        body.replaceChildren(...await Promise.all(rows.map(rowToNode)));
       }
       
-      renderPagination();
+      await renderPagination();
     } catch (err) {
       console.error('Error loading prices:', err);
       renderTableHeader();
       body.replaceChildren();
       const errorRow = document.createElement('tr');
-      errorRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+      const errorTemplate = await window.TemplateLoader.loadTemplate('components/price-error-row.html');
+      const errorHtml = window.TemplateRenderer.renderTemplate(errorTemplate, {
+        colspan: 5,
+        errorMessage: err?.message || 'Error desconocido'
+      });
+      const errorTd = window.DOMHelpers.parseHTML(errorHtml);
+      errorRow.appendChild(errorTd);
       body.appendChild(errorRow);
     }
   }
