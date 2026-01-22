@@ -352,106 +352,13 @@ function printSaleTicket(sale, documentType = 'remission'){
     fallback();
   }
   
-  // Función auxiliar para corregir el condicional del descuento en plantillas
-  function fixDiscountConditional(html) {
-    if (!html) return html;
-    
-    // Detectar si el tbody de datos del cliente está envuelto incorrectamente en {{#if sale.hasDiscount}}
-    // Patrón: <tbody>{{#if sale.hasDiscount}}<tr> (datos del cliente)
-    const incorrectPattern = /<tbody>\s*\{\{#if\s+sale\.hasDiscount\}\}\s*<tr>\s*<td[^>]*>Nombre:/;
-    
-    if (incorrectPattern.test(html)) {
-      console.log('[fixDiscountConditional] ⚠️ Detectado condicional incorrecto en datos del cliente, corrigiendo...');
-      
-      // Remover el condicional del inicio del tbody de datos del cliente
-      html = html.replace(
-        /<tbody>\s*\{\{#if\s+sale\.hasDiscount\}\}\s*/g,
-        '<tbody>'
-      );
-      
-      // Remover el cierre del condicional antes del cierre del tbody de datos del cliente
-      // Buscar el patrón: </tr>...{{/if}}</tbody> donde el tbody contiene datos del cliente
-      html = html.replace(
-        /(<\/tr>\s*<\/tr>\s*<\/tr>\s*<\/tr>\s*<\/tbody>)\s*\{\{\/if\}\}/g,
-        '$1'
-      );
-      
-      // También buscar patrones más generales donde el cierre está cerca del tbody de cliente
-      html = html.replace(
-        /(\{\{sale\.customer\.address\}\}[^<]*<\/td>[^<]*<\/tr>[^<]*<\/tbody>)\s*\{\{\/if\}\}/g,
-        '$1'
-      );
-      
-      // Verificar que el tfoot tenga el formato correcto
-      // Buscar el tfoot y asegurar que DESCUENTO esté dentro de {{#if S.hasDiscount}}
-      const tfootMatch = html.match(/<tfoot>([\s\S]*?)<\/tfoot>/i);
-      if (tfootMatch) {
-        const tfootContent = tfootMatch[1];
-        
-        // Verificar si DESCUENTO existe pero no está dentro del condicional correcto
-        if (tfootContent.includes('DESCUENTO')) {
-          // Verificar si ya está dentro del condicional correcto
-          if (!tfootContent.match(/\{\{#if\s+S\.hasDiscount\}\}[\s\S]*?DESCUENTO/i)) {
-            console.log('[fixDiscountConditional] ⚠️ DESCUENTO no está dentro del condicional {{#if S.hasDiscount}}, corrigiendo...');
-            
-            // Buscar la línea de DESCUENTO (puede tener diferentes formatos)
-            const discountLinePattern = /<tr[^>]*>[\s\S]*?<td[^>]*colspan[^>]*>[\s\S]*?DESCUENTO[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?-\{\{money\s+S\.discount\}\}[\s\S]*?<\/td>[\s\S]*?<\/tr>/i;
-            
-            // Reemplazar la línea de DESCUENTO para envolverla en el condicional
-            html = html.replace(
-              /(<tfoot>[\s\S]*?)(<tr[^>]*>[\s\S]*?<td[^>]*colspan[^>]*>[\s\S]*?DESCUENTO[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?-\{\{money\s+S\.discount\}\}[\s\S]*?<\/td>[\s\S]*?<\/tr>)([\s\S]*?<\/tfoot>)/i,
-              (match, before, discountLine, after) => {
-                // Extraer el contenido de la línea de descuento
-                const discountMatch = discountLine.match(/<td[^>]*colspan="3"[^>]*>([\s\S]*?)<\/td>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/i);
-                const discountLabel = discountMatch ? discountMatch[1] : 'DESCUENTO';
-                const discountValue = discountMatch ? discountMatch[2] : '-{{money S.discount}}';
-                
-                // Crear la línea corregida con el condicional
-                const correctedDiscountLine = `{{#if S.hasDiscount}}
-          <tr>
-            <td colspan="3" style="text-align: right; padding: 2px 4px; font-size: 9px;">${discountLabel}</td>
-            <td style="text-align: right; padding: 2px 4px; font-size: 9px;">${discountValue}</td>
-          </tr>
-          {{/if}}`;
-                
-                return `${before}${correctedDiscountLine}${after}`;
-              }
-            );
-          }
-        } else {
-          // Si no hay línea de DESCUENTO, agregarla con el formato correcto después de SUBTOTAL
-          console.log('[fixDiscountConditional] ⚠️ No se encontró línea de DESCUENTO, agregando con formato correcto...');
-          
-          html = html.replace(
-            /(<tr[^>]*>[\s\S]*?SUBTOTAL[\s\S]*?<\/tr>)([\s\S]*?)(<tr[^>]*>[\s\S]*?TOTAL[\s\S]*?<\/tr>)/i,
-            `$1
-          {{#if S.hasDiscount}}
-          <tr>
-            <td colspan="3" style="text-align: right; padding: 2px 4px; font-size: 9px;">DESCUENTO{{#if sale.discount.reason}} ({{sale.discount.reason}}){{/if}}</td>
-            <td style="text-align: right; padding: 2px 4px; font-size: 9px;">-{{money S.discount}}</td>
-          </tr>
-          {{/if}}
-          $3`
-          );
-        }
-      }
-      
-      console.log('[fixDiscountConditional] ✅ Corrección aplicada');
-    }
-    
-    return html;
-  }
-
   // Función auxiliar para procesar el template
   function processTemplate(tpl){
         console.log('[printSaleTicket] Usando template guardado:', tpl.name || tpl._id);
         console.log('[printSaleTicket] HTML del template (primeros 500 chars):', tpl.contentHtml?.substring(0, 500));
         
         // Restaurar variables acortadas antes de enviar al preview
-        let restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
-        
-        // Corregir el condicional del descuento si está mal ubicado
-        restoredHtml = fixDiscountConditional(restoredHtml);
+        const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
         console.log('[printSaleTicket] Variables restauradas, HTML length:', restoredHtml?.length);
         
         // Verificar el HTML original antes de restaurar
