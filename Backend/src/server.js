@@ -186,9 +186,34 @@ logger.info('[CORS] allowList', { allowList, allowAll, nodeEnv: process.env.NODE
 
 const corsOptions = {
   origin(origin, cb) {
-    if (allowAll) return cb(null, true);
-    if (!origin) return cb(null, true);           // Postman/cURL o mismo origen sin Origin
-    if (allowList.includes(origin)) return cb(null, true);
+    if (allowAll) {
+      logger.info('[CORS] Allowing all origins (allowAll=true)');
+      return cb(null, true);
+    }
+    if (!origin) {
+      logger.info('[CORS] No origin header, allowing (same-origin or tool)');
+      return cb(null, true);           // Postman/cURL o mismo origen sin Origin
+    }
+    // Verificar coincidencia exacta
+    if (allowList.includes(origin)) {
+      logger.info('[CORS] Origin allowed:', origin);
+      return cb(null, true);
+    }
+    // Verificar si el origen contiene alguno de los dominios permitidos (más flexible)
+    const originMatches = allowList.some(allowed => {
+      try {
+        const allowedUrl = new URL(allowed);
+        const originUrl = new URL(origin);
+        return allowedUrl.hostname === originUrl.hostname;
+      } catch {
+        return origin.includes(allowed.replace(/^https?:\/\//, ''));
+      }
+    });
+    if (originMatches) {
+      logger.info('[CORS] Origin matched by domain:', origin);
+      return cb(null, true);
+    }
+    logger.warn('[CORS] Origin not allowed:', origin, 'Allowed list:', allowList);
     return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
