@@ -90,6 +90,28 @@ function debounce(fn, wait = 200) {
   };
 }
 
+// Cargar todos los items del inventario en un Map (paginado)
+async function loadAllItemsMap() {
+  const items = [];
+  const limit = 100;
+  let page = 1;
+  let pages = null;
+
+  while (true) {
+    const { data, meta } = await invAPI.listItems({ page, limit });
+    if (Array.isArray(data) && data.length > 0) {
+      items.push(...data);
+    }
+    pages = meta?.pages || pages;
+    if (pages && page >= pages) break;
+    if (!pages && (!data || data.length < limit)) break;
+    page += 1;
+    if (page > 500) break;
+  }
+
+  return new Map(items.map(item => [String(item._id), item]));
+}
+
 const invAPI = {
   listVehicleIntakes: async () => {
     const r = await request("/api/v1/inventory/vehicle-intakes");
@@ -4916,11 +4938,11 @@ async function openInvestorDetailView(investorId) {
     container.innerHTML = '<div class="text-center py-12"><div class="text-6xl mb-4 animate-spin">⏳</div><p class="text-slate-400 theme-light:text-slate-600">Cargando detalles del inversor...</p></div>';
     
     // Cargar datos del inversor
-    const [investorData, purchasesData, investorInfo, allItemsData] = await Promise.all([
+    const [investorData, purchasesData, investorInfo, itemsMap] = await Promise.all([
       API.investments.getInvestorInvestments(investorId),
       API.purchases.purchases.list({ investorId, limit: 1000 }),
       API.purchases.investors.list().then(investors => investors.find(i => i._id === investorId) || { name: 'Sin nombre' }),
-      invAPI.listItems({ limit: 10000 }) // Para obtener fotos de items
+      loadAllItemsMap() // Para obtener fotos y stock de items
     ]);
     
     const investor = investorData;
@@ -4928,8 +4950,6 @@ async function openInvestorDetailView(investorId) {
     const summary = investor.summary || {};
     const items = investor.items || {};
     const purchases = purchasesData.items || [];
-    const allItems = allItemsData.data || [];
-    const itemsMap = new Map(allItems.map(item => [String(item._id), item]));
     const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     
     // Agrupar items disponibles por itemId y calcular totales y precio ponderado

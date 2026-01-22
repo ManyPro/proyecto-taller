@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  startSale, getSale, addItem, updateItem, removeItem,
+  startSale, getSale, addItem, updateItem, removeItem, removeItemGroup,
   setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk, updateSale, registerSaleCashflow,
   addAdvancePayment, removeAdvancePayment, setDiscount, removeDiscount
 } from '../controllers/sales.controller.js';
@@ -29,6 +29,7 @@ router.post('/:id/items', addItem);
 router.post('/:id/items/batch', addItemsBatch);
 router.put('/:id/items/:itemId', updateItem);
 router.delete('/:id/items/:itemId', removeItem);
+router.delete('/:id/items/:itemId/group', removeItemGroup);
 
 // Advance payments (abonos)
 router.post('/:id/advance-payments', addAdvancePayment);

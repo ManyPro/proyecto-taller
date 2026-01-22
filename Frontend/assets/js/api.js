@@ -355,6 +355,8 @@ const API = {
 
     removeItem: (id, itemId) =>
       http.del(`/api/v1/sales/${id}/items/${itemId}`),
+    removeItemGroup: (id, itemId) =>
+      http.del(`/api/v1/sales/${id}/items/${itemId}/group`),
 
     setCustomerVehicle: (id, payload) =>
       http.put(`/api/v1/sales/${id}/customer-vehicle`, payload),
