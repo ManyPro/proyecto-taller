@@ -81,6 +81,20 @@
     }, 3000);
   }
 
+  // Asegurar que la fila de DESCUENTO esté envuelta en {{#if S.hasDiscount}}
+  function ensureDiscountConditional(html, templateType = '') {
+    if (!html) return html;
+    if (templateType !== 'invoice' && templateType !== 'invoice-factura') return html;
+
+    const hasWrapped = /\{\{#if\s+S\.hasDiscount\}\}\s*<tr[\s\S]*?DESCUENTO[\s\S]*?<\/tr>\s*\{\{\/if\}\}/i.test(html);
+    if (hasWrapped) return html;
+
+    const discountRowRegex = /<tr[^>]*>[\s\S]*?(DESCUENTO|Descuento|descuento)[\s\S]*?<\/tr>/i;
+    if (!discountRowRegex.test(html)) return html;
+
+    return html.replace(discountRowRegex, (row) => `{{#if S.hasDiscount}}\n${row}\n{{/if}}`);
+  }
+
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
@@ -2908,6 +2922,9 @@
             !template.contentHtml.includes('Haz clic en los botones') && 
             !template.contentHtml.includes('Tu plantilla está vacía')) {
           console.log('📄 Formato existente detectado - Cargando HTML guardado...');
+
+          // Asegurar condicional de descuento en remisión/factura sin dañar nada
+          template.contentHtml = ensureDiscountConditional(template.contentHtml, template.type);
           
           // Guardar HTML original para restaurar variables al guardar
           if (!window.templateOriginalHtml) {
