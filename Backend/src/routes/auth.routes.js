@@ -9,6 +9,9 @@ import { authCompany } from '../middlewares/auth.js';
 const router = Router();
 
 function signCompany(company) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET no configurado');
+  }
   const payload = {
     sub: String(company._id),
     companyId: String(company._id),
@@ -57,6 +60,9 @@ router.post('/login', async (req, res) => {
     const password = String(req.body?.password || '');
     if (!email || !password) {
       return res.status(400).json({ error: 'email y password son requeridos' });
+    }
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ error: 'JWT_SECRET no configurado' });
     }
     const company = await Company.findOne({ email });
     if (!company) return res.status(401).json({ error: 'Credenciales inválidas' });
