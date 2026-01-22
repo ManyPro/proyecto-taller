@@ -1,0 +1,12 @@
+{{#if isCombo}}
+<span class="inline-block px-2 py-0.5 bg-purple-600 dark:bg-purple-600 theme-light:bg-purple-500 text-white text-xs font-semibold rounded">COMBO</span>
+{{else if isProduct}}
+<span class="inline-block px-2 py-0.5 bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 text-white text-xs font-semibold rounded">PRODUCTO</span>
+{{else if isInvestment}}
+<span class="inline-block px-2 py-0.5 bg-orange-600 dark:bg-orange-600 theme-light:bg-orange-500 text-white text-xs font-semibold rounded">💼 INVERSIÓN</span>
+{{else}}
+<span class="inline-block px-2 py-0.5 bg-green-600 dark:bg-green-600 theme-light:bg-green-500 text-white text-xs font-semibold rounded">SERVICIO</span>
+{{/if}}
+{{#if isGeneral}}
+<span class="inline-block px-2 py-0.5 bg-cyan-600 dark:bg-cyan-600 theme-light:bg-cyan-500 text-white text-xs font-semibold rounded ml-1">🌐 GENERAL</span>
+{{/if}}
