@@ -1782,24 +1782,44 @@ if (__ON_INV_PAGE__) {
       // Formatear información de cada entrada
       const entriesHtml = stockEntries.length > 0
         ? stockEntries.map(se => {
-            const intakeLabel = se.intakeLabel || 'GENERAL';
+            // Determinar etiqueta según el nuevo sistema de compras
+            let intakeLabel = 'GENERAL';
+            if (se.purchaseId && se.investorId) {
+              const investorName = se.investorId?.name || 'Sin nombre';
+              const supplierName = se.supplierId?.name || 'General';
+              intakeLabel = `${investorName} - ${supplierName}`;
+            } else if (se.investorId) {
+              intakeLabel = se.investorId?.name || 'Sin nombre';
+            } else if (se.supplierId) {
+              intakeLabel = se.supplierId?.name || 'General';
+            } else if (se.purchaseId) {
+              intakeLabel = 'COMPRA GENERAL';
+            } else {
+              intakeLabel = se.intakeLabel || 'GENERAL';
+            }
+            
             const entryDate = se.entryDate ? new Date(se.entryDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
             const entryPrice = se.entryPrice ? fmtMoney(se.entryPrice) : '-';
             const qty = se.qty || 0;
+            
+            // Información adicional
+            const purchaseDate = se.purchaseId?.purchaseDate ? new Date(se.purchaseId.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
             
             return `
               <div class="border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg p-4 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50">
                 <div class="flex justify-between items-start mb-2">
                   <div class="flex-1">
-                    <div class="text-sm font-semibold text-white theme-light:text-slate-900 mb-1">${intakeLabel}</div>
+                    <div class="text-sm font-semibold text-white theme-light:text-slate-900 mb-1">${escapeHtml(intakeLabel)}</div>
                     <div class="text-xs text-slate-400 theme-light:text-slate-600">Fecha de entrada: ${entryDate}</div>
+                    ${purchaseDate ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Compra: ${purchaseDate}</div>` : ''}
+                    ${se.purchaseId?.notes ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 italic mt-1">${escapeHtml(se.purchaseId.notes)}</div>` : ''}
                   </div>
                   <div class="text-right">
                     <div class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${qty} unidades</div>
                     ${entryPrice !== '-' ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Precio: $${entryPrice}</div>` : ''}
                   </div>
                 </div>
-                ${se.meta?.note ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 mt-2 italic">Nota: ${se.meta.note}</div>` : ''}
+                ${se.meta?.note ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 mt-2 italic">Nota: ${escapeHtml(se.meta.note)}</div>` : ''}
               </div>
             `;
           }).join('')
@@ -4832,7 +4852,7 @@ async function loadInversoresContent() {
       const pendingVal = money(Math.max(0, summary.pendingPayment || 0));
       
       return `
-        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group" data-investor-id="${investorId}" onclick="openInvestorDetailModal('${investorId}')">
+        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] group" data-investor-id="${investorId}" onclick="openInvestorDetailView('${investorId}')">
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform">

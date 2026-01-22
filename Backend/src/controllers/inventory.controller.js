@@ -792,7 +792,7 @@ export const recalcIntakePrices = async (req, res) => {
 
 // ===== Stock IN =====
 // Agrega stock a un ítem existente y registra el movimiento
-// Soporta sistema antiguo (vehicleIntakeId) y nuevo (supplierId, investorId)
+// Usa el nuevo sistema de compras (supplierId, investorId) - todo es compra, incluso si es GENERAL
 export const addItemStock = async (req, res) => {
   const { id } = req.params;
   const b = req.body || {};
@@ -804,18 +804,7 @@ export const addItemStock = async (req, res) => {
   const item = await Item.findOne({ _id: id, companyId: req.companyId });
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  // Validar vehicleIntakeId si se proporciona (sistema antiguo)
-  let vehicleIntakeId = null;
-  let vehicleIntake = null;
-  if (b.vehicleIntakeId && mongoose.Types.ObjectId.isValid(b.vehicleIntakeId)) {
-    vehicleIntakeId = new mongoose.Types.ObjectId(b.vehicleIntakeId);
-    vehicleIntake = await VehicleIntake.findOne({ _id: vehicleIntakeId, companyId: req.companyId });
-    if (!vehicleIntake) {
-      return res.status(404).json({ error: "Entrada (VehicleIntake) no encontrada" });
-    }
-  }
-
-  // Validar supplierId si se proporciona (nuevo sistema)
+  // Validar supplierId si se proporciona
   let supplierId = null;
   if (b.supplierId) {
     if (b.supplierId === 'GENERAL' || b.supplierId === null) {
@@ -831,7 +820,7 @@ export const addItemStock = async (req, res) => {
     }
   }
 
-  // Validar investorId si se proporciona (nuevo sistema)
+  // Validar investorId si se proporciona
   let investorId = null;
   if (b.investorId) {
     if (b.investorId === 'GENERAL' || b.investorId === null) {
@@ -855,11 +844,6 @@ export const addItemStock = async (req, res) => {
 
   // Registrar movimiento primero (para auditoría)
   const meta = { note: (b.note || '').trim() };
-  if (vehicleIntakeId) {
-    meta.vehicleIntakeId = vehicleIntakeId;
-    meta.intakeKind = vehicleIntake.intakeKind;
-    meta.intakeLabel = makeIntakeLabel(vehicleIntake);
-  }
   if (supplierId) meta.supplierId = supplierId;
   if (investorId) meta.investorId = investorId;
   if (purchasePrice !== null) meta.purchasePrice = purchasePrice;
@@ -876,57 +860,43 @@ export const addItemStock = async (req, res) => {
   let stockEntry = null;
   const entryPrice = purchasePrice !== null ? purchasePrice : (item.entryPrice || null);
   
-  // Si hay supplierId o investorId, usar el nuevo sistema
-  if (supplierId !== null || investorId !== null || vehicleIntakeId) {
-    // Buscar si ya existe un StockEntry para esta combinación
-    const searchFilter = {
+  // Buscar si ya existe un StockEntry para esta combinación (sin purchaseId)
+  const searchFilter = {
+    companyId: req.companyId,
+    itemId: item._id,
+    supplierId: supplierId,
+    investorId: investorId,
+    purchaseId: null, // Solo entradas manuales (sin compra)
+    vehicleIntakeId: null // No usar sistema antiguo
+  };
+
+  stockEntry = await StockEntry.findOne(searchFilter);
+
+  if (stockEntry) {
+    // Actualizar cantidad existente
+    stockEntry.qty += qty;
+    if (entryPrice !== null && stockEntry.entryPrice === null) {
+      stockEntry.entryPrice = entryPrice;
+    }
+    await stockEntry.save();
+  } else {
+    // Crear nuevo StockEntry
+    stockEntry = await StockEntry.create({
       companyId: req.companyId,
-      itemId: item._id
-    };
-    
-    // Si hay supplierId/investorId, buscar por esos campos
-    if (supplierId !== null || investorId !== null) {
-      searchFilter.supplierId = supplierId;
-      searchFilter.investorId = investorId;
-      // Si hay vehicleIntakeId también, incluirlo en la búsqueda
-      if (vehicleIntakeId) {
-        searchFilter.vehicleIntakeId = vehicleIntakeId;
-      } else {
-        searchFilter.vehicleIntakeId = null;
+      itemId: item._id,
+      vehicleIntakeId: null,
+      supplierId: supplierId,
+      investorId: investorId,
+      purchaseId: null,
+      qty: qty,
+      entryPrice: entryPrice,
+      entryDate: new Date(),
+      meta: {
+        note: meta.note,
+        supplier: '',
+        purchaseOrder: ''
       }
-    } else {
-      // Sistema antiguo: buscar solo por vehicleIntakeId
-      searchFilter.vehicleIntakeId = vehicleIntakeId;
-    }
-
-    stockEntry = await StockEntry.findOne(searchFilter);
-
-    if (stockEntry) {
-      // Actualizar cantidad existente
-      stockEntry.qty += qty;
-      if (entryPrice !== null && stockEntry.entryPrice === null) {
-        stockEntry.entryPrice = entryPrice;
-      }
-      await stockEntry.save();
-    } else {
-      // Crear nuevo StockEntry
-      const entryDate = vehicleIntake?.intakeDate || new Date();
-      stockEntry = await StockEntry.create({
-        companyId: req.companyId,
-        itemId: item._id,
-        vehicleIntakeId: vehicleIntakeId,
-        supplierId: supplierId,
-        investorId: investorId,
-        qty: qty,
-        entryPrice: entryPrice,
-        entryDate: entryDate,
-        meta: {
-          note: meta.note,
-          supplier: vehicleIntake?.purchasePlace || '',
-          purchaseOrder: ''
-        }
-      });
-    }
+    });
   }
 
   // Incrementar stock del item
@@ -1235,84 +1205,77 @@ export const getItemStockEntries = async (req, res) => {
     itemId: item._id,
     qty: { $gt: 0 } // Solo mostrar entradas con stock disponible
   })
-  .populate('vehicleIntakeId', 'intakeKind intakeDate purchasePlace brand model engine')
+  .populate('supplierId', 'name')
+  .populate('investorId', 'name')
+  .populate({
+    path: 'purchaseId',
+    select: 'purchaseDate notes',
+    match: { companyId: req.companyId } // Solo incluir si la compra existe y pertenece a la compañía
+  })
   .sort({ entryDate: 1, _id: 1 })
   .lean();
+  
+  // Filtrar entradas donde purchaseId es null (compra eliminada) pero mantener las que no tienen purchaseId
+  stockEntries = stockEntries.filter(se => {
+    // Si tiene purchaseId pero es null (compra eliminada), excluir
+    if (se.purchaseId === null && se.purchaseId !== undefined) {
+      return false;
+    }
+    return true;
+  });
 
-  // Verificar si necesita sincronización automática
+  // Verificar si necesita sincronización automática (solo para stock sin entradas)
   const totalInEntries = stockEntries.reduce((sum, se) => sum + (se.qty || 0), 0);
   const itemStock = item.stock || 0;
   
-  // Si hay stock pero no hay entradas, o si la suma no coincide, sincronizar automáticamente
-  if (itemStock > 0 && (stockEntries.length === 0 || totalInEntries < itemStock)) {
+  // Si hay stock pero no hay entradas, crear una entrada GENERAL
+  if (itemStock > 0 && stockEntries.length === 0) {
     try {
-      // Usar el vehicleIntakeId del item si existe
-      let vehicleIntakeId = item.vehicleIntakeId;
+      // Calcular la diferencia que falta
+      const difference = itemStock - totalInEntries;
       
-      // Si no tiene vehicleIntakeId, crear uno por defecto
-      if (!vehicleIntakeId || !mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
-        // Buscar o crear un VehicleIntake por defecto "GENERAL"
-        let defaultIntake = await VehicleIntake.findOne({
+      if (difference > 0) {
+        // Crear StockEntry GENERAL para la diferencia (sin purchase, supplier ni investor)
+        await StockEntry.create({
           companyId: req.companyId,
-          intakeKind: 'purchase',
-          purchasePlace: 'GENERAL'
+          itemId: item._id,
+          vehicleIntakeId: null,
+          supplierId: null,
+          investorId: null,
+          purchaseId: null,
+          qty: difference,
+          entryPrice: item.entryPrice || null,
+          entryDate: item.createdAt || new Date(),
+          meta: {
+            note: 'Stock sin entrada específica - GENERAL',
+            supplier: '',
+            purchaseOrder: ''
+          }
         });
         
-        if (!defaultIntake) {
-          defaultIntake = await VehicleIntake.create({
-            companyId: req.companyId,
-            intakeKind: 'purchase',
-            purchasePlace: 'GENERAL',
-            intakeDate: new Date(),
-            entryPrice: 0
-          });
-        }
+        // Recargar las entradas después de crear la nueva
+        stockEntries = await StockEntry.find({
+          companyId: req.companyId,
+          itemId: item._id,
+          qty: { $gt: 0 }
+        })
+        .populate('supplierId', 'name')
+        .populate('investorId', 'name')
+        .populate({
+          path: 'purchaseId',
+          select: 'purchaseDate notes',
+          match: { companyId: req.companyId }
+        })
+        .sort({ entryDate: 1, _id: 1 })
+        .lean();
         
-        vehicleIntakeId = defaultIntake._id;
-        
-        // Actualizar el item para que tenga el vehicleIntakeId
-        await Item.updateOne(
-          { _id: item._id, companyId: req.companyId },
-          { $set: { vehicleIntakeId } }
-        );
-      }
-      
-      // Verificar que el vehicleIntakeId existe
-      const vehicleIntake = await VehicleIntake.findOne({
-        _id: vehicleIntakeId,
-        companyId: req.companyId
-      });
-      
-      if (vehicleIntake) {
-        // Calcular la diferencia que falta
-        const difference = itemStock - totalInEntries;
-        
-        if (difference > 0) {
-          // Crear StockEntry para la diferencia
-          await StockEntry.create({
-            companyId: req.companyId,
-            itemId: item._id,
-            vehicleIntakeId,
-            qty: difference,
-            entryPrice: item.entryPrice || null,
-            entryDate: vehicleIntake.intakeDate || item.createdAt || new Date(),
-            meta: {
-              note: 'Sincronización automática - stock sin entrada específica',
-              supplier: vehicleIntake.purchasePlace || '',
-              purchaseOrder: ''
-            }
-          });
-          
-          // Recargar las entradas después de crear la nueva
-          stockEntries = await StockEntry.find({
-            companyId: req.companyId,
-            itemId: item._id,
-            qty: { $gt: 0 }
-          })
-          .populate('vehicleIntakeId', 'intakeKind intakeDate purchasePlace brand model engine')
-          .sort({ entryDate: 1, _id: 1 })
-          .lean();
-        }
+        // Filtrar entradas donde purchaseId es null (compra eliminada)
+        stockEntries = stockEntries.filter(se => {
+          if (se.purchaseId === null && se.purchaseId !== undefined) {
+            return false;
+          }
+          return true;
+        });
       }
     } catch (error) {
       console.error(`Error sincronizando StockEntry para item ${item.sku}:`, error);
@@ -1322,11 +1285,28 @@ export const getItemStockEntries = async (req, res) => {
 
   // Enriquecer con información de la entrada
   const enriched = stockEntries.map(se => {
-    const vi = se.vehicleIntakeId || {};
+    // Determinar la etiqueta según el tipo de entrada (solo sistema nuevo de compras)
+    let intakeLabel = 'GENERAL';
+    if (se.purchaseId && se.investorId) {
+      // Si tiene compra e inversor, mostrar inversor y proveedor
+      const investorName = se.investorId?.name || 'Sin nombre';
+      const supplierName = se.supplierId?.name || 'General';
+      intakeLabel = `${investorName} - ${supplierName}`;
+    } else if (se.investorId) {
+      // Si solo tiene inversor
+      intakeLabel = se.investorId?.name || 'Sin nombre';
+    } else if (se.supplierId) {
+      // Si solo tiene proveedor
+      intakeLabel = se.supplierId?.name || 'General';
+    } else if (se.purchaseId) {
+      // Si tiene compra pero no inversor ni proveedor específico
+      intakeLabel = 'COMPRA GENERAL';
+    }
+    
     return {
       ...se,
-      intakeLabel: makeIntakeLabel(vi),
-      intakeKind: vi.intakeKind || 'unknown'
+      intakeLabel,
+      intakeKind: se.purchaseId ? 'purchase' : 'general'
     };
   });
 
