@@ -4915,7 +4915,874 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Abrir modal con detalle completo del inversor
+// Abrir vista completa del inversor (reemplaza contenido de la página)
+async function openInvestorDetailView(investorId) {
+  try {
+    const container = document.getElementById('inv-investors-list');
+    if (!container) return;
+    
+    // Mostrar loading
+    container.innerHTML = '<div class="text-center py-12"><div class="text-6xl mb-4 animate-spin">⏳</div><p class="text-slate-400 theme-light:text-slate-600">Cargando detalles del inversor...</p></div>';
+    
+    // Cargar datos del inversor
+    const [investorData, purchasesData, investorInfo, allItemsData] = await Promise.all([
+      API.investments.getInvestorInvestments(investorId),
+      API.purchases.purchases.list({ investorId, limit: 1000 }),
+      API.purchases.investors.list().then(investors => investors.find(i => i._id === investorId) || { name: 'Sin nombre' }),
+      invAPI.listItems({ limit: 10000 }) // Para obtener fotos de items
+    ]);
+    
+    const investor = investorData;
+    const investorName = investorInfo?.name || 'Sin nombre';
+    const summary = investor.summary || {};
+    const items = investor.items || {};
+    const purchases = purchasesData.items || [];
+    const allItems = allItemsData.data || [];
+    const itemsMap = new Map(allItems.map(item => [String(item._id), item]));
+    const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    // Agrupar items disponibles por itemId y calcular totales y precio ponderado
+    const availableItemsMap = {};
+    (items.available || []).forEach(item => {
+      const itemId = item.itemId?._id || item.itemId?.id || null;
+      if (!itemId) return;
+      
+      const fullItem = itemsMap.get(String(itemId));
+      const itemName = fullItem?.name || item.itemId?.name || item.itemId?.sku || 'N/A';
+      const itemSku = fullItem?.sku || item.itemId?.sku || 'N/A';
+      const itemImage = fullItem?.images?.[0]?.url || null;
+      const itemStock = fullItem?.stock || 0;
+      const qty = item.qty || 0;
+      const purchasePrice = item.purchasePrice || 0;
+      
+      if (!availableItemsMap[itemId]) {
+        availableItemsMap[itemId] = {
+          itemId: itemId,
+          itemName: itemName,
+          itemSku: itemSku,
+          itemImage: itemImage,
+          itemStock: itemStock,
+          totalQty: 0,
+          totalValue: 0,
+          weightedPrice: 0
+        };
+      }
+      
+      availableItemsMap[itemId].totalQty += qty;
+      availableItemsMap[itemId].totalValue += (purchasePrice * qty);
+    });
+    
+    // Calcular precio ponderado para cada item
+    Object.values(availableItemsMap).forEach(item => {
+      if (item.totalQty > 0) {
+        item.weightedPrice = item.totalValue / item.totalQty;
+      }
+    });
+    
+    // Renderizar items disponibles con diseño mejorado
+    const availableItems = Object.values(availableItemsMap).map(item => {
+      const imageHtml = item.itemImage 
+        ? `<img src="${escapeHtml(item.itemImage)}" alt="${escapeHtml(item.itemName)}" class="w-full h-full object-cover rounded-lg" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />`
+        : '';
+      const placeholderHtml = `<div class="w-full h-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-2xl font-bold rounded-lg">${(item.itemName.charAt(0) || '?').toUpperCase()}</div>`;
+      
+      return `
+        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 hover:shadow-xl transition-all duration-300">
+          <div class="flex gap-4">
+            <div class="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-slate-600/50">
+              ${imageHtml}
+              <div class="w-full h-full items-center justify-center" style="display: ${item.itemImage ? 'none' : 'flex'}">${placeholderHtml}</div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex-1 min-w-0">
+                  <h4 class="text-lg font-bold text-white theme-light:text-slate-900 truncate">${escapeHtml(item.itemName)}</h4>
+                  <p class="text-sm text-slate-400 theme-light:text-slate-600">SKU: ${escapeHtml(item.itemSku)}</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-2 border border-blue-500/30">
+                  <p class="text-xs text-blue-400 theme-light:text-blue-600 mb-1">📦 Stock Total</p>
+                  <p class="text-sm font-semibold text-blue-300 theme-light:text-blue-700">${item.itemStock}</p>
+                </div>
+                <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 rounded-lg p-2 border border-green-500/30">
+                  <p class="text-xs text-green-400 theme-light:text-green-600 mb-1">✅ Del Inversor</p>
+                  <p class="text-sm font-semibold text-green-300 theme-light:text-green-700">${item.totalQty}</p>
+                </div>
+                <div class="bg-purple-500/20 dark:bg-purple-500/20 theme-light:bg-purple-50 rounded-lg p-2 border border-purple-500/30">
+                  <p class="text-xs text-purple-400 theme-light:text-purple-600 mb-1">💰 Precio Promedio</p>
+                  <p class="text-sm font-semibold text-purple-300 theme-light:text-purple-700">${money(item.weightedPrice)}</p>
+                </div>
+                <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 rounded-lg p-2 border border-yellow-500/30">
+                  <p class="text-xs text-yellow-400 theme-light:text-yellow-600 mb-1">💵 Valor Total</p>
+                  <p class="text-sm font-semibold text-yellow-300 theme-light:text-yellow-700">${money(item.totalValue)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="text-center py-12 text-slate-400 theme-light:text-slate-600"><p class="text-lg">No hay items disponibles</p></div>';
+    
+    // Renderizar items vendidos
+    const soldItems = (items.sold || []).map(item => {
+      const itemId = item.itemId?._id || item.itemId?.id || null;
+      const fullItem = itemId ? itemsMap.get(String(itemId)) : null;
+      const itemName = fullItem?.name || item.itemId?.name || item.itemId?.sku || 'N/A';
+      const itemSku = fullItem?.sku || item.itemId?.sku || 'N/A';
+      const total = (item.purchasePrice || 0) * (item.qty || 0);
+      const saleNumber = item.saleId?.number || 'N/A';
+      const itemIdStr = item._id || item.id;
+      
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
+          <td class="px-4 py-3 text-center">
+            <input type="checkbox" class="sold-item-checkbox cursor-pointer" data-investment-item-id="${itemIdStr}" data-total="${total}" />
+          </td>
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-xs text-slate-400 theme-light:text-slate-600">${escapeHtml(itemSku)}</td>
+          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
+          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
+          <td class="px-4 py-3 text-right font-semibold">${money(total)}</td>
+          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="7" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
+    
+    // Renderizar items pagados
+    const paidItems = (items.paid || []).map(item => {
+      const itemId = item.itemId?._id || item.itemId?.id || null;
+      const fullItem = itemId ? itemsMap.get(String(itemId)) : null;
+      const itemName = fullItem?.name || item.itemId?.name || item.itemId?.sku || 'N/A';
+      const itemSku = fullItem?.sku || item.itemId?.sku || 'N/A';
+      const total = (item.purchasePrice || 0) * (item.qty || 0);
+      const saleNumber = item.saleId?.number || 'N/A';
+      const paidAt = item.paidAt ? new Date(item.paidAt).toLocaleDateString() : 'N/A';
+      
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
+          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+          <td class="px-4 py-3 text-xs text-slate-400 theme-light:text-slate-600">${escapeHtml(itemSku)}</td>
+          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
+          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
+          <td class="px-4 py-3 text-right">${money(total)}</td>
+          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
+          <td class="px-4 py-3">${paidAt}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="7" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items pagados</td></tr>';
+    
+    // Renderizar compras con detalles de items
+    const purchasesRows = purchases.map(purchase => {
+      const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
+      const supplierName = purchase.supplierId?.name || 'General';
+      const itemsCount = purchase.items?.length || 0;
+      const totalAmount = money(purchase.totalAmount || 0);
+      const notes = purchase.notes || '';
+      
+      // Detalles de items comprados (sin necesidad de editar)
+      const purchaseItemsDetails = (purchase.items || []).slice(0, 5).map(pItem => {
+        const itemId = pItem.itemId?._id || pItem.itemId || null;
+        const fullItem = itemId ? itemsMap.get(String(itemId)) : null;
+        const itemName = fullItem?.name || pItem.itemId?.name || pItem.name || 'N/A';
+        const qty = pItem.qty || 0;
+        const unitPrice = money(pItem.unitPrice || 0);
+        return `<div class="text-xs text-slate-400 theme-light:text-slate-600">• ${escapeHtml(itemName)} (${qty} x ${unitPrice})</div>`;
+      }).join('');
+      const moreItems = (purchase.items || []).length > 5 ? `<div class="text-xs text-slate-500 theme-light:text-slate-500 italic">... y ${(purchase.items || []).length - 5} más</div>` : '';
+      
+      return `
+        <div class="bg-gradient-to-br from-slate-700/80 to-slate-800/80 dark:from-slate-700/80 dark:to-slate-800/80 theme-light:from-white theme-light:to-slate-50 rounded-xl p-5 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 hover:shadow-xl transition-all duration-300 mb-4">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                  📦
+                </div>
+                <div>
+                  <h4 class="text-lg font-bold text-white theme-light:text-slate-900">Compra del ${purchaseDate}</h4>
+                  <p class="text-sm text-slate-400 theme-light:text-slate-600">Proveedor: ${escapeHtml(supplierName)}</p>
+                </div>
+              </div>
+              <div class="ml-16 mb-3 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <p class="text-xs font-semibold text-slate-300 theme-light:text-slate-700 mb-2">Items comprados (${itemsCount}):</p>
+                ${purchaseItemsDetails}
+                ${moreItems}
+              </div>
+              ${notes ? `<p class="text-xs text-slate-400 theme-light:text-slate-600 ml-16 italic">📝 ${escapeHtml(notes)}</p>` : ''}
+            </div>
+            <div class="flex flex-col gap-2 ml-4">
+              <div class="text-right mb-2">
+                <p class="text-xs text-slate-400 theme-light:text-slate-600">Total</p>
+                <p class="text-xl font-bold text-green-400 theme-light:text-green-600">${totalAmount}</p>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="event.stopPropagation(); openPurchaseStickersModal('${purchase._id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                  🏷️ Stickers
+                </button>
+                <button onclick="event.stopPropagation(); editPurchase('${purchase._id}', '${investorId}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">
+                  ✏️ Editar
+                </button>
+                <button onclick="event.stopPropagation(); deletePurchaseItems('${purchase._id}', '${investorId}')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors">
+                  🗑️ Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="text-center py-12 text-slate-400 theme-light:text-slate-600"><p class="text-lg">No hay compras registradas</p></div>';
+    
+    // Construir HTML completo
+    const viewContent = `
+      <div class="space-y-6">
+        <!-- Botón volver -->
+        <button onclick="loadInversoresContent()" class="mb-4 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 rounded-lg flex items-center gap-2">
+          <span>←</span>
+          <span>Volver a la lista de inversores</span>
+        </button>
+        
+        <!-- Header del inversor -->
+        <div class="bg-gradient-to-br from-purple-600/80 to-pink-700/80 dark:from-purple-600/80 dark:to-pink-700/80 theme-light:from-purple-500 theme-light:to-pink-600 rounded-2xl p-6 shadow-2xl border border-purple-500/50">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-4xl font-bold text-white shadow-xl">
+              ${(investorName.charAt(0) || '?').toUpperCase()}
+            </div>
+            <div class="flex-1">
+              <h2 class="text-3xl font-bold text-white mb-1">💰 ${escapeHtml(investorName)}</h2>
+              <p class="text-purple-100 text-sm">Resumen completo de inversiones</p>
+            </div>
+          </div>
+          
+          <!-- Resumen financiero -->
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <p class="text-xs text-purple-100 mb-1">Total Inversión</p>
+              <p class="text-xl font-bold text-white">${money(summary.totalInvestment || 0)}</p>
+            </div>
+            <div class="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-400/30">
+              <p class="text-xs text-green-100 mb-1">✅ Disponible</p>
+              <p class="text-xl font-bold text-green-300">${money(summary.availableValue || 0)}</p>
+            </div>
+            <div class="bg-yellow-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/30">
+              <p class="text-xs text-yellow-100 mb-1">🛒 Vendido</p>
+              <p class="text-xl font-bold text-yellow-300">${money(summary.soldValue || 0)}</p>
+            </div>
+            <div class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-400/30">
+              <p class="text-xs text-blue-100 mb-1">💵 Pagado</p>
+              <p class="text-xl font-bold text-blue-300">${money(summary.paidValue || 0)}</p>
+            </div>
+            <div class="bg-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-orange-400/30">
+              <p class="text-xs text-orange-100 mb-1">⏳ Pendiente</p>
+              <p class="text-xl font-bold text-orange-300">${money(Math.max(0, summary.pendingPayment || 0))}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Items Disponibles -->
+        <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 dark:from-slate-800/90 dark:to-slate-900/90 theme-light:from-sky-50/95 theme-light:to-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-2xl shadow-lg">
+              📦
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Items Disponibles</h3>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">${Object.keys(availableItemsMap).length} tipo(s) de items</p>
+            </div>
+          </div>
+          <div class="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+            ${availableItems}
+          </div>
+        </div>
+        
+        <!-- Items Vendidos -->
+        <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 dark:from-slate-800/90 dark:to-slate-900/90 theme-light:from-sky-50/95 theme-light:to-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center text-2xl shadow-lg">
+                🛒
+              </div>
+              <div>
+                <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Items Vendidos</h3>
+                <p class="text-sm text-slate-400 theme-light:text-slate-600">${(items.sold || []).length} item(s) vendido(s)</p>
+              </div>
+            </div>
+            ${(items.sold && items.sold.length > 0) ? `
+              <button id="btn-cobrar-items" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+                💰 Cobrar Items
+              </button>
+            ` : ''}
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                    <input type="checkbox" id="select-all-sold" class="cursor-pointer" />
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">SKU</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Venta</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">${soldItems}</tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Items Pagados -->
+        <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 dark:from-slate-800/90 dark:to-slate-900/90 theme-light:from-sky-50/95 theme-light:to-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-2xl shadow-lg">
+              💵
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Items Pagados</h3>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">${(items.paid || []).length} item(s) pagado(s)</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">SKU</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Venta</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha Pago</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">${paidItems}</tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Compras Registradas -->
+        <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 dark:from-slate-800/90 dark:to-slate-900/90 theme-light:from-sky-50/95 theme-light:to-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg">
+              🛍️
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Compras Registradas</h3>
+              <p class="text-sm text-slate-400 theme-light:text-slate-600">${purchases.length} compra(s) registrada(s)</p>
+            </div>
+          </div>
+          <div class="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+            ${purchasesRows}
+          </div>
+        </div>
+      </div>
+    `;
+    
+    container.innerHTML = viewContent;
+    
+    // Configurar funcionalidad de cobro si hay items vendidos
+    if (items.sold && items.sold.length > 0) {
+      // Checkbox "Seleccionar todos"
+      const selectAllCheckbox = document.getElementById('select-all-sold');
+      const soldCheckboxes = document.querySelectorAll('.sold-item-checkbox');
+      
+      if (selectAllCheckbox && soldCheckboxes.length > 0) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+          soldCheckboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+        });
+      }
+      
+      // Botón "Cobrar Items"
+      const btnCobrar = document.getElementById('btn-cobrar-items');
+      if (btnCobrar) {
+        btnCobrar.onclick = () => openPayInvestorItemsModal(investorId, items.sold || []);
+      }
+    }
+    
+    // Función global para editar compra (mantener compatibilidad)
+    window.editPurchase = async function(purchaseId, investorIdCtx) {
+      try {
+        const purchase = await API.purchases.purchases.get(purchaseId);
+        const [suppliers, investors, itemsData] = await Promise.all([
+          API.purchases.suppliers.list(),
+          API.purchases.investors.list(),
+          invAPI.listItems({ limit: 1000 })
+        ]);
+        
+        const items = itemsData.data || [];
+        window.purchaseItemsData = items;
+        
+        const supplierOptions = [
+          '<option value="GENERAL">GENERAL</option>',
+          ...suppliers.map(s => `<option value="${s._id}" ${purchase.supplierId && String(s._id) === String(purchase.supplierId) ? 'selected' : ''}>${escapeHtml(s.name)}</option>`)
+        ].join('');
+        
+        const investorOptions = [
+          '<option value="GENERAL">GENERAL</option>',
+          ...investors.map(i => `<option value="${i._id}" ${purchase.investorId && String(i._id) === String(purchase.investorId) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`)
+        ].join('');
+        
+        const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        
+        const modalContent = `
+          <div class="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-2xl shadow-lg">
+                ✏️
+              </div>
+              <div>
+                <h3 class="text-2xl font-bold text-white theme-light:text-slate-900">Editar Compra</h3>
+                <p class="text-sm text-slate-400 theme-light:text-slate-600">Modifica los datos de la compra</p>
+              </div>
+            </div>
+            
+            <div class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                  <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                    <span>🏪</span>
+                    <span>Proveedor</span>
+                  </label>
+                  <select id="edit-purchase-supplier" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+                    ${supplierOptions}
+                  </select>
+                </div>
+                <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                  <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                    <span>💰</span>
+                    <span>Inversor</span>
+                  </label>
+                  <select id="edit-purchase-investor" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                    ${investorOptions}
+                  </select>
+                </div>
+              </div>
+              
+              <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                  <span>📅</span>
+                  <span>Fecha de compra</span>
+                </label>
+                <input id="edit-purchase-date" type="date" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" value="${purchaseDate}" />
+              </div>
+              
+              <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                  <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 flex items-center gap-2">
+                    <span>📦</span>
+                    <span>Items de la compra</span>
+                  </label>
+                  <button id="btn-add-edit-purchase-item" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center gap-2">
+                    <span>➕</span>
+                    <span>Agregar Item</span>
+                  </button>
+                </div>
+                <div id="edit-purchase-items" class="space-y-3">
+                  <!-- Se agregarán dinámicamente -->
+                </div>
+              </div>
+              
+              <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-4 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+                <label class="block text-sm font-semibold text-slate-300 theme-light:text-slate-700 mb-2 flex items-center gap-2">
+                  <span>📝</span>
+                  <span>Notas (opcional)</span>
+                </label>
+                <textarea id="edit-purchase-notes" rows="3" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none" placeholder="Agrega notas adicionales sobre esta compra...">${escapeHtml(purchase.notes || '')}</textarea>
+              </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6 pt-6 border-t border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200">
+              <button id="edit-purchase-save" class="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center justify-center gap-2">
+                <span>💾</span>
+                <span>Guardar Cambios</span>
+              </button>
+              <button onclick="invCloseModal()" class="px-6 py-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-all duration-200 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 flex items-center gap-2">
+                <span>❌</span>
+                <span>Cancelar</span>
+              </button>
+            </div>
+          </div>
+        `;
+        
+        invOpenModal(modalContent);
+        
+        // Cargar items existentes (código similar al anterior)
+        const itemsContainer = document.getElementById('edit-purchase-items');
+        let itemCounter = 0;
+        
+        function addEditPurchaseItemRow(itemData = null) {
+          const id = `edit-item-${itemCounter++}`;
+          const row = document.createElement('div');
+          row.className = 'bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-3 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-200';
+          row.id = id;
+          
+          const selectedItemId = itemData?.itemId?._id || itemData?.itemId || '';
+          const selectedItemName = itemData?.itemId?.name || itemData?.itemId?.sku || '';
+          const qty = itemData?.qty || 1;
+          const unitPrice = itemData?.unitPrice || 0;
+          
+          row.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+              <div class="md:col-span-1 relative">
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">🔍 Buscar Item</label>
+                <div class="relative">
+                  <input 
+                    type="text" 
+                    class="edit-purchase-item-search w-full px-3 py-2 pl-10 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="Buscar por SKU o nombre..."
+                    value="${escapeHtml(selectedItemName)}"
+                    autocomplete="off"
+                  />
+                  <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                  <div class="edit-purchase-item-dropdown hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg shadow-xl max-h-60 overflow-auto custom-scrollbar"></div>
+                </div>
+                <input type="hidden" class="edit-purchase-item-id" value="${selectedItemId}" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">📦 Cantidad</label>
+                <input type="number" min="1" step="1" class="edit-purchase-item-qty w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value="${qty}" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+                  💰 Precio por Unidad *
+                </label>
+                <input type="number" min="0" step="0.01" class="edit-purchase-item-price w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value="${unitPrice}" placeholder="0.00" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 theme-light:text-slate-700 mb-2">
+                  💵 Precio Total (opcional)
+                </label>
+                <input type="number" min="0" step="0.01" class="edit-purchase-item-total w-full px-3 py-2 rounded-lg bg-slate-700/30 border border-slate-600/30 text-white theme-light:bg-slate-50 theme-light:text-slate-900 theme-light:border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" value="" placeholder="Opcional" />
+              </div>
+              <div>
+                <button class="remove-edit-purchase-item w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 flex items-center justify-center gap-1">
+                  <span>🗑️</span>
+                  <span>Eliminar</span>
+                </button>
+              </div>
+            </div>
+            <div class="edit-purchase-item-selected mt-2 ${selectedItemId ? '' : 'hidden'}">
+              <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-2 border border-blue-500/30 flex items-center gap-2">
+                <span class="text-blue-400 theme-light:text-blue-600">✅</span>
+                <span class="text-sm text-blue-300 theme-light:text-blue-700 edit-purchase-item-display">${escapeHtml(selectedItemName)}</span>
+              </div>
+            </div>
+          `;
+          
+          itemsContainer.appendChild(row);
+          
+          // Setup search functionality (similar to openPurchaseModal)
+          const searchInput = row.querySelector('.edit-purchase-item-search');
+          const dropdown = row.querySelector('.edit-purchase-item-dropdown');
+          const itemIdInput = row.querySelector('.edit-purchase-item-id');
+          const itemDisplay = row.querySelector('.edit-purchase-item-display');
+          const selectedDiv = row.querySelector('.edit-purchase-item-selected');
+          
+          let selectedItem = null;
+          
+          function filterEditItems(query) {
+            if (!query || query.trim() === '') {
+              dropdown.classList.add('hidden');
+              return;
+            }
+            
+            const lowerQuery = query.toLowerCase();
+            const filtered = window.purchaseItemsData.filter(item => {
+              const sku = (item.sku || '').toLowerCase();
+              const name = (item.name || '').toLowerCase();
+              return sku.includes(lowerQuery) || name.includes(lowerQuery);
+            }).slice(0, 10);
+            
+            if (filtered.length === 0) {
+              dropdown.innerHTML = `
+                <div class="p-3 text-center text-slate-400 theme-light:text-slate-500 text-sm">
+                  No se encontraron items
+                </div>
+              `;
+            } else {
+              dropdown.innerHTML = filtered.map(item => {
+                const sku = escapeHtml(item.sku || 'Sin SKU');
+                const name = escapeHtml(item.name || 'Sin nombre');
+                const stock = item.stock || 0;
+                return `
+                  <div 
+                    class="edit-purchase-item-option p-3 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-100 cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 last:border-b-0 transition-colors"
+                    data-id="${item._id}"
+                    data-sku="${sku}"
+                    data-name="${name}"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${sku}</div>
+                        <div class="text-xs text-slate-400 theme-light:text-slate-600">${name}</div>
+                      </div>
+                      <div class="text-xs text-slate-500 theme-light:text-slate-500">
+                        Stock: ${stock}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            }
+            
+            dropdown.classList.remove('hidden');
+            
+            dropdown.querySelectorAll('.edit-purchase-item-option').forEach(option => {
+              option.addEventListener('click', () => {
+                const itemId = option.dataset.id;
+                const sku = option.dataset.sku;
+                const name = option.dataset.name;
+                
+                selectedItem = window.purchaseItemsData.find(i => i._id === itemId);
+                itemIdInput.value = itemId;
+                searchInput.value = `${sku} - ${name}`;
+                itemDisplay.textContent = `${sku} - ${name}`;
+                selectedDiv.classList.remove('hidden');
+                dropdown.classList.add('hidden');
+                
+                if (selectedItem && selectedItem.entryPrice) {
+                  const priceInput = row.querySelector('.edit-purchase-item-price');
+                  if (parseFloat(priceInput.value) === 0) {
+                    priceInput.value = selectedItem.entryPrice;
+                  }
+                }
+              });
+            });
+          }
+          
+          searchInput.addEventListener('input', (e) => {
+            filterEditItems(e.target.value);
+          });
+          
+          searchInput.addEventListener('focus', () => {
+            if (searchInput.value && !selectedItem) {
+              filterEditItems(searchInput.value);
+            }
+          });
+          
+          document.addEventListener('click', (e) => {
+            if (!row.contains(e.target)) {
+              dropdown.classList.add('hidden');
+            }
+          });
+          
+          row.querySelector('.remove-edit-purchase-item').onclick = () => {
+            row.remove();
+          };
+          
+          const qtyInput = row.querySelector('.edit-purchase-item-qty');
+          const priceInput = row.querySelector('.edit-purchase-item-price');
+          const totalInput = row.querySelector('.edit-purchase-item-total');
+          
+          qtyInput.addEventListener('input', () => {
+            const qty = Number(qtyInput.value) || 0;
+            const price = Number(priceInput.value) || 0;
+            totalInput.value = (qty * price).toFixed(2);
+          });
+          
+          priceInput.addEventListener('input', () => {
+            const qty = Number(qtyInput.value) || 0;
+            const price = Number(priceInput.value) || 0;
+            totalInput.value = (qty * price).toFixed(2);
+          });
+          
+          totalInput.addEventListener('input', () => {
+            const total = Number(totalInput.value) || 0;
+            const qty = Number(qtyInput.value) || 1;
+            if (qty > 0) {
+              priceInput.value = (total / qty).toFixed(2);
+            }
+          });
+        }
+        
+        if (purchase.items && purchase.items.length > 0) {
+          purchase.items.forEach(item => {
+            addEditPurchaseItemRow(item);
+          });
+        } else {
+          addEditPurchaseItemRow();
+        }
+        
+        document.getElementById('btn-add-edit-purchase-item').onclick = () => {
+          addEditPurchaseItemRow();
+        };
+        
+        document.getElementById('edit-purchase-save').onclick = async () => {
+          try {
+            const itemsToSave = [];
+            document.querySelectorAll('#edit-purchase-items > div').forEach(row => {
+              const itemId = row.querySelector('.edit-purchase-item-id')?.value;
+              const qty = Number(row.querySelector('.edit-purchase-item-qty')?.value) || 0;
+              const unitPrice = Number(row.querySelector('.edit-purchase-item-price')?.value) || 0;
+              
+              if (itemId && qty > 0) {
+                itemsToSave.push({ itemId, qty, unitPrice });
+              }
+            });
+            
+            if (itemsToSave.length === 0) {
+              alert('Debe agregar al menos un item');
+              return;
+            }
+            
+            const supplierId = document.getElementById('edit-purchase-supplier')?.value || 'GENERAL';
+            const investorIdSel = document.getElementById('edit-purchase-investor')?.value || 'GENERAL';
+            const purchaseDate = document.getElementById('edit-purchase-date')?.value || new Date().toISOString().split('T')[0];
+            const notes = document.getElementById('edit-purchase-notes')?.value || '';
+            
+            const btn = document.getElementById('edit-purchase-save');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            
+            await API.purchases.purchases.update(purchaseId, {
+              supplierId,
+              investorId: investorIdSel,
+              purchaseDate,
+              items: itemsToSave,
+              notes
+            });
+            
+            invCloseModal();
+            const purchaseInvestorId = (purchase?.investorId && typeof purchase.investorId === 'object') ? (purchase.investorId._id || purchase.investorId.id || '') : (purchase?.investorId || '');
+            const reopenInvestorId = (investorIdSel && investorIdSel !== 'GENERAL') ? investorIdSel : (purchaseInvestorId || investorIdCtx || '');
+            if (reopenInvestorId && reopenInvestorId !== 'GENERAL') {
+              await openInvestorDetailView(String(reopenInvestorId));
+            }
+            
+            alert('Compra actualizada correctamente');
+          } catch (err) {
+            console.error('Error actualizando compra:', err);
+            alert('Error al actualizar compra: ' + (err.message || 'Error desconocido'));
+            document.getElementById('edit-purchase-save').disabled = false;
+            document.getElementById('edit-purchase-save').textContent = 'Guardar Cambios';
+          }
+        };
+      } catch (err) {
+        console.error('Error cargando compra:', err);
+        alert('Error: ' + (err.message || 'Error desconocido'));
+      }
+    };
+    
+    // Función global para eliminar items de compra
+    window.deletePurchaseItems = async function(purchaseId, investorId) {
+      try {
+        const purchase = await API.purchases.purchases.get(purchaseId);
+        
+        if (!purchase || !purchase.items || purchase.items.length === 0) {
+          alert('Esta compra no tiene items para eliminar');
+          return;
+        }
+        
+        const itemsHtml = purchase.items.map((item, index) => {
+          const itemName = item.itemId?.name || item.itemId?.sku || item.name || 'N/A';
+          const qty = item.qty || 0;
+          const unitPrice = item.unitPrice || 0;
+          const total = qty * unitPrice;
+          return `
+            <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+              <td class="px-4 py-3 text-center">
+                <input type="checkbox" class="delete-item-checkbox" data-item-index="${index}" data-item-id="${item._id || item.id || index}" />
+              </td>
+              <td class="px-4 py-3">${escapeHtml(itemName)}</td>
+              <td class="px-4 py-3 text-right">${qty}</td>
+              <td class="px-4 py-3 text-right">${money(unitPrice)}</td>
+              <td class="px-4 py-3 text-right font-semibold">${money(total)}</td>
+            </tr>
+          `;
+        }).join('');
+        
+        const deleteModalContent = `
+          <div class="p-6">
+            <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Eliminar Items de Compra</h3>
+            <p class="text-sm text-slate-400 theme-light:text-slate-600 mb-4">
+              Selecciona los items que deseas eliminar de esta compra. Esta acción reducirá el stock y eliminará los items disponibles relacionados.
+            </p>
+            <div class="max-h-[400px] overflow-auto custom-scrollbar mb-4">
+              <table class="w-full text-sm border-collapse">
+                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                  <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Seleccionar</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Item</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cantidad</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Precio Unitario</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                  ${itemsHtml}
+                </tbody>
+              </table>
+            </div>
+            <div class="flex gap-3 mt-6">
+              <button id="confirm-delete-items" class="flex-1 px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
+                Eliminar Seleccionados
+              </button>
+              <button onclick="invCloseModal()" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        `;
+        
+        invOpenModal(deleteModalContent);
+        
+        document.getElementById('confirm-delete-items').onclick = async () => {
+          const checkboxes = document.querySelectorAll('.delete-item-checkbox:checked');
+          if (checkboxes.length === 0) {
+            alert('Selecciona al menos un item para eliminar');
+            return;
+          }
+          
+          if (!confirm(`¿Estás seguro de que deseas eliminar ${checkboxes.length} item(s)? Esta acción no se puede deshacer y reducirá el stock del inventario.`)) {
+            return;
+          }
+          
+          const itemIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-item-id'));
+          
+          try {
+            const btn = document.getElementById('confirm-delete-items');
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+            
+            await API.post(`/api/v1/purchases/${purchaseId}/items/delete`, { itemIds });
+            
+            invCloseModal();
+            await openInvestorDetailView(investorId);
+            
+            alert('Items eliminados correctamente');
+          } catch (err) {
+            console.error('Error eliminando items:', err);
+            alert('Error al eliminar items: ' + (err.message || 'Error desconocido'));
+            document.getElementById('confirm-delete-items').disabled = false;
+            document.getElementById('confirm-delete-items').textContent = 'Eliminar Seleccionados';
+          }
+        };
+      } catch (err) {
+        console.error('Error cargando compra:', err);
+        alert('Error: ' + (err.message || 'Error desconocido'));
+      }
+    };
+    
+  } catch (err) {
+    console.error('Error cargando detalle de inversor:', err);
+    container.innerHTML = `
+      <div class="text-center py-12">
+        <div class="text-5xl mb-4">⚠️</div>
+        <p class="text-red-400 text-lg font-semibold">Error al cargar detalles</p>
+        <p class="text-slate-400 theme-light:text-slate-600 text-sm mt-2">${err.message || 'Error desconocido'}</p>
+        <button onclick="loadInversoresContent()" class="mt-4 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 transition-colors rounded-lg">
+          Volver a la lista
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Abrir modal con detalle completo del inversor (mantener para compatibilidad)
 async function openInvestorDetailModal(investorId) {
   try {
     invOpenModal('<div class="p-6"><p class="text-white theme-light:text-slate-900">Cargando...</p></div>');
@@ -5536,7 +6403,7 @@ async function openInvestorDetailModal(investorId) {
               ? investorIdSel
               : (purchaseInvestorId || investorIdCtx || '');
             if (reopenInvestorId && reopenInvestorId !== 'GENERAL') {
-              await openInvestorDetailModal(String(reopenInvestorId));
+              await openInvestorDetailView(String(reopenInvestorId));
             }
             
             alert('Compra actualizada correctamente');
@@ -5639,9 +6506,9 @@ async function openInvestorDetailModal(investorId) {
             
             await API.post(`/api/v1/purchases/${purchaseId}/items/delete`, { itemIds });
             
-            // Recargar el modal del inversor
+            // Recargar la vista del inversor
             invCloseModal();
-            await openInvestorDetailModal(investorId);
+            await openInvestorDetailView(investorId);
             
             alert('Items eliminados correctamente');
           } catch (err) {
@@ -6071,8 +6938,8 @@ async function openPayInvestorItemsModal(investorId, soldItems) {
     // Configurar botones
     document.getElementById('pay-investor-cancel').onclick = () => {
       invCloseModal();
-      // Reabrir el modal del inversor
-      setTimeout(() => openInvestorDetailModal(investorId), 100);
+      // Reabrir la vista del inversor
+      setTimeout(() => openInvestorDetailView(investorId), 100);
     };
     
     document.getElementById('pay-investor-confirm').onclick = async () => {
@@ -6114,8 +6981,8 @@ async function openPayInvestorItemsModal(investorId, soldItems) {
           alert('Cobro registrado exitosamente');
         }
         
-        // Recargar el modal del inversor para mostrar los cambios
-        setTimeout(() => openInvestorDetailModal(investorId), 300);
+        // Recargar la vista del inversor para mostrar los cambios
+        setTimeout(() => openInvestorDetailView(investorId), 300);
       } catch (err) {
         hideBusyFn();
         alert('Error al procesar el cobro: ' + (err.message || 'Error desconocido'));
