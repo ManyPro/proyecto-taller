@@ -220,10 +220,18 @@ export const listPurchases = async (req, res) => {
     const purchases = await Purchase.find(filter)
       .populate('supplierId', 'name')
       .populate('investorId', 'name')
+      .populate('items.itemId', 'sku name')
       .sort({ purchaseDate: -1 })
       .limit(parseInt(limit))
       .skip(parseInt(skip))
       .lean();
+    
+    // Filtrar items con itemId null (items eliminados) y limpiar la estructura
+    purchases.forEach(purchase => {
+      if (purchase.items && Array.isArray(purchase.items)) {
+        purchase.items = purchase.items.filter(item => item.itemId !== null && item.itemId !== undefined);
+      }
+    });
     
     const total = await Purchase.countDocuments(filter);
     
@@ -409,6 +417,11 @@ export const getPurchase = async (req, res) => {
     
     if (!purchase) {
       return res.status(404).json({ error: 'Compra no encontrada' });
+    }
+    
+    // Filtrar items con itemId null (items eliminados)
+    if (purchase.items && Array.isArray(purchase.items)) {
+      purchase.items = purchase.items.filter(item => item.itemId !== null && item.itemId !== undefined);
     }
     
     res.json(purchase);

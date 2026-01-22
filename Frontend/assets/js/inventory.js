@@ -1777,26 +1777,17 @@ if (__ON_INV_PAGE__) {
       
       const item = data.item || it;
       const stockEntries = data.stockEntries || [];
+      // Calcular stock total desde las entradas válidas (ya filtradas por el backend)
       const totalStock = stockEntries.reduce((sum, se) => sum + (se.qty || 0), 0);
+      
+      // Si el stock del item no coincide con las entradas, usar el calculado
+      const displayStock = totalStock > 0 ? totalStock : (item.stock || 0);
       
       // Formatear información de cada entrada
       const entriesHtml = stockEntries.length > 0
         ? stockEntries.map(se => {
-            // Determinar etiqueta según el nuevo sistema de compras
-            let intakeLabel = 'GENERAL';
-            if (se.purchaseId && se.investorId) {
-              const investorName = se.investorId?.name || 'Sin nombre';
-              const supplierName = se.supplierId?.name || 'General';
-              intakeLabel = `${investorName} - ${supplierName}`;
-            } else if (se.investorId) {
-              intakeLabel = se.investorId?.name || 'Sin nombre';
-            } else if (se.supplierId) {
-              intakeLabel = se.supplierId?.name || 'General';
-            } else if (se.purchaseId) {
-              intakeLabel = 'COMPRA GENERAL';
-            } else {
-              intakeLabel = se.intakeLabel || 'GENERAL';
-            }
+            // Usar el intakeLabel que viene del backend (ya calculado correctamente)
+            const intakeLabel = se.intakeLabel || 'GENERAL';
             
             const entryDate = se.entryDate ? new Date(se.entryDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
             const entryPrice = se.entryPrice ? fmtMoney(se.entryPrice) : '-';
@@ -1842,7 +1833,7 @@ if (__ON_INV_PAGE__) {
               </div>
               <div>
                 <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Stock Total</div>
-                <div class="text-2xl font-bold text-blue-400 theme-light:text-blue-600">${item.stock || 0}</div>
+                <div class="text-2xl font-bold text-blue-400 theme-light:text-blue-600">${displayStock}</div>
               </div>
               <div>
                 <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Precio de Venta</div>

@@ -1209,16 +1209,22 @@ export const getItemStockEntries = async (req, res) => {
   .populate('investorId', 'name')
   .populate({
     path: 'purchaseId',
-    select: 'purchaseDate notes',
+    select: 'purchaseDate notes supplierId investorId',
+    populate: [
+      { path: 'supplierId', select: 'name' },
+      { path: 'investorId', select: 'name' }
+    ],
     match: { companyId: req.companyId } // Solo incluir si la compra existe y pertenece a la compañía
   })
   .sort({ entryDate: 1, _id: 1 })
   .lean();
   
-  // Filtrar entradas donde purchaseId es null (compra eliminada) pero mantener las que no tienen purchaseId
+  // Filtrar entradas donde purchaseId fue poblado pero resultó en null (compra eliminada)
+  // Mantener las que no tienen purchaseId (entradas manuales/generales)
   stockEntries = stockEntries.filter(se => {
-    // Si tiene purchaseId pero es null (compra eliminada), excluir
+    // Si purchaseId existe en el documento pero el populate resultó en null, significa que la compra fue eliminada
     if (se.purchaseId === null && se.purchaseId !== undefined) {
+      logger.warn(`[getItemStockEntries] StockEntry ${se._id} references a deleted Purchase. Filtering it out.`);
       return false;
     }
     return true;
@@ -1263,13 +1269,17 @@ export const getItemStockEntries = async (req, res) => {
         .populate('investorId', 'name')
         .populate({
           path: 'purchaseId',
-          select: 'purchaseDate notes',
+          select: 'purchaseDate notes supplierId investorId',
+          populate: [
+            { path: 'supplierId', select: 'name' },
+            { path: 'investorId', select: 'name' }
+          ],
           match: { companyId: req.companyId }
         })
         .sort({ entryDate: 1, _id: 1 })
         .lean();
         
-        // Filtrar entradas donde purchaseId es null (compra eliminada)
+        // Filtrar entradas donde purchaseId fue poblado pero resultó en null (compra eliminada)
         stockEntries = stockEntries.filter(se => {
           if (se.purchaseId === null && se.purchaseId !== undefined) {
             return false;
@@ -1287,26 +1297,50 @@ export const getItemStockEntries = async (req, res) => {
   const enriched = stockEntries.map(se => {
     // Determinar la etiqueta según el tipo de entrada (solo sistema nuevo de compras)
     let intakeLabel = 'GENERAL';
-    if (se.purchaseId && se.investorId) {
-      // Si tiene compra e inversor, mostrar inversor y proveedor
-      const investorName = se.investorId?.name || 'Sin nombre';
+    let purchaseDate = se.entryDate;
+    let purchaseNotes = se.meta?.note;
+    
+    if (se.purchaseId && se.purchaseId._id) {
+      // Si tiene compra válida
+      const p = se.purchaseId;
+      const supplierName = p.supplierId?.name || se.supplierId?.name || 'General';
+      const investorName = p.investorId?.name || se.investorId?.name || 'General';
+      
+      if (supplierName !== 'General' && investorName !== 'General') {
+        intakeLabel = `${investorName} - ${supplierName}`;
+      } else if (supplierName !== 'General') {
+        intakeLabel = `COMPRA: ${supplierName}`;
+      } else if (investorName !== 'General') {
+        intakeLabel = `COMPRA: (Inv: ${investorName})`;
+      } else {
+        intakeLabel = 'COMPRA GENERAL';
+      }
+      purchaseDate = p.purchaseDate || se.entryDate;
+      purchaseNotes = p.notes || se.meta?.note;
+    } else if (se.supplierId || se.investorId) {
+      // Si tiene supplier o investor pero no compra (entrada manual)
       const supplierName = se.supplierId?.name || 'General';
-      intakeLabel = `${investorName} - ${supplierName}`;
-    } else if (se.investorId) {
-      // Si solo tiene inversor
-      intakeLabel = se.investorId?.name || 'Sin nombre';
-    } else if (se.supplierId) {
-      // Si solo tiene proveedor
-      intakeLabel = se.supplierId?.name || 'General';
-    } else if (se.purchaseId) {
-      // Si tiene compra pero no inversor ni proveedor específico
-      intakeLabel = 'COMPRA GENERAL';
+      const investorName = se.investorId?.name || 'General';
+
+      if (supplierName !== 'General' && investorName !== 'General') {
+        intakeLabel = `ENTRADA: ${supplierName} (Inv: ${investorName})`;
+      } else if (supplierName !== 'General') {
+        intakeLabel = `ENTRADA: ${supplierName}`;
+      } else if (investorName !== 'General') {
+        intakeLabel = `ENTRADA: (Inv: ${investorName})`;
+      } else {
+        intakeLabel = 'ENTRADA GENERAL';
+      }
     }
     
     return {
       ...se,
       intakeLabel,
-      intakeKind: se.purchaseId ? 'purchase' : 'general'
+      entryDate: purchaseDate,
+      meta: {
+        ...se.meta,
+        note: purchaseNotes
+      }
     };
   });
 
