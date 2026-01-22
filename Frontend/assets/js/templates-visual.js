@@ -3765,6 +3765,11 @@
             <td colspan="3" style="text-align: right; padding: 2px 4px; font-size: 9px;">DESCUENTO{{#if sale.discount.reason}} ({{sale.discount.reason}}){{/if}}</td>
             <td style="text-align: right; padding: 2px 4px; font-size: 9px;">-{{money S.discount}}</td>
           </tr>
+          {{else}}
+          <tr>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">SUBTOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money S.subtotal}}</td>
+          </tr>
           {{/if}}
           <tr style="border-top: 2px solid #000;">
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
