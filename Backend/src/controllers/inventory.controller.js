@@ -1230,6 +1230,20 @@ export const getItemStockEntries = async (req, res) => {
     return true;
   });
 
+  // Si el item tiene entradas con inversor, ocultar entradas generales/sin inversor
+  const hasInvestorEntry = stockEntries.some(se => {
+    if (se.investorId) return true;
+    if (se.purchaseId && se.purchaseId.investorId) return true;
+    return false;
+  });
+  if (hasInvestorEntry) {
+    stockEntries = stockEntries.filter(se => {
+      if (se.investorId) return true;
+      if (se.purchaseId && se.purchaseId.investorId) return true;
+      return false;
+    });
+  }
+
   // Verificar si necesita sincronización automática (solo para stock sin entradas)
   const totalInEntries = stockEntries.reduce((sum, se) => sum + (se.qty || 0), 0);
   const itemStock = item.stock || 0;
@@ -1344,7 +1358,13 @@ export const getItemStockEntries = async (req, res) => {
     };
   });
 
-  res.json({ item: item.toObject(), stockEntries: enriched });
+  const itemObj = item.toObject();
+  // Ajustar stock en respuesta para evitar desajustes visuales cuando se filtran entradas generales
+  const totalInEntries = enriched.reduce((sum, se) => sum + (se.qty || 0), 0);
+  if (Number.isFinite(totalInEntries)) {
+    itemObj.stock = totalInEntries;
+  }
+  res.json({ item: itemObj, stockEntries: enriched });
 };
 
 // ===== Sincronizar Stock Entries =====
