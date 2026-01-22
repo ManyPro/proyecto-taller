@@ -7338,6 +7338,7 @@ async function openQRReader() {
 }
 
 // Hacer las funciones disponibles globalmente
+window.openInvestorDetailView = openInvestorDetailView;
 window.openInvestorDetailModal = openInvestorDetailModal;
 window.openPurchaseDetailModal = openPurchaseDetailModal;
 window.openPurchaseStickersModal = openPurchaseStickersModal;
