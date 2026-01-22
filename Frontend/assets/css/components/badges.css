@@ -1,0 +1,149 @@
+/* ==========================================
+   BADGES - Etiquetas y badges
+   Sistema de badges con variantes
+   ========================================== */
+
+/* ===== BADGE BASE ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* ===== BADGE VARIANTS ===== */
+
+/* Inventory Badge */
+.badge-inventory {
+  background-color: var(--color-badge-inventory-bg);
+  color: var(--color-badge-inventory-text);
+  border: 1px solid var(--color-badge-inventory-bg);
+}
+
+/* Price Badge */
+.badge-price {
+  background-color: var(--color-badge-price-bg);
+  color: var(--color-badge-price-text);
+  border: 1px solid var(--color-badge-price-bg);
+}
+
+/* Service Badge */
+.badge-service {
+  background-color: var(--color-badge-service-bg);
+  color: var(--color-badge-service-text);
+  border: 1px solid var(--color-badge-service-bg);
+}
+
+/* Success Badge */
+.badge-success {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+/* Warning Badge */
+.badge-warning {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+/* Error Badge */
+.badge-error {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+/* Info Badge */
+.badge-info {
+  background-color: var(--color-info-light);
+  color: var(--color-info);
+  border: 1px solid var(--color-info);
+}
+
+/* Accent Badge */
+.badge-accent {
+  background-color: var(--color-accent-light);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+/* ===== BADGE SIZES ===== */
+.badge-sm {
+  padding: 2px var(--spacing-xs);
+  font-size: 10px;
+}
+
+.badge-lg {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+/* ===== BADGE WITH ICON ===== */
+.badge-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.badge-icon .icon {
+  font-size: 0.9em;
+}
+
+/* ===== PLATE CHIP ===== */
+.plate-chip {
+  display: inline-block;
+  background-color: var(--color-plate-chip-bg);
+  color: var(--color-plate-chip-text);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-pill);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* ===== AVATAR ===== */
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-round);
+  background-color: var(--color-avatar-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: var(--font-size-xs);
+}
+
+.avatar-lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--font-size-lg);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .badge {
+    font-size: 10px;
+    padding: 2px var(--spacing-xs);
+  }
+  
+  .badge-lg {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}

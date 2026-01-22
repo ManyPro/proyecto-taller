@@ -1,0 +1,42 @@
+/* ==========================================
+   🎛️ ADMIN PAGE - Estilos específicos de admin.html
+   ========================================== */
+
+/* 🔒 Desactivar scroll en página de login admin */
+body:has(#loginSection:not(.hidden)) {
+  overflow: hidden !important;
+}
+
+/* 📐 Asegurar ancho completo en admin */
+body[data-page="admin"] {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body[data-page="admin"] main {
+  width: 100%;
+  max-width: 100%;
+}
+
+body[data-page="admin"] #appSection {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* 📜 Asegurar que la barra de navegación sea scrollable horizontalmente */
+body[data-page="admin"] nav {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ✨ Estilos para la pestaña ADMIN destacada */
+body[data-page="admin"] .nav-tab[data-tab="admin"] {
+  position: relative;
+  z-index: 10;
+}
+
+body[data-page="admin"] .nav-tab[data-tab="admin"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+}

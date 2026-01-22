@@ -1,0 +1,227 @@
+/* ==========================================
+   TABLES - Tablas responsive
+   Sistema de tablas con transformación a cards en móvil
+   ========================================== */
+
+/* ===== TABLE BASE ===== */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-base);
+  background-color: var(--theme-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* ===== TABLE HEADER ===== */
+.table thead {
+  background-color: var(--color-table-header-bg);
+}
+
+.table th {
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  border-bottom: 2px solid var(--color-table-border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table th.text-center {
+  text-align: center;
+}
+
+.table th.text-right {
+  text-align: right;
+}
+
+/* ===== TABLE BODY ===== */
+.table tbody tr {
+  background-color: var(--color-table-row-bg);
+  border-bottom: 1px solid var(--color-table-border);
+  transition: background-color var(--transition-fast);
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.table tbody tr.selected {
+  background-color: var(--color-table-row-selected);
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table td {
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.table td.text-center {
+  text-align: center;
+}
+
+.table td.text-right {
+  text-align: right;
+}
+
+/* ===== TABLE ACTIONS ===== */
+.table-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* ===== STRIPED TABLE ===== */
+.table.striped tbody tr:nth-child(even) {
+  background-color: var(--color-card-alt);
+}
+
+.table.striped tbody tr:nth-child(even):hover {
+  background-color: var(--color-table-row-hover);
+}
+
+/* ===== BORDERED TABLE ===== */
+.table.bordered th,
+.table.bordered td {
+  border: 1px solid var(--color-table-border);
+}
+
+/* ===== COMPACT TABLE ===== */
+.table.compact th,
+.table.compact td {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+/* ===== RESPONSIVE: MOBILE AS CARDS ===== */
+@media (max-width: 768px) {
+  .table-wrapper {
+    overflow-x: visible;
+  }
+  
+  .table.mobile-as-cards {
+    border: none;
+    background: transparent;
+  }
+  
+  .table.mobile-as-cards thead {
+    display: none;
+  }
+  
+  .table.mobile-as-cards tbody {
+    display: block;
+  }
+  
+  .table.mobile-as-cards tbody tr {
+    display: block;
+    background-color: var(--theme-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .table.mobile-as-cards tbody tr:last-child {
+    margin-bottom: 0;
+  }
+  
+  .table.mobile-as-cards tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+  
+  .table.mobile-as-cards tbody td:last-child {
+    border-bottom: none;
+  }
+  
+  .table.mobile-as-cards tbody td::before {
+    content: attr(data-label);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    margin-right: var(--spacing-md);
+    flex-shrink: 0;
+  }
+  
+  /* Ocultar columna de acciones si no tiene data-label */
+  .table.mobile-as-cards tbody td:last-child:not([data-label]) {
+    display: none;
+  }
+  
+  /* Columna de acciones como bloque */
+  .table.mobile-as-cards tbody td[data-label="Acciones"] {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-sm);
+  }
+  
+  .table.mobile-as-cards tbody td[data-label="Acciones"]::before {
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .table.mobile-as-cards tbody td[data-label="Acciones"] .table-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .table.mobile-as-cards tbody td[data-label="Acciones"] button {
+    width: 100%;
+  }
+}
+
+/* ===== SCROLLABLE TABLE ===== */
+.table-scrollable {
+  max-height: 600px;
+  overflow-y: auto;
+  display: block;
+}
+
+.table-scrollable thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* ===== EMPTY STATE ===== */
+.table-empty {
+  text-align: center;
+  padding: var(--spacing-4xl);
+  color: var(--color-text-muted);
+}
+
+.table-empty-icon {
+  font-size: var(--font-size-4xl);
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.5;
+}
+
+.table-empty-text {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.table-empty-subtext {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

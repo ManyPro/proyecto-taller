@@ -41,7 +41,8 @@ function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='numb
 export function openQRForItem() {
   return new Promise(async (resolve, reject) => {
     const qrModal = document.createElement('div');
-    qrModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    qrModal.className = 'js-modal-overlay';
+    qrModal.style.background = 'rgba(0,0,0,0.9)'; // Mantener background específico
     qrModal.id = 'qr-modal-item-scanner';
     
     const qrContent = document.createElement('div');
@@ -218,7 +219,8 @@ export function openQRForItem() {
               tickCanvas();
             } else {
               msg.textContent = '❌ No se pudo inicializar el detector QR. Usa entrada manual.';
-              msg.style.color = 'var(--danger, #ef4444)';
+              msg.classList.add('js-color-danger');
+              msg.classList.remove('js-color-text');
             }
           }
         } else {
@@ -402,7 +404,8 @@ export function openQRForItem() {
     // Botón para iniciar cámara manualmente si falla el inicio automático
     if (startCameraBtn) {
       startCameraBtn.onclick = async () => {
-        startCameraBtn.style.display = 'none';
+        startCameraBtn.classList.add('js-hide');
+        startCameraBtn.classList.remove('js-show');
         msg.textContent = 'Iniciando cámara...';
         msg.style.color = 'var(--text)';
         try {
@@ -411,7 +414,8 @@ export function openQRForItem() {
           console.error('Error al iniciar cámara manualmente:', err);
           msg.textContent = 'Error al iniciar cámara: ' + (err?.message || 'Error desconocido');
           msg.style.color = 'var(--danger, #ef4444)';
-          startCameraBtn.style.display = 'block';
+          startCameraBtn.classList.add('js-show');
+          startCameraBtn.classList.remove('js-hide');
         }
       };
     }
@@ -492,14 +496,46 @@ export function initPrices(){
     // Botones de acciones
     const actionsBarVehicular = $('#pe-actions-bar-vehicular');
     const actionsBarGeneral = $('#pe-actions-bar-general');
-    if (actionsBarVehicular) actionsBarVehicular.style.display = isVehicular ? 'flex' : 'none';
-    if (actionsBarGeneral) actionsBarGeneral.style.display = isGeneral ? 'flex' : 'none';
+    if (actionsBarVehicular) {
+      if (isVehicular) {
+        actionsBarVehicular.classList.add('js-show-flex');
+        actionsBarVehicular.classList.remove('js-hide');
+      } else {
+        actionsBarVehicular.classList.add('js-hide');
+        actionsBarVehicular.classList.remove('js-show');
+      }
+    }
+    if (actionsBarGeneral) {
+      if (isGeneral) {
+        actionsBarGeneral.classList.add('js-show-flex');
+        actionsBarGeneral.classList.remove('js-hide');
+      } else {
+        actionsBarGeneral.classList.add('js-hide');
+        actionsBarGeneral.classList.remove('js-show');
+      }
+    }
     
     // Lista de vehículos y marcas (solo en vehicular)
     const vehiclesContainer = $('#pf-vehicles-container');
     const makesToggle = $('#pf-makes-toggle')?.parentElement;
-    if (vehiclesContainer) vehiclesContainer.style.display = isVehicular ? 'block' : 'none';
-    if (makesToggle) makesToggle.style.display = isVehicular ? 'block' : 'none';
+    if (vehiclesContainer) {
+      if (isVehicular) {
+        vehiclesContainer.classList.add('js-show');
+        vehiclesContainer.classList.remove('js-hide');
+      } else {
+        vehiclesContainer.classList.add('js-hide');
+        vehiclesContainer.classList.remove('js-show');
+      }
+    }
+    if (makesToggle) {
+      if (isVehicular) {
+        makesToggle.classList.add('js-show');
+        makesToggle.classList.remove('js-hide');
+      } else {
+        makesToggle.classList.add('js-hide');
+        makesToggle.classList.remove('js-show');
+      }
+    }
     
     // Filtros y tablas
     const filtersVehicular = $('#pe-filters');
@@ -510,9 +546,33 @@ export function initPrices(){
     const tableInversion = $('#pe-table-inversion')?.closest('div');
     const actionsBarInversion = $('#pe-actions-bar-inversion');
     
-    if (filtersVehicular) filtersVehicular.style.display = isVehicular ? 'flex' : 'none';
-    if (filtersGeneral) filtersGeneral.style.display = isGeneral ? 'flex' : 'none';
-    if (filtersInversion) filtersInversion.style.display = isInversion ? 'flex' : 'none';
+    if (filtersVehicular) {
+      if (isVehicular) {
+        filtersVehicular.classList.add('js-show-flex');
+        filtersVehicular.classList.remove('js-hide');
+      } else {
+        filtersVehicular.classList.add('js-hide');
+        filtersVehicular.classList.remove('js-show');
+      }
+    }
+    if (filtersGeneral) {
+      if (isGeneral) {
+        filtersGeneral.classList.add('js-show-flex');
+        filtersGeneral.classList.remove('js-hide');
+      } else {
+        filtersGeneral.classList.add('js-hide');
+        filtersGeneral.classList.remove('js-show');
+      }
+    }
+    if (filtersInversion) {
+      if (isInversion) {
+        filtersInversion.classList.add('js-show-flex');
+        filtersInversion.classList.remove('js-hide');
+      } else {
+        filtersInversion.classList.add('js-hide');
+        filtersInversion.classList.remove('js-show');
+      }
+    }
     if (tableVehicular) tableVehicular.style.display = isVehicular ? 'block' : 'none';
     if (tableGeneral) tableGeneral.style.display = isGeneral ? 'block' : 'none';
     if (tableInversion) tableInversion.style.display = isInversion ? 'block' : 'none';

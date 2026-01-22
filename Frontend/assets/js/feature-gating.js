@@ -51,7 +51,13 @@ export function getRestrictions() {
 export function gateElement(enabled, selector) {
   try {
     document.querySelectorAll(selector).forEach((el) => {
-      el.style.display = enabled ? '' : 'none';
+      if (enabled) {
+        el.classList.add('js-show');
+        el.classList.remove('js-hide');
+      } else {
+        el.classList.add('js-hide');
+        el.classList.remove('js-show');
+      }
     });
   } catch {
     // noop

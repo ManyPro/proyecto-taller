@@ -54,7 +54,7 @@ function detectInitialTheme(){
 }
 // Detectar y mostrar contexto de admin
 (function() {
-  function showAdminIndicator() {
+  async function showAdminIndicator() {
     try {
       const isAdmin = sessionStorage.getItem('admin:context') === 'true';
       if (!isAdmin) {
@@ -98,20 +98,49 @@ function detectInitialTheme(){
       const adminBar = document.createElement('div');
       adminBar.id = 'adminIndicatorBar';
       adminBar.className = 'bg-slate-900/80 backdrop-blur-sm border-b border-purple-500/20 w-full';
-      adminBar.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; z-index: 9999;';
-      adminBar.innerHTML = `
-        <div class="w-full px-3 sm:px-4">
-          <div class="flex items-center justify-between h-6">
-            <div class="flex items-center gap-1.5">
-              <span class="text-[10px] text-purple-400/80 font-medium">⚙️ ADMIN:</span>
-              <span class="text-[10px] text-slate-400/80 truncate max-w-[200px]">${adminEmail}</span>
+      adminBar.classList.add('fixed', 'top-0', 'left-0', 'right-0');
+      adminBar.style.zIndex = '9999'; // Mantener z-index específico
+      
+      // Cargar template de admin bar
+      if (window.TemplateLoader && window.TemplateRenderer) {
+        const templateEl = await window.TemplateLoader.loadTemplate('components/admin-bar.html');
+        if (templateEl) {
+          // Renderizar template con datos
+          const templateHtml = templateEl.outerHTML;
+          const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, { adminEmail });
+          adminBar.innerHTML = renderedHtml;
+        } else {
+          // Fallback si no se puede cargar el template
+          adminBar.innerHTML = `
+            <div class="w-full px-3 sm:px-4">
+              <div class="flex items-center justify-between h-6">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] text-purple-400/80 font-medium">⚙️ ADMIN:</span>
+                  <span class="text-[10px] text-slate-400/80 truncate max-w-[200px]">${adminEmail}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <a href="admin.html" class="text-[10px] text-purple-400/80 hover:text-purple-300 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-900/20">Volver</a>
+                </div>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <a href="admin.html" class="text-[10px] text-purple-400/80 hover:text-purple-300 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-900/20">Volver</a>
+          `;
+        }
+      } else {
+        // Fallback si las utilidades no están disponibles
+        adminBar.innerHTML = `
+          <div class="w-full px-3 sm:px-4">
+            <div class="flex items-center justify-between h-6">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-purple-400/80 font-medium">⚙️ ADMIN:</span>
+                <span class="text-[10px] text-slate-400/80 truncate max-w-[200px]">${adminEmail}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <a href="admin.html" class="text-[10px] text-purple-400/80 hover:text-purple-300 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-900/20">Volver</a>
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+      }
       
       // Insertar al inicio del body
       document.body.insertBefore(adminBar, document.body.firstChild);
@@ -525,15 +554,25 @@ function initCollapsibles(){
     const h = document.querySelector(r.sel); const body = document.querySelector(r.body);
     if(!h || !body) return;
     if(window.innerWidth>800) return; // solo móvil/tablet
-    h.style.cursor='pointer';
+    h.classList.add('js-cursor-pointer');
     const stateKey='col:'+r.body;
     const collapsed = sessionStorage.getItem(stateKey)==='1';
-    if(collapsed){ body.style.display='none'; h.classList.add('collapsed'); }
+    if(collapsed){
+      body.classList.add('js-hide');
+      body.classList.remove('js-show');
+      h.classList.add('collapsed');
+    }
     const iconSpan = document.createElement('span'); iconSpan.textContent = collapsed ? ' ?' : ' ?'; iconSpan.style.fontSize='12px';
     h.appendChild(iconSpan);
     h.addEventListener('click', ()=>{
-      const isHidden = body.style.display==='none';
-      body.style.display = isHidden? '' : 'none';
+      const isHidden = body.classList.contains('js-hide');
+      if (isHidden) {
+        body.classList.remove('js-hide');
+        body.classList.add('js-show');
+      } else {
+        body.classList.add('js-hide');
+        body.classList.remove('js-show');
+      }
       iconSpan.textContent = isHidden ? ' ?' : ' ?';
       sessionStorage.setItem(stateKey, isHidden ? '0':'1');
     });
@@ -871,12 +910,26 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       }
     }
   }
-  function ensurePanel(){
+  async function ensurePanel(){
     if(panel) return panel;
     panel = document.createElement('div');
     panel.id='notifPanel';
     panel.className = 'fixed top-[60px] right-[14px] w-80 max-h-[70vh] overflow-auto bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-lg shadow-2xl p-3 hidden z-[2000]';
-    panel.innerHTML='<div class="flex justify-between items-center mb-1.5"><strong class="text-white dark:text-white theme-light:text-slate-900">Notificaciones</strong><div class="flex gap-1.5"><button id="notifMarkAll" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Marcar todo</button><button id="notifClose" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button></div></div><div id="notifList" class="flex flex-col gap-2 text-xs"></div>';
+    
+    // Cargar template de panel de notificaciones
+    if (window.TemplateLoader) {
+      const templateEl = await window.TemplateLoader.loadTemplate('notifications/panel.html');
+      if (templateEl) {
+        panel.innerHTML = templateEl.outerHTML;
+      } else {
+        // Fallback
+        panel.innerHTML='<div class="flex justify-between items-center mb-1.5"><strong class="text-white dark:text-white theme-light:text-slate-900">Notificaciones</strong><div class="flex gap-1.5"><button id="notifMarkAll" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Marcar todo</button><button id="notifClose" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button></div></div><div id="notifList" class="flex flex-col gap-2 text-xs"></div>';
+      }
+    } else {
+      // Fallback si las utilidades no están disponibles
+      panel.innerHTML='<div class="flex justify-between items-center mb-1.5"><strong class="text-white dark:text-white theme-light:text-slate-900">Notificaciones</strong><div class="flex gap-1.5"><button id="notifMarkAll" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Marcar todo</button><button id="notifClose" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button></div></div><div id="notifList" class="flex flex-col gap-2 text-xs"></div>';
+    }
+    
     document.body.appendChild(panel);
     panel.querySelector('#notifClose').onclick = togglePanel;
     panel.querySelector('#notifMarkAll').onclick = markAll;
@@ -893,8 +946,8 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       renderNotifications(list);
     }catch(e){ /* silent */ }
   }
-  function renderNotifications(list){
-    ensureBell(); ensurePanel();
+  async function renderNotifications(list){
+    ensureBell(); await ensurePanel();
     
     // Detectar nuevas notificaciones comparando con las anteriores
     const currentIds = new Set(list.map(n => String(n._id)));
@@ -903,8 +956,26 @@ if(typeof window !== 'undefined' && window.addEventListener) {
     // Actualizar contador en ambas campanitas (desktop y mobile)
     const countEl = document.getElementById('notifCount');
     const countElMobile = document.getElementById('notifCountMobile');
-    if(countEl){ countEl.textContent = String(list.length); countEl.style.display = list.length? 'inline-block':'none'; }
-    if(countElMobile){ countElMobile.textContent = String(list.length); countElMobile.style.display = list.length? 'inline-block':'none'; }
+    if(countEl){ 
+      countEl.textContent = String(list.length); 
+      if (list.length) {
+        countEl.classList.add('js-show-inline-block');
+        countEl.classList.remove('js-hide');
+      } else {
+        countEl.classList.add('js-hide');
+        countEl.classList.remove('js-show-inline-block');
+      }
+    }
+    if(countElMobile){ 
+      countElMobile.textContent = String(list.length); 
+      if (list.length) {
+        countElMobile.classList.add('js-show-inline-block');
+        countElMobile.classList.remove('js-hide');
+      } else {
+        countElMobile.classList.add('js-hide');
+        countElMobile.classList.remove('js-show-inline-block');
+      }
+    }
     
     // Reproducir sonido solo si hay nuevas notificaciones Y la pestaña está visible
     // No reproducir si lastIds está vacío (primera carga) para evitar sonar con todas las notificaciones existentes
@@ -988,16 +1059,47 @@ if(typeof window !== 'undefined' && window.addEventListener) {
         'opacity:1;margin:4px 0;color:#fff;' : 
         'opacity:.9;margin:4px 0;';
       
-      div.innerHTML = `
-        <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
-        <div style="flex:1;min-width:0;">
-          <div style='${titleStyle}'>${info.title}</div>
-          <div style='${bodyStyle}'>${info.body}</div>
-          <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
-            <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
-            <button data-read='${n._id}' class='px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'>Marcar leído</button>
-          </div>
-        </div>`;
+      // Cargar template de item de notificación
+      if (window.TemplateLoader && window.TemplateRenderer) {
+        const templateEl = await window.TemplateLoader.loadTemplate('notifications/item.html');
+        if (templateEl) {
+          const templateHtml = templateEl.outerHTML;
+          const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, {
+            icon: info.icon,
+            title: info.title,
+            body: info.body,
+            meta: info.meta,
+            id: n._id,
+            titleStyle: titleStyle,
+            bodyStyle: bodyStyle
+          }, { safe: true }); // safe: true para permitir HTML en icon
+          div.innerHTML = renderedHtml;
+        } else {
+          // Fallback
+          div.innerHTML = `
+            <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
+            <div style="flex:1;min-width:0;">
+              <div style='${titleStyle}'>${info.title}</div>
+              <div style='${bodyStyle}'>${info.body}</div>
+              <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
+                <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
+                <button data-read='${n._id}' class='px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'>Marcar leído</button>
+              </div>
+            </div>`;
+        }
+      } else {
+        // Fallback si las utilidades no están disponibles
+        div.innerHTML = `
+          <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div style='${titleStyle}'>${info.title}</div>
+            <div style='${bodyStyle}'>${info.body}</div>
+            <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
+              <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
+              <button data-read='${n._id}' class='px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'>Marcar leído</button>
+            </div>
+          </div>`;
+      }
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
       ul.appendChild(div);
     });
@@ -1006,15 +1108,24 @@ if(typeof window !== 'undefined' && window.addEventListener) {
   async function markRead(id, el){
     try{
       await fetch((API.base||'') + '/api/v1/notifications/' + id + '/read', { method:'PATCH', headers:{ 'Content-Type':'application/json', ...authHeader() } });
-      if(el) el.style.opacity='.35';
+      if(el) {
+        el.classList.add('js-opacity-35');
+        el.classList.remove('js-opacity-1');
+      }
       lastIds.delete(String(id));
       const countEl = document.getElementById('notifCount');
       const countElMobile = document.getElementById('notifCountMobile');
       if(countEl) countEl.textContent = String(lastIds.size);
       if(countElMobile) countElMobile.textContent = String(lastIds.size);
       if(lastIds.size===0) {
-        if(countEl) countEl.style.display='none';
-        if(countElMobile) countElMobile.style.display='none';
+        if(countEl) {
+          countEl.classList.add('js-hide');
+          countEl.classList.remove('js-show-inline-block');
+        }
+        if(countElMobile) {
+          countElMobile.classList.add('js-hide');
+          countElMobile.classList.remove('js-show-inline-block');
+        }
       }
     }catch(e){ /* ignore */ }
   }
@@ -1024,12 +1135,31 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       lastIds.clear();
       const countEl = document.getElementById('notifCount');
       const countElMobile = document.getElementById('notifCountMobile');
-      if(countEl) { countEl.textContent = '0'; countEl.style.display = 'none'; }
-      if(countElMobile) { countElMobile.textContent = '0'; countElMobile.style.display = 'none'; }
+      if(countEl) { 
+        countEl.textContent = '0'; 
+        countEl.classList.add('js-hide');
+        countEl.classList.remove('js-show-inline-block');
+      }
+      if(countElMobile) { 
+        countElMobile.textContent = '0'; 
+        countElMobile.classList.add('js-hide');
+        countElMobile.classList.remove('js-show-inline-block');
+      }
       fetchNotifications();
     }catch(e){/* ignore */ }
   }
-  function togglePanel(){ ensurePanel(); panel.style.display = panel.style.display==='none'? 'block':'none'; if(panel.style.display==='block'){ fetchNotifications(); } }
+  function togglePanel(){ 
+    ensurePanel(); 
+    const isHidden = panel.classList.contains('js-hide');
+    if (isHidden) {
+      panel.classList.remove('js-hide');
+      panel.classList.add('js-show');
+      fetchNotifications();
+    } else {
+      panel.classList.add('js-hide');
+      panel.classList.remove('js-show');
+    }
+  }
   function startPolling(){ if(polling) return; polling = setInterval(fetchNotifications, 30000); fetchNotifications(); }
   
   // Conectar SSE para recibir notificaciones en tiempo real
@@ -1234,7 +1364,11 @@ function applyFeatureGating(){
     const feature = btn.getAttribute('data-feature');
     if(!feature) return;
     const enabled = isFeatureEnabled(feature);
-    btn.style.display = enabled ? '' : 'none';
+    if (enabled) {
+      btn.classList.remove('js-hide');
+    } else {
+      btn.classList.add('js-hide');
+    }
     // Si la pestaña actual está deshabilitada, redirigir a Inicio
     if(!enabled && btn.dataset.tab === getCurrentPage()){
       showTab('home');
@@ -1246,7 +1380,7 @@ function applyFeatureGating(){
     const tabId = btn.getAttribute('data-tab');
     if(!tabId || tabId === 'home' || tabId === 'admin') {
       // Asegurar que home y admin siempre sean visibles
-      btn.style.display = '';
+      btn.classList.remove('js-hide');
       return;
     }
     
@@ -1271,7 +1405,8 @@ function applyFeatureGating(){
     }
     
     if(shouldHide){
-      btn.style.display = 'none';
+      btn.classList.add('js-hide');
+      btn.classList.remove('js-show');
       // Si la pestaña actual está oculta, redirigir a Inicio
       const currentPage = getCurrentPage();
       if(currentPage && String(currentPage) === String(tabId)){
@@ -1279,7 +1414,7 @@ function applyFeatureGating(){
       }
     } else {
       // Asegurar que la pestaña sea visible si no está oculta
-      btn.style.display = '';
+      btn.classList.remove('js-hide');
     }
   });
 }

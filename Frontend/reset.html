@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <title>M&M - Restablecer contraseña</title>
+<!-- Main CSS - Sistema unificado de estilos -->
+<link rel="stylesheet" href="assets/css/main.css" />
 <link rel="stylesheet" href="assets/styles.css" />
 <script src="./assets/js/config.js"></script>
 <script src="./assets/js/api.js"></script>
@@ -31,9 +33,6 @@ form.addEventListener('submit', async (e)=>{
   }catch(err){ msg.textContent = err.message || 'Error'; }
 });
 </script>
-<style>
-body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
-</style>
 </head>
 <body>
   <div class="topbar">

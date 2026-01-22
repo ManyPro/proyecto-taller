@@ -1,0 +1,193 @@
+/* ==========================================
+   THEME SYSTEM - TEMA OSCURO Y CLARO
+   Sistema unificado de temas con transiciones suaves
+   ========================================== */
+
+/* ===== TEMA OSCURO (Default) ===== */
+:root {
+  /* Variables principales del tema oscuro */
+  --theme-bg: var(--color-bg-primary);
+  --theme-card: var(--color-card);
+  --theme-card-alt: var(--color-card-alt);
+  --theme-text: var(--color-text-primary);
+  --theme-text-secondary: var(--color-text-secondary);
+  --theme-text-muted: var(--color-text-muted);
+  --theme-border: var(--color-border);
+  --theme-input-bg: var(--color-input-bg);
+  --theme-header-bg: var(--color-nav-bg);
+}
+
+/* Aplicar tema oscuro por defecto */
+body {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  transition: background-color var(--transition-slow), color var(--transition-slow);
+}
+
+/* ===== TEMA CLARO ===== */
+body.theme-light {
+  /* Variables principales del tema claro */
+  --theme-bg: var(--color-bg-primary);
+  --theme-card: var(--color-card);
+  --theme-card-alt: var(--color-card-alt);
+  --theme-text: var(--color-text-primary);
+  --theme-text-secondary: var(--color-text-secondary);
+  --theme-text-muted: var(--color-text-muted);
+  --theme-border: var(--color-border);
+  --theme-input-bg: var(--color-input-bg);
+  --theme-header-bg: var(--color-nav-bg);
+  
+  /* Transición suave al cambiar de tema */
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+/* ===== COMPONENTES QUE SE ADAPTAN AL TEMA ===== */
+
+/* Cards */
+.card,
+[class*="card"] {
+  background-color: var(--theme-card);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+  transition: background-color var(--transition-slow), 
+              border-color var(--transition-slow), 
+              color var(--transition-slow);
+}
+
+/* Inputs */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  background-color: var(--theme-input-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+  transition: background-color var(--transition-slow), 
+              border-color var(--transition-slow), 
+              color var(--transition-slow);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-input-placeholder);
+}
+
+/* Headers y Navegación */
+header,
+.topbar,
+[class*="header"] {
+  background: var(--theme-header-bg);
+  border-color: var(--theme-border);
+  transition: background var(--transition-slow), 
+              border-color var(--transition-slow);
+}
+
+/* Texto adaptativo */
+.text-primary {
+  color: var(--theme-text);
+}
+
+.text-secondary {
+  color: var(--theme-text-secondary);
+}
+
+.text-muted {
+  color: var(--theme-text-muted);
+}
+
+/* Bordes adaptativos */
+.border-theme {
+  border-color: var(--theme-border);
+}
+
+/* Fondos adaptativos */
+.bg-theme {
+  background-color: var(--theme-bg);
+}
+
+.bg-card {
+  background-color: var(--theme-card);
+}
+
+.bg-card-alt {
+  background-color: var(--theme-card-alt);
+}
+
+/* ===== UTILIDADES DE TEMA ===== */
+
+/* Forzar colores específicos (no se adaptan al tema) */
+.text-white {
+  color: #ffffff !important;
+}
+
+.text-black {
+  color: #000000 !important;
+}
+
+.bg-white {
+  background-color: #ffffff !important;
+}
+
+.bg-black {
+  background-color: #000000 !important;
+}
+
+/* ===== TRANSICIONES ENTRE TEMAS ===== */
+* {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: var(--transition-slow);
+  transition-timing-function: ease;
+}
+
+/* Excluir elementos que no deben tener transición */
+*:focus,
+*:active,
+button,
+a,
+input,
+textarea,
+select {
+  transition-duration: var(--transition-fast);
+}
+
+/* ===== MEJORAS DE CONTRASTE ===== */
+
+/* Asegurar contraste mínimo en modo claro */
+body.theme-light {
+  /* Forzar contraste en textos sobre fondos claros */
+  --min-contrast-ratio: 4.5; /* WCAG AA */
+}
+
+/* Asegurar contraste en modo oscuro */
+body:not(.theme-light) {
+  /* Texto sobre fondos oscuros debe ser claro */
+  --min-contrast-ratio: 4.5; /* WCAG AA */
+}
+
+/* ===== ACCESIBILIDAD ===== */
+
+/* Respetar preferencias del sistema */
+@media (prefers-color-scheme: light) {
+  /* Si el sistema prefiere claro pero no está aplicado, sugerir */
+  body:not(.theme-light):not(.theme-dark) {
+    /* Mantener tema oscuro por defecto, pero respetar si el usuario cambia */
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Si el sistema prefiere oscuro */
+  body:not(.theme-light):not(.theme-dark) {
+    /* Mantener tema oscuro por defecto */
+  }
+}
+
+/* ===== REDUCCIÓN DE MOVIMIENTO ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -83,7 +83,8 @@
     const adminBar = document.createElement('div');
     adminBar.id = 'adminIndicatorBar';
     adminBar.className = 'bg-slate-900/80 backdrop-blur-sm border-b border-purple-500/20 w-full';
-    adminBar.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; z-index: 9999;';
+      adminBar.classList.add('fixed', 'top-0', 'left-0', 'right-0');
+      adminBar.style.zIndex = '9999'; // Mantener z-index específico
     adminBar.innerHTML = `
       <div class="w-full px-3 sm:px-4">
         <div class="flex items-center justify-between h-6">

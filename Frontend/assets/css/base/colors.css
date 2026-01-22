@@ -1,0 +1,219 @@
+/* ==========================================
+   COLOR SYSTEM - PALETA COMPLETA
+   Sistema de colores para tema oscuro y claro
+   ========================================== */
+
+:root {
+  /* ===== COLORES BASE - TEMA OSCURO (Default) ===== */
+  
+  /* Fondos */
+  --color-bg-primary: #0f172a;        /* Fondo principal */
+  --color-bg-secondary: #1e293b;      /* Fondo secundario */
+  --color-bg-tertiary: #334155;       /* Fondo terciario */
+  --color-bg-elevated: #1e293b;       /* Fondos elevados (cards) */
+  --color-bg-overlay: rgba(2, 6, 23, 0.55); /* Overlay de modales */
+  
+  /* Tarjetas y Paneles */
+  --color-card: #1e293b;              /* Tarjetas principales */
+  --color-card-alt: #0b1220;         /* Tarjetas alternativas */
+  --color-card-hover: #334155;       /* Tarjetas hover */
+  
+  /* Texto */
+  --color-text-primary: #f1f5f9;      /* Texto principal */
+  --color-text-secondary: #cbd5e1;   /* Texto secundario */
+  --color-text-muted: #94a3b8;       /* Texto atenuado */
+  --color-text-disabled: #64748b;    /* Texto deshabilitado */
+  --color-text-invert: #0f172a;      /* Texto sobre fondos claros */
+  
+  /* Bordes */
+  --color-border: #334155;            /* Bordes principales */
+  --color-border-light: #475569;     /* Bordes claros */
+  --color-border-dark: #1e293b;      /* Bordes oscuros */
+  --color-border-focus: #3b82f6;     /* Bordes focus */
+  
+  /* Acento Principal (Azul) */
+  --color-accent: #3b82f6;           /* Acento principal */
+  --color-accent-hover: #2563eb;      /* Acento hover */
+  --color-accent-active: #1d4ed8;     /* Acento active */
+  --color-accent-light: rgba(59, 130, 246, 0.1);  /* Acento claro */
+  --color-accent-lighter: rgba(59, 130, 246, 0.05); /* Acento muy claro */
+  
+  /* Estados */
+  --color-success: #10b981;           /* Éxito (verde) */
+  --color-success-hover: #059669;     /* Éxito hover */
+  --color-success-light: rgba(16, 185, 129, 0.1);
+  --color-success-lighter: rgba(16, 185, 129, 0.05);
+  
+  --color-warning: #f59e0b;           /* Advertencia (amarillo) */
+  --color-warning-hover: #d97706;     /* Advertencia hover */
+  --color-warning-light: rgba(245, 158, 11, 0.1);
+  --color-warning-lighter: rgba(245, 158, 11, 0.05);
+  
+  --color-error: #ef4444;             /* Error (rojo) */
+  --color-error-hover: #dc2626;       /* Error hover */
+  --color-error-light: rgba(239, 68, 68, 0.1);
+  --color-error-lighter: rgba(239, 68, 68, 0.05);
+  
+  --color-info: #06b6d4;              /* Información (cyan) */
+  --color-info-hover: #0891b2;        /* Información hover */
+  --color-info-light: rgba(6, 182, 212, 0.1);
+  --color-info-lighter: rgba(6, 182, 212, 0.05);
+  
+  /* Inputs */
+  --color-input-bg: #0b1220;         /* Fondo inputs */
+  --color-input-border: #334155;      /* Borde inputs */
+  --color-input-border-focus: #3b82f6; /* Borde focus */
+  --color-input-text: #f1f5f9;       /* Texto inputs */
+  --color-input-placeholder: #64748b; /* Placeholder */
+  --color-input-disabled-bg: #1e293b; /* Fondo disabled */
+  --color-input-disabled-text: #64748b; /* Texto disabled */
+  
+  /* Scrollbar */
+  --color-scroll-track: #0b1220;     /* Track scrollbar */
+  --color-scroll-thumb: #334155;      /* Thumb scrollbar */
+  --color-scroll-thumb-hover: #475569; /* Thumb hover */
+  
+  /* Focus Ring */
+  --color-focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  --color-focus-ring-light: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  
+  /* Sombras con color */
+  --shadow-accent: 0 4px 16px rgba(59, 130, 246, 0.2);
+  --shadow-success: 0 4px 16px rgba(16, 185, 129, 0.2);
+  --shadow-error: 0 4px 16px rgba(239, 68, 68, 0.2);
+  --shadow-warning: 0 4px 16px rgba(245, 158, 11, 0.2);
+  
+  /* Badges */
+  --color-badge-inventory-bg: #065f46;      /* Badge inventario */
+  --color-badge-inventory-text: #ecfdf5;
+  --color-badge-price-bg: #1d4ed8;          /* Badge precio */
+  --color-badge-price-text: #ffffff;
+  --color-badge-service-bg: #92400e;         /* Badge servicio */
+  --color-badge-service-text: #fff7ed;
+  
+  /* Navegación */
+  --color-nav-bg: linear-gradient(90deg, #0f172a, #152033);
+  --color-nav-tab-bg: var(--color-card-alt);
+  --color-nav-tab-bg-active: var(--color-accent);
+  --color-nav-tab-text: #ffffff;
+  --color-nav-tab-text-active: #ffffff;
+  
+  /* Tablas */
+  --color-table-header-bg: #0b1220;
+  --color-table-row-bg: transparent;
+  --color-table-row-hover: rgba(59, 130, 246, 0.1);
+  --color-table-row-selected: rgba(59, 130, 246, 0.15);
+  --color-table-border: var(--color-border);
+  
+  /* Avatar y Chips */
+  --color-avatar-bg: #1e293b;
+  --color-plate-chip-bg: #1e293b;
+  --color-plate-chip-text: #ffffff;
+}
+
+/* ===== TEMA CLARO ===== */
+body.theme-light {
+  /* Fondos */
+  --color-bg-primary: #f8fafc;        /* Fondo principal */
+  --color-bg-secondary: #ffffff;      /* Fondo secundario */
+  --color-bg-tertiary: #f1f5f9;       /* Fondo terciario */
+  --color-bg-elevated: #ffffff;       /* Fondos elevados (cards) */
+  --color-bg-overlay: rgba(0, 0, 0, 0.4); /* Overlay de modales */
+  
+  /* Tarjetas y Paneles */
+  --color-card: #ffffff;              /* Tarjetas principales */
+  --color-card-alt: #f1f5f9;          /* Tarjetas alternativas */
+  --color-card-hover: #e2e8f0;        /* Tarjetas hover */
+  
+  /* Texto */
+  --color-text-primary: #0f172a;      /* Texto principal */
+  --color-text-secondary: #475569;    /* Texto secundario */
+  --color-text-muted: #64748b;       /* Texto atenuado */
+  --color-text-disabled: #94a3b8;    /* Texto deshabilitado */
+  --color-text-invert: #ffffff;       /* Texto sobre fondos oscuros */
+  
+  /* Bordes */
+  --color-border: #e2e8f0;            /* Bordes principales */
+  --color-border-light: #cbd5e1;     /* Bordes claros */
+  --color-border-dark: #94a3b8;      /* Bordes oscuros */
+  --color-border-focus: #2563eb;     /* Bordes focus */
+  
+  /* Acento Principal (Azul) */
+  --color-accent: #2563eb;            /* Acento principal */
+  --color-accent-hover: #1d4ed8;      /* Acento hover */
+  --color-accent-active: #1e40af;     /* Acento active */
+  --color-accent-light: rgba(37, 99, 235, 0.1);
+  --color-accent-lighter: rgba(37, 99, 235, 0.05);
+  
+  /* Estados */
+  --color-success: #059669;           /* Éxito (verde) */
+  --color-success-hover: #047857;     /* Éxito hover */
+  --color-success-light: rgba(5, 150, 105, 0.1);
+  --color-success-lighter: rgba(5, 150, 105, 0.05);
+  
+  --color-warning: #d97706;           /* Advertencia (amarillo) */
+  --color-warning-hover: #b45309;     /* Advertencia hover */
+  --color-warning-light: rgba(217, 119, 6, 0.1);
+  --color-warning-lighter: rgba(217, 119, 6, 0.05);
+  
+  --color-error: #dc2626;             /* Error (rojo) */
+  --color-error-hover: #b91c1c;       /* Error hover */
+  --color-error-light: rgba(220, 38, 38, 0.1);
+  --color-error-lighter: rgba(220, 38, 38, 0.05);
+  
+  --color-info: #0891b2;              /* Información (cyan) */
+  --color-info-hover: #0e7490;        /* Información hover */
+  --color-info-light: rgba(8, 145, 178, 0.1);
+  --color-info-lighter: rgba(8, 145, 178, 0.05);
+  
+  /* Inputs */
+  --color-input-bg: #ffffff;         /* Fondo inputs */
+  --color-input-border: #e2e8f0;      /* Borde inputs */
+  --color-input-border-focus: #2563eb; /* Borde focus */
+  --color-input-text: #0f172a;       /* Texto inputs */
+  --color-input-placeholder: #94a3b8; /* Placeholder */
+  --color-input-disabled-bg: #f1f5f9; /* Fondo disabled */
+  --color-input-disabled-text: #94a3b8; /* Texto disabled */
+  
+  /* Scrollbar */
+  --color-scroll-track: #f1f5f9;     /* Track scrollbar */
+  --color-scroll-thumb: #cbd5e1;      /* Thumb scrollbar */
+  --color-scroll-thumb-hover: #94a3b8; /* Thumb hover */
+  
+  /* Focus Ring */
+  --color-focus-ring: 0 0 0 2px rgba(37, 99, 235, 0.35);
+  --color-focus-ring-light: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  
+  /* Sombras con color */
+  --shadow-accent: 0 4px 16px rgba(37, 99, 235, 0.15);
+  --shadow-success: 0 4px 16px rgba(5, 150, 105, 0.15);
+  --shadow-error: 0 4px 16px rgba(220, 38, 38, 0.15);
+  --shadow-warning: 0 4px 16px rgba(217, 119, 6, 0.15);
+  
+  /* Badges */
+  --color-badge-inventory-bg: #047857;
+  --color-badge-inventory-text: #ecfdf5;
+  --color-badge-price-bg: #1d4ed8;
+  --color-badge-price-text: #ffffff;
+  --color-badge-service-bg: #b45309;
+  --color-badge-service-text: #fff7ed;
+  
+  /* Navegación */
+  --color-nav-bg: linear-gradient(90deg, #ffffff, #e0f2fe);
+  --color-nav-tab-bg: #dbeafe;
+  --color-nav-tab-bg-active: #2563eb;
+  --color-nav-tab-text: #000000;
+  --color-nav-tab-text-active: #ffffff;
+  
+  /* Tablas */
+  --color-table-header-bg: #dbeafe;
+  --color-table-row-bg: transparent;
+  --color-table-row-hover: rgba(37, 99, 235, 0.08);
+  --color-table-row-selected: rgba(37, 99, 235, 0.12);
+  --color-table-border: var(--color-border);
+  
+  /* Avatar y Chips */
+  --color-avatar-bg: #bae6fd;
+  --color-plate-chip-bg: #1e293b;     /* Mantener oscuro para contraste */
+  --color-plate-chip-text: #ffffff;
+}

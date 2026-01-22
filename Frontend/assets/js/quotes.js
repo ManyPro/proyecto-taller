@@ -170,7 +170,10 @@ export function initQuotes({ getCompanyEmail }) {
 
   async function searchVehiclesForQuote(query) {
     if (!query || query.trim().length < 1) {
-      if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+      if (iVehicleDropdown) {
+        iVehicleDropdown.classList.add('js-hide');
+        iVehicleDropdown.classList.remove('js-show');
+      }
       return;
     }
     try {
@@ -179,7 +182,8 @@ export function initQuotes({ getCompanyEmail }) {
       if (!iVehicleDropdown) return;
       if (vehicles.length === 0) {
         iVehicleDropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
-        iVehicleDropdown.style.display = 'block';
+        iVehicleDropdown.classList.add('js-show');
+        iVehicleDropdown.classList.remove('js-hide');
         return;
       }
       iVehicleDropdown.replaceChildren(...vehicles.map(v => {
@@ -199,7 +203,10 @@ export function initQuotes({ getCompanyEmail }) {
               <strong class="text-white dark:text-white theme-light:text-slate-900">${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
             `;
           }
-          if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+          if (iVehicleDropdown) {
+        iVehicleDropdown.classList.add('js-hide');
+        iVehicleDropdown.classList.remove('js-show');
+      }
           if (iBrand) iBrand.value = v.make || '';
           if (iLine) iLine.value = v.line || '';
           if (iCc) iCc.value = v.displacement || '';
@@ -223,12 +230,18 @@ export function initQuotes({ getCompanyEmail }) {
   
   async function validateQuoteYear() {
     if (!selectedQuoteVehicle || !iYear || !iYear.value) {
-      if (iYearWarning) iYearWarning.style.display = 'none';
+      if (iYearWarning) {
+        iYearWarning.classList.add('js-hide');
+        iYearWarning.classList.remove('js-show');
+      }
       return;
     }
     const yearNum = Number(iYear.value);
     if (!Number.isFinite(yearNum)) {
-      if (iYearWarning) iYearWarning.style.display = 'none';
+      if (iYearWarning) {
+        iYearWarning.classList.add('js-hide');
+        iYearWarning.classList.remove('js-show');
+      }
       return;
     }
     try {
@@ -236,10 +249,14 @@ export function initQuotes({ getCompanyEmail }) {
       if (!validation.valid) {
         if (iYearWarning) {
           iYearWarning.textContent = validation.message || 'Año fuera de rango';
-          iYearWarning.style.display = 'block';
+          iYearWarning.classList.add('js-show');
+          iYearWarning.classList.remove('js-hide');
         }
       } else {
-        if (iYearWarning) iYearWarning.style.display = 'none';
+        if (iYearWarning) {
+        iYearWarning.classList.add('js-hide');
+        iYearWarning.classList.remove('js-show');
+      }
       }
     } catch (err) {
       console.error('Error al validar año:', err);
@@ -358,7 +375,10 @@ export function initQuotes({ getCompanyEmail }) {
             searchVehiclesForQuote(query);
           }, 150);
         } else {
-          if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+          if (iVehicleDropdown) {
+        iVehicleDropdown.classList.add('js-hide');
+        iVehicleDropdown.classList.remove('js-show');
+      }
         }
       });
       iVehicleSearch.addEventListener('focus', () => {
@@ -378,7 +398,10 @@ export function initQuotes({ getCompanyEmail }) {
     
     document.addEventListener('click', (e) => {
       if (iVehicleSearch && !iVehicleSearch.contains(e.target) && iVehicleDropdown && !iVehicleDropdown.contains(e.target)) {
-        if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+        if (iVehicleDropdown) {
+        iVehicleDropdown.classList.add('js-hide');
+        iVehicleDropdown.classList.remove('js-show');
+      }
       }
     });
   }
@@ -617,21 +640,45 @@ export function initQuotes({ getCompanyEmail }) {
 
   let specialNotes = [];
   
-  function addSpecialNote() {
+  async function addSpecialNote() {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
-    modal.innerHTML = `
-      <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-lg w-full overflow-hidden">
-        <div class="p-6">
-          <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar Nota Especial</h3>
-          <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." class="w-full h-24 p-3 mb-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
-          <div class="flex justify-end gap-2">
-            <button id="cancel-note" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
-            <button id="save-note" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar Nota</button>
+    
+    // Cargar template de modal de nota especial
+    if (window.TemplateLoader) {
+      const templateEl = await window.TemplateLoader.loadTemplate('modals/special-note.html');
+      if (templateEl) {
+        modal.innerHTML = templateEl.outerHTML;
+      } else {
+        // Fallback
+        modal.innerHTML = `
+          <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-lg w-full overflow-hidden">
+            <div class="p-6">
+              <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar Nota Especial</h3>
+              <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." class="w-full h-24 p-3 mb-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+              <div class="flex justify-end gap-2">
+                <button id="cancel-note" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+                <button id="save-note" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar Nota</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      // Fallback si las utilidades no están disponibles
+      modal.innerHTML = `
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-lg w-full overflow-hidden">
+          <div class="p-6">
+            <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar Nota Especial</h3>
+            <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." class="w-full h-24 p-3 mb-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+            <div class="flex justify-end gap-2">
+              <button id="cancel-note" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+              <button id="save-note" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar Nota</button>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
     
     document.body.appendChild(modal);
     
@@ -683,21 +730,47 @@ export function initQuotes({ getCompanyEmail }) {
   
   window.removeSpecialNote = removeSpecialNote;
   
-  function renderSpecialNotes() {
+  async function renderSpecialNotes() {
     if (!iSpecialNotesList) return;
     iSpecialNotesList.innerHTML = '';
-    specialNotes.forEach((note, index) => {
+    
+    for (const [index, note] of specialNotes.entries()) {
       const noteDiv = document.createElement('div');
       noteDiv.className = 'flex items-center gap-3 mb-3 p-3 bg-gradient-to-r from-slate-800/50 to-slate-700/50 dark:from-slate-800/50 dark:to-slate-700/50 theme-light:from-slate-100 theme-light:to-slate-50 rounded-lg border-l-4 border-blue-500 shadow-sm transition-all duration-200';
-      noteDiv.innerHTML = `
-        <div class="flex-1 flex items-center gap-2">
-          <span class="text-base">•</span>
-          <span class="flex-1 leading-relaxed text-white dark:text-white theme-light:text-slate-900">${note}</span>
-        </div>
-        <button type="button" onclick="removeSpecialNote(${index})" class="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
-      `;
+      
+      // Cargar template de item de nota especial
+      if (window.TemplateLoader && window.TemplateRenderer) {
+        const templateEl = await window.TemplateLoader.loadTemplate('lists/special-note-item.html');
+        if (templateEl) {
+          const templateHtml = templateEl.outerHTML;
+          const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, {
+            note: note,
+            index: index
+          });
+          noteDiv.innerHTML = renderedHtml;
+        } else {
+          // Fallback
+          noteDiv.innerHTML = `
+            <div class="flex-1 flex items-center gap-2">
+              <span class="text-base">•</span>
+              <span class="flex-1 leading-relaxed text-white dark:text-white theme-light:text-slate-900">${note}</span>
+            </div>
+            <button type="button" onclick="removeSpecialNote(${index})" class="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
+          `;
+        }
+      } else {
+        // Fallback si las utilidades no están disponibles
+        noteDiv.innerHTML = `
+          <div class="flex-1 flex items-center gap-2">
+            <span class="text-base">•</span>
+            <span class="flex-1 leading-relaxed text-white dark:text-white theme-light:text-slate-900">${note}</span>
+          </div>
+          <button type="button" onclick="removeSpecialNote(${index})" class="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
+        `;
+      }
+      
       iSpecialNotesList.appendChild(noteDiv);
-    });
+    }
   }
 
   function clearRows(){ rowsBox.innerHTML=''; }
@@ -844,10 +917,12 @@ export function initQuotes({ getCompanyEmail }) {
     
     if (ivaSection) {
       if (ivaEnabled && ivaValue > 0) {
-        ivaSection.style.display = 'flex';
+        ivaSection.classList.add('js-show-flex');
+        ivaSection.classList.remove('js-hide');
         if (ivaAmount) ivaAmount.textContent = money(ivaValue);
       } else {
-        ivaSection.style.display = 'none';
+        ivaSection.classList.add('js-hide');
+        ivaSection.classList.remove('js-show');
       }
     }
     
@@ -1091,8 +1166,12 @@ export function initQuotes({ getCompanyEmail }) {
               const acceptBtn = document.getElementById('page-size-accept');
               const cancelBtn = document.getElementById('page-size-cancel');
               const closeModal = () => {
-                modal.style.opacity = '0';
-                if (modalContent) modalContent.style.transform = 'scale(0.95)';
+                modal.classList.remove('js-opacity-1');
+                modal.classList.add('js-opacity-0');
+                if (modalContent) {
+                  modalContent.classList.remove('js-scale-100');
+                  modalContent.classList.add('js-scale-95');
+                }
                 setTimeout(() => modal.remove(), 200);
               };
               acceptBtn.onclick = () => {

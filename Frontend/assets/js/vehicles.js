@@ -159,7 +159,8 @@ export function initVehicles() {
     }
     
     msgDiv.textContent = `Editando: ${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
-    msgDiv.style.color = 'var(--primary, #3b82f6)';
+    msgDiv.classList.add('js-color-primary');
+    msgDiv.classList.remove('js-color-danger', 'js-color-success');
     
     // Scroll al formulario
     makeInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -175,7 +176,8 @@ export function initVehicles() {
 
     if (!make || !line || !displacement) {
       msgDiv.textContent = '❌ Marca, línea y cilindraje son requeridos';
-      msgDiv.style.color = 'var(--danger, #ef4444)';
+      msgDiv.classList.add('js-color-danger');
+      msgDiv.classList.remove('js-color-success', 'js-color-primary');
       return;
     }
 
@@ -183,7 +185,8 @@ export function initVehicles() {
     if (modelYear) {
       if (!/^\d{4}$/.test(modelYear) && !/^\d{4}-\d{4}$/.test(modelYear)) {
         msgDiv.textContent = '❌ El modelo debe ser un año (2020) o un rango (2018-2022)';
-        msgDiv.style.color = 'var(--danger, #ef4444)';
+        msgDiv.classList.add('js-color-danger');
+      msgDiv.classList.remove('js-color-success', 'js-color-primary');
         return;
       }
     }
@@ -204,14 +207,16 @@ export function initVehicles() {
         msgDiv.textContent = '✓ Vehículo creado exitosamente';
       }
       
-      msgDiv.style.color = 'var(--success, #10b981)';
+      msgDiv.classList.add('js-color-success');
+      msgDiv.classList.remove('js-color-danger', 'js-color-primary');
       clearForm();
       await loadVehicles();
       await loadMakes();
     } catch (err) {
       const errorMsg = err.message || 'Error desconocido';
       msgDiv.textContent = `❌ Error: ${errorMsg}`;
-      msgDiv.style.color = 'var(--danger, #ef4444)';
+      msgDiv.classList.add('js-color-danger');
+      msgDiv.classList.remove('js-color-success', 'js-color-primary');
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
@@ -235,7 +240,8 @@ export function initVehicles() {
       
       if (msgDiv) {
         msgDiv.textContent = '✓ Vehículo eliminado exitosamente';
-        msgDiv.style.color = 'var(--success, #10b981)';
+        msgDiv.classList.add('js-color-success');
+      msgDiv.classList.remove('js-color-danger', 'js-color-primary');
         setTimeout(() => {
           msgDiv.textContent = '';
         }, 3000);

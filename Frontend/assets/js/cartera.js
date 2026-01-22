@@ -288,9 +288,11 @@ function showCompanyModal(companyId = null) {
   if (typeSelect && platesSection) {
     typeSelect.addEventListener('change', (e) => {
       if (e.target.value === 'recurrente') {
-        platesSection.style.display = 'block';
+        platesSection.classList.add('js-show');
+        platesSection.classList.remove('js-hide');
       } else {
-        platesSection.style.display = 'none';
+        platesSection.classList.add('js-hide');
+        platesSection.classList.remove('js-show');
         window.currentCompanyPlates = [];
         const platesList = document.getElementById('plates-list');
         if (platesList) {

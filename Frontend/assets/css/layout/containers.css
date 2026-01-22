@@ -1,0 +1,94 @@
+/* ==========================================
+   CONTAINERS - Contenedores de página
+   Sistema de contenedores responsive
+   ========================================== */
+
+/* Contenedor principal de página */
+.page-container {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--page-padding-desktop);
+  box-sizing: border-box;
+}
+
+/* Contenido de página */
+.page-content {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Contenedor fluido (sin max-width) */
+.container-fluid {
+  width: 100%;
+  padding: var(--page-padding-desktop);
+  box-sizing: border-box;
+}
+
+/* Contenedores con tamaños específicos */
+.container-xs {
+  max-width: var(--container-xs);
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.container-sm {
+  max-width: var(--container-sm);
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.container-md {
+  max-width: var(--container-md);
+  margin: 0 auto;
+  padding: var(--spacing-xl);
+}
+
+.container-lg {
+  max-width: var(--container-lg);
+  margin: 0 auto;
+  padding: var(--spacing-xl);
+}
+
+.container-xl {
+  max-width: var(--container-xl);
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+.container-2xl {
+  max-width: var(--container-2xl);
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+/* Responsive: Tablet */
+@media (max-width: 1024px) {
+  .page-container {
+    padding: var(--page-padding-tablet);
+  }
+  
+  .container-fluid {
+    padding: var(--page-padding-tablet);
+  }
+}
+
+/* Responsive: Móvil */
+@media (max-width: 768px) {
+  .page-container {
+    padding: var(--page-padding-mobile);
+  }
+  
+  .container-fluid {
+    padding: var(--page-padding-mobile);
+  }
+  
+  .container-xs,
+  .container-sm,
+  .container-md,
+  .container-lg,
+  .container-xl,
+  .container-2xl {
+    padding: var(--spacing-md);
+  }
+}

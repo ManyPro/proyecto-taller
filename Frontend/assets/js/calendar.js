@@ -108,8 +108,8 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
     dayEvents.slice(0, maxEvents).forEach(event => {
       const eventEl = document.createElement('div');
       eventEl.className = `text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity`;
-      eventEl.style.backgroundColor = event.color || '#3b82f6';
-      eventEl.style.color = 'white';
+      eventEl.style.backgroundColor = event.color || '#3b82f6'; // Mantener color dinámico
+      eventEl.style.color = 'white'; // Mantener color específico
       eventEl.title = `${event.title}${event.description ? ': ' + event.description : ''}`;
       // En móvil mostrar solo un punto de color si hay eventos, en desktop el título
       if (window.innerWidth < 640) {
@@ -133,7 +133,7 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
         e.stopPropagation();
         openDayEventsModal(date, dayEvents);
       };
-      moreEl.style.cursor = 'pointer';
+      moreEl.classList.add('js-cursor-pointer');
       eventsContainer.appendChild(moreEl);
     }
     
@@ -142,7 +142,7 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
   
   // Permitir hacer clic en el día para mostrar eventos o crear uno nuevo
   if (!isOtherMonth && date) {
-    dayEl.style.cursor = 'pointer';
+    dayEl.classList.add('js-cursor-pointer');
     dayEl.onclick = (e) => {
       // Si se hizo clic en un evento específico o en el contenedor de eventos, no hacer nada (ya tiene su propio handler)
       if (e.target.closest('[style*="background-color"]') || e.target.closest('.space-y-0\\.5')) {
@@ -1386,7 +1386,7 @@ function showSuccessNotification(message) {
   
   const notification = document.createElement("div");
   notification.className = "fixed top-5 right-5 z-[3000] bg-green-500 dark:bg-green-500 theme-light:bg-green-400 text-white dark:text-white theme-light:text-green-900 px-5 py-3 rounded-lg text-sm font-semibold shadow-lg max-w-[400px]";
-  notification.style.animation = "slideInFromRight 0.3s ease-out";
+  notification.classList.add('js-animation-slide-in');
   notification.innerHTML = `
     <div class="flex items-start gap-3">
       <div class="text-xl flex-shrink-0">✓</div>
@@ -1399,7 +1399,7 @@ function showSuccessNotification(message) {
   document.body.appendChild(notification);
   
   setTimeout(() => {
-    notification.style.animation = "slideOutToRight 0.3s ease-in";
+    notification.classList.add('js-animation-slide-out');
     setTimeout(() => {
       if (notification.parentNode) {
         notification.remove();
@@ -1487,7 +1487,7 @@ function showEventNotification(event) {
   }
   
   setTimeout(() => {
-    notification.style.animation = "slideOutToRight 0.3s ease-in";
+    notification.classList.add('js-animation-slide-out');
     setTimeout(() => {
       if (notification.parentNode) {
         notification.remove();
@@ -1638,7 +1638,8 @@ function openCalendarSettings() {
       // Ocultar el botón de configuración si ambos campos están configurados
       const settingsBtn = document.getElementById('calendar-settings');
       if (settingsBtn && address && mapsLink) {
-        settingsBtn.style.display = 'none';
+        settingsBtn.classList.add('js-hide');
+        settingsBtn.classList.remove('js-show');
       }
       
       alert('Configuración guardada exitosamente');
@@ -1704,7 +1705,8 @@ export function initCalendar() {
       try {
         const settings = await API.calendar.getSettings();
         if (settings.address && settings.mapsLink) {
-          settingsBtn.style.display = 'none';
+          settingsBtn.classList.add('js-hide');
+        settingsBtn.classList.remove('js-show');
         }
       } catch (err) {
         console.error('Error checking calendar settings:', err);

@@ -1,0 +1,360 @@
+/* ==========================================
+   🎨 TAILWIND OVERRIDES - SOBRESCRITURAS DE TAILWIND
+   Estilos para sobrescribir clases de Tailwind en modo claro/oscuro
+   ========================================== */
+
+/* ===== ☀️ MODO CLARO - SOBRESCRITURAS DE TAILWIND ===== */
+
+/* 🌈 Gradientes de fondo */
+body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+  background: linear-gradient(to right, #e0f2fe, #dbeafe, #e0f2fe) !important;
+}
+
+body.theme-light [class*="bg-slate-800/50"],
+body.theme-light [class*="bg-slate-800"][class*="/50"] {
+  background-color: rgba(224, 242, 254, 0.9) !important;
+}
+
+body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+  background-color: #e0f2fe !important;
+}
+
+body.theme-light [class*="bg-gradient-to-br"][class*="from-slate-800"][class*="via-slate-800"][class*="to-slate-900"],
+body.theme-light [class*="bg-gradient-to-br"][class*="from-slate-800"] {
+  background: linear-gradient(to bottom right, #ffffff, #e0f2fe, #dbeafe) !important;
+}
+
+/* 📝 Textos - Asegurar contraste en modo claro */
+body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
+  color: #000000 !important;
+}
+
+body.theme-light .text-slate-300,
+body.theme-light .text-slate-400,
+body.theme-light .text-slate-500,
+body.theme-light .text-slate-600,
+body.theme-light .text-slate-700,
+body.theme-light .text-slate-800 {
+  color: #000000 !important;
+}
+
+/* 🪟 Modales - Estilos para ventanas modales en modo claro */
+body.theme-light #modal,
+body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
+  color: #000000 !important;
+}
+
+body.theme-light #modal label,
+body.theme-light #modal .text-slate-300,
+body.theme-light #modal .text-slate-400,
+body.theme-light #modal .text-slate-500,
+body.theme-light #modal .text-slate-600,
+body.theme-light #modal .text-slate-700,
+body.theme-light #modal .text-slate-800,
+body.theme-light #modal h1,
+body.theme-light #modal h2,
+body.theme-light #modal h3,
+body.theme-light #modal h4,
+body.theme-light #modal p,
+body.theme-light #modal span,
+body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
+  color: #000000 !important;
+}
+
+body.theme-light #modal > div,
+body.theme-light #modal .bg-slate-800:not([class*="hover"]),
+body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
+  background-color: #ffffff !important;
+}
+
+body.theme-light #modal [class*="bg-slate-800/50"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 📋 Inputs y Formularios - Estilos para campos de entrada */
+body.theme-light select,
+body.theme-light select option,
+body.theme-light select.text-slate-300,
+body.theme-light select.text-slate-400,
+body.theme-light select.text-slate-500,
+body.theme-light select.text-slate-600,
+body.theme-light select.text-slate-700,
+body.theme-light select.text-slate-800 {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+body.theme-light #modal input,
+body.theme-light #modal textarea,
+body.theme-light #modal select {
+  color: #000000 !important;
+}
+
+body.theme-light #modal input::placeholder,
+body.theme-light #modal textarea::placeholder {
+  color: #666666 !important;
+}
+
+body.theme-light input[class*="bg-slate-900"],
+body.theme-light textarea[class*="bg-slate-900"],
+body.theme-light select[class*="bg-slate-900"],
+body.theme-light input[class*="bg-slate-800"],
+body.theme-light textarea[class*="bg-slate-800"],
+body.theme-light select[class*="bg-slate-800"] {
+  background-color: #ffffff !important;
+}
+
+body.theme-light input[class*="bg-slate-900/50"],
+body.theme-light textarea[class*="bg-slate-900/50"],
+body.theme-light select[class*="bg-slate-900/50"],
+body.theme-light input[class*="bg-slate-800/50"],
+body.theme-light textarea[class*="bg-slate-800/50"],
+body.theme-light select[class*="bg-slate-800/50"] {
+  background-color: #ffffff !important;
+}
+
+body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
+body.theme-light #modal textarea,
+body.theme-light #modal select {
+  background-color: #ffffff !important;
+  border-color: #7dd3fc !important;
+}
+
+body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
+body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
+body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
+  background-color: #ffffff !important;
+}
+
+body.theme-light input[type="email"],
+body.theme-light input[type="password"],
+body.theme-light input[type="text"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #7dd3fc !important;
+}
+
+body.theme-light input[type="email"]::placeholder,
+body.theme-light input[type="password"]::placeholder,
+body.theme-light input[type="text"]::placeholder {
+  color: #000000 !important;
+}
+
+/* 📑 Dropdowns - Menús desplegables */
+body.theme-light [id*="dropdown"],
+body.theme-light [id*="Dropdown"],
+body.theme-light [class*="dropdown"],
+body.theme-light [class*="Dropdown"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+body.theme-light [id*="dropdown"] *,
+body.theme-light [id*="Dropdown"] *,
+body.theme-light [class*="dropdown"] *,
+body.theme-light [class*="Dropdown"] * {
+  color: #000000 !important;
+}
+
+/* 🔲 Bordes - Estilos de bordes en modo claro */
+body.theme-light [class*="border-slate-700/50"],
+body.theme-light [class*="border-slate-700"][class*="/50"] {
+  border-color: rgba(125, 211, 252, 0.5) !important;
+}
+
+body.theme-light [class*="border-slate-700/30"],
+body.theme-light [class*="border-slate-700"][class*="/30"] {
+  border-color: rgba(125, 211, 252, 0.3) !important;
+}
+
+/* ✨ Hover Effects - Efectos al pasar el mouse */
+body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+body.theme-light button:hover[class*="hover:bg-slate-700"] {
+  background-color: rgba(186, 230, 253, 0.7) !important;
+}
+
+body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
+  color: #000000 !important;
+}
+
+body.theme-light [class*="bg-slate-100/50"] {
+  background-color: rgba(224, 242, 254, 0.5) !important;
+}
+
+body.theme-light [class*="bg-white/80"] {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 🎨 Iconos en modo claro - Colores para iconos */
+body.theme-light .text-green-400 { color: #16a34a !important; }
+body.theme-light .text-blue-400 { color: #2563eb !important; }
+body.theme-light .text-purple-400 { color: #9333ea !important; }
+body.theme-light .text-yellow-400 { color: #ca8a04 !important; }
+body.theme-light .text-indigo-400 { color: #6366f1 !important; }
+body.theme-light .text-pink-400 { color: #ec4899 !important; }
+body.theme-light .text-teal-400 { color: #2dd4bf !important; }
+body.theme-light .text-orange-400 { color: #fb923c !important; }
+body.theme-light .text-cyan-400 { color: #22d3ee !important; }
+
+/* 🌈 Fondos de iconos en modo claro - Fondos con transparencia */
+body.theme-light [class*="bg-green-500/20"] { background-color: rgba(34, 197, 94, 0.15) !important; }
+body.theme-light [class*="bg-blue-500/20"] { background-color: rgba(37, 99, 235, 0.15) !important; }
+body.theme-light [class*="bg-purple-500/20"] { background-color: rgba(147, 51, 234, 0.15) !important; }
+body.theme-light [class*="bg-yellow-500/20"] { background-color: rgba(234, 179, 8, 0.15) !important; }
+body.theme-light [class*="bg-indigo-500/20"] { background-color: rgba(99, 102, 241, 0.15) !important; }
+body.theme-light [class*="bg-pink-500/20"] { background-color: rgba(236, 72, 153, 0.15) !important; }
+body.theme-light [class*="bg-teal-500/20"] { background-color: rgba(45, 212, 191, 0.15) !important; }
+body.theme-light [class*="bg-orange-500/20"] { background-color: rgba(251, 146, 60, 0.15) !important; }
+body.theme-light [class*="bg-cyan-500/20"] { background-color: rgba(34, 211, 238, 0.15) !important; }
+
+/* 🖱️ Hover effects en modo claro - Efectos hover para iconos */
+body.theme-light [class*="group-hover:text-green-400"]:hover { color: #16a34a !important; }
+body.theme-light [class*="group-hover:text-blue-400"]:hover { color: #2563eb !important; }
+body.theme-light [class*="group-hover:text-purple-400"]:hover { color: #9333ea !important; }
+body.theme-light [class*="group-hover:text-yellow-400"]:hover { color: #ca8a04 !important; }
+body.theme-light [class*="group-hover:text-indigo-400"]:hover { color: #6366f1 !important; }
+body.theme-light [class*="group-hover:text-pink-400"]:hover { color: #ec4899 !important; }
+body.theme-light [class*="group-hover:text-teal-400"]:hover { color: #2dd4bf !important; }
+body.theme-light [class*="group-hover:text-orange-400"]:hover { color: #fb923c !important; }
+body.theme-light [class*="group-hover:text-cyan-400"]:hover { color: #22d3ee !important; }
+
+/* 🔘 Botones en modo claro - Estilos para botones */
+body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+  background-color: #bae6fd !important;
+  color: #000000 !important;
+  border-color: #7dd3fc !important;
+}
+
+body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+  background-color: #93c5fd !important;
+  color: #000000 !important;
+  border-color: #60a5fa !important;
+}
+
+body.theme-light #registerBtn {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #cbd5e1 !important;
+}
+
+body.theme-light #registerBtn:hover {
+  background-color: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+}
+
+body.theme-light #s-request {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #cbd5e1 !important;
+}
+
+body.theme-light #s-request:hover {
+  background-color: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+}
+
+/* 🧭 Navegación en modo claro - Estilos para pestañas y navegación */
+body.theme-light .nav-tab:not(.active),
+body.theme-light .mobile-nav-tab:not(.active) {
+  color: #000000 !important;
+  background-color: transparent !important;
+}
+
+body.theme-light .nav-tab:not(.active):hover,
+body.theme-light .mobile-nav-tab:not(.active):hover {
+  color: #000000 !important;
+  background-color: rgba(203, 213, 225, 0.5) !important;
+}
+
+body.theme-light .nav-tab.active,
+body.theme-light .mobile-nav-tab.active {
+  color: #ffffff !important;
+  background-color: #2563eb !important;
+}
+
+/* 📄 Estilos específicos del editor de plantillas */
+body[data-page="formatos"] {
+  background: var(--color-bg-primary) !important;
+  padding: 0 !important;
+}
+
+body.theme-light[data-page="formatos"] {
+  background: var(--color-bg-tertiary) !important;
+}
+
+/* 🎬 Animaciones para notificaciones */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 🪟 Estilos para el modal global */
+#modal.hidden {
+  display: none !important;
+}
+
+#modal:not(.hidden) {
+  display: flex !important;
+}
+
+#modal {
+  align-items: center;
+  justify-content: center;
+}
+
+/* 📜 Scrollbar personalizado - Usando variables CSS */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scroll-thumb) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: var(--radius-sm);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scroll-thumb-hover);
+}
+
+body.theme-light .custom-scrollbar {
+  scrollbar-color: var(--color-scroll-thumb) transparent;
+}
+
+body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+}
+
+body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scroll-thumb-hover);
+}
+
+/* 🎨 Fondo del body */
+body {
+  background-color: var(--color-bg-primary);
+  min-height: 100vh;
+}
+
+body.theme-light {
+  background-color: var(--color-bg-tertiary);
+}

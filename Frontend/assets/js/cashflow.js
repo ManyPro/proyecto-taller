@@ -559,7 +559,8 @@ function openBillCounterModal(){
       if(!accountId) {
         if(msgEl) {
           msgEl.textContent = '⚠️ Selecciona una cuenta';
-          msgEl.style.color = 'var(--danger, #ef4444)';
+          msgEl.classList.add('js-color-danger');
+          msgEl.classList.remove('js-color-success', 'js-color-muted');
         }
         accountSel?.focus();
         return;
@@ -568,7 +569,8 @@ function openBillCounterModal(){
       if(!description) {
         if(msgEl) {
           msgEl.textContent = '⚠️ Ingresa una descripción';
-          msgEl.style.color = 'var(--danger, #ef4444)';
+          msgEl.classList.add('js-color-danger');
+          msgEl.classList.remove('js-color-success', 'js-color-muted');
         }
         descInput?.focus();
         return;
@@ -576,7 +578,8 @@ function openBillCounterModal(){
       
       if(msgEl) {
         msgEl.textContent = 'Guardando...';
-        msgEl.style.color = 'var(--muted)';
+        msgEl.classList.add('js-color-muted');
+        msgEl.classList.remove('js-color-danger', 'js-color-success');
       }
       actionSaveBtn.disabled = true;
       
@@ -590,7 +593,8 @@ function openBillCounterModal(){
         
         if(msgEl) {
           msgEl.textContent = '✅ Movimiento creado exitosamente';
-          msgEl.style.color = 'var(--success, #10b981)';
+          msgEl.classList.add('js-color-success');
+          msgEl.classList.remove('js-color-danger', 'js-color-muted');
         }
         
         setTimeout(() => {
@@ -601,7 +605,8 @@ function openBillCounterModal(){
       } catch(e) {
         if(msgEl) {
           msgEl.textContent = '❌ ' + (e?.message || 'Error al crear el movimiento');
-          msgEl.style.color = 'var(--danger, #ef4444)';
+          msgEl.classList.add('js-color-danger');
+          msgEl.classList.remove('js-color-success', 'js-color-muted');
         }
         actionSaveBtn.disabled = false;
       }

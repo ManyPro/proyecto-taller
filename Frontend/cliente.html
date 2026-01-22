@@ -35,75 +35,8 @@
       }
     }
   </script>
-  <style>
-    /* Estilos para modo claro */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #e0f2fe, #dbeafe, #e0f2fe) !important;
-    }
-    body.theme-light [class*="bg-slate-800/50"],
-    body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(224, 242, 254, 0.9) !important;
-    }
-    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #e0f2fe !important;
-    }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-300,
-    body.theme-light .text-slate-400,
-    body.theme-light .text-slate-500,
-    body.theme-light .text-slate-600,
-    body.theme-light .text-slate-700,
-    body.theme-light .text-slate-800 {
-      color: #000000 !important;
-    }
-    body.theme-light input,
-    body.theme-light textarea,
-    body.theme-light select {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    body.theme-light input::placeholder,
-    body.theme-light textarea::placeholder {
-      color: #666666 !important;
-    }
-    
-    /* Animaciones suaves */
-    .fade-in {
-      animation: fadeIn 0.3s ease-in;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Efecto hover en cards */
-    .service-card {
-      transition: all 0.2s ease;
-    }
-    .service-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    }
-    
-    /* Scrollbar personalizado */
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(51, 65, 85, 0.3);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.5);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.7);
-    }
-  </style>
+  <!-- Main CSS - Sistema unificado de estilos -->
+  <link rel="stylesheet" href="assets/css/main.css" />
 </head>
 <body class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 min-h-screen">
   <script src="assets/js/config.js"></script>

@@ -1,0 +1,22 @@
+<!-- 🛍️ Public Item Card Template -->
+<!-- Card de item del catálogo público con badges de stock -->
+<div class="media">
+  <img src="{{image}}" alt="{{name}}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;" />
+  {{#if out}}
+  <span class="badge low">AGOTADO</span>
+  {{else}}
+  {{#if low}}
+  <span class="badge">BAJO STOCK</span>
+  {{/if}}
+  {{/if}}
+</div>
+<div class="item-name">{{name}}</div>
+{{#if brand}}
+<div class="item-brand">Marca: {{brand}}</div>
+{{/if}}
+<div class="item-price">{{price}}</div>
+<div class="item-tags">{{{tags}}}</div>
+<div class="card-actions">
+  <button class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-detail="{{id}}">Ver</button>
+  <button data-add="{{id}}" {{#if out}}disabled{{/if}}>Agregar</button>
+</div>

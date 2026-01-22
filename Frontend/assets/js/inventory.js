@@ -234,14 +234,35 @@ function invCloseModal() {
 }
 
 // Opens a stacked overlay above the main modal without closing it (used for image/video previews)
-function invOpenOverlay(innerHTML) {
+async function invOpenOverlay(innerHTML) {
   const overlay = document.createElement('div');
   overlay.id = 'inv-stacked-overlay';
   overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-5 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
-  overlay.innerHTML = `<div id="inv-stacked-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 max-w-[95vw] max-h-[90vh] overflow-auto custom-scrollbar">
-    <button id="inv-overlay-close" aria-label="Cerrar" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold">&times;</button>
-    ${innerHTML}
-  </div>`;
+  
+  // Cargar template de overlay de inventario
+  if (window.TemplateLoader && window.TemplateRenderer) {
+    const templateEl = await window.TemplateLoader.loadTemplate('modals/inventory-overlay.html');
+    if (templateEl) {
+      const templateHtml = templateEl.outerHTML;
+      const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, {
+        content: innerHTML
+      }, { safe: true }); // safe: true para permitir HTML en content
+      overlay.innerHTML = renderedHtml;
+    } else {
+      // Fallback
+      overlay.innerHTML = `<div id="inv-stacked-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 max-w-[95vw] max-h-[90vh] overflow-auto custom-scrollbar">
+        <button id="inv-overlay-close" aria-label="Cerrar" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold">&times;</button>
+        ${innerHTML}
+      </div>`;
+    }
+  } else {
+    // Fallback si las utilidades no están disponibles
+    overlay.innerHTML = `<div id="inv-stacked-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 max-w-[95vw] max-h-[90vh] overflow-auto custom-scrollbar">
+      <button id="inv-overlay-close" aria-label="Cerrar" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold">&times;</button>
+      ${innerHTML}
+    </div>`;
+  }
+  
   document.body.appendChild(overlay);
   const close = () => { try{ document.body.removeChild(overlay); }catch{} };
   overlay.addEventListener('click', (e)=>{ if (e.target === overlay) close(); });
@@ -317,20 +338,22 @@ function openLightbox(media) {
           img.style.height = finalHeight + 'px';
           img.style.maxWidth = isDesktop ? '30vw' : '50vw';
           img.style.maxHeight = isDesktop ? '30vh' : '50vh';
-          img.style.objectFit = 'contain';
-          img.style.display = 'block';
-          img.style.margin = '0 auto';
-          img.style.border = '2px solid rgba(148, 163, 184, 0.3)';
-          img.style.borderRadius = '0.5rem';
+          img.classList.add('js-image-lightbox');
+          // Mantener estilos dinámicos (width, height, maxWidth, maxHeight son cálculos)
+          img.style.width = finalWidth + 'px';
+          img.style.height = finalHeight + 'px';
+          img.style.maxWidth = isDesktop ? '30vw' : '50vw';
+          img.style.maxHeight = isDesktop ? '30vh' : '50vh';
         } else if (container) {
           // Si la imagen aún no tiene dimensiones naturales, usar valores por defecto
           img.style.maxWidth = isDesktop ? '30vw' : '50vw';
           img.style.maxHeight = isDesktop ? '30vh' : '50vh';
-          img.style.objectFit = 'contain';
-          img.style.display = 'block';
-          img.style.margin = '0 auto';
-          img.style.border = '2px solid rgba(148, 163, 184, 0.3)';
-          img.style.borderRadius = '0.5rem';
+          img.classList.add('js-image-lightbox');
+          // Mantener estilos dinámicos (width, height, maxWidth, maxHeight son cálculos)
+          img.style.width = finalWidth + 'px';
+          img.style.height = finalHeight + 'px';
+          img.style.maxWidth = isDesktop ? '30vw' : '50vw';
+          img.style.maxHeight = isDesktop ? '30vh' : '50vh';
         }
         
     setupImageZoom();

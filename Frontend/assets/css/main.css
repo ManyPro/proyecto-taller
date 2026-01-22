@@ -1,0 +1,42 @@
+/* ==========================================
+   MAIN CSS - IMPORTADOR PRINCIPAL
+   Este archivo importa todos los CSS en el orden correcto
+   ========================================== */
+
+/* ===== BASE - Fundamentos ===== */
+@import url('base/reset.css');
+@import url('base/variables.css');
+@import url('base/colors.css');
+@import url('base/typography.css');
+@import url('base/themes.css');
+@import url('base/tailwind-overrides.css');
+
+/* ===== LAYOUT - Estructura ===== */
+@import url('layout/grid.css');
+@import url('layout/navigation.css');
+@import url('layout/containers.css');
+@import url('layout/responsive.css');
+@import url('layout/responsive-tablet.css');
+@import url('layout/responsive-mobile.css');
+
+/* ===== COMPONENTS - Componentes reutilizables ===== */
+@import url('components/buttons.css');
+@import url('components/cards.css');
+@import url('components/modals.css');
+@import url('components/notifications.css');
+@import url('components/forms.css');
+@import url('components/tables.css');
+@import url('components/badges.css');
+
+/* ===== UTILITIES - Utilidades ===== */
+@import url('utilities/spacing.css');
+@import url('utilities/display.css');
+@import url('utilities/animations.css');
+@import url('utilities/js-helpers.css');
+
+/* ===== PAGES - Estilos específicos de páginas ===== */
+@import url('pages/index.css');
+@import url('pages/inventario.css');
+@import url('pages/ventas.css');
+@import url('pages/admin.css');
+@import url('pages/cliente.css');

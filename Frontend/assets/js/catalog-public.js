@@ -22,36 +22,170 @@ function resolveCompanyId(){
   return null;
 }
 
-function buildItemCard(it){
+async function buildItemCard(it){
   const img=(it.images && it.images[0] && it.images[0].url)||'assets/favicon.svg';
   const price=money(it.price||0);
   const tags=Array.isArray(it.tags)? it.tags.slice(0,6):[];
+  const tagsHtml = tags.map(t=>`<span>${t}</span>`).join('');
   const low = (it.stock||0) <= 1 && (it.stock||0) > 0;
   const out = (it.stock||0) === 0;
   const card=document.createElement('div');
   card.className='item-card';
-  card.innerHTML=`
-    <div class='media'>
-      <img src="${img}" alt="${it.name}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;" />
-      ${out? `<span class='badge low'>AGOTADO</span>`: low? `<span class='badge'>BAJO STOCK</span>`:''}
-    </div>
-    <div class='item-name'>${it.name}</div>
-    ${it.brand? `<div class='item-brand'>Marca: ${it.brand}</div>`:''}
-    <div class='item-price'>${price}</div>
-    <div class='item-tags'>${tags.map(t=>`<span>${t}</span>`).join('')}</div>
-    <div class='card-actions'>
-      <button class='px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900' data-detail='${it.id}'>Ver</button>
-      <button data-add='${it.id}' ${out? 'disabled':''}>Agregar</button>
-    </div>`;
+  
+  // Cargar template de card de item público
+  if (window.TemplateLoader && window.TemplateRenderer) {
+    const templateEl = await window.TemplateLoader.loadTemplate('components/item-card-public.html');
+    if (templateEl) {
+      const templateHtml = templateEl.outerHTML;
+      const renderedHtml = window.TemplateRenderer.renderTemplate(templateHtml, {
+        image: img,
+        name: it.name,
+        brand: it.brand,
+        price: price,
+        tags: tagsHtml,
+        id: it.id,
+        low: low,
+        out: out
+      }, { safe: true }); // safe: true para permitir HTML en tags
+      card.innerHTML = renderedHtml;
+    } else {
+      // Fallback
+      card.innerHTML=`
+        <div class='media'>
+          <img src="${img}" alt="${it.name}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;" />
+          ${out? `<span class='badge low'>AGOTADO</span>`: low? `<span class='badge'>BAJO STOCK</span>`:''}
+        </div>
+        <div class='item-name'>${it.name}</div>
+        ${it.brand? `<div class='item-brand'>Marca: ${it.brand}</div>`:''}
+        <div class='item-price'>${price}</div>
+        <div class='item-tags'>${tagsHtml}</div>
+        <div class='card-actions'>
+          <button class='px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900' data-detail='${it.id}'>Ver</button>
+          <button data-add='${it.id}' ${out? 'disabled':''}>Agregar</button>
+        </div>`;
+    }
+  } else {
+    // Fallback si las utilidades no están disponibles
+    card.innerHTML=`
+      <div class='media'>
+        <img src="${img}" alt="${it.name}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;" />
+        ${out? `<span class='badge low'>AGOTADO</span>`: low? `<span class='badge'>BAJO STOCK</span>`:''}
+      </div>
+      <div class='item-name'>${it.name}</div>
+      ${it.brand? `<div class='item-brand'>Marca: ${it.brand}</div>`:''}
+      <div class='item-price'>${price}</div>
+      <div class='item-tags'>${tagsHtml}</div>
+      <div class='card-actions'>
+        <button class='px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900' data-detail='${it.id}'>Ver</button>
+        <button data-add='${it.id}' ${out? 'disabled':''}>Agregar</button>
+      </div>`;
+  }
+  
   card.querySelector('[data-add]')?.addEventListener('click', ()=>addToCart(it));
   card.querySelector('[data-detail]')?.addEventListener('click', ()=>openDetail(it.id));
   return card;
 }
-function renderItems(){ const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination'); if(!grid||!pag) return; grid.innerHTML=''; if(!state.items.length){ grid.innerHTML="<div class='empty'>No hay ítems publicados para esta empresa.</div>"; pag.innerHTML=''; return; } state.items.forEach(it=> grid.appendChild(buildItemCard(it))); renderPagination(); }
+async function renderItems(){ 
+  const grid=document.getElementById('itemsGrid'); 
+  const pag=document.getElementById('pagination'); 
+  if(!grid||!pag) return; 
+  grid.innerHTML=''; 
+  if(!state.items.length){ 
+    // Cargar template de mensaje vacío
+    if (window.TemplateLoader && window.TemplateRenderer) {
+      const templateEl = await window.TemplateLoader.loadTemplate('components/empty-items-public.html');
+      if (templateEl) {
+        grid.innerHTML = templateEl.outerHTML;
+      } else {
+        grid.innerHTML="<div class='empty'>No hay ítems publicados para esta empresa.</div>";
+      }
+    } else {
+      grid.innerHTML="<div class='empty'>No hay ítems publicados para esta empresa.</div>";
+    }
+    pag.innerHTML=''; 
+    return; 
+  } 
+  for (const it of state.items) {
+    const card = await buildItemCard(it);
+    grid.appendChild(card);
+  }
+  renderPagination(); 
+}
 function renderPagination(){ const pag=document.getElementById('pagination'); pag.innerHTML=''; const { page=1 }=state.filters; const pages=state.meta.pages||1; function makeBtn(p){ const b=document.createElement('button'); b.textContent=String(p); if(p===page) b.disabled=true; b.onclick=()=>{ state.filters.page=p; loadItems();}; return b;} if(pages<=1) return; let start=Math.max(1,page-4); let end=Math.min(pages,start+9); if(end-start<9){ start=Math.max(1,end-9);} if(page>1){ const prev=document.createElement('button'); prev.textContent='«'; prev.onclick=()=>{ state.filters.page=Math.max(1,page-1); loadItems();}; pag.appendChild(prev);} for(let p=start;p<=end;p++){ pag.appendChild(makeBtn(p)); } if(page<pages){ const next=document.createElement('button'); next.textContent='»'; next.onclick=()=>{ state.filters.page=Math.min(pages,page+1); loadItems();}; pag.appendChild(next);} }
 
-function updateCartUI(){ const listEl=document.getElementById('cartItems'); const countEl=document.getElementById('cartCount'); const totalEl=document.getElementById('cartTotal'); const checkoutBtn=document.getElementById('cartCheckout'); const badge=document.getElementById('cartBadge'); if(!listEl||!countEl||!totalEl||!checkoutBtn) return; let total=0; let count=0; state.cart.forEach(entry=>{ total+=(entry.item.price||0)*entry.qty; count+=entry.qty; }); countEl.textContent=String(count); totalEl.textContent=money(total); checkoutBtn.disabled=count===0; if(badge){ if(count>0){ badge.style.display='block'; badge.textContent=String(count);} else { badge.style.display='none'; } } listEl.innerHTML=''; if(state.cart.size===0){ listEl.innerHTML='<div class="text-center py-12 text-slate-400 dark:text-slate-400 theme-light:text-slate-500 italic">El carrito está vacío</div>'; return; } state.cart.forEach(({item,qty})=>{ const row=document.createElement('div'); row.className='cart-item'; const itemPrice=money(item.price||0); const subtotal=money((item.price||0)*qty); row.innerHTML=`<span style='flex:1;font-weight:500;'>${item.name}</span><span style='font-size:12px;opacity:0.8;white-space:nowrap;'>${itemPrice} c/u</span><input type='number' min='1' step='1' value='${qty}' data-id='${item.id}' style='width:70px;padding:6px 8px;border:1px solid rgba(148,163,184,0.3);border-radius:6px;background:rgba(15,23,42,0.5);color:white;text-align:center;font-size:14px;' /><span style='font-weight:600;min-width:100px;text-align:right;white-space:nowrap;'>${subtotal}</span><button class='danger' data-rm='${item.id}' style='width:32px;height:32px;padding:0;border-radius:6px;background:rgba(239,68,68,0.8);color:white;border:0;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center;'>×</button>`; const input=row.querySelector('input'); input.onchange=e=>{ const v=parseInt(e.target.value||'1',10); if(v<1){ e.target.value='1'; state.cart.get(item.id).qty=1;} else { state.cart.get(item.id).qty=Math.min(Math.max(1,v),999);} updateCartUI();}; input.onblur=e=>{ if(!e.target.value||parseInt(e.target.value,10)<1){ e.target.value='1'; state.cart.get(item.id).qty=1; updateCartUI();}}; row.querySelector('[data-rm]').onclick=()=>{ state.cart.delete(item.id); updateCartUI();}; listEl.appendChild(row); }); }
-function addToCart(it){ const existing=state.cart.get(it.id); if(existing){ existing.qty=Math.min(existing.qty+1,999);} else { state.cart.set(it.id,{ item:it, qty:1 }); } updateCartUI(); }
+async function updateCartUI(){ 
+  const listEl=document.getElementById('cartItems'); 
+  const countEl=document.getElementById('cartCount'); 
+  const totalEl=document.getElementById('cartTotal'); 
+  const checkoutBtn=document.getElementById('cartCheckout'); 
+  const badge=document.getElementById('cartBadge'); 
+  if(!listEl||!countEl||!totalEl||!checkoutBtn) return; 
+  let total=0; 
+  let count=0; 
+  state.cart.forEach(entry=>{ total+=(entry.item.price||0)*entry.qty; count+=entry.qty; }); 
+  countEl.textContent=String(count); 
+  totalEl.textContent=money(total); 
+  checkoutBtn.disabled=count===0; 
+  if(badge){ 
+    if(count>0){ 
+      badge.classList.add('js-show-inline-block');
+      badge.classList.remove('js-hide');
+      badge.textContent=String(count);
+    } else { 
+      badge.classList.add('js-hide');
+      badge.classList.remove('js-show-inline-block');
+    } 
+  } 
+  listEl.innerHTML=''; 
+  if(state.cart.size===0){ 
+    // Cargar template de carrito vacío
+    if (window.TemplateLoader && window.TemplateRenderer) {
+      const templateEl = await window.TemplateLoader.loadTemplate('components/cart-empty.html');
+      if (templateEl) {
+        listEl.innerHTML = templateEl.outerHTML;
+      } else {
+        listEl.innerHTML='<div class="text-center py-12 text-slate-400 dark:text-slate-400 theme-light:text-slate-500 italic">El carrito está vacío</div>';
+      }
+    } else {
+      listEl.innerHTML='<div class="text-center py-12 text-slate-400 dark:text-slate-400 theme-light:text-slate-500 italic">El carrito está vacío</div>';
+    }
+    return; 
+  } 
+  for (const {item,qty} of state.cart.values()) {
+    const row=document.createElement('div'); 
+    row.className='cart-item'; 
+    const itemPrice=money(item.price||0); 
+    const subtotal=money((item.price||0)*qty); 
+    
+    // Cargar template de fila de carrito público
+    if (window.TemplateLoader && window.TemplateRenderer) {
+      const templateEl = await window.TemplateLoader.loadTemplate('components/cart-row-public.html');
+      if (templateEl) {
+        const templateHtml = templateEl.outerHTML;
+        row.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, {
+          name: item.name,
+          itemPrice: itemPrice,
+          qty: qty,
+          id: item.id,
+          subtotal: subtotal
+        });
+      } else {
+        // Fallback
+        row.innerHTML=`<span style='flex:1;font-weight:500;'>${item.name}</span><span style='font-size:12px;opacity:0.8;white-space:nowrap;'>${itemPrice} c/u</span><input type='number' min='1' step='1' value='${qty}' data-id='${item.id}' style='width:70px;padding:6px 8px;border:1px solid rgba(148,163,184,0.3);border-radius:6px;background:rgba(15,23,42,0.5);color:white;text-align:center;font-size:14px;' /><span style='font-weight:600;min-width:100px;text-align:right;white-space:nowrap;'>${subtotal}</span><button class='danger' data-rm='${item.id}' style='width:32px;height:32px;padding:0;border-radius:6px;background:rgba(239,68,68,0.8);color:white;border:0;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center;'>×</button>`;
+      }
+    } else {
+      // Fallback si las utilidades no están disponibles
+      row.innerHTML=`<span style='flex:1;font-weight:500;'>${item.name}</span><span style='font-size:12px;opacity:0.8;white-space:nowrap;'>${itemPrice} c/u</span><input type='number' min='1' step='1' value='${qty}' data-id='${item.id}' style='width:70px;padding:6px 8px;border:1px solid rgba(148,163,184,0.3);border-radius:6px;background:rgba(15,23,42,0.5);color:white;text-align:center;font-size:14px;' /><span style='font-weight:600;min-width:100px;text-align:right;white-space:nowrap;'>${subtotal}</span><button class='danger' data-rm='${item.id}' style='width:32px;height:32px;padding:0;border-radius:6px;background:rgba(239,68,68,0.8);color:white;border:0;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center;'>×</button>`;
+    }
+    
+    const input=row.querySelector('input'); 
+    input.onchange=async e=>{ const v=parseInt(e.target.value||'1',10); if(v<1){ e.target.value='1'; state.cart.get(item.id).qty=1;} else { state.cart.get(item.id).qty=Math.min(Math.max(1,v),999);} await updateCartUI();}; 
+    input.onblur=async e=>{ if(!e.target.value||parseInt(e.target.value,10)<1){ e.target.value='1'; state.cart.get(item.id).qty=1; await updateCartUI();}}; 
+    row.querySelector('[data-rm]').onclick=async ()=>{ state.cart.delete(item.id); await updateCartUI();}; 
+    listEl.appendChild(row); 
+  } 
+}
+async function addToCart(it){ const existing=state.cart.get(it.id); if(existing){ existing.qty=Math.min(existing.qty+1,999);} else { state.cart.set(it.id,{ item:it, qty:1 }); } await updateCartUI(); }
 
 async function openDetail(id){
   try{
@@ -88,27 +222,55 @@ async function openDetail(id){
           <button class='px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900' id='d-close'>Cerrar</button>
         </div>
       </div>`;
-    openModal(content);
+    await openModal(content);
     document.getElementById('d-close').onclick=closeModal;
-    document.getElementById('d-add').onclick=()=>{ addToCart(it); closeModal(); };
+    document.getElementById('d-add').onclick=async ()=>{ await addToCart(it); closeModal(); };
   }catch(e){ alert('Error detalle: '+ e.message); }
 }
 
-function ensureModal(){ 
+async function ensureModal(){ 
   let m=document.getElementById('public-modal'); 
   if(m) return m; 
   m=document.createElement('div'); 
   m.id='public-modal'; 
   m.className='fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm'; 
-  m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-3xl w-full max-h-[90vh] overflow-auto p-6 custom-scrollbar"><button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button></div>'; 
+  
+  // Cargar template de modal público
+  if (window.TemplateLoader && window.TemplateRenderer) {
+    const templateEl = await window.TemplateLoader.loadTemplate('modals/public-modal.html');
+    if (templateEl) {
+      const templateHtml = templateEl.outerHTML;
+      m.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, { content: '' }, { safe: true });
+    } else {
+      // Fallback
+      m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-3xl w-full max-h-[90vh] overflow-auto p-6 custom-scrollbar"><button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button></div>';
+    }
+  } else {
+    // Fallback si las utilidades no están disponibles
+    m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-3xl w-full max-h-[90vh] overflow-auto p-6 custom-scrollbar"><button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button></div>';
+  }
+  
   document.body.appendChild(m); 
   return m; 
 }
-function openModal(html){ 
-  const m=ensureModal(); 
+async function openModal(html){ 
+  const m=await ensureModal(); 
   const box=m.querySelector('#public-modal-box'); 
   const closeBtn=m.querySelector('#public-modal-close');
-  box.innerHTML= html + '<button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>'; 
+  
+  // Actualizar contenido del modal
+  if (window.TemplateLoader && window.TemplateRenderer) {
+    const templateEl = await window.TemplateLoader.loadTemplate('modals/public-modal.html');
+    if (templateEl) {
+      const templateHtml = templateEl.outerHTML;
+      box.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, { content: html }, { safe: true });
+    } else {
+      box.innerHTML= html + '<button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>';
+    }
+  } else {
+    box.innerHTML= html + '<button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>';
+  }
+  
   m.classList.remove('hidden'); 
   
   const closeModalHandler = () => {
@@ -164,7 +326,21 @@ async function loadItems(){
   if(!state.companyId){ alert('Falta companyId'); return; }
   try{
     const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination');
-    if(grid){ grid.innerHTML = Array.from({length:8}).map(()=>`<div class='item-card'><div class='media'><div class='skeleton' style='width:100%;aspect-ratio:4/3;border-radius:10px;'></div></div><div class='skeleton' style='height:16px;margin:10px 0 6px;border-radius:6px;'></div><div class='skeleton' style='height:14px;width:60%;border-radius:6px;'></div></div>`).join(''); if(pag) pag.innerHTML=''; }
+    if(grid){ 
+      // Cargar template de skeleton cards
+      if (window.TemplateLoader && window.TemplateRenderer) {
+        const templateEl = await window.TemplateLoader.loadTemplate('components/skeleton-card.html');
+        if (templateEl) {
+          const templateHtml = templateEl.outerHTML;
+          grid.innerHTML = Array.from({length:8}).map(() => templateHtml).join('');
+        } else {
+          grid.innerHTML = Array.from({length:8}).map(()=>`<div class='item-card'><div class='media'><div class='skeleton' style='width:100%;aspect-ratio:4/3;border-radius:10px;'></div></div><div class='skeleton' style='height:16px;margin:10px 0 6px;border-radius:6px;'></div><div class='skeleton' style='height:14px;width:60%;border-radius:6px;'></div></div>`).join('');
+        }
+      } else {
+        grid.innerHTML = Array.from({length:8}).map(()=>`<div class='item-card'><div class='media'><div class='skeleton' style='width:100%;aspect-ratio:4/3;border-radius:10px;'></div></div><div class='skeleton' style='height:16px;margin:10px 0 6px;border-radius:6px;'></div><div class='skeleton' style='height:14px;width:60%;border-radius:6px;'></div></div>`).join('');
+      }
+      if(pag) pag.innerHTML=''; 
+    }
     const q= toQuery(state.filters);
     const data= await fetchJSON(`/api/v1/public/catalog/${state.companyId}/items${q}`);
     let items=data.data||[]; state.meta=data.meta||{};
@@ -175,12 +351,23 @@ async function loadItems(){
     else if(order==='price-desc') items.sort((a,b)=> (b.price||0)-(a.price||0));
     else if(order==='name-asc') items.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||'')));
     // recent is default; keep backend order
-    state.items = items; renderItems();
+    state.items = items; await renderItems();
   }catch(e){
     console.error(e);
     const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination');
     if(grid){
-      grid.innerHTML = `<div class='empty'>${(e?.message||'Error cargando catálogo')}</div>`;
+      // Cargar template de mensaje de error
+      if (window.TemplateLoader && window.TemplateRenderer) {
+        const templateEl = await window.TemplateLoader.loadTemplate('components/error-message.html');
+        if (templateEl) {
+          const templateHtml = templateEl.outerHTML;
+          grid.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, { message: e?.message||'Error cargando catálogo' });
+        } else {
+          grid.innerHTML = `<div class='empty'>${(e?.message||'Error cargando catálogo')}</div>`;
+        }
+      } else {
+        grid.innerHTML = `<div class='empty'>${(e?.message||'Error cargando catálogo')}</div>`;
+      }
       if(pag) pag.innerHTML='';
     } else {
       alert('Error cargando catálogo: '+ e.message);
@@ -228,7 +415,8 @@ function bindCheckoutEvents(){ const form=document.getElementById('checkoutForm'
     if(state.companyInfo?.whatsAppNumber && waEl){
       const wa = state.companyInfo.whatsAppNumber.replace(/[^0-9+]/g,'');
       waEl.href = `https://wa.me/${wa}?text=${encodeURIComponent('Hola, tengo una consulta del catálogo.')}`;
-      waEl.style.display = 'inline-block';
+      waEl.classList.add('js-show-inline-block');
+      waEl.classList.remove('js-hide');
     }
   }catch{}
   readFilters();

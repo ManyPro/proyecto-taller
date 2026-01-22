@@ -1,49 +1,18 @@
 /* ==========================================
    CSS VARIABLES - DESIGN SYSTEM
+   Sistema completo de variables para toda la aplicación
    ========================================== */
 
 :root {
-  /* Colors - Primary */
-  --color-primary: #2196f3;
-  --color-primary-dark: #1976d2;
-  --color-primary-light: #e3f2fd;
-  
-  /* Colors - Secondary */
-  --color-secondary: #667eea;
-  --color-secondary-dark: #764ba2;
-  
-  /* Colors - Success */
-  --color-success: #4caf50;
-  --color-success-dark: #388e3c;
-  --color-success-light: #e8f5e8;
-  --color-success-lighter: #f8fff8;
-  --success: #10b981;
-  
-  /* Colors - Error */
-  --color-error: #dc3545;
-  --color-error-dark: #c82333;
-  --color-error-light: #f8d7da;
-  
-  /* Colors - Warning */
-  --color-warning: #ffc107;
-  --color-warning-dark: #e0a800;
-  
-  /* Colors - Neutral */
-  --color-dark: #2c3e50;
-  --color-gray: #6c757d;
-  --color-gray-dark: #5a6268;
-  --color-gray-light: #f5f5f5;
-  --color-gray-lighter: #f8f9fa;
-  --color-gray-border: #e0e0e0;
-  --color-text: #333;
-  --color-text-muted: #666;
-  --color-text-light: #999;
-  
-  /* Colors - System */
-  --color-white: #ffffff;
-  --color-black: rgba(0, 0, 0, 0.87);
-  
-  /* Spacing */
+  /* ===== BREAKPOINTS (Mobile First) ===== */
+  --breakpoint-xs: 480px;    /* Móviles pequeños */
+  --breakpoint-sm: 640px;    /* Móviles grandes */
+  --breakpoint-md: 768px;    /* Tablets */
+  --breakpoint-lg: 1024px;   /* Laptops */
+  --breakpoint-xl: 1280px;   /* Desktops */
+  --breakpoint-2xl: 1536px;  /* Desktops grandes */
+
+  /* ===== SPACING SYSTEM ===== */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
@@ -52,17 +21,23 @@
   --spacing-2xl: 24px;
   --spacing-3xl: 30px;
   --spacing-4xl: 40px;
-  
-  /* Border Radius */
-  --radius-sm: 4px;
+  --spacing-5xl: 48px;
+  --spacing-6xl: 64px;
+
+  /* ===== BORDER RADIUS ===== */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-2xl: 20px;
   --radius-round: 50%;
-  --radius-pill: 20px;
+  --radius-pill: 9999px;
+
+  /* ===== TYPOGRAPHY ===== */
+  --font-family-primary: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+  --font-family-mono: 'Courier New', Courier, monospace;
   
-  /* Typography */
-  --font-family-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-base: 14px;
@@ -73,26 +48,78 @@
   --font-size-4xl: 32px;
   --font-size-5xl: 48px;
   
+  --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
   
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(33, 150, 243, 0.15);
-  --shadow-md: 0 4px 12px rgba(33, 150, 243, 0.15);
-  --shadow-lg: 0 4px 20px rgba(33, 150, 243, 0.2);
-  --shadow-xl: 0 10px 30px rgba(0, 0, 0, 0.2);
-  --shadow-success: 0 4px 16px rgba(76, 175, 80, 0.2);
-  --shadow-success-hover: 0 6px 20px rgba(76, 175, 80, 0.3);
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* ===== SHADOWS ===== */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 10px 30px rgba(0, 0, 0, 0.25);
+  --shadow-2xl: 0 20px 40px rgba(0, 0, 0, 0.3);
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* ===== TRANSITIONS ===== */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+  --transition-slower: 0.5s ease;
   
-  /* Transitions */
-  --transition-fast: 0.2s ease;
-  --transition-normal: 0.3s ease;
-  --transition-slow: 0.5s ease;
-  
-  /* Z-Index */
+  --transition-all: all var(--transition-normal);
+  --transition-colors: color var(--transition-normal), background-color var(--transition-normal), border-color var(--transition-normal);
+  --transition-transform: transform var(--transition-normal);
+  --transition-opacity: opacity var(--transition-normal);
+
+  /* ===== Z-INDEX LAYERS ===== */
+  --z-base: 0;
   --z-dropdown: 1000;
-  --z-modal: 10000;
-  --z-tooltip: 20000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+
+  /* ===== CONTAINER SIZES ===== */
+  --container-xs: 100%;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1400px;
+  --container-max: 1536px;
+
+  /* ===== MODAL SIZES ===== */
+  --modal-sm: 400px;
+  --modal-md: 600px;
+  --modal-lg: 900px;
+  --modal-xl: 1200px;
+  --modal-2xl: 1400px;
+  --modal-full: 95vw;
+
+  /* ===== NAVIGATION ===== */
+  --nav-height-desktop: 64px;
+  --nav-height-mobile: 56px;
+  --nav-padding-horizontal-desktop: 16px;
+  --nav-padding-horizontal-mobile: 12px;
+
+  /* ===== PAGE CONTENT ===== */
+  --page-padding-desktop: 24px;
+  --page-padding-tablet: 16px;
+  --page-padding-mobile: 12px;
+  --page-max-width: 1400px;
+
+  /* ===== SCROLLBAR ===== */
+  --scrollbar-width: 8px;
+  --scrollbar-width-thin: 4px;
 }

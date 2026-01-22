@@ -1121,7 +1121,8 @@ window.saveLoanPaymentAmount = function(technicianName) {
   if (card) {
     card.style.borderColor = '#10b981';
     setTimeout(() => {
-    card.style.borderColor = '#3b82f6';
+    card.classList.add('js-border-primary');
+    card.classList.remove('js-border-success');
     }, 1000);
   }
 };
@@ -1148,7 +1149,12 @@ window.saveLoanPaymentFromPreview = function(loanId, inputId) {
     const originalBorder = card.style.borderColor || 'rgba(148, 163, 184, 0.5)';
     card.style.borderColor = '#10b981';
     setTimeout(() => {
-      card.style.borderColor = originalBorder;
+      // Restaurar clases originales
+      if (hadSuccess) card.classList.add('js-border-success');
+      if (hadPrimary) card.classList.add('js-border-primary');
+      if (!hadSuccess && !hadPrimary) {
+        card.classList.remove('js-border-success', 'js-border-primary');
+      }
     }, 1000);
   }
   
@@ -1718,8 +1724,12 @@ function updateSettlementInfo(){
   
   const selectedOption = select.options[select.selectedIndex];
   if (!selectedOption || !selectedOption.value) {
-    infoEl.style.display = 'none';
-    if (paymentsContainer) paymentsContainer.style.display = 'none';
+    infoEl.classList.add('js-hide');
+    infoEl.classList.remove('js-show');
+    if (paymentsContainer) {
+      paymentsContainer.classList.add('js-hide');
+      paymentsContainer.classList.remove('js-show');
+    }
     if (dateInput) dateInput.value = '';
     partialPayments = [];
     currentSettlementNetTotal = 0;
@@ -1763,11 +1773,18 @@ function updateSettlementInfo(){
       </div>
     </div>
   `;
-  infoEl.style.display = 'block';
+  infoEl.classList.add('js-show');
+  infoEl.classList.remove('js-hide');
   
   // Mostrar contenedor de pagos parciales
   if (paymentsContainer) {
-    paymentsContainer.style.display = remainingAmount > 0 ? 'block' : 'none';
+    if (remainingAmount > 0) {
+      paymentsContainer.classList.add('js-show');
+      paymentsContainer.classList.remove('js-hide');
+    } else {
+      paymentsContainer.classList.add('js-hide');
+      paymentsContainer.classList.remove('js-show');
+    }
     updatePaymentsList();
     updatePaymentsSummary();
   }

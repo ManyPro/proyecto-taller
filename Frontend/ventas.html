@@ -33,24 +33,8 @@
       }
     }
   </script>
-  <style>
-    /* Zoom global del 85% para toda la página */
-    html {
-      zoom: 0.85;
-      -moz-transform: scale(0.85);
-      -moz-transform-origin: 0 0;
-    }
-    @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      html {
-        zoom: 0.85;
-      }
-    }
-    
-    /* Estilos para navegación interna y vistas */
-    .sales-view {
-      display: block;
-    }
-    .sales-view.hidden {
+  <!-- Main CSS - Sistema unificado de estilos -->
+  <link rel="stylesheet" href="assets/css/main.css" />
       display: none;
     }
     .sales-nav-btn.active {
@@ -579,10 +563,6 @@
       #brandLogo, img[alt="M&M logo"], img[src*="lightlogo"], img[src*="logo"] { max-height: 2.5rem !important; max-width: 8rem !important; height: auto !important; width: auto !important; }
       .rounded-xl { border-radius: 0.5rem !important; }
       .rounded-2xl { border-radius: 0.75rem !important; }
-      .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; }
-      .shadow-xl { box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important; }
-    }
-  </style>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />

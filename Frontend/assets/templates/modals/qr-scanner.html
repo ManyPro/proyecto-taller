@@ -1,0 +1,16 @@
+<div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-[90vw] max-h-[90vh] w-[600px] overflow-auto custom-scrollbar">
+  <button class="close absolute top-2 right-2 text-2xl bg-transparent border-none text-white dark:text-white theme-light:text-slate-900 cursor-pointer p-1 px-3 hover:opacity-70 transition-opacity" id="qr-close-single">&times;</button>
+  <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4 mt-0">Escanear código QR</h3>
+  <div class="relative w-full bg-black rounded-lg overflow-hidden mb-3 min-h-[300px]">
+    <video id="qr-video-single" playsinline muted autoplay class="w-full h-auto block object-contain"></video>
+    <canvas id="qr-canvas-single" class="hidden"></canvas>
+  </div>
+  <div class="mb-3">
+    <input id="qr-manual-single" placeholder="O ingresa el código manualmente" class="w-full p-2 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+  </div>
+  <div id="qr-msg-single" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2"></div>
+  <div class="flex gap-2">
+    <button id="qr-start-camera-single" class="primary flex-1 py-2.5 js-hide">▶ Iniciar cámara</button>
+    <button id="qr-cancel-single" class="secondary flex-1 py-2.5">Cancelar</button>
+  </div>
+</div>

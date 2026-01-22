@@ -446,7 +446,7 @@ export function initNotes() {
     document.body.appendChild(notification);
 
     setTimeout(() => {
-      notification.style.animation = "slideOutToRight 0.3s ease-in";
+      notification.classList.add('js-animation-slide-out');
       setTimeout(() => {
         if (notification.parentNode) {
           notification.remove();

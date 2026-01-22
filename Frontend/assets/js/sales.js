@@ -237,7 +237,7 @@ function printSaleTicket(sale, documentType = 'remission'){
             const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
             const modal = document.createElement('div');
             modal.id = 'page-size-modal';
-            modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+            modal.className = 'js-modal-overlay';
             modal.innerHTML = \`
               <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
                 <div style="text-align: center; margin-bottom: 1.5rem;">
@@ -284,8 +284,12 @@ function printSaleTicket(sale, documentType = 'remission'){
               window.close();
             };
             setTimeout(() => {
-              modal.style.opacity = '1';
-              if (modalContent) modalContent.style.transform = 'scale(1)';
+              modal.classList.remove('js-opacity-0');
+              modal.classList.add('js-opacity-1', 'js-transition-opacity');
+              if (modalContent) {
+                modalContent.classList.remove('js-scale-95');
+                modalContent.classList.add('js-scale-100', 'js-transition-transform');
+              }
             }, 10);
           }
           
@@ -514,7 +518,7 @@ function printSaleTicket(sale, documentType = 'remission'){
                     
                     const modal = document.createElement('div');
                     modal.id = 'page-size-modal';
-                    modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+                    modal.className = 'js-modal-overlay';
                     modal.innerHTML = \`
                     <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
                       <div style="text-align: center; margin-bottom: 1.5rem;">
@@ -550,9 +554,11 @@ function printSaleTicket(sale, documentType = 'remission'){
                   const cancelBtn = document.getElementById('page-size-cancel');
                   
                   const closeModal = () => {
-                    modal.style.opacity = '0';
+                    modal.classList.remove('js-opacity-1');
+                    modal.classList.add('js-opacity-0');
                     if (modalContent) {
-                      modalContent.style.transform = 'scale(0.95)';
+                      modalContent.classList.remove('js-scale-100');
+                      modalContent.classList.add('js-scale-95');
                     }
                     setTimeout(() => {
                       modal.remove();
@@ -573,9 +579,11 @@ function printSaleTicket(sale, documentType = 'remission'){
                   
                     // Animación de entrada
                     setTimeout(() => {
-                      modal.style.opacity = '1';
+                      modal.classList.remove('js-opacity-0');
+                      modal.classList.add('js-opacity-1', 'js-transition-opacity');
                       if (modalContent) {
-                        modalContent.style.transform = 'scale(1)';
+                        modalContent.classList.remove('js-scale-95');
+                        modalContent.classList.add('js-scale-100', 'js-transition-transform');
                       }
                     }, 10);
                   }
@@ -928,7 +936,7 @@ function printWorkOrder(){
           const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
           const modal = document.createElement('div');
           modal.id = 'page-size-modal';
-          modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+          modal.className = 'js-modal-overlay';
           modal.innerHTML = \`
             <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
               <div style="text-align: center; margin-bottom: 1.5rem;">
@@ -975,8 +983,12 @@ function printWorkOrder(){
               window.close();
             };
             setTimeout(() => {
-              modal.style.opacity = '1';
-              if (modalContent) modalContent.style.transform = 'scale(1)';
+              modal.classList.remove('js-opacity-0');
+              modal.classList.add('js-opacity-1', 'js-transition-opacity');
+              if (modalContent) {
+                modalContent.classList.remove('js-scale-95');
+                modalContent.classList.add('js-scale-100', 'js-transition-transform');
+              }
             }, 10);
           }
           
@@ -2081,8 +2093,7 @@ async function openMaintenanceServicesModal() {
       // Función helper para agregar eventos touch y click
       const addTouchAndClick = (element, handler) => {
         if (!element) return;
-        element.style.touchAction = 'manipulation';
-        element.style.webkitTapHighlightColor = 'transparent';
+        element.classList.add('js-touch-optimized');
         element.addEventListener('click', handler);
         element.addEventListener('touchend', (e) => {
           e.preventDefault();
@@ -2426,7 +2437,8 @@ async function openMaintenanceServicesModal() {
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.style.display = 'none';
+              a.classList.add('js-hide');
+              a.classList.remove('js-show');
               
               // Nombre del archivo: ACEITE - [PLACA]
               const plate = current.vehicle?.plate || 'SIN-PLACA';
@@ -2631,7 +2643,8 @@ function fillCloseModal(){
   if(current){
     if(current.initialTechnician){
       if(initialTechLabel){
-        initialTechLabel.style.display='block';
+        initialTechLabel.classList.add('js-show');
+        initialTechLabel.classList.remove('js-hide');
         initialTechLabel.textContent = 'Asignado al inicio: ' + current.initialTechnician;
       }
       techSel.value = current.technician || current.initialTechnician;
@@ -2874,7 +2887,7 @@ function fillCloseModal(){
     function updateEmptyMessage() {
       const rows = Array.from(tbody.querySelectorAll('tr')).filter(tr => {
         // Filtrar filas ocultas y filas de mensaje vacío
-        return !tr.querySelector('td[colspan]') && tr.style.display !== 'none';
+        return !tr.querySelector('td[colspan]') && !tr.classList.contains('js-hide');
       });
       
       const emptyRow = tbody.querySelector('tr td[colspan]');
@@ -3126,12 +3139,18 @@ function fillCloseModal(){
       
       if (isCredit) {
         // Ocultar selector de cuenta para crédito
-        if (accountCell) accountCell.style.display = 'none';
+        if (accountCell) {
+          accountCell.classList.add('js-hide');
+          accountCell.classList.remove('js-show');
+        }
         pay.accountId = null; // Limpiar accountId cuando es crédito
         if (aSel) aSel.value = ''; // Limpiar el select
       } else {
         // Mostrar selector de cuenta para otros métodos
-        if (accountCell) accountCell.style.display = '';
+        if (accountCell) {
+          accountCell.classList.add('js-show');
+          accountCell.classList.remove('js-hide');
+        }
       }
     }
     
@@ -3323,9 +3342,7 @@ function fillCloseModal(){
       newBtn.addEventListener('click', handleSurveyEvent);
       
       // Asegurar que el botón sea clickeable y visible en móvil
-      newBtn.style.cursor = 'pointer';
-      newBtn.style.pointerEvents = 'auto';
-      newBtn.style.touchAction = 'manipulation';
+      newBtn.classList.add('js-cursor-pointer');
       newBtn.style.userSelect = 'none';
       newBtn.style.webkitUserSelect = 'none';
       newBtn.style.webkitTapHighlightColor = 'transparent';
@@ -3704,7 +3721,18 @@ function setupInvestmentSection() {
       if (!pricesList) return;
       
       try {
-      pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>';
+      // Cargar template de mensaje de carga
+      if (window.TemplateLoader && window.TemplateRenderer) {
+        const templateEl = await window.TemplateLoader.loadTemplate('components/loading-message.html');
+        if (templateEl) {
+          const templateHtml = templateEl.outerHTML;
+          pricesList.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, { message: 'Cargando...' });
+        } else {
+          pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>';
+        }
+      } else {
+        pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>';
+      }
       
       const params = {
         page: currentPage,
@@ -3741,24 +3769,71 @@ function setupInvestmentSection() {
       totalPages = data?.pages || 1;
       
       if (prices.length === 0) {
-        pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">No hay precios de inversión disponibles</div>';
+        // Cargar template de mensaje vacío
+        if (window.TemplateLoader && window.TemplateRenderer) {
+          const templateEl = await window.TemplateLoader.loadTemplate('components/empty-message.html');
+          if (templateEl) {
+            const templateHtml = templateEl.outerHTML;
+            pricesList.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, { message: 'No hay precios de inversión disponibles' });
+          } else {
+            pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">No hay precios de inversión disponibles</div>';
+          }
+        } else {
+          pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">No hay precios de inversión disponibles</div>';
+        }
       } else {
-        pricesList.innerHTML = prices.map(price => {
-          const priceValue = price.total || price.price || 0;
-          return `
-            <div class="p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 cursor-pointer transition-colors" data-price-id="${price._id}" data-price-value="${priceValue}">
-              <div class="flex justify-between items-center">
-                <div>
-                  <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${escapeHtml(price.name || 'Sin nombre')}</div>
-                  <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${money(priceValue)}</div>
+        // Cargar template de item de precio de inversión
+        if (window.TemplateLoader && window.TemplateRenderer) {
+          const templateEl = await window.TemplateLoader.loadTemplate('components/investment-price-item.html');
+          if (templateEl) {
+            const templateHtml = templateEl.outerHTML;
+            pricesList.innerHTML = prices.map(price => {
+              const priceValue = price.total || price.price || 0;
+              return window.TemplateRenderer.renderTemplate(templateHtml, {
+                id: price._id,
+                value: priceValue,
+                name: escapeHtml(price.name || 'Sin nombre'),
+                priceFormatted: money(priceValue)
+              });
+            }).join('');
+          } else {
+            // Fallback
+            pricesList.innerHTML = prices.map(price => {
+              const priceValue = price.total || price.price || 0;
+              return `
+                <div class="p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 cursor-pointer transition-colors" data-price-id="${price._id}" data-price-value="${priceValue}">
+                  <div class="flex justify-between items-center">
+                    <div>
+                      <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${escapeHtml(price.name || 'Sin nombre')}</div>
+                      <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${money(priceValue)}</div>
+                    </div>
+                    <button class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-colors" data-select-price="${price._id}">
+                      Seleccionar
+                    </button>
+                  </div>
                 </div>
-                <button class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-colors" data-select-price="${price._id}">
-                  Seleccionar
-                </button>
+              `;
+            }).join('');
+          }
+        } else {
+          // Fallback si las utilidades no están disponibles
+          pricesList.innerHTML = prices.map(price => {
+            const priceValue = price.total || price.price || 0;
+            return `
+              <div class="p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 cursor-pointer transition-colors" data-price-id="${price._id}" data-price-value="${priceValue}">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${escapeHtml(price.name || 'Sin nombre')}</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${money(priceValue)}</div>
+                  </div>
+                  <button class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-colors" data-select-price="${price._id}">
+                    Seleccionar
+                  </button>
+                </div>
               </div>
-            </div>
-          `;
-        }).join('');
+            `;
+          }).join('');
+        }
         
         // Agregar event listeners a los botones de seleccionar
         pricesList.querySelectorAll('[data-select-price]').forEach(btn => {
@@ -3787,7 +3862,18 @@ function setupInvestmentSection() {
     } catch (err) {
         console.error('Error loading investment prices:', err);
         if (pricesList) {
-          pricesList.innerHTML = '<div class="text-center py-4 text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">Error al cargar precios</div>';
+          // Cargar template de mensaje de error
+          if (window.TemplateLoader && window.TemplateRenderer) {
+            const templateEl = await window.TemplateLoader.loadTemplate('components/error-message.html');
+            if (templateEl) {
+              const templateHtml = templateEl.outerHTML;
+              pricesList.innerHTML = window.TemplateRenderer.renderTemplate(templateHtml, { message: 'Error al cargar precios' });
+            } else {
+              pricesList.innerHTML = '<div class="text-center py-4 text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">Error al cargar precios</div>';
+            }
+          } else {
+            pricesList.innerHTML = '<div class="text-center py-4 text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">Error al cargar precios</div>';
+          }
         }
       }
     }
@@ -4473,7 +4559,8 @@ async function renderSale(){
     });
 
     const actions = tr.querySelector('td:last-child');
-    actions.style.display = 'flex';
+    actions.classList.add('js-show-flex');
+    actions.classList.remove('js-hide');
     actions.style.flexDirection = 'column';
     actions.style.gap = '4px';
     actions.style.alignItems = 'stretch';
@@ -6167,9 +6254,14 @@ function openQR(){
   // Manejar botón de modo single (solo un item)
   singleModeBtn?.addEventListener('click', async () => {
     multiMode = false;
-    singleModeBtn.style.display = 'none';
-    multiModeBtn.style.display = 'none';
-    if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    singleModeBtn.classList.add('js-hide');
+    singleModeBtn.classList.remove('js-show');
+    multiModeBtn.classList.add('js-hide');
+    multiModeBtn.classList.remove('js-show');
+    if (finishMultiBtn) {
+      finishMultiBtn.classList.add('js-hide');
+      finishMultiBtn.classList.remove('js-show');
+    }
     msg.textContent = 'Modo: Agregar solo un item. Escanea un código para agregarlo y cerrar.';
     await fillCams();
     await start();
@@ -6178,9 +6270,14 @@ function openQR(){
   // Manejar botón de modo múltiples
   multiModeBtn?.addEventListener('click', async () => {
     multiMode = true;
-    singleModeBtn.style.display = 'none';
-    multiModeBtn.style.display = 'none';
-    if (finishMultiBtn) finishMultiBtn.style.display = 'inline-block';
+    singleModeBtn.classList.add('js-hide');
+    singleModeBtn.classList.remove('js-show');
+    multiModeBtn.classList.add('js-hide');
+    multiModeBtn.classList.remove('js-show');
+    if (finishMultiBtn) {
+      finishMultiBtn.classList.add('js-show-inline-block');
+      finishMultiBtn.classList.remove('js-hide');
+    }
     msg.textContent = 'Modo múltiples items activado. Escanea varios items seguidos.';
     await fillCams();
     await start();
@@ -6189,9 +6286,14 @@ function openQR(){
   // Manejar botón de terminar modo múltiples
   finishMultiBtn?.addEventListener('click', () => {
     multiMode = false;
-    singleModeBtn.style.display = 'inline-block';
-    multiModeBtn.style.display = 'inline-block';
-    if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    singleModeBtn.classList.add('js-show-inline-block');
+    singleModeBtn.classList.remove('js-hide');
+    multiModeBtn.classList.add('js-show-inline-block');
+    multiModeBtn.classList.remove('js-hide');
+    if (finishMultiBtn) {
+      finishMultiBtn.classList.add('js-hide');
+      finishMultiBtn.classList.remove('js-show');
+    }
     msg.textContent = 'Modo múltiples items desactivado.';
     stop();
     closeModal();
@@ -6927,7 +7029,13 @@ async function renderInventoryView(container) {
       // Mostrar botón "Cargar más" si hay más items
       const loadMoreBtn = container.querySelector('#load-more-inventory');
       if (loadMoreBtn) {
-        loadMoreBtn.style.display = items.length >= limit ? 'block' : 'none';
+        if (items.length >= limit) {
+          loadMoreBtn.classList.add('js-show');
+          loadMoreBtn.classList.remove('js-hide');
+        } else {
+          loadMoreBtn.classList.add('js-hide');
+          loadMoreBtn.classList.remove('js-show');
+        }
       }
       
     } catch (err) {
@@ -7152,7 +7260,8 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
               <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
             </div>
           `;
-          itemSelected.style.display = 'block';
+          itemSelected.classList.add('js-show');
+          itemSelected.classList.remove('js-hide');
           // Establecer el nombre del producto con el nombre del item
           if (nameInput && item.name) {
             nameInput.value = item.name;
@@ -7198,7 +7307,8 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
                   <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
                 </div>
               `;
-              itemSelected.style.display = 'block';
+              itemSelected.classList.add('js-show');
+          itemSelected.classList.remove('js-hide');
               if (!totalInput.value || totalInput.value === '0') {
                 totalInput.value = item.salePrice || 0;
               }
@@ -7222,7 +7332,8 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
               <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
             </div>
           `;
-          itemSelected.style.display = 'block';
+          itemSelected.classList.add('js-show');
+          itemSelected.classList.remove('js-hide');
           // Establecer el nombre del producto con el nombre del item
           if (nameInput && item.name) {
             nameInput.value = item.name;
@@ -7243,7 +7354,8 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         selectedItem = null;
         itemIdInput.value = '';
         itemSearch.value = '';
-        itemSelected.style.display = 'none';
+        itemSelected.classList.add('js-hide');
+        itemSelected.classList.remove('js-show');
       };
     }
   }
@@ -7293,16 +7405,19 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       openSlotCheckbox.addEventListener('change', (e) => {
         const isChecked = e.target.checked;
         if (isChecked) {
-          itemSection.style.display = 'none';
+          itemSection.classList.add('js-hide');
+          itemSection.classList.remove('js-show');
           const itemIdInput = row.querySelector('.combo-product-item-id');
           const itemSearch = row.querySelector('.combo-product-item-search');
           const itemSelected = row.querySelector('.combo-product-item-selected');
           itemIdInput.value = '';
           itemSearch.value = '';
-          itemSelected.style.display = 'none';
+          itemSelected.classList.add('js-hide');
+        itemSelected.classList.remove('js-show');
           row.style.borderLeft = '4px solid var(--warning, #f59e0b)';
         } else {
-          itemSection.style.display = 'block';
+          itemSection.classList.add('js-show');
+          itemSection.classList.remove('js-hide');
           row.style.borderLeft = '';
         }
         updateComboTotal();
@@ -7363,14 +7478,16 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
                   <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
                 </div>
               `;
-              itemSelected.style.display = 'block';
+              itemSelected.classList.add('js-show');
+          itemSelected.classList.remove('js-hide');
               const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
               if (removeBtn2) {
                 removeBtn2.onclick = () => {
                   selectedComboItem = null;
                   itemIdInput.value = '';
                   itemSearch.value = '';
-                  itemSelected.style.display = 'none';
+                  itemSelected.classList.add('js-hide');
+        itemSelected.classList.remove('js-show');
                 };
               }
               dropdown.remove();
@@ -7435,14 +7552,16 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
                     <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
                   </div>
                 `;
-                itemSelected.style.display = 'block';
+                itemSelected.classList.add('js-show');
+          itemSelected.classList.remove('js-hide');
                 const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
                 if (removeBtn2) {
                   removeBtn2.onclick = () => {
                     selectedComboItem = null;
                     itemIdInput.value = '';
                     itemSearch.value = '';
-                    itemSelected.style.display = 'none';
+                    itemSelected.classList.add('js-hide');
+        itemSelected.classList.remove('js-show');
                   };
                 }
                 // Establecer el nombre del combo product con el nombre del item
@@ -7471,14 +7590,16 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
                 <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
               </div>
             `;
-            itemSelected.style.display = 'block';
+            itemSelected.classList.add('js-show');
+          itemSelected.classList.remove('js-hide');
             const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
             if (removeBtn2) {
               removeBtn2.onclick = () => {
                 selectedComboItem = null;
                 itemIdInput.value = '';
                 itemSearch.value = '';
-                itemSelected.style.display = 'none';
+                itemSelected.classList.add('js-hide');
+        itemSelected.classList.remove('js-show');
               };
             }
             const priceInput = row.querySelector('.combo-product-price');
@@ -8096,7 +8217,8 @@ Muchas gracias!</pre>
             // Ocultar el botón de configuración después de guardar
             const configurePostServiceBtn = document.getElementById('sales-configure-post-service');
             if (configurePostServiceBtn) {
-              configurePostServiceBtn.style.display = 'none';
+              configurePostServiceBtn.classList.add('js-hide');
+        configurePostServiceBtn.classList.remove('js-show');
             }
             
             alert('Configuración guardada exitosamente');
@@ -8529,7 +8651,8 @@ function openEditCV(){
   
   async function searchVehicles(query) {
     if (!query || query.trim().length < 1) {
-      vehicleDropdown.style.display = 'none';
+      vehicleDropdown.classList.add('js-hide');
+      vehicleDropdown.classList.remove('js-show');
       return;
     }
     try {
@@ -8537,7 +8660,8 @@ function openEditCV(){
       const vehicles = Array.isArray(r?.items) ? r.items : [];
       if (vehicles.length === 0) {
         vehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
-        vehicleDropdown.style.display = 'block';
+        vehicleDropdown.classList.add('js-show');
+        vehicleDropdown.classList.remove('js-hide');
         return;
       }
       vehicleDropdown.replaceChildren(...vehicles.map(v => {
@@ -8555,7 +8679,8 @@ function openEditCV(){
             <span style="color:var(--success, #10b981);">✓</span> 
             <strong>${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
           `;
-          vehicleDropdown.style.display = 'none';
+          vehicleDropdown.classList.add('js-hide');
+      vehicleDropdown.classList.remove('js-show');
           $('#v-brand', node).value = v.make || '';
           $('#v-line', node).value = v.line || '';
           $('#v-engine', node).value = v.displacement || '';
@@ -8581,21 +8706,25 @@ function openEditCV(){
   // Validar año contra rango del vehículo
   async function validateYear() {
     if (!selectedVehicle || !yearInput.value) {
-      yearWarning.style.display = 'none';
+      yearWarning.classList.add('js-hide');
+      yearWarning.classList.remove('js-show');
       return;
     }
     const yearNum = Number(yearInput.value);
     if (!Number.isFinite(yearNum)) {
-      yearWarning.style.display = 'none';
+      yearWarning.classList.add('js-hide');
+      yearWarning.classList.remove('js-show');
       return;
     }
     try {
       const validation = await API.vehicles.validateYear(selectedVehicle._id, yearNum);
       if (!validation.valid) {
         yearWarning.textContent = validation.message || 'Año fuera de rango';
-        yearWarning.style.display = 'block';
+        yearWarning.classList.add('js-show');
+        yearWarning.classList.remove('js-hide');
       } else {
-        yearWarning.style.display = 'none';
+        yearWarning.classList.add('js-hide');
+      yearWarning.classList.remove('js-show');
       }
     } catch (err) {
       console.error('Error al validar año:', err);
@@ -8632,7 +8761,8 @@ function openEditCV(){
   // Cerrar dropdown al hacer click fuera
   document.addEventListener('click', (e) => {
     if (vehicleSearch && !vehicleSearch.contains(e.target) && vehicleDropdown && !vehicleDropdown.contains(e.target)) {
-      vehicleDropdown.style.display = 'none';
+      vehicleDropdown.classList.add('js-hide');
+      vehicleDropdown.classList.remove('js-show');
     }
   });
   
@@ -9665,9 +9795,18 @@ export function initSales(){
     const singleModeBtn = nodeOCR.querySelector('#qr-single-mode');
     const multiModeBtn = nodeOCR.querySelector('#qr-multi-mode');
     const finishMultiBtn = nodeOCR.querySelector('#qr-finish-multi');
-    if (singleModeBtn) singleModeBtn.style.display = 'none';
-    if (multiModeBtn) multiModeBtn.style.display = 'none';
-    if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    if (singleModeBtn) {
+      singleModeBtn.classList.add('js-hide');
+      singleModeBtn.classList.remove('js-show');
+    }
+    if (multiModeBtn) {
+      multiModeBtn.classList.add('js-hide');
+      multiModeBtn.classList.remove('js-show');
+    }
+    if (finishMultiBtn) {
+      finishMultiBtn.classList.add('js-hide');
+      finishMultiBtn.classList.remove('js-show');
+    }
     
     // Variable para almacenar la placa detectada pendiente de confirmación
     let pendingPlateDetection = null;
@@ -9719,8 +9858,14 @@ export function initSales(){
       pendingPlateDetection = null;
       
       // Ocultar botón de captura y panel de confirmación
-      if (captureBtn) captureBtn.style.display = 'none';
-      if (confirmPanel) confirmPanel.style.display = 'none';
+      if (captureBtn) {
+        captureBtn.classList.add('js-hide');
+        captureBtn.classList.remove('js-show');
+      }
+      if (confirmPanel) {
+        confirmPanel.classList.add('js-hide');
+        confirmPanel.classList.remove('js-show');
+      }
       manualCaptureMode = false;
       
       // Restaurar botón de iniciar
@@ -10179,7 +10324,10 @@ export function initSales(){
               // Procesar la placa confirmada
               handlePlate(pendingPlateDetection.plate);
               // Ocultar panel y limpiar
-              if (confirmPanel) confirmPanel.style.display = 'none';
+              if (confirmPanel) {
+                confirmPanel.classList.add('js-hide');
+                confirmPanel.classList.remove('js-show');
+              }
               pendingPlateDetection = null;
             }
           };
@@ -10190,7 +10338,8 @@ export function initSales(){
             // Cancelar y volver a mostrar botón de captura
             if (confirmPanel) confirmPanel.style.display = 'none';
             if (captureBtn) {
-              captureBtn.style.display = 'block';
+              captureBtn.classList.add('js-show');
+              captureBtn.classList.remove('js-hide');
               captureBtn.disabled = false;
             }
             pendingPlateDetection = null;
@@ -11360,7 +11509,8 @@ export function initSales(){
       const prefs = await API.company.getPreferences();
       const config = prefs.postServiceMessage || {};
       if (config.ratingLink && config.ratingLink.trim()) {
-        configurePostServiceBtn.style.display = 'none';
+        configurePostServiceBtn.classList.add('js-hide');
+        configurePostServiceBtn.classList.remove('js-show');
         return; // No configurar eventos si el botón está oculto
       }
     } catch (err) {
@@ -14650,7 +14800,8 @@ async function createTechnicianReportSaleCard(sale, originalIndex, container) {
     if (isHidden) {
       // Mostrar: restaurar a posición original
       card.dataset.isHidden = 'false';
-      card.style.display = '';
+      card.classList.add('js-show');
+      card.classList.remove('js-hide');
       toggleBtn.textContent = '👁️';
       toggleBtn.title = 'Ocultar';
       
@@ -14696,7 +14847,8 @@ async function createTechnicianReportSaleCard(sale, originalIndex, container) {
       // Mover al final de la lista primero
       salesListContainer.appendChild(card);
       // Luego ocultar
-      card.style.display = 'none';
+      card.classList.add('js-hide');
+      card.classList.remove('js-show');
     }
   });
   

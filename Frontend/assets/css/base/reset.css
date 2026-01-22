@@ -2,6 +2,20 @@
    CSS RESET & BASE STYLES
    ========================================== */
 
+/* ===== ZOOM GLOBAL ===== */
+/* Zoom global del 85% para toda la página */
+html {
+  zoom: 0.85;
+  -moz-transform: scale(0.85);
+  -moz-transform-origin: 0 0;
+}
+
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  html {
+    zoom: 0.85;
+  }
+}
+
 /* Reset */
 * {
   box-sizing: border-box;
@@ -15,14 +29,21 @@ body, h1, h2, h3, h4, h5, h6, p, ul, ol, li, figure, figcaption, blockquote, dl,
 /* Base Body */
 body {
   font-family: var(--font-family-primary);
-  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
+  background-color: var(--color-bg-primary);
   margin: 0;
-  padding: var(--spacing-xl);
+  padding: 0;
   min-height: 100vh;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Desactivar scroll en páginas de login */
+body:has(#portalSection:not(.hidden)),
+body:has(#loginSection:not(.hidden)) {
+  overflow: hidden !important;
 }
 
 /* Container */

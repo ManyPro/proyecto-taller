@@ -23,10 +23,8 @@
       }
     }
   </script>
-  <style>
-    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+  <!-- Main CSS - Sistema unificado de estilos -->
+  <link rel="stylesheet" href="assets/css/main.css" />
       background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
     }
     body.theme-light [class*="bg-slate-800/50"],
@@ -254,15 +252,6 @@
     body.theme-light[data-page="formatos"] {
       background: #e0f2fe !important;
     }
-    body[data-page="formatos"] main {
-      background: #000000;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    body.theme-light[data-page="formatos"] main {
-      background: #e0f2fe;
-    }
-  </style>
   <link rel="stylesheet" href="assets/css/pages/template-selector.css?v=20251010-2">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />

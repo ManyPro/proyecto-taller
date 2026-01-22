@@ -1,0 +1,192 @@
+/* ==========================================
+   🛠️ JS HELPERS - Clases CSS para uso desde JavaScript
+   Utilidades para reemplazar asignaciones .style. en JS
+   ========================================== */
+
+/* ===== DISPLAY UTILITIES ===== */
+/* Mostrar/ocultar elementos */
+.js-show {
+  display: block !important;
+}
+
+.js-hide {
+  display: none !important;
+}
+
+.js-show-inline {
+  display: inline !important;
+}
+
+.js-show-inline-block {
+  display: inline-block !important;
+}
+
+.js-show-flex {
+  display: flex !important;
+}
+
+.js-show-grid {
+  display: grid !important;
+}
+
+/* ===== MODAL UTILITIES ===== */
+/* Modal overlay base */
+.js-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Modal content animations */
+.js-modal-content {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.js-modal-content-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.js-modal-content-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ===== TOUCH UTILITIES ===== */
+/* Mejoras de touch para móviles */
+.js-touch-optimized {
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* ===== IMAGE UTILITIES ===== */
+/* Estilos para imágenes en modales/lightbox */
+.js-image-lightbox {
+  display: block !important;
+  margin: 0 auto !important;
+  object-fit: contain !important;
+  border: 2px solid rgba(148, 163, 184, 0.3) !important;
+  border-radius: 0.5rem !important;
+}
+
+.js-image-lightbox-desktop {
+  max-width: 30vw !important;
+  max-height: 30vh !important;
+}
+
+.js-image-lightbox-mobile {
+  max-width: 50vw !important;
+  max-height: 50vh !important;
+}
+
+/* ===== COLOR UTILITIES ===== */
+/* Colores dinámicos - usar variables CSS cuando sea posible */
+.js-color-text {
+  color: var(--text) !important;
+}
+
+.js-color-danger {
+  color: var(--danger, #ef4444) !important;
+}
+
+/* ===== FLEX UTILITIES ===== */
+.js-flex {
+  display: flex !important;
+}
+
+.js-flex-none {
+  display: none !important;
+}
+
+/* ===== CURSOR UTILITIES ===== */
+.js-cursor-pointer {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* ===== TRANSITION UTILITIES ===== */
+.js-transition-opacity {
+  transition: opacity 0.2s ease !important;
+}
+
+.js-transition-transform {
+  transition: transform 0.2s ease !important;
+}
+
+.js-transition-all {
+  transition: all 0.2s ease !important;
+}
+
+/* ===== OPACITY UTILITIES ===== */
+.js-opacity-0 {
+  opacity: 0 !important;
+}
+
+.js-opacity-35 {
+  opacity: 0.35 !important;
+}
+
+.js-opacity-1 {
+  opacity: 1 !important;
+}
+
+/* ===== TRANSFORM UTILITIES ===== */
+.js-scale-95 {
+  transform: scale(0.95) !important;
+}
+
+.js-scale-100 {
+  transform: scale(1) !important;
+}
+
+/* ===== ANIMATION UTILITIES ===== */
+.js-animation-slide-out {
+  animation: slideOutToRight 0.3s ease-in !important;
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* ===== COLOR UTILITIES EXTENDED ===== */
+.js-color-success {
+  color: var(--success, #10b981) !important;
+}
+
+.js-color-muted {
+  color: var(--muted) !important;
+}
+
+/* ===== BORDER UTILITIES ===== */
+.js-border-success {
+  border-color: #10b981 !important;
+}
+
+.js-border-primary {
+  border-color: #3b82f6 !important;
+}
+
+.js-border-transparent {
+  border-color: transparent !important;
+}
+
+.js-border-none {
+  border: none !important;
+}
+
+.js-cursor-default {
+  cursor: default !important;
+}

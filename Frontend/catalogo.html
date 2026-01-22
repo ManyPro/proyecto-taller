@@ -31,9 +31,8 @@
       }
     }
   </script>
-  <style>
-    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+  <!-- Main CSS - Sistema unificado de estilos -->
+  <link rel="stylesheet" href="assets/css/main.css" />
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
       background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
     }
@@ -472,8 +471,6 @@
     .item-card .card-actions button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-    }
-  </style>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />

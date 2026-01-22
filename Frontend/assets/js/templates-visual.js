@@ -72,7 +72,7 @@
     document.body.appendChild(notification);
     
     setTimeout(() => {
-      notification.style.animation = 'slideOutToRight 0.3s ease-in';
+      notification.classList.add('js-animation-slide-out');
       setTimeout(() => {
         if (notification.parentNode) {
           notification.remove();
@@ -198,9 +198,10 @@
       // Asegurar que el canvas esté visible ANTES de cargar
       const canvas = qs('#ce-canvas');
       if (canvas) {
-        canvas.style.display = 'block';
-        canvas.style.visibility = 'visible';
-        canvas.style.background = '#ffffff';
+        canvas.classList.add('js-show');
+        canvas.classList.remove('js-hide');
+        canvas.style.visibility = 'visible'; // Mantener visibility específica
+        canvas.style.background = '#ffffff'; // Mantener background específico
       }
       
       setTimeout(() => {

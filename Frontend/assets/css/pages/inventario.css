@@ -1,0 +1,72 @@
+/* ==========================================
+   📦 INVENTARIO PAGE - Estilos específicos de inventario.html
+   ========================================== */
+
+/* 🧭 Navegación interna de inventario */
+.inventory-view {
+  display: block;
+}
+
+.inventory-view.hidden {
+  display: none;
+}
+
+.inventory-nav-btn.active {
+  background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
+  color: white !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.inventory-nav-btn:not(.active) {
+  background: rgba(51, 65, 85, 0.5) !important;
+}
+
+.inventory-nav-btn:not(.active):hover {
+  background: rgba(51, 65, 85, 0.7) !important;
+}
+
+/* 📐 Asegurar que el contenido de inventario ocupe máximo espacio */
+body[data-page="inventario"] main,
+body[data-page="inventario"] #appSection,
+body[data-page="inventario"] #tab-inventario {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+body[data-page="inventario"] #tab-inventario > div {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+@media (min-width: 1024px) {
+  body[data-page="inventario"] #tab-inventario > div {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  body[data-page="inventario"] #tab-inventario > div {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+}
+
+/* 🛒 Estilos para el selector de items mejorado en compras */
+.purchase-item-dropdown {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.purchase-item-option {
+  transition: all 0.2s ease;
+}
+
+.purchase-item-option:hover {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+body.theme-light .purchase-item-option:hover {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}

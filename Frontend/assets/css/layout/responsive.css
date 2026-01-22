@@ -1,0 +1,183 @@
+/* ==========================================
+   RESPONSIVE UTILITIES
+   Utilidades responsive y breakpoints
+   ========================================== */
+
+/* ===== VISIBILITY UTILITIES ===== */
+
+/* Ocultar en móvil */
+.hide-mobile {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Mostrar solo en móvil */
+.show-mobile {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+/* Ocultar en tablet */
+.hide-tablet {
+  display: block;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+/* Mostrar solo en tablet */
+.show-tablet {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .show-tablet {
+    display: block !important;
+  }
+}
+
+/* Ocultar en desktop */
+.hide-desktop {
+  display: block;
+}
+
+@media (min-width: 1024px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Mostrar solo en desktop */
+.show-desktop {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .show-desktop {
+    display: block !important;
+  }
+}
+
+/* ===== TEXT UTILITIES ===== */
+
+/* Tamaños de texto responsive */
+.text-responsive {
+  font-size: var(--font-size-base);
+}
+
+@media (max-width: 767px) {
+  .text-responsive {
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (min-width: 1024px) {
+  .text-responsive {
+    font-size: var(--font-size-lg);
+  }
+}
+
+/* ===== SPACING UTILITIES ===== */
+
+/* Padding responsive */
+.p-responsive {
+  padding: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .p-responsive {
+    padding: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .p-responsive {
+    padding: var(--spacing-xl);
+  }
+}
+
+/* Margin responsive */
+.m-responsive {
+  margin: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .m-responsive {
+    margin: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .m-responsive {
+    margin: var(--spacing-xl);
+  }
+}
+
+/* ===== GRID UTILITIES ===== */
+
+/* Grid responsive - 1 columna en móvil, 2 en tablet, 3+ en desktop */
+.grid-responsive {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xl);
+  }
+}
+
+/* ===== SCROLL UTILITIES ===== */
+
+/* Scroll horizontal en móvil */
+.horizontal-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.horizontal-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.horizontal-scroll::-webkit-scrollbar-track {
+  background: var(--color-scroll-track);
+}
+
+.horizontal-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: var(--radius-sm);
+}
+
+/* Ocultar scrollbar pero mantener funcionalidad */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
