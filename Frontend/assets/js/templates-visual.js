@@ -3760,12 +3760,10 @@
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">SUBTOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money S.subtotal}}</td>
           </tr>
-          {{#if S.hasDiscount}}
           <tr>
             <td colspan="3" style="text-align: right; padding: 2px 4px; font-size: 9px;">DESCUENTO{{#if sale.discount.reason}} ({{sale.discount.reason}}){{/if}}</td>
             <td style="text-align: right; padding: 2px 4px; font-size: 9px;">-{{money S.discount}}</td>
           </tr>
-          {{/if}}
           <tr style="border-top: 2px solid #000;">
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
@@ -4147,7 +4145,6 @@
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">SUBTOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.subtotal}}</td>
           </tr>
-          {{#if S.hasDiscount}}
           <tr>
             <td colspan="3" style="text-align: right; padding: 2px 4px;">DESCUENTO{{#if sale.discount.reason}} ({{sale.discount.reason}}){{/if}}</td>
             <td style="text-align: right; padding: 2px 4px;">-{{money S.discount}}</td>
@@ -4156,7 +4153,6 @@
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">SUBTOTAL CON DESCUENTO</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.subtotalAfterDiscount}}</td>
           </tr>
-          {{/if}}
           <tr>
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">IVA (19%)</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.iva}}</td>
