@@ -855,6 +855,7 @@ if (__ON_INV_PAGE__) {
   const qSku = document.getElementById("q-sku");
   const qBrand = document.getElementById("q-brand");
   const qVehicle = document.getElementById("q-vehicle");
+  const qVehicleDropdown = document.getElementById("q-vehicle-dropdown");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
   const btnUnpublishZero = document.getElementById('btn-unpublish-zero');
@@ -2155,6 +2156,69 @@ if (__ON_INV_PAGE__) {
     refreshItems({ ...params, page: 1, limit: state.paging?.limit || 15 });
   }
 
+  // Autocomplete para filtro "Vehículo / destino" (vehicleTarget)
+  async function searchVehiclesForFilter(query) {
+    if (!qVehicleDropdown) return;
+    if (!query || query.trim().length < 1) {
+      qVehicleDropdown.classList.add('hidden');
+      qVehicleDropdown.innerHTML = '';
+      return;
+    }
+    try {
+      const r = await API.vehicles.search({ q: query.trim(), limit: 30 });
+      const vehicles = Array.isArray(r?.items) ? r.items : [];
+      if (!vehicles.length) {
+        qVehicleDropdown.innerHTML = '<div class="px-4 py-2 text-xs text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
+        qVehicleDropdown.classList.remove('hidden');
+        return;
+      }
+      qVehicleDropdown.innerHTML = '';
+      vehicles.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'px-4 py-2 text-sm cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-slate-100';
+        const line = `${v.make || ''} ${v.line || ''}`.trim();
+        const disp = v.displacement ? `Cilindraje: ${v.displacement}` : '';
+        const year = v.modelYear ? ` | Modelo: ${v.modelYear}` : '';
+        div.innerHTML = `
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${line || 'Vehículo'}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${[disp, year].join('')}</div>
+        `;
+        div.addEventListener('click', () => {
+          const target = `${(v.make || '').toString().toUpperCase()} ${(v.line || '').toString().toUpperCase()} ${(v.displacement || '').toString().toUpperCase()}${v.modelYear ? ' ' + String(v.modelYear).toUpperCase() : ''}`
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (qVehicle) qVehicle.value = target;
+          qVehicleDropdown.classList.add('hidden');
+          doSearch();
+        });
+        qVehicleDropdown.appendChild(div);
+      });
+      qVehicleDropdown.classList.remove('hidden');
+    } catch (e) {
+      console.error('Error buscando vehículos para filtro:', e);
+      qVehicleDropdown.classList.add('hidden');
+      qVehicleDropdown.innerHTML = '';
+    }
+  }
+
+  if (qVehicle) {
+    let qVehicleSearchTimeout = null;
+    qVehicle.addEventListener('input', () => {
+      if (qVehicleSearchTimeout) clearTimeout(qVehicleSearchTimeout);
+      qVehicleSearchTimeout = setTimeout(() => searchVehiclesForFilter(qVehicle.value || ''), 250);
+    });
+    qVehicle.addEventListener('focus', () => {
+      if (qVehicle.value && qVehicle.value.trim().length > 0) {
+        searchVehiclesForFilter(qVehicle.value);
+      }
+    });
+    qVehicle.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (qVehicleDropdown) qVehicleDropdown.classList.add('hidden');
+      }, 200);
+    });
+  }
+
   if (qApply) qApply.onclick = doSearch;
   if (qClear) {
   qClear.onclick = () => {
@@ -2163,6 +2227,10 @@ if (__ON_INV_PAGE__) {
     if (qBrand) qBrand.value = "";
     if (qVehicle) qVehicle.value = "";
       if (qIntake) qIntake.value = "";
+      if (qVehicleDropdown) {
+        qVehicleDropdown.classList.add('hidden');
+        qVehicleDropdown.innerHTML = '';
+      }
     refreshItems({ page: 1, limit: state.paging?.limit || 10 });
   };
   }
