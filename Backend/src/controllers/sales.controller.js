@@ -1623,7 +1623,9 @@ export const closeSale = async (req, res) => {
       
       // Validar que todos los slots abiertos estén completos
       if (sale.openSlots && sale.openSlots.length > 0) {
-        const incompleteSlots = sale.openSlots.filter(slot => !slot.completed || !slot.completedItemId);
+        // Un slot "omitido" se completa vía completeOpenSlot con completed=true pero sin completedItemId.
+        // Por lo tanto, solo debe bloquear el cierre si NO está completado.
+        const incompleteSlots = sale.openSlots.filter(slot => !slot.completed);
         if (incompleteSlots.length > 0) {
           const slotNames = incompleteSlots.map(s => s.slotName).join(', ');
           throw new Error(`Debes completar todos los slots abiertos antes de cerrar la venta. Pendientes: ${slotNames}`);
