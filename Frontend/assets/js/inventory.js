@@ -6870,6 +6870,13 @@ async function openPurchaseStickersModal(purchaseId) {
       
       showBusyFn('Generando PDF de stickers...');
       const list = [];
+      const missingEntries = [];
+
+      const idStr = (v) => {
+        if (!v) return '';
+        if (typeof v === 'object') return String(v._id || v.id || '');
+        return String(v);
+      };
       
       rows.querySelectorAll("tr").forEach((tr) => {
         const idx = parseInt(tr.dataset.index, 10);
@@ -6877,7 +6884,8 @@ async function openPurchaseStickersModal(purchaseId) {
         const count = parseInt(tr.querySelector(".qty").value || "0", 10);
         
         if (purchaseItem && purchaseItem.item && count > 0) {
-          list.push({ it: purchaseItem.item, count });
+          // Guardamos también el purchaseItem para poder resolver StockEntries por purchaseId
+          list.push({ it: purchaseItem.item, count, _purchaseItem: purchaseItem });
         }
       });
       
@@ -6888,13 +6896,74 @@ async function openPurchaseStickersModal(purchaseId) {
       }
       
       try {
-        const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers-compra';
+        // Para que el QR incluya proveedor/inversor/compra, debemos generar el QR con entryId.
+        // Resolvemos StockEntries de cada item que pertenezcan a ESTA compra (purchaseId) y
+        // distribuimos la cantidad de stickers entre esas entradas.
+        const finalList = [];
+
+        for (const row of list) {
+          const item = row.it;
+          const requested = row.count;
+          const itemId = row._purchaseItem?.itemId || item?._id;
+          if (!itemId) continue;
+
+          let stockEntries = [];
+          try {
+            const seResp = await invAPI.getItemStockEntries(itemId);
+            stockEntries = Array.isArray(seResp?.stockEntries) ? seResp.stockEntries : [];
+          } catch (e) {
+            stockEntries = [];
+          }
+
+          const purchaseEntries = stockEntries
+            .filter(se => idStr(se?.purchaseId) === String(purchaseId) || idStr(se?.purchaseId?._id) === String(purchaseId))
+            .filter(se => (se?.qty || 0) > 0);
+
+          const totalAvailableForPurchase = purchaseEntries.reduce((s, se) => s + (se.qty || 0), 0);
+          if (purchaseEntries.length === 0 || totalAvailableForPurchase <= 0) {
+            missingEntries.push(item?.sku || item?.name || String(itemId));
+            continue;
+          }
+
+          let remaining = requested;
+          for (const se of purchaseEntries) {
+            if (remaining <= 0) break;
+            const take = Math.min(remaining, se.qty || 0);
+            if (take <= 0) continue;
+
+            // Clonar item y adjuntar stockEntryId para que renderStickerPdf use ?entryId=...
+            const itWithEntry = { ...(item || {}), stockEntryId: se._id };
+            finalList.push({ it: itWithEntry, count: take });
+            remaining -= take;
+          }
+
+          // Si el usuario pidió más de lo disponible actualmente para esa compra, recortar silenciosamente.
+          if (remaining > 0) {
+            console.warn('[purchase stickers] Cantidad pedida > stock disponible para compra', {
+              purchaseId,
+              itemId: String(itemId),
+              requested,
+              available: totalAvailableForPurchase
+            });
+          }
+        }
+
+        if (missingEntries.length > 0) {
+          hideBusyFn();
+          alert(
+            'No se pudieron generar stickers con QR completo (proveedor/inversor/compra) para estos ítems porque no se encontraron StockEntries vinculados a esta compra (o no tienen stock disponible):\n\n' +
+            missingEntries.join(', ')
+          );
+          return;
+        }
+
+        const base = finalList[0]?.it?.sku || finalList[0]?.it?._id || 'stickers-compra';
         // Usar window.renderStickerPdf si está disponible
         const renderFn = window.renderStickerPdf || renderStickerPdf;
         if (typeof renderFn !== 'function') {
           throw new Error('La función renderStickerPdf no está disponible. Por favor, recarga la página.');
         }
-        await renderFn(list, `stickers-compra-${base}`);
+        await renderFn(finalList, `stickers-compra-${base}`);
         invCloseModal();
         hideBusyFn();
         if (typeof showToast === 'function') {
