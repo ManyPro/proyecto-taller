@@ -1799,9 +1799,39 @@ export const closeSale = async (req, res) => {
 
         const stockEntriesUsed = [];
         
-        // Si hay StockEntries, descontar usando FIFO
+        // Si hay StockEntries, descontar.
+        // Importante: si el item viene de QR con meta.entryId, priorizar esa entrada para
+        // respetar el inversor/proveedor del sticker escaneado.
         if (stockEntries.length > 0) {
-          for (const entry of stockEntries) {
+          const qrEntryId = it.meta?.entryId ? String(it.meta.entryId) : null;
+          let fifoEntries = stockEntries;
+          
+          // Deduct first from the QR-linked entry (if present and available)
+          if (qrEntryId && mongoose.Types.ObjectId.isValid(qrEntryId)) {
+            const preferred = stockEntries.find(e => String(e._id) === qrEntryId);
+            if (preferred) {
+              const qtyToDeduct = Math.min(remainingQty, preferred.qty);
+              preferred.qty -= qtyToDeduct;
+              remainingQty -= qtyToDeduct;
+              
+              stockEntriesUsed.push({
+                entryId: preferred._id,
+                qty: qtyToDeduct,
+                vehicleIntakeId: preferred.vehicleIntakeId
+              });
+              
+              if (preferred.qty <= 0) {
+                await StockEntry.deleteOne({ _id: preferred._id }).session(session);
+              } else {
+                await preferred.save({ session });
+              }
+              
+              // Remove preferred from FIFO list to avoid double-processing
+              fifoEntries = stockEntries.filter(e => String(e._id) !== qrEntryId);
+            }
+          }
+          
+          for (const entry of fifoEntries) {
             if (remainingQty <= 0) break;
             
             const qtyToDeduct = Math.min(remainingQty, entry.qty);
@@ -3339,15 +3369,34 @@ export const addByQR = async (req, res) => {
     const parts = s.split(':').map(p => p.trim()).filter(Boolean);
     let itemId = null;
     let entryId = null;
-    
-    // Formato: IT:<companyId>:<itemId>:<sku>[:<entryId>]
-    if (parts.length >= 3) {
-      itemId = parts[2]; // itemId está en la posición 2
-      if (parts.length >= 5) {
-        entryId = parts[4]; // entryId está en la posición 4 (opcional)
-      }
+    let supplierId = null;
+    let investorId = null;
+    let purchaseId = null;
+
+    // Formatos soportados:
+    // - Nuevo (inventory.makeQrData):
+    //   IT:<companyId>:<itemId>:<sku>:<supplierId>:<investorId>[:<entryId>][:P<purchaseId>]
+    // - Intermedio:
+    //   IT:<companyId>:<itemId>:<sku>
+    // - Antiguo:
+    //   IT:<itemId>
+    if (parts.length >= 4) {
+      itemId = parts[2];
+      // supplier/investor pueden ser 'GENERAL' o un ObjectId (24hex)
+      supplierId = parts[4] || null;
+      investorId = parts[5] || null;
+      // entryId, si existe, va después de supplier/investor (posición 6)
+      entryId = parts[6] || null;
+      // purchaseId viene como "P<id>" en cualquier posición posterior
+      const pPart = parts.find(p => /^P[a-f0-9]{24}$/i.test(p));
+      purchaseId = pPart ? pPart.slice(1) : null;
+      // Si entryId en realidad es el purchase-part, limpiarlo
+      if (entryId && /^P[a-f0-9]{24}$/i.test(entryId)) entryId = null;
     } else if (parts.length === 2) {
-      itemId = parts[1]; // Formato antiguo sin companyId
+      itemId = parts[1];
+    } else if (parts.length >= 3) {
+      // Fallback por compatibilidad
+      itemId = parts[2] || parts[1] || null;
     }
 
     if (itemId) {
@@ -3383,8 +3432,15 @@ export const addByQR = async (req, res) => {
       };
       
       // Agregar entryId al meta si está presente
-      if (entryId) {
-        saleItem.meta = { entryId };
+      // Guardar también supplierId/investorId/purchaseId del QR para trazabilidad (y debug).
+      if (entryId || supplierId || investorId || purchaseId) {
+        saleItem.meta = {
+          ...(saleItem.meta || {}),
+          ...(entryId ? { entryId } : {}),
+          ...(supplierId ? { supplierId } : {}),
+          ...(investorId ? { investorId } : {}),
+          ...(purchaseId ? { purchaseId } : {})
+        };
       }
       
       sale.items.push(saleItem);
