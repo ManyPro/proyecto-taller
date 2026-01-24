@@ -2,10 +2,20 @@
 # Backend Dockerfile for proyecto-taller
 FROM node:20-alpine
 
-# Ensure system has necessary packages (optional)
-RUN apk add --no-cache tini
+# Ensure system has necessary packages
+# - chromium: headless browser for HTML -> PDF rendering
+# - fonts/libs: improve PDF typography and avoid missing font glyphs
+RUN apk add --no-cache \
+    tini \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
 
 ENV NODE_ENV=production \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
     PORT=3000
 
 # Create app directory

@@ -10,6 +10,7 @@ import PDFDocument from 'pdfkit';
 import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
+import { htmlToPdfBuffer } from '../lib/htmlToPdf.js';
 import { computeBalance } from './cashflow.controller.js';
 import mongoose from 'mongoose';
 import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC } from '../lib/dateTime.js';
@@ -1583,6 +1584,255 @@ function ensureHB(){
   Handlebars.registerHelper('lowercase', (v) => String(v || '').toLowerCase());
 }
 
+function escapeHtml(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function buildItemsByType(items = []) {
+  const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
+  return {
+    earnings: safeItems.filter(i => i.type === 'earning'),
+    deductions: safeItems.filter(i => i.type === 'deduction'),
+    surcharges: safeItems.filter(i => i.type === 'surcharge')
+  };
+}
+
+function buildPdfPageStyles() {
+  // Estilos “pro” para PDF (A4), con buena tipografía y tablas tipo dashboard.
+  return `
+    @page { size: A4; margin: 16mm 12mm; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      font-size: 12px;
+      line-height: 1.35;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .doc { width: 100%; }
+    .header {
+      display:flex; gap:16px; align-items:flex-start; justify-content:space-between;
+      padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;
+    }
+    .brand { display:flex; gap:12px; align-items:center; min-width:0; }
+    .brand img { height: 34px; width:auto; object-fit:contain; }
+    .title { font-size: 18px; font-weight: 800; letter-spacing: .3px; margin: 0; }
+    .subtitle { margin: 4px 0 0 0; color: #475569; font-size: 11px; }
+    .meta { text-align:right; color:#475569; font-size: 11px; white-space:nowrap; }
+    .meta strong { color:#0f172a; }
+    .grid { display:grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; background: #ffffff; }
+    .card h3 { margin:0 0 8px 0; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color:#334155; }
+    .kv { display:grid; grid-template-columns: 140px 1fr; gap: 6px 10px; font-size: 11px; }
+    .k { color:#64748b; }
+    .v { color:#0f172a; font-weight: 600; overflow-wrap:anywhere; }
+    .totals { display:flex; flex-direction: column; gap: 8px; }
+    .total-row { display:flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+    .total-row .label { color:#64748b; font-weight:700; }
+    .total-row .value { font-weight:800; }
+    .total-row.ded .value { color:#b91c1c; }
+    .net {
+      margin-top: 6px; padding: 10px 12px; border-radius: 10px;
+      background: linear-gradient(90deg, rgba(59,130,246,.10), rgba(16,185,129,.12));
+      border: 1px solid rgba(59,130,246,.18);
+      display:flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    }
+    .net .label { font-weight: 900; font-size: 13px; }
+    .net .value { font-weight: 900; font-size: 18px; color:#047857; }
+    .section { margin-top: 14px; }
+    .section h2 { margin: 0 0 8px 0; font-size: 12px; letter-spacing: .7px; text-transform: uppercase; color:#334155; display:flex; align-items:center; gap: 8px; }
+    .pill { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; border: 1px solid #e2e8f0; color:#334155; background:#f8fafc; }
+    table.tbl { width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 10px; overflow:hidden; }
+    .tbl thead th {
+      background: #0b1220; color: #e5e7eb; text-align:left; font-size: 10px;
+      letter-spacing: .7px; text-transform: uppercase; padding: 8px 10px;
+      border-bottom: 1px solid rgba(148,163,184,.25);
+    }
+    .tbl tbody td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; font-size: 11px; }
+    .tbl tbody tr:nth-child(2n) td { background: #f8fafc; }
+    .tbl .muted { color:#64748b; font-weight: 600; font-size: 10px; margin-top: 3px; }
+    .tbl .right { text-align:right; white-space:nowrap; }
+    .tbl .money { font-weight: 900; }
+    .tbl .type {
+      display:inline-block; font-size: 10px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
+      border: 1px solid rgba(148,163,184,.35); background: rgba(148,163,184,.12); color:#0f172a;
+    }
+    .type.earning { border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.12); color:#065f46; }
+    .type.deduction { border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.12); color:#7f1d1d; }
+    .type.surcharge { border-color: rgba(245,158,11,.40); background: rgba(245,158,11,.15); color:#78350f; }
+    .sign { margin-top: 22px; display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .sign .box { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px 12px; min-height: 74px; }
+    .sign .label { font-size: 10px; color:#64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 6px; text-align:center; }
+    .footnote { margin-top: 16px; font-size: 10px; color:#64748b; display:flex; justify-content: space-between; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    /* Evitar cortes feos */
+    .card, table, tr, td, th { page-break-inside: avoid; }
+  `;
+}
+
+function buildFallbackPayrollHtml({ context }) {
+  const formatMoney = (val) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+
+  const company = context.company || {};
+  const settlement = context.settlement || {};
+  const period = context.period || {};
+  const itemsByType = settlement.itemsByType || buildItemsByType(settlement.items || []);
+
+  const buildDetail = (i) => {
+    const parts = [];
+    const service = String(i.serviceName || '').trim();
+    const labor = String(i.laborName || '').trim();
+    const plate = String(i.vehiclePlate || '').trim();
+    const sale = i.saleNumber ? `Venta #${i.saleNumber}` : '';
+
+    if (service) parts.push(service);
+    if (!service && labor) parts.push(labor);
+    if (service && labor) parts.push(`MO: ${labor}`);
+    if (plate) parts.push(`🚗 ${plate}`);
+    if (sale) parts.push(sale);
+    const notes = String(i.notes || '').trim();
+    if (notes) parts.push(notes);
+
+    return parts.length ? `<div class="muted">${escapeHtml(parts.join(' • '))}</div>` : '';
+  };
+
+  const renderRows = (items) =>
+    (items || [])
+      .map((i) => {
+        const type = String(i.type || '');
+        const typeLabel = type === 'earning' ? 'Ingreso' : type === 'deduction' ? 'Descuento' : type === 'surcharge' ? 'Recargo' : type;
+        const mainName = escapeHtml(String(i.name || '').trim() || '-');
+        return `
+          <tr>
+            <td style="width:110px"><span class="type ${escapeHtml(type)}">${escapeHtml(typeLabel)}</span></td>
+            <td>
+              <div style="font-weight:800">${mainName}</div>
+              ${buildDetail(i)}
+            </td>
+            <td class="right money">${escapeHtml(formatMoney(i.value || 0))}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+  const periodLabel =
+    period.formattedStartDate && period.formattedEndDate
+      ? `${period.formattedStartDate} → ${period.formattedEndDate}`
+      : '';
+
+  return `
+    <div class="doc">
+      <div class="header">
+        <div class="brand">
+          ${company.logoUrl ? `<img src="${escapeHtml(company.logoUrl)}" alt="logo" />` : ''}
+          <div>
+            <h1 class="title">Comprobante de pago de nómina</h1>
+            <p class="subtitle">${escapeHtml(company.name || '')}${periodLabel ? ` · Período: ${escapeHtml(periodLabel)}` : ''}</p>
+          </div>
+        </div>
+        <div class="meta">
+          <div><strong>Generado:</strong> ${escapeHtml(context.formattedNow || new Date().toLocaleString('es-CO'))}</div>
+          ${period.periodTypeLabel ? `<div><strong>Tipo:</strong> ${escapeHtml(period.periodTypeLabel)}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Datos del técnico</h3>
+          <div class="kv">
+            <div class="k">Técnico</div><div class="v">${escapeHtml(settlement.technicianName || '')}</div>
+            ${settlement.technicianIdentification ? `<div class="k">Identificación</div><div class="v">${escapeHtml(settlement.technicianIdentification)}</div>` : ''}
+            ${periodLabel ? `<div class="k">Período</div><div class="v">${escapeHtml(periodLabel)}</div>` : ''}
+          </div>
+        </div>
+        <div class="card totals">
+          <h3>Resumen</h3>
+          <div class="total-row">
+            <div class="label">Total bruto</div>
+            <div class="value">${escapeHtml(settlement.formattedGrossTotal || formatMoney(settlement.grossTotal || 0))}</div>
+          </div>
+          <div class="total-row ded">
+            <div class="label">Descuentos</div>
+            <div class="value">-${escapeHtml(settlement.formattedDeductionsTotal || formatMoney(settlement.deductionsTotal || 0))}</div>
+          </div>
+          <div class="net">
+            <div class="label">Neto a pagar</div>
+            <div class="value">${escapeHtml(settlement.formattedNetTotal || formatMoney(settlement.netTotal || 0))}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Ingresos <span class="pill">${itemsByType.earnings.length}</span></h2>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width:110px">Tipo</th>
+              <th>Concepto / Detalle</th>
+              <th style="width:130px" class="right">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsByType.earnings.length ? renderRows(itemsByType.earnings) : `<tr><td colspan="3" style="padding:12px;color:#64748b;">Sin ingresos</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+
+      ${itemsByType.surcharges.length ? `
+        <div class="section">
+          <h2>Recargos <span class="pill">${itemsByType.surcharges.length}</span></h2>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:110px">Tipo</th>
+                <th>Concepto / Detalle</th>
+                <th style="width:130px" class="right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderRows(itemsByType.surcharges)}
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+
+      <div class="section">
+        <h2>Descuentos <span class="pill">${itemsByType.deductions.length}</span></h2>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width:110px">Tipo</th>
+              <th>Concepto / Detalle</th>
+              <th style="width:130px" class="right">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsByType.deductions.length ? renderRows(itemsByType.deductions) : `<tr><td colspan="3" style="padding:12px;color:#64748b;">Sin descuentos</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sign">
+        <div class="box"><div class="label">Firma del técnico</div></div>
+        <div class="box"><div class="label">Firma empresa</div></div>
+      </div>
+
+      <div class="footnote">
+        <div>${escapeHtml(company.address || '')}</div>
+        <div>${escapeHtml(company.email || '')}${company.phone ? ` · ${escapeHtml(company.phone)}` : ''}</div>
+      </div>
+    </div>
+  `;
+}
+
 export const printSettlementHtml = async (req, res) => {
   try {
     const { id } = req.params;
@@ -2027,22 +2277,17 @@ export const generateSettlementPdf = async (req, res) => {
     const st = await PayrollSettlement.findOne({ _id: id, companyId: req.companyId }).populate('periodId');
     if(!st) return res.status(404).json({ error: 'Settlement not found' });
     
-    // Reutilizar la misma lógica de printSettlementHtml para obtener HTML
+    // Reutilizar lógica de datos, pero generar PDF real desde HTML (Chromium)
     const [tpl, company, period] = await Promise.all([
       Template.findOne({ companyId: req.companyId, type: 'payroll', active: true }).sort({ updatedAt: -1 }),
       Company.findOne({ _id: req.companyId }),
       PayrollPeriod.findOne({ _id: st.periodId, companyId: req.companyId })
     ]);
-    
+
     const settlementObj = st.toObject();
     const periodObj = period ? period.toObject() : null;
-    
-    const itemsByType = {
-      earnings: (settlementObj.items || []).filter(i => i.type === 'earning'),
-      deductions: (settlementObj.items || []).filter(i => i.type === 'deduction'),
-      surcharges: (settlementObj.items || []).filter(i => i.type === 'surcharge')
-    };
-    
+    const itemsByType = buildItemsByType(settlementObj.items);
+
     const context = {
       company: {
         name: company?.name || company?.email || '',
@@ -2065,172 +2310,84 @@ export const generateSettlementPdf = async (req, res) => {
         periodTypeLabel: periodObj.periodType === 'monthly' ? 'Mensual' : periodObj.periodType === 'biweekly' ? 'Quincenal' : periodObj.periodType === 'weekly' ? 'Semanal' : periodObj.periodType
       } : null,
       now: new Date(),
-      formattedNow: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      formattedNow: new Date().toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     };
-    
-    let html = '';
+
+    let htmlBody = '';
     let css = '';
-    if (tpl) {
+    if (tpl?.contentHtml) {
       ensureHB();
       try {
-        html = Handlebars.compile(tpl.contentHtml||'')(context);
+        htmlBody = Handlebars.compile(tpl.contentHtml || '')(context);
         css = tpl.contentCss || '';
-      } catch(e){ 
-        console.error('Template error:', e);
-        // Fallback si hay error en template
+      } catch (e) {
+        htmlBody = '';
+        css = '';
       }
     }
-    
-    // Si no hay template o hubo error, usar fallback
-    if (!html) {
-      const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
-      const earningsRows = (itemsByType.earnings || []).length > 0 
-        ? itemsByType.earnings.map(i => `<tr><td>${i.name || 'Sin nombre'}</td><td style="text-align:right">${formatMoney(i.value || 0)}</td></tr>`).join('')
-        : '<tr><td colspan="2" style="text-align:center;color:#666;">Sin ingresos</td></tr>';
-      const deductionsRows = (itemsByType.deductions || []).length > 0
-        ? itemsByType.deductions.map(i => `<tr><td>${i.name || 'Sin nombre'}</td><td style="text-align:right">${formatMoney(i.value || 0)}</td></tr>`).join('')
-        : '<tr><td colspan="2" style="text-align:center;color:#666;">Sin descuentos</td></tr>';
-      const surchargesRows = (itemsByType.surcharges || []).length > 0
-        ? itemsByType.surcharges.map(i => `<tr><td>${i.name || 'Sin nombre'}</td><td style="text-align:right">${formatMoney(i.value || 0)}</td></tr>`).join('')
-        : '';
-      const periodRange = periodObj ? `${new Date(periodObj.startDate).toLocaleDateString('es-CO')} → ${new Date(periodObj.endDate).toLocaleDateString('es-CO')}` : '';
-      
-      html = `
-        <div style="max-width:800px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
-          <h2 style="text-align:center;margin-bottom:20px;">Comprobante de Pago de Nómina</h2>
-          <div style="margin-bottom:20px;">
-            <div><strong>Empresa:</strong> ${context.company.name}</div>
-            <div><strong>Técnico:</strong> ${settlementObj.technicianName||''}</div>
-            ${periodRange ? `<div><strong>Período:</strong> ${periodRange}</div>` : ''}
-            <div><strong>Fecha de liquidación:</strong> ${context.formattedNow}</div>
-          </div>
-          ${earningsRows ? `
-            <h3 style="margin-top:20px;margin-bottom:10px;">Ingresos</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${earningsRows}
-              </tbody>
-            </table>
-          ` : ''}
-          ${surchargesRows ? `
-            <h3 style="margin-top:20px;margin-bottom:10px;">Recargos</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${surchargesRows}
-              </tbody>
-            </table>
-          ` : ''}
-          ${deductionsRows ? `
-            <h3 style="margin-top:20px;margin-bottom:10px;">Descuentos</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${deductionsRows}
-              </tbody>
-            </table>
-          ` : ''}
-          <div style="margin-top:30px;padding-top:20px;border-top:2px solid #333;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-              <strong>Total bruto:</strong>
-              <strong>${formatMoney(settlementObj.grossTotal)}</strong>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-              <strong>Total descuentos:</strong>
-              <strong>${formatMoney(settlementObj.deductionsTotal)}</strong>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #ddd;font-size:18px;">
-              <strong>Neto a pagar:</strong>
-              <strong style="color:#10b981;">${formatMoney(settlementObj.netTotal)}</strong>
-            </div>
-          </div>
-        </div>`;
-      css = `table td{border-bottom:1px solid #ddd;padding:8px}`;
+    if (!htmlBody) {
+      htmlBody = buildFallbackPayrollHtml({ context });
+      css = '';
     }
-    
-    // Generar PDF usando PDFKit con HTML renderizado
-    // Por ahora, redirigir al HTML print con parámetro para descarga PDF
-    // TODO: Implementar conversión HTML a PDF con puppeteer si es necesario
+
+    const pageStyles = buildPdfPageStyles();
+    const htmlDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${pageStyles}${css || ''}</style></head><body><div class="doc">${htmlBody}</div></body></html>`;
+
+    try {
+      const pdfBuffer = await htmlToPdfBuffer(htmlDoc, {
+        format: 'A4',
+        preferCSSPageSize: true,
+        printBackground: true
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="comprobante_nomina_${String(st._id)}.pdf"`);
+      return res.status(200).end(pdfBuffer);
+    } catch (pdfErr) {
+      // Fallback duro: PDFKit (si Chromium no está disponible)
+      console.error('[generateSettlementPdf] HTML->PDF falló, usando fallback PDFKit:', pdfErr?.message || pdfErr);
+    }
+
+    // ===== Fallback PDFKit (básico, pero siempre funciona) =====
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="comprobante_nomina_${String(st._id)}.pdf"`);
-    
-    // Usar PDFKit con tamaño media carta (half-letter: 5.5" x 8.5")
-    const doc = new PDFDocument({ 
-      size: [396, 612], // Half-letter en puntos (5.5" x 8.5" a 72 DPI)
-      margin: 36 
-    });
+
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
     doc.pipe(res);
-    
-    // Título
+
+    const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
     doc.fontSize(18).font('Helvetica-Bold').text('COMPROBANTE DE PAGO DE NÓMINA', { align: 'center' });
     doc.moveDown(1);
-    
-    // Información de empresa y técnico
     doc.fontSize(10).font('Helvetica');
     doc.text(`Empresa: ${context.company.name}`, { align: 'left' });
-    doc.text(`Técnico: ${settlementObj.technicianName||''}`, { align: 'left' });
-    if (periodObj) {
-      doc.text(`Período: ${context.period.formattedStartDate} → ${context.period.formattedEndDate}`, { align: 'left' });
-    }
-    doc.text(`Fecha de liquidación: ${context.formattedNow}`, { align: 'left' });
+    doc.text(`Técnico: ${settlementObj.technicianName || ''}`, { align: 'left' });
+    if (periodObj) doc.text(`Período: ${context.period.formattedStartDate} → ${context.period.formattedEndDate}`, { align: 'left' });
+    doc.text(`Generado: ${context.formattedNow}`, { align: 'left' });
     doc.moveDown(1);
-    
-    // Items
-    if (itemsByType.earnings.length > 0) {
-      doc.fontSize(12).font('Helvetica-Bold').text('INGRESOS', { underline: true });
+
+    const printSection = (title, rows) => {
+      if (!rows.length) return;
+      doc.fontSize(12).font('Helvetica-Bold').text(title, { underline: true });
       doc.moveDown(0.3);
       doc.fontSize(10).font('Helvetica');
-      itemsByType.earnings.forEach(i => {
-        doc.text(`${i.name.padEnd(40)} ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(i.value)}`, { align: 'left' });
+      rows.forEach(i => {
+        doc.text(`${String(i.name || '').slice(0, 70)}  ${formatMoney(i.value || 0)}`, { align: 'left' });
       });
-      doc.moveDown(0.5);
-    }
-    
-    if (itemsByType.surcharges.length > 0) {
-      doc.fontSize(12).font('Helvetica-Bold').text('RECARGOS', { underline: true });
-      doc.moveDown(0.3);
-      doc.fontSize(10).font('Helvetica');
-      itemsByType.surcharges.forEach(i => {
-        doc.text(`${i.name.padEnd(40)} ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(i.value)}`, { align: 'left' });
-      });
-      doc.moveDown(0.5);
-    }
-    
-    if (itemsByType.deductions.length > 0) {
-      doc.fontSize(12).font('Helvetica-Bold').text('DESCUENTOS', { underline: true });
-      doc.moveDown(0.3);
-      doc.fontSize(10).font('Helvetica');
-      itemsByType.deductions.forEach(i => {
-        doc.text(`${i.name.padEnd(40)} ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(i.value)}`, { align: 'left' });
-      });
-      doc.moveDown(1);
-    }
-    
-    // Totales
-    doc.moveDown(0.5);
+      doc.moveDown(0.7);
+    };
+
+    printSection('INGRESOS', itemsByType.earnings);
+    printSection('RECARGOS', itemsByType.surcharges);
+    printSection('DESCUENTOS', itemsByType.deductions);
+
+    doc.moveDown(0.2);
     doc.fontSize(11).font('Helvetica');
-    doc.text(`Total bruto: ${context.settlement.formattedGrossTotal}`, { align: 'right' });
-    doc.text(`Total descuentos: ${context.settlement.formattedDeductionsTotal}`, { align: 'right' });
-    doc.moveDown(0.3);
+    doc.text(`Total bruto: ${formatMoney(settlementObj.grossTotal || 0)}`, { align: 'right' });
+    doc.text(`Total descuentos: ${formatMoney(settlementObj.deductionsTotal || 0)}`, { align: 'right' });
+    doc.moveDown(0.2);
     doc.fontSize(14).font('Helvetica-Bold');
-    doc.text(`Neto a pagar: ${context.settlement.formattedNetTotal}`, { align: 'right' });
-    
+    doc.text(`Neto a pagar: ${formatMoney(settlementObj.netTotal || 0)}`, { align: 'right' });
+
     doc.end();
   } catch (err) {
     console.error('Error in generateSettlementPdf:', err);
