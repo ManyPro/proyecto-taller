@@ -57,10 +57,17 @@ if (mongoose.connection.readyState === 1) {
   PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1').catch(() => {
     // Ignorar error si el índice no existe
   });
+  // Índice legacy incorrecto: solo permitía 1 liquidación por período en toda la empresa
+  PayrollSettlement.collection.dropIndex('companyId_1_periodId_1').catch(() => {
+    // Ignorar error si el índice no existe
+  });
 } else {
   // Si no está conectado, esperar a que se conecte
   mongoose.connection.once('connected', () => {
     PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1').catch(() => {
+      // Ignorar error si el índice no existe
+    });
+    PayrollSettlement.collection.dropIndex('companyId_1_periodId_1').catch(() => {
       // Ignorar error si el índice no existe
     });
   });
