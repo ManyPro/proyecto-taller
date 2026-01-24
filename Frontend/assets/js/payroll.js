@@ -1274,14 +1274,14 @@ async function preview(){
       
       const renderItems = (items, title) => {
         if (!items || items.length === 0) return '';
-        const isCommissionLine = (i) => i && i.saleNumber && (i.saleId || i.saleNumber) && (i.serviceName || i.laborName || i.vehiclePlate);
+        const isCommissionLine = (i) => i && i.saleNumber && (i.saleId || i.saleNumber) && (i.serviceName || i.laborName || i.vehicleLabel || i.vehiclePlate);
 
         const renderLine = (i, idx) => {
           const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
           const isCommissionItem = isCommissionLine(i);
           const serviceName = i.serviceName || '';
           const laborName = i.laborName || '';
-          const vehiclePlate = i.vehiclePlate || '';
+          const vehicleLabel = i.vehicleLabel || i.vehiclePlate || '';
           const saleNumber = i.saleNumber ? `#${i.saleNumber}` : '';
 
           // Construir descripción más amigable
@@ -1291,7 +1291,7 @@ async function preview(){
             const blueText = serviceName || laborName;
             if (blueText) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(blueText)}</span>`);
             if (serviceName && laborName) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">MO: ${htmlEscape(laborName)}</span>`);
-            if (vehiclePlate) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehiclePlate)}</span>`);
+            if (vehicleLabel) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehicleLabel)}</span>`);
             if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
             friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
           }
@@ -1320,7 +1320,7 @@ async function preview(){
         };
 
         // Agrupar líneas de la misma venta (solo comisiones) si hay varias
-        const groups = new Map(); // key -> { saleId, saleNumber, vehiclePlate, items: [] }
+        const groups = new Map(); // key -> { saleId, saleNumber, vehicleLabel, items: [] }
         const singles = [];
         items.forEach((it) => {
           if (!isCommissionLine(it)) {
@@ -1332,7 +1332,7 @@ async function preview(){
             groups.set(key, {
               saleId: it.saleId || null,
               saleNumber: it.saleNumber || null,
-              vehiclePlate: it.vehiclePlate || null,
+              vehicleLabel: it.vehicleLabel || it.vehiclePlate || null,
               items: []
             });
           }
@@ -1347,7 +1347,7 @@ async function preview(){
           if (!key || (g.items || []).length < 2) continue;
           const groupTotal = (g.items || []).reduce((s, x) => s + (Number(x.value) || 0), 0);
           const saleLabel = g.saleNumber ? `Venta #${g.saleNumber}` : 'Venta';
-          const plateLabel = g.vehiclePlate ? `🚗 ${htmlEscape(g.vehiclePlate)}` : '';
+          const plateLabel = g.vehicleLabel ? `🚗 ${htmlEscape(g.vehicleLabel)}` : '';
 
           renderedBlocks.push(`
             <div class="mb-3 p-3 rounded-xl border-2 border-indigo-500/40 dark:border-indigo-500/40 theme-light:border-indigo-400 bg-indigo-500/10 dark:bg-indigo-500/10 theme-light:bg-indigo-50">

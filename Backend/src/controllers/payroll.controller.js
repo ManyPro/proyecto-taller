@@ -454,6 +454,17 @@ function normalizeTechName(name) {
   return String(name || '').trim().toUpperCase();
 }
 
+function buildVehicleLabelFromSale(sale) {
+  const plate = String(sale?.vehicle?.plate || '').trim();
+  const brand = String(sale?.vehicle?.brand || '').trim();
+  const line = String(sale?.vehicle?.line || '').trim();
+  const engine = String(sale?.vehicle?.engine || '').trim();
+  const year = sale?.vehicle?.year != null ? String(sale.vehicle.year).trim() : '';
+  const details = [brand, line, engine, year].filter(Boolean).join(' ');
+  if (plate && details) return `${plate} · ${details}`;
+  return plate || details || '';
+}
+
 /**
  * Extrae detalles de comisión para un técnico desde una venta.
  * - Si hay `laborCommissions`, son la fuente de verdad.
@@ -474,6 +485,7 @@ function extractCommissionDetailsFromSale(sale, techNameUpper) {
       if (lineTech !== tech) continue;
       details.push({
         kind: lc?.kind || '',
+        itemName: lc?.itemName || '',
         laborValue: Number(lc?.laborValue || 0),
         percent: Number(lc?.percent || 0),
         share: Number(lc?.share || 0)
@@ -595,12 +607,17 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
       const percent = Number(d.percent || 0);
       const calculatedShare = Math.round(laborValue * (percent / 100));
 
-      const serviceName = await pickServiceNameFromSaleForLabor({
-        sale: s,
-        targetLaborValue: laborValue,
-        companyId,
-        priceCache
-      });
+      // Preferir el itemName guardado en laborCommissions (evita colisiones cuando varios items tienen el mismo laborValue)
+      const itemName = String(d.itemName || '').trim();
+      const serviceName = itemName
+        ? itemName
+        : await pickServiceNameFromSaleForLabor({
+            sale: s,
+            targetLaborValue: laborValue,
+            companyId,
+            priceCache
+          });
+      const vehicleLabel = buildVehicleLabelFromSale(s);
 
       commissionDetails.push({
         ...d,
@@ -608,6 +625,7 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
         saleNumber: s.number || null,
         saleId: s._id || null,
         vehiclePlate: s.vehicle?.plate || null,
+        vehicleLabel: vehicleLabel || null,
         serviceName: serviceName || null
       });
 
@@ -698,7 +716,19 @@ export const previewSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1, items: 1 });
+    }).select({
+      laborCommissions: 1,
+      laborValue: 1,
+      laborPercent: 1,
+      laborShare: 1,
+      technician: 1,
+      initialTechnician: 1,
+      closingTechnician: 1,
+      closedAt: 1,
+      number: 1,
+      vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
+      items: 1
+    });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -763,6 +793,7 @@ export const previewSettlement = async (req, res) => {
             saleId: detail.saleId || null,
             laborName: detail.kind || null,
             vehiclePlate: detail.vehiclePlate || null,
+            vehicleLabel: detail.vehicleLabel || null,
             serviceName: detail.serviceName || null
           });
         });
@@ -1004,7 +1035,19 @@ export const approveSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({ laborCommissions: 1, laborValue: 1, laborPercent: 1, laborShare: 1, technician: 1, initialTechnician: 1, closingTechnician: 1, closedAt: 1, number: 1, 'vehicle.plate': 1, items: 1 });
+    }).select({
+      laborCommissions: 1,
+      laborValue: 1,
+      laborPercent: 1,
+      laborShare: 1,
+      technician: 1,
+      initialTechnician: 1,
+      closingTechnician: 1,
+      closedAt: 1,
+      number: 1,
+      vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
+      items: 1
+    });
     
     // Recolectar detalles de comisiones con porcentajes
     // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
@@ -1086,6 +1129,7 @@ export const approveSettlement = async (req, res) => {
             saleId: detail.saleId || null,
             laborName: detail.kind || null,
             vehiclePlate: detail.vehiclePlate || null,
+            vehicleLabel: detail.vehicleLabel || null,
             serviceName: detail.serviceName || null
           });
         });
@@ -1732,6 +1776,7 @@ function buildFallbackPayrollHtml({ context }) {
   const renderWorkRow = (i) => {
     const service = String(i.serviceName || '').trim();
     const labor = String(i.laborName || '').trim();
+    const vehicleLabel = String(i.vehicleLabel || '').trim();
     const plate = String(i.vehiclePlate || '').trim();
     const sale = i.saleNumber ? `Venta #${i.saleNumber}` : '';
     const percent = Number.isFinite(Number(i.percentValue)) ? Number(i.percentValue) : null;
@@ -1740,7 +1785,8 @@ function buildFallbackPayrollHtml({ context }) {
     const subtitleParts = [];
     if (percent != null && percent > 0 && percent <= 1000) subtitleParts.push(`${percent}%`);
     if (labor) subtitleParts.push(`MO: ${labor}`);
-    if (plate) subtitleParts.push(`🚗 ${plate}`);
+    if (vehicleLabel) subtitleParts.push(`🚗 ${vehicleLabel}`);
+    else if (plate) subtitleParts.push(`🚗 ${plate}`);
     if (sale) subtitleParts.push(sale);
     const notes = String(i.notes || '').trim();
     if (notes) subtitleParts.push(notes);
@@ -1766,7 +1812,7 @@ function buildFallbackPayrollHtml({ context }) {
     const others = [];
 
     for (const it of list) {
-      const plate = String(it.vehiclePlate || '').trim();
+      const plate = String(it.vehicleLabel || it.vehiclePlate || '').trim();
       const saleNumber = it.saleNumber != null ? String(it.saleNumber).trim() : '';
       if (!plate && !saleNumber) {
         others.push(it);

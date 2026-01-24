@@ -8,6 +8,13 @@ const ItemSchema = new mongoose.Schema({
   value: { type: Number, required: true },
   calcRule: { type: String, default: '' },
   notes: { type: String, default: '' },
+  // Metadatos opcionales (para previsualización/impresión de mano de obra por venta)
+  saleId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  saleNumber: { type: Number, default: null },
+  vehiclePlate: { type: String, default: '' },
+  vehicleLabel: { type: String, default: '' }, // placa + detalles (si existen)
+  serviceName: { type: String, default: '' },  // nombre servicio/combo asociado
+  laborName: { type: String, default: '' },    // tipo de mano de obra (kind)
   // Campos para porcentajes (guardados para liquidación)
   isPercent: { type: Boolean, default: false },
   percentValue: { type: Number, default: null },

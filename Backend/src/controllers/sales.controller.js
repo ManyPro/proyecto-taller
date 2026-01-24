@@ -2363,13 +2363,14 @@ export const closeSale = async (req, res) => {
         for (const ln of laborLines) {
           const tech = String(ln?.technician || technician || '').trim().toUpperCase();
           const kind = String(ln?.kind || '').trim().toUpperCase();
+          const itemName = String(ln?.itemName || '').trim();
           const lv = Number(ln?.laborValue || 0);
           const pc = Number(ln?.percent || 0);
           if (!tech || !kind) continue;
           if (!Number.isFinite(lv) || lv < 0) continue;
           if (!Number.isFinite(pc) || pc < 0 || pc > 100) continue;
           const share = Math.round(lv * (pc / 100));
-          lines.push({ technician: tech, kind, laborValue: Math.round(lv), percent: Math.round(pc), share });
+          lines.push({ technician: tech, kind, laborValue: Math.round(lv), percent: Math.round(pc), share, itemName });
         }
         sale.laborCommissions = lines;
         const sumVal = lines.reduce((a, b) => a + (b.laborValue || 0), 0);
@@ -2636,6 +2637,7 @@ export const updateCloseSale = async (req, res) => {
           .map(c => ({
             technician: String(c.technician || '').trim(),
             kind: String(c.kind || '').trim(),
+            itemName: String(c.itemName || '').trim(),
             laborValue: Math.round(Number(c.laborValue) || 0),
             percent: Number(c.percent) || 0,
             share: Math.round((Number(c.laborValue) || 0) * (Number(c.percent) || 0) / 100)
