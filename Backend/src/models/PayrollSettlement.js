@@ -52,24 +52,27 @@ const PayrollSettlement = mongoose.model('PayrollSettlement', PayrollSettlementS
 
 // Eliminar índice problemático antiguo si existe (migración)
 // Este índice causa conflictos cuando technicianId es null
+async function dropLegacyIndexes() {
+  // Intentar por nombre y por patrón (algunos clusters renombraron índices)
+  const ops = [
+    // Índice problemático: unique por (companyId, technicianId, periodId) sin sparse efectivo / con nulls
+    PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1'),
+    PayrollSettlement.collection.dropIndex({ companyId: 1, technicianId: 1, periodId: 1 }),
+    // Índice legacy incorrecto: solo permitía 1 liquidación por período en toda la empresa
+    PayrollSettlement.collection.dropIndex('companyId_1_periodId_1'),
+    PayrollSettlement.collection.dropIndex({ companyId: 1, periodId: 1 })
+  ];
+
+  await Promise.allSettled(ops);
+}
+
 if (mongoose.connection.readyState === 1) {
   // Si ya está conectado, eliminar el índice inmediatamente
-  PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1').catch(() => {
-    // Ignorar error si el índice no existe
-  });
-  // Índice legacy incorrecto: solo permitía 1 liquidación por período en toda la empresa
-  PayrollSettlement.collection.dropIndex('companyId_1_periodId_1').catch(() => {
-    // Ignorar error si el índice no existe
-  });
+  dropLegacyIndexes().catch(() => {});
 } else {
   // Si no está conectado, esperar a que se conecte
   mongoose.connection.once('connected', () => {
-    PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1').catch(() => {
-      // Ignorar error si el índice no existe
-    });
-    PayrollSettlement.collection.dropIndex('companyId_1_periodId_1').catch(() => {
-      // Ignorar error si el índice no existe
-    });
+    dropLegacyIndexes().catch(() => {});
   });
 }
 
