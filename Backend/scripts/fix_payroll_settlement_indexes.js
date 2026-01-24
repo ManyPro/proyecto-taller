@@ -40,11 +40,26 @@ async function main() {
     }
   };
 
-  // Drop legacy / wrong ones
+  // Drop legacy / wrong ones (by common names/specs)
   await tryDrop('companyId_1_periodId_1');
   await tryDrop({ companyId: 1, periodId: 1 });
   await tryDrop('companyId_1_technicianId_1_periodId_1');
   await tryDrop({ companyId: 1, technicianId: 1, periodId: 1 });
+
+  // Extra: drop any UNIQUE index that matches these key patterns even if renamed
+  const idxAfterAttempt = await col.indexes();
+  for (const idx of idxAfterAttempt) {
+    const key = idx.key || {};
+    const isUnique = idx.unique === true;
+    const isCompanyPeriod =
+      key.companyId === 1 && key.periodId === 1 && Object.keys(key).length === 2;
+    const isCompanyTechPeriod =
+      key.companyId === 1 && key.technicianId === 1 && key.periodId === 1 && Object.keys(key).length === 3;
+
+    if (isUnique && (isCompanyPeriod || isCompanyTechPeriod)) {
+      await tryDrop(idx.name);
+    }
+  }
 
   // Final list
   const indexesAfter = await col.indexes();

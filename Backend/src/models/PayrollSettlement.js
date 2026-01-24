@@ -45,8 +45,9 @@ const PayrollSettlementSchema = new mongoose.Schema({
 // Índice único por técnico y período (una liquidación por técnico por período)
 // Usar solo technicianName para la unicidad, ya que technicianId puede ser null
 PayrollSettlementSchema.index({ companyId: 1, technicianName: 1, periodId: 1 }, { unique: true });
-// Índice adicional para búsquedas por technicianId cuando existe (sparse: solo indexa cuando technicianId no es null)
-PayrollSettlementSchema.index({ companyId: 1, technicianId: 1, periodId: 1 }, { unique: true, sparse: true });
+// Índice auxiliar (NO único) para búsquedas por technicianId cuando existe
+// Nota: technicianId puede ser null/ausente; NO usar unique aquí para evitar dup key con null.
+PayrollSettlementSchema.index({ companyId: 1, technicianId: 1, periodId: 1 }, { sparse: true });
 
 const PayrollSettlement = mongoose.model('PayrollSettlement', PayrollSettlementSchema);
 

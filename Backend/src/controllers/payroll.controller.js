@@ -1421,11 +1421,12 @@ export const approveSettlement = async (req, res) => {
       approvedAt: new Date()
     };
     
-    // Solo incluir technicianId si es válido, de lo contrario establecerlo explícitamente como null
+    // Solo incluir technicianId si es válido.
+    // IMPORTANTE: NO guardar technicianId:null, porque null entra en índices y rompe unicidad (dup key).
     if (technicianId && technicianId.trim() !== '' && mongoose.Types.ObjectId.isValid(technicianId)) {
       updateData.technicianId = new mongoose.Types.ObjectId(technicianId);
     } else {
-      updateData.technicianId = null;
+      delete updateData.technicianId;
     }
     
     let doc;
