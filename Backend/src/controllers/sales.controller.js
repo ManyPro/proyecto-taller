@@ -20,6 +20,21 @@ import { getAllSharedCompanyIds as getAllSharedCompanyIdsHelper } from '../lib/s
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
+function normalizeLaborKind(kind) {
+  return String(kind || '').trim().toUpperCase();
+}
+
+function normalizeLabel(label) {
+  return String(label || '').trim();
+}
+
+function computeItemLaborBase(laborValue, qty) {
+  const lv = Number(laborValue || 0);
+  const q = Number(qty || 1) || 1;
+  if (!Number.isFinite(lv) || lv <= 0) return 0;
+  return Math.round(lv * q);
+}
+
 function computeTotals(sale) {
   // CRÍTICO: No sumar items que son parte de un combo (SKU empieza con "CP-")
   // Estos items ya están incluidos en el precio del combo
@@ -2886,6 +2901,129 @@ export const updateCloseSale = async (req, res) => {
     res.status(400).json({ error: err?.message || 'Cannot update sale' });
   } finally {
     session.endSession();
+  }
+};
+
+// Reparar ventas cerradas antiguas: rellenar laborCommissions[].itemName desde items/precios
+// POST /api/v1/sales/:id/labor-commissions/backfill-itemnames
+export const backfillLaborCommissionItemNames = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dryRun = String(req.query?.dryRun || '').trim() === '1' || String(req.query?.dryRun || '').trim().toLowerCase() === 'true';
+
+    const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+    if (!sale) return res.status(404).json({ error: 'Sale not found' });
+    if (String(sale.status || '').toLowerCase() !== 'closed') {
+      return res.status(400).json({ error: 'Solo se puede reparar una venta cerrada' });
+    }
+
+    const lines = Array.isArray(sale.laborCommissions) ? sale.laborCommissions.map(x => ({ ...x })) : [];
+    if (lines.length === 0) {
+      return res.json({ ok: true, updated: 0, message: 'La venta no tiene laborCommissions' });
+    }
+
+    // Candidatos: items price/service de la venta -> PriceEntry (laborKind/laborValue) -> label
+    const saleItems = Array.isArray(sale.items) ? sale.items : [];
+    const refIds = saleItems
+      .filter(it => {
+        const src = String(it?.source || '').toLowerCase();
+        return (src === 'price' || src === 'service') && it?.refId;
+      })
+      .map(it => String(it.refId))
+      .filter(Boolean);
+
+    const uniqueRefIds = Array.from(new Set(refIds)).filter(x => mongoose.Types.ObjectId.isValid(x));
+    const priceDocs = uniqueRefIds.length
+      ? await PriceEntry.find({ _id: { $in: uniqueRefIds }, companyId: req.companyId })
+          .select({ name: 1, laborValue: 1, laborKind: 1, type: 1 })
+          .lean()
+      : [];
+    const priceMap = new Map(priceDocs.map(d => [String(d._id), d]));
+
+    const candidates = [];
+    for (const it of saleItems) {
+      const src = String(it?.source || '').toLowerCase();
+      if (src !== 'price' && src !== 'service') continue;
+      const refId = it?.refId ? String(it.refId) : '';
+      if (!mongoose.Types.ObjectId.isValid(refId)) continue;
+      const pe = priceMap.get(refId);
+      if (!pe) continue;
+      const base = computeItemLaborBase(pe.laborValue, it?.qty);
+      if (base <= 0) continue;
+      const kind = normalizeLaborKind(pe.laborKind);
+      const label = normalizeLabel(pe.name || it?.name || it?.sku || '');
+      if (!label) continue;
+      candidates.push({
+        refId,
+        kind,
+        base,
+        label,
+        used: false
+      });
+    }
+
+    // Matching 1-a-1: por cada línea, buscar candidato con mismo kind y mismo base; consumir para evitar duplicados.
+    // Si no hay kind en candidato o línea, relajar a base solamente.
+    const updatedLines = [];
+    let updatedCount = 0;
+    const debug = [];
+
+    for (const ln of lines) {
+      const currentName = normalizeLabel(ln?.itemName);
+      if (currentName) {
+        updatedLines.push(ln);
+        continue;
+      }
+
+      const lnKind = normalizeLaborKind(ln?.kind);
+      const lnBase = Math.round(Number(ln?.laborValue || 0));
+
+      let match = null;
+
+      // 1) kind + base exact
+      match = candidates.find(c => !c.used && c.base === lnBase && !!lnKind && c.kind === lnKind);
+      // 2) base exact (sin kind)
+      if (!match) match = candidates.find(c => !c.used && c.base === lnBase);
+      // 3) closest by base with same kind
+      if (!match && lnBase > 0 && lnKind) {
+        const pool = candidates.filter(c => !c.used && c.kind === lnKind);
+        pool.sort((a, b) => Math.abs(a.base - lnBase) - Math.abs(b.base - lnBase));
+        match = pool[0] || null;
+      }
+      // 4) closest by base
+      if (!match && lnBase > 0) {
+        const pool = candidates.filter(c => !c.used);
+        pool.sort((a, b) => Math.abs(a.base - lnBase) - Math.abs(b.base - lnBase));
+        match = pool[0] || null;
+      }
+
+      if (match) {
+        match.used = true;
+        ln.itemName = match.label;
+        updatedCount += 1;
+        debug.push({ kind: lnKind, laborValue: lnBase, itemName: match.label, matchBase: match.base, matchKind: match.kind });
+      } else {
+        debug.push({ kind: lnKind, laborValue: lnBase, itemName: null, reason: 'no_match' });
+      }
+
+      updatedLines.push(ln);
+    }
+
+    if (!dryRun && updatedCount > 0) {
+      sale.laborCommissions = updatedLines;
+      await sale.save();
+    }
+
+    res.json({
+      ok: true,
+      dryRun,
+      updated: updatedCount,
+      totalLines: updatedLines.length,
+      debug
+    });
+  } catch (err) {
+    console.error('Error in backfillLaborCommissionItemNames:', err);
+    res.status(500).json({ error: 'Error reparando itemName de laborCommissions', message: err.message });
   }
 };
 

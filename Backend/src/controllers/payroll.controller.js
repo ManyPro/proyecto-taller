@@ -460,9 +460,16 @@ function buildVehicleLabelFromSale(sale) {
   const line = String(sale?.vehicle?.line || '').trim();
   const engine = String(sale?.vehicle?.engine || '').trim();
   const year = sale?.vehicle?.year != null ? String(sale.vehicle.year).trim() : '';
-  const details = [brand, line, engine, year].filter(Boolean).join(' ');
-  if (plate && details) return `${plate} · ${details}`;
-  return plate || details || '';
+  // Queremos un label corto y útil para UI/PDF: PLACA + (MODELO/LÍNEA)
+  // Ej: "ZXX523 · LOGAN" / "BMU757 · DUSTER"
+  const model = line || brand || '';
+  const label = plate && model ? `${plate} · ${model}` : (plate || model);
+  // Si NO hay modelo pero sí motor/año, agregarlos (solo como fallback)
+  if (label && !model) {
+    const extra = [engine, year].filter(Boolean).join(' ');
+    return extra ? `${label} · ${extra}` : label;
+  }
+  return label;
 }
 
 /**
@@ -592,6 +599,67 @@ async function pickServiceNameFromSaleForLabor({ sale, targetLaborValue, company
   return candidates[0].label;
 }
 
+async function buildServiceCandidatesForSale({ sale, companyId, priceCache }) {
+  const items = Array.isArray(sale?.items) ? sale.items : [];
+  const candidates = [];
+  for (const it of items) {
+    const src = String(it?.source || '').toLowerCase();
+    if (src !== 'price' && src !== 'service') continue;
+
+    const refId = it?.refId;
+    const refStr = refId ? String(refId) : '';
+    if (!mongoose.Types.ObjectId.isValid(refStr)) continue;
+
+    let pe = priceCache.get(refStr);
+    if (pe === undefined) {
+      pe = await PriceEntry.findOne({ _id: refStr, companyId }).select({ name: 1, laborValue: 1, laborKind: 1, type: 1 }).lean();
+      priceCache.set(refStr, pe || null);
+    }
+    if (!pe) continue;
+
+    const lv = Number(pe.laborValue || 0);
+    const qty = Number(it?.qty || 1) || 1;
+    const base = Math.round(lv * qty);
+    if (!Number.isFinite(base) || base <= 0) continue;
+
+    const label = String(pe.name || it?.name || it?.sku || '').trim();
+    if (!label) continue;
+
+    candidates.push({
+      label,
+      base,
+      kind: String(pe.laborKind || '').trim(),
+      used: false
+    });
+  }
+  return candidates;
+}
+
+async function pickServiceNameFromCandidates({ candidates, targetLaborValue, targetKind }) {
+  const target = Number(targetLaborValue || 0);
+  const kind = String(targetKind || '').trim().toUpperCase();
+
+  // 1) exact base + kind
+  if (kind) {
+    const exact = candidates.find(c => !c.used && c.base === target && String(c.kind || '').trim().toUpperCase() === kind);
+    if (exact) return exact;
+  }
+  // 2) exact base
+  const exactBase = candidates.find(c => !c.used && c.base === target);
+  if (exactBase) return exactBase;
+
+  // 3) closest base + kind
+  if (kind) {
+    const pool = candidates.filter(c => !c.used && String(c.kind || '').trim().toUpperCase() === kind);
+    pool.sort((a, b) => Math.abs(a.base - target) - Math.abs(b.base - target));
+    if (pool[0]) return pool[0];
+  }
+  // 4) closest base
+  const pool = candidates.filter(c => !c.used);
+  pool.sort((a, b) => Math.abs(a.base - target) - Math.abs(b.base - target));
+  return pool[0] || null;
+}
+
 async function collectCommissionDetailsForSales({ sales, techNameUpper, startDate, endDate, companyId }) {
   const commissionDetails = [];
   let commission = 0;
@@ -602,6 +670,7 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
     if (!saleClosedAt || saleClosedAt < startDate || saleClosedAt > endDate) continue;
 
     const fromSale = extractCommissionDetailsFromSale(s, techNameUpper);
+    const serviceCandidates = await buildServiceCandidatesForSale({ sale: s, companyId, priceCache });
     for (const d of fromSale) {
       const laborValue = Number(d.laborValue || 0);
       const percent = Number(d.percent || 0);
@@ -609,14 +678,25 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
 
       // Preferir el itemName guardado en laborCommissions (evita colisiones cuando varios items tienen el mismo laborValue)
       const itemName = String(d.itemName || '').trim();
-      const serviceName = itemName
-        ? itemName
-        : await pickServiceNameFromSaleForLabor({
+      let serviceName = itemName;
+      if (!serviceName) {
+        const picked = await pickServiceNameFromCandidates({
+          candidates: serviceCandidates,
+          targetLaborValue: laborValue,
+          targetKind: d.kind
+        });
+        if (picked) {
+          picked.used = true;
+          serviceName = picked.label;
+        } else {
+          serviceName = await pickServiceNameFromSaleForLabor({
             sale: s,
             targetLaborValue: laborValue,
             companyId,
             priceCache
           });
+        }
+      }
       const vehicleLabel = buildVehicleLabelFromSale(s);
 
       commissionDetails.push({
