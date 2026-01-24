@@ -1668,6 +1668,49 @@ function buildPdfPageStyles() {
     .type.earning { border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.12); color:#065f46; }
     .type.deduction { border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.12); color:#7f1d1d; }
     .type.surcharge { border-color: rgba(245,158,11,.40); background: rgba(245,158,11,.15); color:#78350f; }
+    .group {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      background: #ffffff;
+    }
+    .group-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: linear-gradient(90deg, rgba(79,70,229,.10), rgba(59,130,246,.10));
+      border-bottom: 1px solid rgba(148,163,184,.25);
+    }
+    .group-title {
+      font-weight: 900;
+      color: #1e293b;
+      font-size: 12px;
+    }
+    .group-meta {
+      margin-top: 4px;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .group-total {
+      font-weight: 900;
+      color: #0f172a;
+      white-space: nowrap;
+    }
+    .work-title {
+      font-weight: 900;
+      color: #0f172a;
+    }
+    .work-sub {
+      margin-top: 3px;
+      color:#64748b;
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .dot { color:#94a3b8; padding: 0 6px; }
     .sign { margin-top: 22px; display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     .sign .box { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px 12px; min-height: 74px; }
     .sign .label { font-size: 10px; color:#64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 6px; text-align:center; }
@@ -1686,42 +1729,127 @@ function buildFallbackPayrollHtml({ context }) {
   const period = context.period || {};
   const itemsByType = settlement.itemsByType || buildItemsByType(settlement.items || []);
 
-  const buildDetail = (i) => {
-    const parts = [];
+  const renderWorkRow = (i) => {
     const service = String(i.serviceName || '').trim();
     const labor = String(i.laborName || '').trim();
     const plate = String(i.vehiclePlate || '').trim();
     const sale = i.saleNumber ? `Venta #${i.saleNumber}` : '';
+    const percent = Number.isFinite(Number(i.percentValue)) ? Number(i.percentValue) : null;
 
-    if (service) parts.push(service);
-    if (!service && labor) parts.push(labor);
-    if (service && labor) parts.push(`MO: ${labor}`);
-    if (plate) parts.push(`🚗 ${plate}`);
-    if (sale) parts.push(sale);
+    const title = service || labor || String(i.name || '').trim() || '-';
+    const subtitleParts = [];
+    if (percent != null && percent > 0 && percent <= 1000) subtitleParts.push(`${percent}%`);
+    if (labor) subtitleParts.push(`MO: ${labor}`);
+    if (plate) subtitleParts.push(`🚗 ${plate}`);
+    if (sale) subtitleParts.push(sale);
     const notes = String(i.notes || '').trim();
-    if (notes) parts.push(notes);
+    if (notes) subtitleParts.push(notes);
 
-    return parts.length ? `<div class="muted">${escapeHtml(parts.join(' • '))}</div>` : '';
+    const subtitle = subtitleParts.length
+      ? `<div class="work-sub">${escapeHtml(subtitleParts.join(' · '))}</div>`
+      : '';
+
+    return `
+      <tr>
+        <td>
+          <div class="work-title">${escapeHtml(title)}</div>
+          ${subtitle}
+        </td>
+        <td class="right money">${escapeHtml(formatMoney(i.value || 0))}</td>
+      </tr>
+    `;
   };
 
-  const renderRows = (items) =>
-    (items || [])
-      .map((i) => {
-        const type = String(i.type || '');
-        const typeLabel = type === 'earning' ? 'Ingreso' : type === 'deduction' ? 'Descuento' : type === 'surcharge' ? 'Recargo' : type;
-        const mainName = escapeHtml(String(i.name || '').trim() || '-');
+  const groupByPlateAndSale = (items = []) => {
+    const list = Array.isArray(items) ? items.filter(Boolean) : [];
+    const groups = new Map(); // key -> { plate, saleNumber, items: [] }
+    const others = [];
+
+    for (const it of list) {
+      const plate = String(it.vehiclePlate || '').trim();
+      const saleNumber = it.saleNumber != null ? String(it.saleNumber).trim() : '';
+      if (!plate && !saleNumber) {
+        others.push(it);
+        continue;
+      }
+      const key = `${plate}::${saleNumber}`;
+      if (!groups.has(key)) groups.set(key, { plate, saleNumber, items: [] });
+      groups.get(key).items.push(it);
+    }
+
+    // Orden: primero por saleNumber desc (num), luego por placa
+    const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+      const an = Number(a.saleNumber || 0);
+      const bn = Number(b.saleNumber || 0);
+      if (bn !== an) return bn - an;
+      return String(a.plate || '').localeCompare(String(b.plate || ''), 'es', { sensitivity: 'base' });
+    });
+
+    return { groups: sortedGroups, others };
+  };
+
+  const renderGroupedSection = (items) => {
+    const { groups, others } = groupByPlateAndSale(items);
+
+    const groupHtml = groups
+      .map((g) => {
+        const total = (g.items || []).reduce((s, x) => s + (Number(x.value) || 0), 0);
+        const titleParts = [];
+        if (g.saleNumber) titleParts.push(`Venta #${g.saleNumber}`);
+        if (g.plate) titleParts.push(`🚗 ${g.plate}`);
+        const headTitle = titleParts.length ? titleParts.join('  ·  ') : 'Trabajos';
+
         return `
-          <tr>
-            <td style="width:110px"><span class="type ${escapeHtml(type)}">${escapeHtml(typeLabel)}</span></td>
-            <td>
-              <div style="font-weight:800">${mainName}</div>
-              ${buildDetail(i)}
-            </td>
-            <td class="right money">${escapeHtml(formatMoney(i.value || 0))}</td>
-          </tr>
+          <div class="group">
+            <div class="group-head">
+              <div>
+                <div class="group-title">${escapeHtml(headTitle)}</div>
+              </div>
+              <div class="group-total">${escapeHtml(formatMoney(total))}</div>
+            </div>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Trabajo / detalle</th>
+                  <th class="right" style="width:130px">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(g.items || []).map(renderWorkRow).join('')}
+              </tbody>
+            </table>
+          </div>
         `;
       })
       .join('');
+
+    const othersHtml = others.length
+      ? `
+        <div class="group">
+          <div class="group-head">
+            <div>
+              <div class="group-title">Otros conceptos</div>
+              <div class="group-meta">No asociados a un vehículo/venta</div>
+            </div>
+            <div class="group-total">${escapeHtml(formatMoney(others.reduce((s, x) => s + (Number(x.value) || 0), 0)))}</div>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Concepto / detalle</th>
+                <th class="right" style="width:130px">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${others.map(renderWorkRow).join('')}
+            </tbody>
+          </table>
+        </div>
+      `
+      : '';
+
+    return `${groupHtml}${othersHtml}`;
+  };
 
   const periodLabel =
     period.formattedStartDate && period.formattedEndDate
@@ -1772,52 +1900,19 @@ function buildFallbackPayrollHtml({ context }) {
 
       <div class="section">
         <h2>Ingresos <span class="pill">${itemsByType.earnings.length}</span></h2>
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th style="width:110px">Tipo</th>
-              <th>Concepto / Detalle</th>
-              <th style="width:130px" class="right">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsByType.earnings.length ? renderRows(itemsByType.earnings) : `<tr><td colspan="3" style="padding:12px;color:#64748b;">Sin ingresos</td></tr>`}
-          </tbody>
-        </table>
+        ${itemsByType.earnings.length ? renderGroupedSection(itemsByType.earnings) : `<div class="card" style="color:#64748b;">Sin ingresos</div>`}
       </div>
 
       ${itemsByType.surcharges.length ? `
         <div class="section">
           <h2>Recargos <span class="pill">${itemsByType.surcharges.length}</span></h2>
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th style="width:110px">Tipo</th>
-                <th>Concepto / Detalle</th>
-                <th style="width:130px" class="right">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${renderRows(itemsByType.surcharges)}
-            </tbody>
-          </table>
+          ${renderGroupedSection(itemsByType.surcharges)}
         </div>
       ` : ''}
 
       <div class="section">
         <h2>Descuentos <span class="pill">${itemsByType.deductions.length}</span></h2>
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th style="width:110px">Tipo</th>
-              <th>Concepto / Detalle</th>
-              <th style="width:130px" class="right">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsByType.deductions.length ? renderRows(itemsByType.deductions) : `<tr><td colspan="3" style="padding:12px;color:#64748b;">Sin descuentos</td></tr>`}
-          </tbody>
-        </table>
+        ${itemsByType.deductions.length ? renderGroupedSection(itemsByType.deductions) : `<div class="card" style="color:#64748b;">Sin descuentos</div>`}
       </div>
 
       <div class="sign">
