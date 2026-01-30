@@ -56,6 +56,8 @@ const SaleSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   specialNotes: { type: [String], default: [] }, // Notas especiales para la remisión
   subtotal: { type: Number, default: 0 },
+  // Control explícito de IVA (19%). Cuando está activo, tax se calcula automáticamente.
+  ivaEnabled: { type: Boolean, default: false },
   tax: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   // Descuento aplicado a la venta

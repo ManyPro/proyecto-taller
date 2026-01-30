@@ -1,4 +1,4 @@
-﻿import { API } from './api.esm.js';
+import { API } from './api.esm.js';
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
 
@@ -1267,6 +1267,18 @@ let saleQuoteRequestToken = 0;
 // Usar un objeto por venta para mantener las selecciones por venta
 let maintenanceSelections = {}; // { saleId: { services: [], mileage: null } }
 
+function updateIvaButton() {
+  const btnIvaToggle = document.getElementById('sales-iva-toggle');
+  if (!btnIvaToggle) return;
+  if (ivaEnabled) {
+    btnIvaToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
+    btnIvaToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+  } else {
+    btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+    btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+  }
+}
+
 function loadSaleQuoteLinks(){
   if (typeof localStorage === 'undefined') return {};
   try{
@@ -1352,10 +1364,21 @@ async function renderQuoteForCurrentSale(){
     if(quote){
       renderQuoteMini(quote);
       // Activar IVA automáticamente si la cotización tiene IVA habilitado
-      if(quote.ivaEnabled && !ivaEnabled){
+      if(quote.ivaEnabled && current?._id && !ivaEnabled){
+        // Persistir también en la venta para que el backend recalculе total/tax
         ivaEnabled = true;
+        if (current) current.ivaEnabled = true;
         updateIvaButton();
-        renderSale();
+        try{
+          const updated = await API.sales.update(current._id, { ivaEnabled: true });
+          if (updated) {
+            current = updated;
+            syncCurrentIntoOpenList();
+          }
+        }catch(e){
+          console.warn('No se pudo activar IVA en la venta:', e);
+        }
+        await renderAll({ skipQuote: true });
       }
     } else {
       setSaleQuoteLink(saleId, null);
@@ -1520,6 +1543,10 @@ async function renderAll(options = {}) {
   renderPending = true;
   
   try {
+    if (current && typeof current.ivaEnabled === 'boolean') {
+      ivaEnabled = !!current.ivaEnabled;
+    }
+    updateIvaButton();
     renderTabs();
     renderSale();
     await renderWO();
@@ -4721,7 +4748,9 @@ function renderSaleFinanceSummary(){
   const discountAmount = computeSaleDiscountAmount(current);
   const advances = Array.isArray(current.advancePayments) ? current.advancePayments : [];
   const advancesTotal = computeSaleAdvanceTotal(current);
-  const balance = Math.round(Number(current.total || 0));
+  const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const ivaValue = ivaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
+  const balance = Math.max(0, Math.round(baseAfterDiscount + ivaValue - advancesTotal));
 
   const discountLabel = current?.discount?.type === 'percent'
     ? `${Number(current.discount.value || 0)}%`
@@ -11486,30 +11515,45 @@ export function initSales(){
     try{
       const fresh = await API.sales.get(current._id);
       // Si IVA está activado, imprimir factura; si no, imprimir remisión
-      printSaleTicket(fresh, ivaEnabled ? 'invoice' : 'remission');
+      const ivaOn = (typeof fresh?.ivaEnabled === 'boolean') ? fresh.ivaEnabled : ivaEnabled;
+      printSaleTicket(fresh, ivaOn ? 'invoice' : 'remission');
     }catch(e){ alert(e?.message||'No se pudo imprimir'); }
   });
   
   // Event listener para el botón toggle de IVA
   const btnIvaToggle = document.getElementById('sales-iva-toggle');
   if (btnIvaToggle) {
-    btnIvaToggle.addEventListener('click', () => {
-      ivaEnabled = !ivaEnabled;
+    btnIvaToggle.addEventListener('click', async () => {
+      if (!current?._id) {
+        ivaEnabled = !ivaEnabled;
+        updateIvaButton();
+        await renderAll({ skipQuote: true });
+        return;
+      }
+
+      const next = !ivaEnabled;
+      // Optimista: actualizar estado local y UI
+      ivaEnabled = next;
+      current.ivaEnabled = next;
       updateIvaButton();
-      renderSale();
+      await renderAll({ skipQuote: true });
+
+      // Persistir en backend para recalcular tax/total
+      btnIvaToggle.disabled = true;
+      try{
+        const updated = await API.sales.update(current._id, { ivaEnabled: next });
+        if (updated) {
+          current = updated;
+          syncCurrentIntoOpenList();
+        }
+      }catch(e){
+        console.warn('No se pudo guardar IVA en la venta:', e);
+      }finally{
+        btnIvaToggle.disabled = false;
+      }
+      await renderAll({ skipQuote: true });
     });
     updateIvaButton();
-  }
-  
-  function updateIvaButton() {
-    if (!btnIvaToggle) return;
-    if (ivaEnabled) {
-      btnIvaToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
-      btnIvaToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
-    } else {
-      btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
-      btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
-    }
   }
 
   document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{

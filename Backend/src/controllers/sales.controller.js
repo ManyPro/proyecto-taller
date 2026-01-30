@@ -1,4 +1,4 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 import { checkLowStockForMany } from '../lib/stockAlerts.js';
 import { registerSaleIncome, ensureDefaultCashAccount, computeBalance } from './cashflow.controller.js';
 import Sale from '../models/Sale.js';
@@ -57,9 +57,8 @@ function computeTotals(sale) {
   }, 0);
   
   sale.subtotal = Math.round(subtotal);
-  sale.tax = 0; // ajustar si aplicas IVA
-  
   // Calcular descuento
+  
   let discountAmount = 0;
   if (sale.discount && sale.discount.type && sale.discount.value > 0) {
     if (sale.discount.type === 'percent') {
@@ -72,14 +71,22 @@ function computeTotals(sale) {
       discountAmount = sale.subtotal;
     }
   }
+  if (discountAmount < 0) discountAmount = 0;
   
   // Calcular suma de abonos
   const totalAdvancePayments = (sale.advancePayments || []).reduce((sum, advance) => {
     return sum + Math.round(asNum(advance.amount));
   }, 0);
   
-  // Total = subtotal - descuento - abonos
-  sale.total = Math.round(sale.subtotal - discountAmount - totalAdvancePayments + sale.tax);
+  // Subtotal después de descuento (base de IVA)
+  const subtotalAfterDiscount = Math.max(0, Math.round(sale.subtotal - discountAmount));
+
+  // IVA (19%) opcional, controlado por sale.ivaEnabled
+  const ivaOn = !!sale.ivaEnabled;
+  sale.tax = ivaOn && subtotalAfterDiscount > 0 ? Math.round(subtotalAfterDiscount * 0.19) : 0;
+
+  // Total = (subtotal - descuento) + IVA - abonos
+  sale.total = Math.round(subtotalAfterDiscount + (sale.tax || 0) - totalAdvancePayments);
   
   // Asegurar que el total no sea negativo
   if (sale.total < 0) {
@@ -1449,7 +1456,7 @@ export const removeDiscount = async (req, res) => {
 // ===== TÃ©cnico asignado =====
 export const updateSale = async (req, res) => {
   const { id } = req.params;
-  const { specialNotes, ...otherFields } = req.body || {};
+  const { specialNotes, ivaEnabled } = req.body || {};
   
   // Buscar venta considerando base de datos compartida
   const companyFilter = getSaleQueryCompanyFilter(req);
@@ -1468,9 +1475,16 @@ export const updateSale = async (req, res) => {
   if (specialNotes !== undefined) {
     sale.specialNotes = Array.isArray(specialNotes) ? specialNotes : [];
   }
-  
-  // Permitir actualizar otros campos permitidos si es necesario
-  // Por ahora solo permitimos specialNotes
+
+  // IVA toggle (solo en borrador)
+  if (ivaEnabled !== undefined) {
+    if (sale.status !== 'draft') {
+      return res.status(400).json({ error: 'Solo se puede cambiar IVA en ventas en borrador' });
+    }
+    sale.ivaEnabled = !!ivaEnabled;
+    // Recalcular totales para reflejar tax/total
+    computeTotals(sale);
+  }
   
   await sale.save();
   try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}

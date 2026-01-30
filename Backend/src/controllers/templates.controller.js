@@ -1,4 +1,4 @@
-﻿import Template from '../models/Template.js';
+import Template from '../models/Template.js';
 import Sale from '../models/Sale.js';
 import Quote from '../models/Quote.js';
 import Company from '../models/Company.js';
@@ -616,8 +616,8 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       if (effective === 'invoice-factura') {
         const subtotal = subtotalRaw;
         const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
-        const iva = subtotalAfterDiscount * 0.19;
-        const totalWithIva = subtotalAfterDiscount + iva;
+        const iva = Math.round(subtotalAfterDiscount * 0.19);
+        const totalWithIva = Math.round(subtotalAfterDiscount + iva);
         
         // Crear objeto S con valores calculados para facturas
         ctx.S = {
