@@ -55,6 +55,7 @@ export async function htmlToPdfBuffer(
     preferCSSPageSize = true,
     timeoutMs = 30000,
     displayHeaderFooter = true,
+    scale = 1,
     headerTemplate,
     footerTemplate
   } = {}
@@ -91,6 +92,7 @@ export async function htmlToPdfBuffer(
       printBackground,
       margin,
       preferCSSPageSize,
+      scale,
       displayHeaderFooter,
       headerTemplate:
         headerTemplate ??

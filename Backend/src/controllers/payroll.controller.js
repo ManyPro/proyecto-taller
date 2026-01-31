@@ -1730,33 +1730,34 @@ function buildItemsByType(items = []) {
 function buildPdfPageStyles() {
   // Estilos “pro” para PDF (A4), con buena tipografía y tablas tipo dashboard.
   return `
-    @page { size: A4; margin: 16mm 12mm; }
+    /* Compacto: pensado para 1–2 páginas */
+    @page { size: A4; margin: 10mm 8mm; }
     * { box-sizing: border-box; }
     html, body { margin:0; padding:0; }
     body {
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       color: #0f172a;
       background: #ffffff;
-      font-size: 12px;
-      line-height: 1.35;
+      font-size: 11px;
+      line-height: 1.25;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     .doc { width: 100%; }
     .header {
       display:flex; gap:16px; align-items:flex-start; justify-content:space-between;
-      padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px;
+      padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 10px;
     }
     .brand { display:flex; gap:12px; align-items:center; min-width:0; }
-    .brand img { height: 34px; width:auto; object-fit:contain; }
-    .title { font-size: 18px; font-weight: 800; letter-spacing: .3px; margin: 0; }
-    .subtitle { margin: 4px 0 0 0; color: #475569; font-size: 11px; }
-    .meta { text-align:right; color:#475569; font-size: 11px; white-space:nowrap; }
+    .brand img { height: 30px; width:auto; object-fit:contain; }
+    .title { font-size: 16px; font-weight: 800; letter-spacing: .2px; margin: 0; }
+    .subtitle { margin: 3px 0 0 0; color: #475569; font-size: 10px; }
+    .meta { text-align:right; color:#475569; font-size: 10px; white-space:nowrap; }
     .meta strong { color:#0f172a; }
-    .grid { display:grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px; }
-    .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; background: #ffffff; }
+    .grid { display:grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; background: #ffffff; }
     .card h3 { margin:0 0 8px 0; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color:#334155; }
-    .kv { display:grid; grid-template-columns: 140px 1fr; gap: 6px 10px; font-size: 11px; }
+    .kv { display:grid; grid-template-columns: 120px 1fr; gap: 5px 10px; font-size: 10px; }
     .k { color:#64748b; }
     .v { color:#0f172a; font-weight: 600; overflow-wrap:anywhere; }
     .totals { display:flex; flex-direction: column; gap: 8px; }
@@ -1765,23 +1766,23 @@ function buildPdfPageStyles() {
     .total-row .value { font-weight:800; }
     .total-row.ded .value { color:#b91c1c; }
     .net {
-      margin-top: 6px; padding: 10px 12px; border-radius: 10px;
+      margin-top: 6px; padding: 8px 10px; border-radius: 10px;
       background: linear-gradient(90deg, rgba(59,130,246,.10), rgba(16,185,129,.12));
       border: 1px solid rgba(59,130,246,.18);
       display:flex; justify-content: space-between; align-items: baseline; gap: 12px;
     }
-    .net .label { font-weight: 900; font-size: 13px; }
-    .net .value { font-weight: 900; font-size: 18px; color:#047857; }
-    .section { margin-top: 14px; }
-    .section h2 { margin: 0 0 8px 0; font-size: 12px; letter-spacing: .7px; text-transform: uppercase; color:#334155; display:flex; align-items:center; gap: 8px; }
+    .net .label { font-weight: 900; font-size: 12px; }
+    .net .value { font-weight: 900; font-size: 16px; color:#047857; }
+    .section { margin-top: 10px; }
+    .section h2 { margin: 0 0 6px 0; font-size: 11px; letter-spacing: .7px; text-transform: uppercase; color:#334155; display:flex; align-items:center; gap: 8px; }
     .pill { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; border: 1px solid #e2e8f0; color:#334155; background:#f8fafc; }
     table.tbl { width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 10px; overflow:hidden; }
     .tbl thead th {
       background: #0b1220; color: #e5e7eb; text-align:left; font-size: 10px;
-      letter-spacing: .7px; text-transform: uppercase; padding: 8px 10px;
+      letter-spacing: .7px; text-transform: uppercase; padding: 6px 8px;
       border-bottom: 1px solid rgba(148,163,184,.25);
     }
-    .tbl tbody td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; font-size: 11px; }
+    .tbl tbody td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; font-size: 10px; }
     .tbl tbody tr:nth-child(2n) td { background: #f8fafc; }
     .tbl .muted { color:#64748b; font-weight: 600; font-size: 10px; margin-top: 3px; }
     .tbl .right { text-align:right; white-space:nowrap; }
@@ -1797,7 +1798,7 @@ function buildPdfPageStyles() {
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 12px;
+      margin-bottom: 9px;
       background: #ffffff;
     }
     .group-head {
@@ -1805,7 +1806,7 @@ function buildPdfPageStyles() {
       align-items:center;
       justify-content:space-between;
       gap: 10px;
-      padding: 10px 12px;
+      padding: 8px 10px;
       background: linear-gradient(90deg, rgba(79,70,229,.10), rgba(59,130,246,.10));
       border-bottom: 1px solid rgba(148,163,184,.25);
     }
@@ -1836,10 +1837,10 @@ function buildPdfPageStyles() {
       font-size: 10px;
     }
     .dot { color:#94a3b8; padding: 0 6px; }
-    .sign { margin-top: 22px; display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    .sign .box { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px 12px; min-height: 74px; }
-    .sign .label { font-size: 10px; color:#64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 6px; text-align:center; }
-    .footnote { margin-top: 16px; font-size: 10px; color:#64748b; display:flex; justify-content: space-between; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    .sign { margin-top: 14px; display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .sign .box { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 8px 10px; min-height: 56px; }
+    .sign .label { font-size: 10px; color:#64748b; margin-top: 26px; border-top: 1px solid #e2e8f0; padding-top: 5px; text-align:center; }
+    .footnote { margin-top: 10px; font-size: 10px; color:#64748b; display:flex; justify-content: space-between; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
     /* Evitar cortes feos */
     .card, table, tr, td, th { page-break-inside: avoid; }
   `;
@@ -2559,7 +2560,11 @@ export const generateSettlementPdf = async (req, res) => {
       const pdfBuffer = await htmlToPdfBuffer(htmlDoc, {
         format: 'A4',
         preferCSSPageSize: true,
-        printBackground: true
+        printBackground: true,
+        // Compactar: menos márgenes + sin header/footer de Puppeteer (ahorra espacio vertical)
+        margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+        displayHeaderFooter: false,
+        scale: 0.96
       });
 
       res.setHeader('Content-Type', 'application/pdf');
