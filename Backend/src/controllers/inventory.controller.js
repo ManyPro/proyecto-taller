@@ -1177,7 +1177,23 @@ export const itemQrPng = async (req, res) => {
       investorId: investorId
     });
   } else {
-    payload = (item.qrData || makeQrData({ companyId: req.companyId, item }));
+    // IMPORTANTE:
+    // - Históricamente se guardó `item.qrData` con formato legacy (solo "IT:company:item:sku").
+    // - Para garantizar que el QR siempre incluya proveedor/inversor (al menos GENERAL),
+    //   generamos el payload estable aquí y solo reutilizamos `item.qrData` si cumple el formato nuevo.
+    const fresh = makeQrData({ companyId: req.companyId, item });
+    const existing = typeof item.qrData === 'string' ? item.qrData.trim() : '';
+    const parts = existing ? existing.split(':') : [];
+    const looksNew = parts.length >= 6; // IT:<companyId>:<itemId>:<sku>:<supplierId|GENERAL>:<investorId|GENERAL>...
+    payload = looksNew ? existing : fresh;
+
+    // Auto-migración en caliente: si era legacy o vacío, guardarlo para próximas veces
+    if (!looksNew && payload && payload !== existing) {
+      try {
+        item.qrData = payload;
+        await item.save();
+      } catch {}
+    }
   }
 
   const png = await QRCode.toBuffer(payload, {

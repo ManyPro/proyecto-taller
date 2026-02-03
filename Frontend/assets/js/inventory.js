@@ -556,7 +556,10 @@ async function downloadQrPng(itemId, size = 720, filename = "qr.png") {
 }
 
 function buildQrPayload(companyId, item) {
-  return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
+  // Mantener consistencia con el backend:
+  // sin entryId (entrada específica), el payload igual incluye supplier/investor como GENERAL.
+  const sku = (item.sku || "").toUpperCase();
+  return `IT:${companyId}:${item._id}:${sku}:GENERAL:GENERAL`;
 }
 
 function openQrModal(item, companyId) {
