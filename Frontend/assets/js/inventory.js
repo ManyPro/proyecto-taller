@@ -1,4 +1,4 @@
-﻿import { API } from "./api.esm.js";
+import { API } from "./api.esm.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
@@ -3385,7 +3385,8 @@ function openMarketplaceHelper(item){
       // pero primero intentar usar entryId si está disponible
       let qrPath = buildQrPath(itemId, 600);
       if (entryId) {
-        qrPath += `?entryId=${entryId}`;
+        const sep = qrPath.includes('?') ? '&' : '?';
+        qrPath += `${sep}entryId=${encodeURIComponent(entryId)}`;
       }
       
       const response = await fetch(`${apiBase}${qrPath}`, {
