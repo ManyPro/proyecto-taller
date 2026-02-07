@@ -992,16 +992,14 @@ export function initQuotes({ getCompanyEmail }) {
         // El precio del COMBO sí suma al total
         lines.push(`${idx + 1}) *${safe(main.desc, 'Combo')}${qtySuffix}*  =>  *${money(st)}*`);
 
-        // Detalle interno del combo (NO suma). Mostrarlo claramente como "incluye".
+        // Detalle interno del combo: solo listado (la nota va al final).
         const children = Array.isArray(entry.children) ? entry.children : [];
         if (children.length > 0) {
-          lines.push(`   Incluye (referencia - NO suma al total):`);
+          lines.push(`   Incluye:`);
           children.forEach(ch => {
             const chQ = qtyMultiplier(ch.qty);
             const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-            const chSt = lineTotal(ch);
-            const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
-            lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+            lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}`);
           });
         }
       });
@@ -1037,13 +1035,10 @@ export function initQuotes({ getCompanyEmail }) {
     if (orphanChildren.length > 0) {
       lines.push('');
       lines.push('*DETALLE ADICIONAL (REFERENCIA)*');
-      lines.push('Estos items NO suman al total (son parte de un combo).');
       orphanChildren.forEach(ch => {
         const chQ = qtyMultiplier(ch.qty);
         const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-        const chSt = lineTotal(ch);
-        const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
-        lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+        lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}`);
       });
     }
 
@@ -2782,13 +2777,11 @@ export function initQuotes({ getCompanyEmail }) {
           lines.push(`${idx + 1}) *${safe(main.desc, 'Combo')}${qtySuffix}*  =>  *${money(st)}*`);
           const children = Array.isArray(entry.children) ? entry.children : [];
           if (children.length > 0) {
-            lines.push('   Incluye (referencia - NO suma al total):');
+            lines.push('   Incluye:');
             children.forEach(ch => {
               const chQ = qtyMultiplier(ch.qty);
               const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-              const chSt = lineTotal(ch);
-              const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
-              lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+              lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}`);
             });
           }
         });
@@ -2822,13 +2815,10 @@ export function initQuotes({ getCompanyEmail }) {
       if (orphanChildren.length > 0) {
         lines.push('');
         lines.push('*DETALLE ADICIONAL (REFERENCIA)*');
-        lines.push('Estos items NO suman al total (son parte de un combo).');
         orphanChildren.forEach(ch => {
           const chQ = qtyMultiplier(ch.qty);
           const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-          const chSt = lineTotal(ch);
-          const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
-          lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+          lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}`);
         });
       }
 
