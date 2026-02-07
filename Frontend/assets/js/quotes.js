@@ -917,17 +917,18 @@ export function initQuotes({ getCompanyEmail }) {
 
     const lines = [];
 
-    // ===== Encabezado =====
-    lines.push(`🧾 *Cotización ${num}*`);
-    if (fecha) lines.push(`📅 Fecha: ${fecha}`);
-    lines.push(`👤 Cliente: *${cliente}*`);
-    lines.push(`🚗 Vehículo: ${veh}`);
-    lines.push(`🪪 Placa: *${placa}*   |   🧪 Cilindraje: ${cc}   |   🛣️ Km: ${mileage}`);
-    if (validezDias) lines.push(`⏳ Validez: ${validezDias} día(s)`);
+    // ===== Encabezado (modo compatibilidad alta: sin emojis) =====
+    lines.push(`*Cotización ${num}*`);
+    if (fecha) lines.push(`Fecha: ${fecha}`);
+    lines.push(`Cliente: *${cliente}*`);
+    lines.push(`Vehículo: ${veh}`);
+    lines.push(`Placa: *${placa}* | Cilindraje: ${cc} | Km: ${mileage}`);
+    if (validezDias) lines.push(`Validez: ${validezDias} día(s)`);
 
     // ===== Ítems =====
     lines.push('');
-    lines.push('🧾 *Detalle*');
+    lines.push('--------------------');
+    lines.push('*DETALLE*');
 
     // 1) Identificar items internos de combo por comboParent
     const childrenByParentId = new Map(); // comboParent -> [childRows]
@@ -981,7 +982,7 @@ export function initQuotes({ getCompanyEmail }) {
     // 4) Render de Combos
     if (comboEntries.length > 0) {
       lines.push('');
-      lines.push('📦 *Combos*');
+      lines.push('*COMBOS*');
       comboEntries.forEach((entry, idx) => {
         const main = entry.main || {};
         const q = qtyMultiplier(main.qty);
@@ -989,12 +990,12 @@ export function initQuotes({ getCompanyEmail }) {
         const qtySuffix = (main.qty && Number(main.qty) > 0) ? ` x${q}` : '';
 
         // El precio del COMBO sí suma al total
-        lines.push(`${idx + 1}. 🧩 *${safe(main.desc, 'Combo')}${qtySuffix}*  —  *${money(st)}*`);
+        lines.push(`${idx + 1}) *${safe(main.desc, 'Combo')}${qtySuffix}*  -  *${money(st)}*`);
 
         // Detalle interno del combo (NO suma). Mostrarlo claramente como "incluye".
         const children = Array.isArray(entry.children) ? entry.children : [];
         if (children.length > 0) {
-          lines.push(`   Incluye (referencia, NO suma al total):`);
+          lines.push(`   Incluye (referencia - NO suma al total):`);
           children.forEach(ch => {
             const chQ = qtyMultiplier(ch.qty);
             const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
@@ -1012,31 +1013,31 @@ export function initQuotes({ getCompanyEmail }) {
 
     if (services.length > 0) {
       lines.push('');
-      lines.push('🔧 *Servicios*');
+      lines.push('*SERVICIOS*');
       services.forEach(r => {
         const q = qtyMultiplier(r.qty);
         const st = lineTotal(r);
         const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
-        lines.push(`• ${safe(r.desc, 'Servicio')}${qtySuffix}  —  *${money(st)}*`);
+        lines.push(`- ${safe(r.desc, 'Servicio')}${qtySuffix}  -  *${money(st)}*`);
       });
     }
 
     if (products.length > 0) {
       lines.push('');
-      lines.push('🧰 *Productos*');
+      lines.push('*PRODUCTOS*');
       products.forEach(r => {
         const q = qtyMultiplier(r.qty);
         const st = lineTotal(r);
         const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
-        lines.push(`• ${safe(r.desc, 'Producto')}${qtySuffix}  —  *${money(st)}*`);
+        lines.push(`- ${safe(r.desc, 'Producto')}${qtySuffix}  -  *${money(st)}*`);
       });
     }
 
     // 6) Si hay huérfanos, mostrarlos sin confundir
     if (orphanChildren.length > 0) {
       lines.push('');
-      lines.push('🧩 *Detalle adicional (referencia)*');
-      lines.push('Estos ítems no suman al total (son parte de un combo).');
+      lines.push('*DETALLE ADICIONAL (REFERENCIA)*');
+      lines.push('Estos items NO suman al total (son parte de un combo).');
       orphanChildren.forEach(ch => {
         const chQ = qtyMultiplier(ch.qty);
         const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
@@ -1072,19 +1073,20 @@ export function initQuotes({ getCompanyEmail }) {
       const ivaVal = ivaEnabled ? Math.max(0, (Number(total) || 0) - (Number(subtotalAfterDiscount) || 0)) : 0;
 
       lines.push('');
-      lines.push('🧮 *Resumen*');
-      lines.push(`🧰 Subtotal productos: ${money(subProductos)}`);
-      lines.push(`🔧 Subtotal servicios: ${money(subServicios)}`);
-      if (subCombos > 0) lines.push(`📦 Subtotal combos: ${money(subCombos)}`);
-      if (descuento > 0) lines.push(`🏷️ Descuento: -${money(descuento)}`);
-      if (ivaEnabled) lines.push(`🧾 IVA (19%): ${money(ivaVal)}`);
-      lines.push(`💰 *TOTAL: ${money(total)}*`);
+      lines.push('--------------------');
+      lines.push('*RESUMEN*');
+      lines.push(`Subtotal productos: ${money(subProductos)}`);
+      lines.push(`Subtotal servicios: ${money(subServicios)}`);
+      if (subCombos > 0) lines.push(`Subtotal combos: ${money(subCombos)}`);
+      if (descuento > 0) lines.push(`Descuento: -${money(descuento)}`);
+      if (ivaEnabled) lines.push(`IVA (19%): ${money(ivaVal)}`);
+      lines.push(`*TOTAL: ${money(total)}*`);
     }
 
     // ===== Notas especiales =====
     if (typeof specialNotes !== 'undefined' && Array.isArray(specialNotes) && specialNotes.length > 0) {
       lines.push('');
-      lines.push('📝 *Notas*');
+      lines.push('*NOTAS*');
       specialNotes.forEach(note => {
         const s = String(note ?? '').trim();
         if (s) lines.push(`- ${s}`);
@@ -1094,14 +1096,14 @@ export function initQuotes({ getCompanyEmail }) {
     // ===== Aclaración IVA =====
     lines.push('');
     if (ivaEnabled) {
-      lines.push('🧾 Precios con IVA incluido.');
+      lines.push('Precios con IVA incluido.');
     } else {
-      lines.push('🧾 Precios sin IVA (IVA excluido).');
+      lines.push('Precios sin IVA (IVA excluido).');
     }
 
     // ===== Aclaración combos =====
     // Importante para evitar confusión: los precios internos NO suman al total.
-    lines.push('ℹ️ Los valores dentro de “Incluye” son de referencia y *NO* se suman al total.');
+    lines.push('NOTA: Los valores dentro de "Incluye" son de referencia y *NO* se suman al total.');
 
     return lines.join('\n').replace(/\n{3,}/g, '\n\n');
   }
@@ -2756,29 +2758,30 @@ export function initQuotes({ getCompanyEmail }) {
       const veh = [iBrand?.value, iLine?.value, iYear?.value].map(s => String(s ?? '').trim()).filter(Boolean).join(' ') || '—';
       const validezDias = String(iValid?.value ?? '').trim();
 
-      lines.push(`🧾 *Cotización ${safe(iNumber?.value)}*`);
-      if (String(iDatetime?.value || '').trim()) lines.push(`📅 Fecha: ${String(iDatetime.value).trim()}`);
-      lines.push(`👤 Cliente: *${safe(iName?.value)}*`);
-      lines.push(`🚗 Vehículo: ${veh}`);
-      lines.push(`🪪 Placa: *${safe(iPlate?.value)}*   |   🧪 Cilindraje: ${safe(iCc?.value)}   |   🛣️ Km: ${safe(iMileage?.value)}`);
-      if (validezDias) lines.push(`⏳ Validez: ${validezDias} día(s)`);
+      lines.push(`*Cotización ${safe(iNumber?.value)}*`);
+      if (String(iDatetime?.value || '').trim()) lines.push(`Fecha: ${String(iDatetime.value).trim()}`);
+      lines.push(`Cliente: *${safe(iName?.value)}*`);
+      lines.push(`Vehículo: ${veh}`);
+      lines.push(`Placa: *${safe(iPlate?.value)}* | Cilindraje: ${safe(iCc?.value)} | Km: ${safe(iMileage?.value)}`);
+      if (validezDias) lines.push(`Validez: ${validezDias} día(s)`);
 
       // --- Detalle ---
       lines.push('');
-      lines.push('🧾 *Detalle*');
+      lines.push('--------------------');
+      lines.push('*DETALLE*');
 
       if (comboEntries.length > 0) {
         lines.push('');
-        lines.push('📦 *Combos*');
+        lines.push('*COMBOS*');
         comboEntries.forEach((entry, idx) => {
           const main = entry.main || {};
           const q = qtyMultiplier(main.qty);
           const st = lineTotal(main);
           const qtySuffix = (main.qty && Number(main.qty) > 0) ? ` x${q}` : '';
-          lines.push(`${idx + 1}. 🧩 *${safe(main.desc, 'Combo')}${qtySuffix}*  —  *${money(st)}*`);
+          lines.push(`${idx + 1}) *${safe(main.desc, 'Combo')}${qtySuffix}*  -  *${money(st)}*`);
           const children = Array.isArray(entry.children) ? entry.children : [];
           if (children.length > 0) {
-            lines.push('   Incluye (referencia, NO suma al total):');
+            lines.push('   Incluye (referencia - NO suma al total):');
             children.forEach(ch => {
               const chQ = qtyMultiplier(ch.qty);
               const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
@@ -2795,30 +2798,30 @@ export function initQuotes({ getCompanyEmail }) {
 
       if (services.length > 0) {
         lines.push('');
-        lines.push('🔧 *Servicios*');
+        lines.push('*SERVICIOS*');
         services.forEach(r => {
           const q = qtyMultiplier(r.qty);
           const st = lineTotal(r);
           const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
-          lines.push(`• ${safe(r.desc, 'Servicio')}${qtySuffix}  —  *${money(st)}*`);
+          lines.push(`- ${safe(r.desc, 'Servicio')}${qtySuffix}  -  *${money(st)}*`);
         });
       }
 
       if (products.length > 0) {
         lines.push('');
-        lines.push('🧰 *Productos*');
+        lines.push('*PRODUCTOS*');
         products.forEach(r => {
           const q = qtyMultiplier(r.qty);
           const st = lineTotal(r);
           const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
-          lines.push(`• ${safe(r.desc, 'Producto')}${qtySuffix}  —  *${money(st)}*`);
+          lines.push(`- ${safe(r.desc, 'Producto')}${qtySuffix}  -  *${money(st)}*`);
         });
       }
 
       if (orphanChildren.length > 0) {
         lines.push('');
-        lines.push('🧩 *Detalle adicional (referencia)*');
-        lines.push('Estos ítems no suman al total (son parte de un combo).');
+        lines.push('*DETALLE ADICIONAL (REFERENCIA)*');
+        lines.push('Estos items NO suman al total (son parte de un combo).');
         orphanChildren.forEach(ch => {
           const chQ = qtyMultiplier(ch.qty);
           const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
@@ -2830,17 +2833,18 @@ export function initQuotes({ getCompanyEmail }) {
 
       // --- Resumen ---
       lines.push('');
-      lines.push('🧮 *Resumen*');
-      lines.push(`🧰 Subtotal productos: ${money(subProductos)}`);
-      lines.push(`🔧 Subtotal servicios: ${money(subServicios)}`);
-      if (subCombos > 0) lines.push(`📦 Subtotal combos: ${money(subCombos)}`);
-      if (discountValue > 0) lines.push(`🏷️ Descuento: -${money(discountValue)}`);
-      lines.push(`💰 *TOTAL: ${money(total)}*`);
+      lines.push('--------------------');
+      lines.push('*RESUMEN*');
+      lines.push(`Subtotal productos: ${money(subProductos)}`);
+      lines.push(`Subtotal servicios: ${money(subServicios)}`);
+      if (subCombos > 0) lines.push(`Subtotal combos: ${money(subCombos)}`);
+      if (discountValue > 0) lines.push(`Descuento: -${money(discountValue)}`);
+      lines.push(`*TOTAL: ${money(total)}*`);
 
       // --- Notas especiales (modal) ---
       if (Array.isArray(modalSpecialNotes) && modalSpecialNotes.length > 0) {
         lines.push('');
-        lines.push('📝 *Notas*');
+        lines.push('*NOTAS*');
         modalSpecialNotes.forEach(note => {
           const s = String(note ?? '').trim();
           if (s) lines.push(`- ${s}`);
@@ -2849,8 +2853,8 @@ export function initQuotes({ getCompanyEmail }) {
 
       // --- IVA y aclaración combos (modal no usa IVA por diseño) ---
       lines.push('');
-      lines.push('🧾 Precios sin IVA (IVA excluido).');
-      lines.push('ℹ️ Los valores dentro de “Incluye” son de referencia y *NO* se suman al total.');
+      lines.push('Precios sin IVA (IVA excluido).');
+      lines.push('NOTA: Los valores dentro de "Incluye" son de referencia y *NO* se suman al total.');
 
       return lines.join('\n').replace(/\n{3,}/g, '\n\n');
     }
