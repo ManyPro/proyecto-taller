@@ -1,4 +1,4 @@
-﻿import { API } from "./api.esm.js";
+import { API } from "./api.esm.js";
 import { normalizeText, matchesSearch } from "./search-utils.js";
 import { setupNumberInputPasteHandler, setupNumberInputsPasteHandler } from "./number-utils.js";
 
@@ -869,139 +869,241 @@ export function initQuotes({ getCompanyEmail }) {
     syncSummaryHeight();
   }
 
-  function buildWhatsAppText(rows,subP,subS,subtotalAfterDiscount,total, hideTotal = false){
-    const num=iNumber.value;
-  const cliente=iClientName.value||'—';
-    const veh=`${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
-  const placa=iPlate.value||'—'; const cc=iCc.value||'—'; const mileage=iMileage.value||'—';
-  const val=iValidDays.value?`\nValidez: ${iValidDays.value} días`:'';
-    const lines=[];
-  lines.push(`*Cotización ${num}*`);
-    lines.push(`Cliente: ${cliente}`);
-  lines.push(`Vehículo: ${veh} — Placa: ${placa} — Cilindraje: ${cc} — Kilometraje: ${mileage}`);
-    lines.push('');
-    
-    // Agrupar items por combos
-    const comboMap = new Map(); // refId del combo -> { main: row, items: [] }
-    const regularRows = [];
-    
-    // Primera pasada: identificar items de combos (con comboParent)
-    rows.forEach(row => {
-      if (row.comboParent) {
-        // Es un item de un combo - normalizar el refId para comparación
-        const parentId = String(row.comboParent).trim();
-        if (!comboMap.has(parentId)) {
-          comboMap.set(parentId, { main: null, items: [] });
-        }
-        comboMap.get(parentId).items.push(row);
-      }
-    });
-    
-    // Segunda pasada: identificar combos principales (que tienen items asociados)
-    rows.forEach(row => {
-      // Un combo principal debe tener: source='price', refId definido, y NO tener comboParent
-      // También puede tener kind='COMBO' pero no es estrictamente necesario
-      if (!row.comboParent && row.source === 'price' && row.refId) {
-        const refId = String(row.refId).trim();
-        // Verificar si este refId coincide con algún comboParent de items anidados
-        if (comboMap.has(refId)) {
-          // Este es el combo principal que tiene items asociados
-          comboMap.get(refId).main = row;
-        } else {
-          // Es un precio normal sin items asociados
-          regularRows.push(row);
-        }
-      } else if (!row.comboParent) {
-        // Es un item regular sin comboParent
-        regularRows.push(row);
-      }
-    });
-    
-    // Procesar combos primero (solo los que tienen items asociados)
-    comboMap.forEach((combo, refId) => {
-      if (combo.main && combo.items.length > 0) {
-        const {type,desc,qty,price} = combo.main;
-        const q=qty>0?qty:1; const st=q*(price||0);
-        const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-        // Mostrar combo con precio en la misma línea
-        if (st > 0) {
-          lines.push(`*${desc||'Combo'}${cantSuffix}* - ${money(st)}`);
-        } else {
-          lines.push(`*${desc||'Combo'}${cantSuffix}*`);
-        }
-        
-        // Agregar items del combo anidados con mejor indentación
-        combo.items.forEach(item => {
-          const itemQ = item.qty>0?item.qty:1;
-          const itemSt = itemQ*(item.price||0);
-          const itemCantSuffix = (item.qty&&Number(item.qty)>0)?` x${item.qty}`:'';
-          // Mostrar item anidado con precio en la misma línea y mejor indentación
-          if (itemSt > 0) {
-            lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}* - ${money(itemSt)}`);
-          } else {
-            lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}*`);
-          }
+  function buildWhatsAppText(rows, subP, subS, subtotalAfterDiscount, total, hideTotal = false) {
+    // NOTA: subP/subS se reciben por compatibilidad, pero aquí se recalculan
+    // para mostrar productos/servicios/combos de forma clara (y sin sumar items internos de combos).
+
+    const safe = (v, fallback = '—') => {
+      const s = String(v ?? '').trim();
+      return s ? s : fallback;
+    };
+
+    const upper = (v) => String(v ?? '').trim().toUpperCase();
+
+    const qtyMultiplier = (qty) => {
+      const n = Number(qty);
+      return Number.isFinite(n) && n > 0 ? n : 1;
+    };
+
+    const lineTotal = (row) => qtyMultiplier(row?.qty) * (Number(row?.price || 0) || 0);
+
+    const fmtDateTime = (v) => {
+      const s = String(v ?? '').trim();
+      if (!s) return '';
+      const d = new Date(s);
+      if (!Number.isFinite(d.getTime())) return s;
+      try {
+        return d.toLocaleString('es-CO', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
         });
-      } else if (combo.items.length > 0 && !combo.main) {
-        // Items huérfanos (tienen comboParent pero no se encontró el combo principal)
-        // Agregarlos como items regulares
-        combo.items.forEach(item => regularRows.push(item));
+      } catch {
+        return s;
       }
-    });
-    
-    // Procesar items regulares
-    regularRows.forEach(({type,desc,qty,price})=>{
-      const q=qty>0?qty:1; const st=q*(price||0);
-      const tipo=(type==='SERVICIO')?'Servicio':'Producto';
-      const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-      // Mostrar item con precio en la misma línea
-      if (st > 0) {
-        lines.push(`• ${desc||tipo}${cantSuffix} - ${money(st)}`);
-      } else {
-        lines.push(`• ${desc||tipo}${cantSuffix}`);
-      }
-    });
-    
+    };
+
+    const num = safe(iNumber?.value, '00000');
+    const fecha = fmtDateTime(iDatetime?.value);
+    const cliente = safe(iClientName?.value);
+
+    const placa = safe(iPlate?.value);
+    const cc = safe(iCc?.value);
+    const mileage = safe(iMileage?.value);
+    const veh = [iBrand?.value, iLine?.value, iYear?.value].map(s => String(s ?? '').trim()).filter(Boolean).join(' ') || '—';
+    const validezDias = String(iValidDays?.value ?? '').trim();
+
+    const lines = [];
+
+    // ===== Encabezado =====
+    lines.push(`🧾 *Cotización ${num}*`);
+    if (fecha) lines.push(`📅 Fecha: ${fecha}`);
+    lines.push(`👤 Cliente: *${cliente}*`);
+    lines.push(`🚗 Vehículo: ${veh}`);
+    lines.push(`🪪 Placa: *${placa}*   |   🧪 Cilindraje: ${cc}   |   🛣️ Km: ${mileage}`);
+    if (validezDias) lines.push(`⏳ Validez: ${validezDias} día(s)`);
+
+    // ===== Ítems =====
     lines.push('');
-    
-    // Solo agregar subtotales y total si no están ocultos
-    if (!hideTotal) {
-      lines.push(`Subtotal Productos: ${money(subP)}`);
-      lines.push(`Subtotal Servicios: ${money(subS)}`);
-      
-      // Agregar descuento si existe
-      if (currentDiscount.type && currentDiscount.value > 0) {
-        const discountValue = currentDiscount.type === 'percent' 
-          ? (subP + subS) * currentDiscount.value / 100 
-          : currentDiscount.value;
-        lines.push(`Descuento: ${money(discountValue)}`);
+    lines.push('🧾 *Detalle*');
+
+    // 1) Identificar items internos de combo por comboParent
+    const childrenByParentId = new Map(); // comboParent -> [childRows]
+    const orphanChildren = [];
+
+    (rows || []).forEach(row => {
+      if (!row) return;
+      if (!row.comboParent) return;
+      const parentId = String(row.comboParent).trim();
+      if (!parentId) return;
+      if (!childrenByParentId.has(parentId)) childrenByParentId.set(parentId, []);
+      childrenByParentId.get(parentId).push(row);
+    });
+
+    // 2) Clasificar encabezados (combos) y items normales (sin comboParent)
+    const comboEntries = []; // { main, children[] }
+    const regularEntries = []; // rows sin comboParent y no combo con hijos
+
+    (rows || []).forEach(row => {
+      if (!row) return;
+      if (row.comboParent) return; // se listan bajo su combo
+
+      const refId = row.refId ? String(row.refId).trim() : '';
+      const hasChildren = !!(refId && childrenByParentId.has(refId));
+      const isComboByType = upper(row.type) === 'COMBO';
+      const isComboByChildren = row.source === 'price' && !!refId && hasChildren;
+
+      if (isComboByType || isComboByChildren) {
+        comboEntries.push({ main: row, children: hasChildren ? (childrenByParentId.get(refId) || []) : [] });
+      } else {
+        regularEntries.push(row);
       }
-      
-      // Agregar IVA si está habilitado
-      if (ivaEnabled) {
-        const ivaValue = Math.round(subtotalAfterDiscount * 0.19);
-        lines.push(`IVA (19%): ${money(ivaValue)}`);
-      }
-      
-      lines.push(`*TOTAL: ${money(total)}*`);
-    }
-    
-    // Añadir notas especiales antes de "Valores SIN IVA" o "Valores con IVA incluido"
-    // Verificar si specialNotes está definido antes de usarlo
-    if (typeof specialNotes !== 'undefined' && specialNotes && specialNotes.length > 0) {
-      lines.push('');
-      specialNotes.forEach(note => {
-        // Usar un símbolo compatible con WhatsApp en lugar de emoji
-        lines.push(`• ${note}`);
+    });
+
+    // 3) Detectar children huérfanos (tienen comboParent pero no se encontró el encabezado)
+    if (childrenByParentId.size > 0) {
+      const mainRefIds = new Set(
+        (rows || [])
+          .filter(r => r && !r.comboParent && r.refId)
+          .map(r => String(r.refId).trim())
+          .filter(Boolean)
+      );
+
+      childrenByParentId.forEach((items, parentId) => {
+        if (!mainRefIds.has(parentId)) {
+          items.forEach(it => orphanChildren.push(it));
+        }
       });
     }
-    
-    // Solo agregar "Valores con iva excluido" si IVA NO está habilitado
-    if (!ivaEnabled) {
-      lines.push(`Valores con iva excluido`);
+
+    // 4) Render de Combos
+    if (comboEntries.length > 0) {
+      lines.push('');
+      lines.push('📦 *Combos*');
+      comboEntries.forEach((entry, idx) => {
+        const main = entry.main || {};
+        const q = qtyMultiplier(main.qty);
+        const st = lineTotal(main);
+        const qtySuffix = (main.qty && Number(main.qty) > 0) ? ` x${q}` : '';
+
+        // El precio del COMBO sí suma al total
+        lines.push(`${idx + 1}. 🧩 *${safe(main.desc, 'Combo')}${qtySuffix}*  —  *${money(st)}*`);
+
+        // Detalle interno del combo (NO suma). Mostrarlo claramente como "incluye".
+        const children = Array.isArray(entry.children) ? entry.children : [];
+        if (children.length > 0) {
+          lines.push(`   Incluye (referencia, NO suma al total):`);
+          children.forEach(ch => {
+            const chQ = qtyMultiplier(ch.qty);
+            const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
+            const chSt = lineTotal(ch);
+            const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
+            lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+          });
+        }
+      });
     }
-    lines.push(val.trim());
-    return lines.join('\n').replace(/\n{3,}/g,'\n\n');
+
+    // 5) Render de Servicios/Productos (no-combo)
+    const services = regularEntries.filter(r => upper(r?.type) === 'SERVICIO');
+    const products = regularEntries.filter(r => upper(r?.type) !== 'SERVICIO');
+
+    if (services.length > 0) {
+      lines.push('');
+      lines.push('🔧 *Servicios*');
+      services.forEach(r => {
+        const q = qtyMultiplier(r.qty);
+        const st = lineTotal(r);
+        const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
+        lines.push(`• ${safe(r.desc, 'Servicio')}${qtySuffix}  —  *${money(st)}*`);
+      });
+    }
+
+    if (products.length > 0) {
+      lines.push('');
+      lines.push('🧰 *Productos*');
+      products.forEach(r => {
+        const q = qtyMultiplier(r.qty);
+        const st = lineTotal(r);
+        const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
+        lines.push(`• ${safe(r.desc, 'Producto')}${qtySuffix}  —  *${money(st)}*`);
+      });
+    }
+
+    // 6) Si hay huérfanos, mostrarlos sin confundir
+    if (orphanChildren.length > 0) {
+      lines.push('');
+      lines.push('🧩 *Detalle adicional (referencia)*');
+      lines.push('Estos ítems no suman al total (son parte de un combo).');
+      orphanChildren.forEach(ch => {
+        const chQ = qtyMultiplier(ch.qty);
+        const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
+        const chSt = lineTotal(ch);
+        const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
+        lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+      });
+    }
+
+    // ===== Resumen =====
+    if (!hideTotal) {
+      const baseRows = (rows || []).filter(r => r && !r.comboParent);
+      let subServicios = 0;
+      let subProductos = 0;
+      let subCombos = 0;
+
+      baseRows.forEach(r => {
+        const st = lineTotal(r);
+        const t = upper(r.type);
+
+        // Detectar combo incluso si no viene type=COMBO pero tiene hijos asociados
+        const refId = r.refId ? String(r.refId).trim() : '';
+        const isComboByChildren = r.source === 'price' && !!refId && childrenByParentId.has(refId);
+        const isCombo = t === 'COMBO' || isComboByChildren;
+
+        if (isCombo) subCombos += st;
+        else if (t === 'SERVICIO') subServicios += st;
+        else subProductos += st;
+      });
+
+      const subtotal = subProductos + subServicios + subCombos;
+      const descuento = Math.max(0, (Number(subtotal) || 0) - (Number(subtotalAfterDiscount) || 0));
+      const ivaVal = ivaEnabled ? Math.max(0, (Number(total) || 0) - (Number(subtotalAfterDiscount) || 0)) : 0;
+
+      lines.push('');
+      lines.push('🧮 *Resumen*');
+      lines.push(`🧰 Subtotal productos: ${money(subProductos)}`);
+      lines.push(`🔧 Subtotal servicios: ${money(subServicios)}`);
+      if (subCombos > 0) lines.push(`📦 Subtotal combos: ${money(subCombos)}`);
+      if (descuento > 0) lines.push(`🏷️ Descuento: -${money(descuento)}`);
+      if (ivaEnabled) lines.push(`🧾 IVA (19%): ${money(ivaVal)}`);
+      lines.push(`💰 *TOTAL: ${money(total)}*`);
+    }
+
+    // ===== Notas especiales =====
+    if (typeof specialNotes !== 'undefined' && Array.isArray(specialNotes) && specialNotes.length > 0) {
+      lines.push('');
+      lines.push('📝 *Notas*');
+      specialNotes.forEach(note => {
+        const s = String(note ?? '').trim();
+        if (s) lines.push(`- ${s}`);
+      });
+    }
+
+    // ===== Aclaración IVA =====
+    lines.push('');
+    if (ivaEnabled) {
+      lines.push('🧾 Precios con IVA incluido.');
+    } else {
+      lines.push('🧾 Precios sin IVA (IVA excluido).');
+    }
+
+    // ===== Aclaración combos =====
+    // Importante para evitar confusión: los precios internos NO suman al total.
+    lines.push('ℹ️ Los valores dentro de “Incluye” son de referencia y *NO* se suman al total.');
+
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n');
   }
 
   // ===== Helpers para logo =====
@@ -2569,128 +2671,188 @@ export function initQuotes({ getCompanyEmail }) {
       const subtotal=(qty>0?qty:1)*(price||0);
       r.querySelectorAll('input')[3].value = money(subtotal);
     }
-    function buildWAText(){
-      const rows = readRows(); let subP=0, subS=0;
-      rows.forEach(({type,qty,price})=>{
-        const q=qty>0?qty:1; const st=q*(price||0);
-        if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
+    function buildWAText() {
+      const safe = (v, fallback = '—') => {
+        const s = String(v ?? '').trim();
+        return s ? s : fallback;
+      };
+      const upper = (v) => String(v ?? '').trim().toUpperCase();
+      const qtyMultiplier = (qty) => {
+        const n = Number(qty);
+        return Number.isFinite(n) && n > 0 ? n : 1;
+      };
+      const lineTotal = (row) => qtyMultiplier(row?.qty) * (Number(row?.price || 0) || 0);
+
+      const rows = readRows();
+
+      // --- Combos: children por comboParent ---
+      const childrenByParentId = new Map();
+      const orphanChildren = [];
+      rows.forEach(row => {
+        if (!row?.comboParent) return;
+        const parentId = String(row.comboParent).trim();
+        if (!parentId) return;
+        if (!childrenByParentId.has(parentId)) childrenByParentId.set(parentId, []);
+        childrenByParentId.get(parentId).push(row);
       });
-      const subtotal=subP+subS;
-      
-      // Calcular descuento
+
+      // --- Clasificar combos vs items regulares ---
+      const comboEntries = [];   // { main, children[] }
+      const regularEntries = []; // rows sin comboParent y no combo con hijos
+
+      rows.forEach(row => {
+        if (!row) return;
+        if (row.comboParent) return;
+        const refId = row.refId ? String(row.refId).trim() : '';
+        const hasChildren = !!(refId && childrenByParentId.has(refId));
+        const isComboByType = upper(row.type) === 'COMBO';
+        const isComboByChildren = row.source === 'price' && !!refId && hasChildren;
+        if (isComboByType || isComboByChildren) {
+          comboEntries.push({ main: row, children: hasChildren ? (childrenByParentId.get(refId) || []) : [] });
+        } else {
+          regularEntries.push(row);
+        }
+      });
+
+      // Children huérfanos
+      if (childrenByParentId.size > 0) {
+        const mainRefIds = new Set(
+          rows
+            .filter(r => r && !r.comboParent && r.refId)
+            .map(r => String(r.refId).trim())
+            .filter(Boolean)
+        );
+        childrenByParentId.forEach((items, parentId) => {
+          if (!mainRefIds.has(parentId)) items.forEach(it => orphanChildren.push(it));
+        });
+      }
+
+      // --- Totales (sin sumar children) ---
+      const baseRows = rows.filter(r => r && !r.comboParent);
+      let subServicios = 0, subProductos = 0, subCombos = 0;
+      baseRows.forEach(r => {
+        const st = lineTotal(r);
+        const t = upper(r.type);
+        const refId = r.refId ? String(r.refId).trim() : '';
+        const isComboByChildren = r.source === 'price' && !!refId && childrenByParentId.has(refId);
+        const isCombo = t === 'COMBO' || isComboByChildren;
+        if (isCombo) subCombos += st;
+        else if (t === 'SERVICIO') subServicios += st;
+        else subProductos += st;
+      });
+      const subtotal = subProductos + subServicios + subCombos;
+
+      // Calcular descuento (modal)
       let discountValue = 0;
       if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
         discountValue = (subtotal * currentDiscount.value) / 100;
       } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
         discountValue = currentDiscount.value;
       }
-      
       const total = subtotal - discountValue;
-      const lines=[];
-      const veh = `${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
-  const val = iValid.value ? `\nValidez: ${iValid.value} días` : '';
-  lines.push(`*Cotización ${iNumber.value || '—'}*`);
-  lines.push(`Cliente: ${iName.value||'—'}`);
-      lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'} — Kilometraje: ${iMileage.value||'—'}`);
+
+      // --- Encabezado ---
+      const lines = [];
+      const veh = [iBrand?.value, iLine?.value, iYear?.value].map(s => String(s ?? '').trim()).filter(Boolean).join(' ') || '—';
+      const validezDias = String(iValid?.value ?? '').trim();
+
+      lines.push(`🧾 *Cotización ${safe(iNumber?.value)}*`);
+      if (String(iDatetime?.value || '').trim()) lines.push(`📅 Fecha: ${String(iDatetime.value).trim()}`);
+      lines.push(`👤 Cliente: *${safe(iName?.value)}*`);
+      lines.push(`🚗 Vehículo: ${veh}`);
+      lines.push(`🪪 Placa: *${safe(iPlate?.value)}*   |   🧪 Cilindraje: ${safe(iCc?.value)}   |   🛣️ Km: ${safe(iMileage?.value)}`);
+      if (validezDias) lines.push(`⏳ Validez: ${validezDias} día(s)`);
+
+      // --- Detalle ---
       lines.push('');
-      
-      // Agrupar items por combos (igual que en la función principal)
-      const comboMap = new Map();
-      const regularRows = [];
-      
-      // Primera pasada: identificar items de combos (con comboParent)
-      rows.forEach(row => {
-        if (row.comboParent) {
-          const parentId = String(row.comboParent).trim();
-          if (!comboMap.has(parentId)) {
-            comboMap.set(parentId, { main: null, items: [] });
-          }
-          comboMap.get(parentId).items.push(row);
-        }
-      });
-      
-      // Segunda pasada: identificar combos principales (que tienen items asociados)
-      rows.forEach(row => {
-        // Un combo principal debe tener: source='price', refId definido, y NO tener comboParent
-        // También puede tener kind='COMBO' pero no es estrictamente necesario
-        if (!row.comboParent && row.source === 'price' && row.refId) {
-          const refId = String(row.refId).trim();
-          // Verificar si este refId coincide con algún comboParent de items anidados
-          if (comboMap.has(refId)) {
-            comboMap.get(refId).main = row;
-          } else {
-            regularRows.push(row);
-          }
-        } else if (!row.comboParent) {
-          regularRows.push(row);
-        }
-      });
-      
-      // Procesar combos primero (igual que buildWhatsAppText)
-      comboMap.forEach((combo, refId) => {
-        if (combo.main && combo.items.length > 0) {
-          const {type,desc,qty,price} = combo.main;
-          const q=qty>0?qty:1; const st=q*(price||0);
-          const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-          // Mostrar combo con precio en la misma línea
-          if (st > 0) {
-            lines.push(`*${desc||'Combo'}${cantSuffix}* - ${money(st)}`);
-          } else {
-            lines.push(`*${desc||'Combo'}${cantSuffix}*`);
-          }
-          
-          // Agregar items del combo anidados con mejor indentación
-          combo.items.forEach(item => {
-            const itemQ = item.qty>0?item.qty:1;
-            const itemSt = itemQ*(item.price||0);
-            const itemCantSuffix = (item.qty&&Number(item.qty)>0)?` x${item.qty}`:'';
-            // Mostrar item anidado con precio en la misma línea y mejor indentación
-            if (itemSt > 0) {
-              lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}* - ${money(itemSt)}`);
-            } else {
-              lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}*`);
-            }
-          });
-        } else if (combo.items.length > 0 && !combo.main) {
-          // Items huérfanos (tienen comboParent pero no se encontró el combo principal)
-          combo.items.forEach(item => regularRows.push(item));
-        } else {
-          if (combo.main) regularRows.push(combo.main);
-          if (combo.items.length > 0) regularRows.push(...combo.items);
-        }
-      });
-      
-      // Procesar items regulares
-      regularRows.forEach(({type,desc,qty,price})=>{
-        const q=qty>0?qty:1; const st=q*(price||0);
-        const tipo=(type==='SERVICIO')?'Servicio':'Producto';
-        const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-        // Mostrar item con precio en la misma línea
-        if (st > 0) {
-          lines.push(`• ${desc||tipo}${cantSuffix} - ${money(st)}`);
-        } else {
-          lines.push(`• ${desc||tipo}${cantSuffix}`);
-        }
-      });
-      
-      // Agregar notas especiales si existen
-      if (modalSpecialNotes.length > 0) {
+      lines.push('🧾 *Detalle*');
+
+      if (comboEntries.length > 0) {
         lines.push('');
-        modalSpecialNotes.forEach(note => {
-          lines.push(`📌 ${note}`);
+        lines.push('📦 *Combos*');
+        comboEntries.forEach((entry, idx) => {
+          const main = entry.main || {};
+          const q = qtyMultiplier(main.qty);
+          const st = lineTotal(main);
+          const qtySuffix = (main.qty && Number(main.qty) > 0) ? ` x${q}` : '';
+          lines.push(`${idx + 1}. 🧩 *${safe(main.desc, 'Combo')}${qtySuffix}*  —  *${money(st)}*`);
+          const children = Array.isArray(entry.children) ? entry.children : [];
+          if (children.length > 0) {
+            lines.push('   Incluye (referencia, NO suma al total):');
+            children.forEach(ch => {
+              const chQ = qtyMultiplier(ch.qty);
+              const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
+              const chSt = lineTotal(ch);
+              const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
+              lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+            });
+          }
         });
       }
-      
-      lines.push('');
-      lines.push(`Subtotal Productos: ${money(subP)}`);
-      lines.push(`Subtotal Servicios: ${money(subS)}`);
-      if (discountValue > 0) {
-        lines.push(`Descuento: ${money(discountValue)}`);
+
+      const services = regularEntries.filter(r => upper(r?.type) === 'SERVICIO');
+      const products = regularEntries.filter(r => upper(r?.type) !== 'SERVICIO');
+
+      if (services.length > 0) {
+        lines.push('');
+        lines.push('🔧 *Servicios*');
+        services.forEach(r => {
+          const q = qtyMultiplier(r.qty);
+          const st = lineTotal(r);
+          const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
+          lines.push(`• ${safe(r.desc, 'Servicio')}${qtySuffix}  —  *${money(st)}*`);
+        });
       }
-      lines.push(`*TOTAL: ${money(total)}*`);
-      lines.push(`Valores con iva excluido`);
-      lines.push(val.trim());
-      return lines.join('\n').replace(/\n{3,}/g,'\n\n');
+
+      if (products.length > 0) {
+        lines.push('');
+        lines.push('🧰 *Productos*');
+        products.forEach(r => {
+          const q = qtyMultiplier(r.qty);
+          const st = lineTotal(r);
+          const qtySuffix = (r.qty && Number(r.qty) > 0) ? ` x${q}` : '';
+          lines.push(`• ${safe(r.desc, 'Producto')}${qtySuffix}  —  *${money(st)}*`);
+        });
+      }
+
+      if (orphanChildren.length > 0) {
+        lines.push('');
+        lines.push('🧩 *Detalle adicional (referencia)*');
+        lines.push('Estos ítems no suman al total (son parte de un combo).');
+        orphanChildren.forEach(ch => {
+          const chQ = qtyMultiplier(ch.qty);
+          const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
+          const chSt = lineTotal(ch);
+          const chPriceHint = (chSt > 0) ? ` (ref. ${money(chSt)})` : '';
+          lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}${chPriceHint}`);
+        });
+      }
+
+      // --- Resumen ---
+      lines.push('');
+      lines.push('🧮 *Resumen*');
+      lines.push(`🧰 Subtotal productos: ${money(subProductos)}`);
+      lines.push(`🔧 Subtotal servicios: ${money(subServicios)}`);
+      if (subCombos > 0) lines.push(`📦 Subtotal combos: ${money(subCombos)}`);
+      if (discountValue > 0) lines.push(`🏷️ Descuento: -${money(discountValue)}`);
+      lines.push(`💰 *TOTAL: ${money(total)}*`);
+
+      // --- Notas especiales (modal) ---
+      if (Array.isArray(modalSpecialNotes) && modalSpecialNotes.length > 0) {
+        lines.push('');
+        lines.push('📝 *Notas*');
+        modalSpecialNotes.forEach(note => {
+          const s = String(note ?? '').trim();
+          if (s) lines.push(`- ${s}`);
+        });
+      }
+
+      // --- IVA y aclaración combos (modal no usa IVA por diseño) ---
+      lines.push('');
+      lines.push('🧾 Precios sin IVA (IVA excluido).');
+      lines.push('ℹ️ Los valores dentro de “Incluye” son de referencia y *NO* se suman al total.');
+
+      return lines.join('\n').replace(/\n{3,}/g, '\n\n');
     }
     function recalc(){
       const rows=readRows(); 
