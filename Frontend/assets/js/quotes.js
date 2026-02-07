@@ -999,7 +999,9 @@ export function initQuotes({ getCompanyEmail }) {
           children.forEach(ch => {
             const chQ = qtyMultiplier(ch.qty);
             const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-            lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}`);
+            const chSt = lineTotal(ch);
+            const chPrice = chSt > 0 ? ` (${money(chSt)})` : '';
+            lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}${chPrice}`);
           });
         }
       });
@@ -1038,7 +1040,9 @@ export function initQuotes({ getCompanyEmail }) {
       orphanChildren.forEach(ch => {
         const chQ = qtyMultiplier(ch.qty);
         const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-        lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}`);
+        const chSt = lineTotal(ch);
+        const chPrice = chSt > 0 ? ` (${money(chSt)})` : '';
+        lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}${chPrice}`);
       });
     }
 
@@ -2781,7 +2785,9 @@ export function initQuotes({ getCompanyEmail }) {
             children.forEach(ch => {
               const chQ = qtyMultiplier(ch.qty);
               const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-              lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}`);
+              const chSt = lineTotal(ch);
+              const chPrice = chSt > 0 ? ` (${money(chSt)})` : '';
+              lines.push(`   - ${safe(ch.desc, 'Item')}${chQtySuffix}${chPrice}`);
             });
           }
         });
@@ -2818,7 +2824,9 @@ export function initQuotes({ getCompanyEmail }) {
         orphanChildren.forEach(ch => {
           const chQ = qtyMultiplier(ch.qty);
           const chQtySuffix = (ch.qty && Number(ch.qty) > 0) ? ` x${chQ}` : '';
-          lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}`);
+          const chSt = lineTotal(ch);
+          const chPrice = chSt > 0 ? ` (${money(chSt)})` : '';
+          lines.push(`- ${safe(ch.desc, 'Item')}${chQtySuffix}${chPrice}`);
         });
       }
 
