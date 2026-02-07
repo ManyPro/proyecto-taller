@@ -917,18 +917,32 @@ export function initQuotes({ getCompanyEmail }) {
 
     const lines = [];
 
-    // ===== Encabezado (modo compatibilidad alta: sin emojis) =====
-    lines.push(`*Cotización ${num}*`);
-    if (fecha) lines.push(`Fecha: ${fecha}`);
-    lines.push(`Cliente: *${cliente}*`);
-    lines.push(`Vehículo: ${veh}`);
+    // ===== Encabezado (emojis via Unicode escapes para evitar "�") =====
+    const E = {
+      doc: '\u{1F4C4}',      // 📄
+      cal: '\u{1F4C5}',      // 📅
+      user: '\u{1F464}',     // 👤
+      car: '\u{1F697}',      // 🚗
+      hour: '\u23F3',        // ⏳
+      box: '\u{1F4E6}',      // 📦
+      wrench: '\u{1F527}',   // 🔧
+      money: '\u{1F4B0}',    // 💰
+      memo: '\u{1F4DD}',     // 📝
+      info: '\u2139'         // ℹ
+    };
+    const icon = (s) => (s ? `${s} ` : '');
+
+    lines.push(`${icon(E.doc)}*Cotización ${num}*`);
+    if (fecha) lines.push(`${icon(E.cal)}Fecha: ${fecha}`);
+    lines.push(`${icon(E.user)}Cliente: *${cliente}*`);
+    lines.push(`${icon(E.car)}Vehículo: ${veh}`);
     lines.push(`Placa: *${placa}* | Cilindraje: ${cc} | Km: ${mileage}`);
-    if (validezDias) lines.push(`Validez: ${validezDias} día(s)`);
+    if (validezDias) lines.push(`${icon(E.hour)}Validez: ${validezDias} día(s)`);
 
     // ===== Ítems =====
     lines.push('');
     lines.push('--------------------');
-    lines.push('*DETALLE*');
+    lines.push(`${icon(E.doc)}*DETALLE*`);
 
     // 1) Identificar items internos de combo por comboParent
     const childrenByParentId = new Map(); // comboParent -> [childRows]
@@ -982,7 +996,7 @@ export function initQuotes({ getCompanyEmail }) {
     // 4) Render de Combos
     if (comboEntries.length > 0) {
       lines.push('');
-      lines.push('*COMBOS*');
+      lines.push(`${icon(E.box)}*COMBOS*`);
       comboEntries.forEach((entry, idx) => {
         const main = entry.main || {};
         const q = qtyMultiplier(main.qty);
@@ -1013,7 +1027,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     if (services.length > 0) {
       lines.push('');
-      lines.push('*SERVICIOS*');
+      lines.push(`${icon(E.wrench)}*SERVICIOS*`);
       services.forEach(r => {
         const q = qtyMultiplier(r.qty);
         const st = lineTotal(r);
@@ -1074,7 +1088,7 @@ export function initQuotes({ getCompanyEmail }) {
 
       lines.push('');
       lines.push('--------------------');
-      lines.push('*RESUMEN*');
+      lines.push(`${icon(E.money)}*RESUMEN*`);
       lines.push(`Subtotal productos: ${money(subProductos)}`);
       lines.push(`Subtotal servicios: ${money(subServicios)}`);
       if (subCombos > 0) lines.push(`Subtotal combos: ${money(subCombos)}`);
@@ -1086,7 +1100,7 @@ export function initQuotes({ getCompanyEmail }) {
     // ===== Notas especiales =====
     if (typeof specialNotes !== 'undefined' && Array.isArray(specialNotes) && specialNotes.length > 0) {
       lines.push('');
-      lines.push('*NOTAS*');
+      lines.push(`${icon(E.memo)}*NOTAS*`);
       specialNotes.forEach(note => {
         const s = String(note ?? '').trim();
         if (s) lines.push(`- ${s}`);
@@ -1103,7 +1117,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     // ===== Aclaración combos =====
     // Importante para evitar confusión: los precios internos NO suman al total.
-    lines.push('NOTA: Los valores dentro de "Incluye" son de referencia y *NO* se suman al total.');
+    lines.push(`${icon(E.info)}NOTA: Los valores dentro de "Incluye" son de referencia y *NO* se suman al total.`);
 
     return lines.join('\n').replace(/\n{3,}/g, '\n\n');
   }
@@ -2758,21 +2772,36 @@ export function initQuotes({ getCompanyEmail }) {
       const veh = [iBrand?.value, iLine?.value, iYear?.value].map(s => String(s ?? '').trim()).filter(Boolean).join(' ') || '—';
       const validezDias = String(iValid?.value ?? '').trim();
 
-      lines.push(`*Cotización ${safe(iNumber?.value)}*`);
-      if (String(iDatetime?.value || '').trim()) lines.push(`Fecha: ${String(iDatetime.value).trim()}`);
-      lines.push(`Cliente: *${safe(iName?.value)}*`);
-      lines.push(`Vehículo: ${veh}`);
+      // Emojis via Unicode escapes para evitar "�" por encoding
+      const E = {
+        doc: '\u{1F4C4}',    // 📄
+        cal: '\u{1F4C5}',    // 📅
+        user: '\u{1F464}',   // 👤
+        car: '\u{1F697}',    // 🚗
+        hour: '\u23F3',      // ⏳
+        box: '\u{1F4E6}',    // 📦
+        wrench: '\u{1F527}', // 🔧
+        money: '\u{1F4B0}',  // 💰
+        memo: '\u{1F4DD}',   // 📝
+        info: '\u2139'       // ℹ
+      };
+      const icon = (s) => (s ? `${s} ` : '');
+
+      lines.push(`${icon(E.doc)}*Cotización ${safe(iNumber?.value)}*`);
+      if (String(iDatetime?.value || '').trim()) lines.push(`${icon(E.cal)}Fecha: ${String(iDatetime.value).trim()}`);
+      lines.push(`${icon(E.user)}Cliente: *${safe(iName?.value)}*`);
+      lines.push(`${icon(E.car)}Vehículo: ${veh}`);
       lines.push(`Placa: *${safe(iPlate?.value)}* | Cilindraje: ${safe(iCc?.value)} | Km: ${safe(iMileage?.value)}`);
-      if (validezDias) lines.push(`Validez: ${validezDias} día(s)`);
+      if (validezDias) lines.push(`${icon(E.hour)}Validez: ${validezDias} día(s)`);
 
       // --- Detalle ---
       lines.push('');
       lines.push('--------------------');
-      lines.push('*DETALLE*');
+      lines.push(`${icon(E.doc)}*DETALLE*`);
 
       if (comboEntries.length > 0) {
         lines.push('');
-        lines.push('*COMBOS*');
+        lines.push(`${icon(E.box)}*COMBOS*`);
         comboEntries.forEach((entry, idx) => {
           const main = entry.main || {};
           const q = qtyMultiplier(main.qty);
@@ -2798,7 +2827,7 @@ export function initQuotes({ getCompanyEmail }) {
 
       if (services.length > 0) {
         lines.push('');
-        lines.push('*SERVICIOS*');
+        lines.push(`${icon(E.wrench)}*SERVICIOS*`);
         services.forEach(r => {
           const q = qtyMultiplier(r.qty);
           const st = lineTotal(r);
@@ -2834,7 +2863,7 @@ export function initQuotes({ getCompanyEmail }) {
       // --- Resumen ---
       lines.push('');
       lines.push('--------------------');
-      lines.push('*RESUMEN*');
+      lines.push(`${icon(E.money)}*RESUMEN*`);
       lines.push(`Subtotal productos: ${money(subProductos)}`);
       lines.push(`Subtotal servicios: ${money(subServicios)}`);
       if (subCombos > 0) lines.push(`Subtotal combos: ${money(subCombos)}`);
@@ -2844,7 +2873,7 @@ export function initQuotes({ getCompanyEmail }) {
       // --- Notas especiales (modal) ---
       if (Array.isArray(modalSpecialNotes) && modalSpecialNotes.length > 0) {
         lines.push('');
-        lines.push('*NOTAS*');
+        lines.push(`${icon(E.memo)}*NOTAS*`);
         modalSpecialNotes.forEach(note => {
           const s = String(note ?? '').trim();
           if (s) lines.push(`- ${s}`);
@@ -2854,7 +2883,7 @@ export function initQuotes({ getCompanyEmail }) {
       // --- IVA y aclaración combos (modal no usa IVA por diseño) ---
       lines.push('');
       lines.push('Precios sin IVA (IVA excluido).');
-      lines.push('NOTA: Los valores dentro de "Incluye" son de referencia y *NO* se suman al total.');
+      lines.push(`${icon(E.info)}NOTA: Los valores dentro de "Incluye" son de referencia y *NO* se suman al total.`);
 
       return lines.join('\n').replace(/\n{3,}/g, '\n\n');
     }
