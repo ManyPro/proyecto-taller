@@ -5,6 +5,24 @@ const api = API;
 function el(id){ return document.getElementById(id); }
 function htmlEscape(s){ return String(s || '').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 
+function formatSaleOpenedAt(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'UTC',
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(d);
+}
+
+function saleOpenedAtMillis(value) {
+  if (!value) return 0;
+  const d = new Date(value);
+  const t = d.getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
 // Cargar conceptos para el selector de base de porcentaje
 async function loadConceptsForPercentBase() {
   try {
@@ -736,24 +754,6 @@ async function loadAssignments(){
         'earning': { label: 'Ingreso', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
         'deduction': { label: 'Descuento', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
         'surcharge': { label: 'Recargo', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
-      };
-
-      const formatSaleOpenedAt = (value) => {
-        if (!value) return '';
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '';
-        return new Intl.DateTimeFormat('es-CO', {
-          timeZone: 'UTC',
-          dateStyle: 'short',
-          timeStyle: 'short'
-        }).format(d);
-      };
-
-      const saleOpenedAtMillis = (value) => {
-        if (!value) return 0;
-        const d = new Date(value);
-        const t = d.getTime();
-        return Number.isNaN(t) ? 0 : t;
       };
       const typeInfo = typeLabels[conceptType] || { label: conceptType, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
       
