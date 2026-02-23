@@ -737,6 +737,24 @@ async function loadAssignments(){
         'deduction': { label: 'Descuento', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
         'surcharge': { label: 'Recargo', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
       };
+
+      const formatSaleOpenedAt = (value) => {
+        if (!value) return '';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '';
+        return new Intl.DateTimeFormat('es-CO', {
+          timeZone: 'UTC',
+          dateStyle: 'short',
+          timeStyle: 'short'
+        }).format(d);
+      };
+
+      const saleOpenedAtMillis = (value) => {
+        if (!value) return 0;
+        const d = new Date(value);
+        const t = d.getTime();
+        return Number.isNaN(t) ? 0 : t;
+      };
       const typeInfo = typeLabels[conceptType] || { label: conceptType, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
       
       // Valor por defecto para comparar
@@ -1276,6 +1294,23 @@ async function preview(){
         if (!items || items.length === 0) return '';
         const isCommissionLine = (i) => i && i.saleNumber && (i.saleId || i.saleNumber) && (i.serviceName || i.laborName || i.vehicleLabel || i.vehiclePlate);
 
+        // Ordenar comisiones por fecha/hora de apertura de la venta (createdAt)
+        // Mantener otros items (no comisiones) en su orden original, al final.
+        const commissionItems = [];
+        const otherItems = [];
+        items.forEach((it) => (isCommissionLine(it) ? commissionItems.push(it) : otherItems.push(it)));
+        commissionItems.sort((a, b) => {
+          const ta = saleOpenedAtMillis(a?.saleOpenedAt);
+          const tb = saleOpenedAtMillis(b?.saleOpenedAt);
+          if (ta !== tb) return ta - tb;
+          // desempate estable por número de venta si existe
+          const na = Number(a?.saleNumber || 0);
+          const nb = Number(b?.saleNumber || 0);
+          if (na !== nb) return na - nb;
+          return 0;
+        });
+        const orderedItems = [...commissionItems, ...otherItems];
+
         const renderLine = (i, idx) => {
           const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
           const isCommissionItem = isCommissionLine(i);
@@ -1283,6 +1318,7 @@ async function preview(){
           const laborName = i.laborName || '';
           const vehicleLabel = i.vehicleLabel || i.vehiclePlate || '';
           const saleNumber = i.saleNumber ? `#${i.saleNumber}` : '';
+          const openedAtText = isCommissionItem ? formatSaleOpenedAt(i.saleOpenedAt) : '';
 
           // Construir descripción más amigable
           let friendlyDescription = '';
@@ -1293,6 +1329,7 @@ async function preview(){
             if (serviceName && laborName) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">MO: ${htmlEscape(laborName)}</span>`);
             if (vehicleLabel) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehicleLabel)}</span>`);
             if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
+            if (openedAtText) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">🕒 Apertura ${htmlEscape(openedAtText)}</span>`);
             friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
           }
 
@@ -1322,7 +1359,7 @@ async function preview(){
         // Agrupar líneas de la misma venta (solo comisiones) si hay varias
         const groups = new Map(); // key -> { saleId, saleNumber, vehicleLabel, items: [] }
         const singles = [];
-        items.forEach((it) => {
+        orderedItems.forEach((it) => {
           if (!isCommissionLine(it)) {
             singles.push(it);
             return;
@@ -1332,6 +1369,7 @@ async function preview(){
             groups.set(key, {
               saleId: it.saleId || null,
               saleNumber: it.saleNumber || null,
+              saleOpenedAt: it.saleOpenedAt || null,
               vehicleLabel: it.vehicleLabel || it.vehiclePlate || null,
               items: []
             });
@@ -1348,12 +1386,16 @@ async function preview(){
           const groupTotal = (g.items || []).reduce((s, x) => s + (Number(x.value) || 0), 0);
           const saleLabel = g.saleNumber ? `Venta #${g.saleNumber}` : 'Venta';
           const plateLabel = g.vehicleLabel ? `🚗 ${htmlEscape(g.vehicleLabel)}` : '';
+          const openedAtLabel = formatSaleOpenedAt(g.saleOpenedAt);
 
           renderedBlocks.push(`
             <div class="mb-3 p-3 rounded-xl border-2 border-indigo-500/40 dark:border-indigo-500/40 theme-light:border-indigo-400 bg-indigo-500/10 dark:bg-indigo-500/10 theme-light:bg-indigo-50">
               <div class="flex items-center justify-between gap-3 mb-3">
                 <div class="text-sm font-semibold text-indigo-200 dark:text-indigo-200 theme-light:text-indigo-700">
-                  <span class="mr-2">🧾</span>${saleLabel}${plateLabel ? ` <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 font-normal">· ${plateLabel}</span>` : ''}
+                  <div>
+                    <span class="mr-2">🧾</span>${saleLabel}${plateLabel ? ` <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 font-normal">· ${plateLabel}</span>` : ''}
+                  </div>
+                  ${openedAtLabel ? `<div class="text-xs font-normal text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">🕒 Apertura: ${htmlEscape(openedAtLabel)}</div>` : ''}
                 </div>
                 <div class="text-sm font-bold text-indigo-200 dark:text-indigo-200 theme-light:text-indigo-700">
                   ${formatMoney(groupTotal)}
@@ -1368,7 +1410,7 @@ async function preview(){
 
         // Luego: items sueltos + grupos de 1 (sin cuadro)
         // (mantener el orden original lo más posible: renderizar en el orden dado)
-        items.forEach((it) => {
+        orderedItems.forEach((it) => {
           const key = String(it?.saleId || it?.saleNumber || '');
           const g = key ? groups.get(key) : null;
           if (g && (g.items || []).length >= 2) {

@@ -704,6 +704,7 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
         share: calculatedShare,
         saleNumber: s.number || null,
         saleId: s._id || null,
+        saleOpenedAt: s.createdAt || null,
         vehiclePlate: s.vehicle?.plate || null,
         vehicleLabel: vehicleLabel || null,
         serviceName: serviceName || null
@@ -796,7 +797,7 @@ export const previewSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({
+    }).sort({ createdAt: 1 }).select({
       laborCommissions: 1,
       laborValue: 1,
       laborPercent: 1,
@@ -805,6 +806,7 @@ export const previewSettlement = async (req, res) => {
       initialTechnician: 1,
       closingTechnician: 1,
       closedAt: 1,
+      createdAt: 1,
       number: 1,
       vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
       items: 1
@@ -871,6 +873,7 @@ export const previewSettlement = async (req, res) => {
             percentBaseFixedValue: 0,
             saleNumber: detail.saleNumber || null,
             saleId: detail.saleId || null,
+            saleOpenedAt: detail.saleOpenedAt || null,
             laborName: detail.kind || null,
             vehiclePlate: detail.vehiclePlate || null,
             vehicleLabel: detail.vehicleLabel || null,
@@ -1115,7 +1118,7 @@ export const approveSettlement = async (req, res) => {
         { technician: techNameUpper },
         { initialTechnician: techNameUpper }
       ]
-    }).select({
+    }).sort({ createdAt: 1 }).select({
       laborCommissions: 1,
       laborValue: 1,
       laborPercent: 1,
@@ -1124,6 +1127,7 @@ export const approveSettlement = async (req, res) => {
       initialTechnician: 1,
       closingTechnician: 1,
       closedAt: 1,
+      createdAt: 1,
       number: 1,
       vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
       items: 1
@@ -1207,6 +1211,7 @@ export const approveSettlement = async (req, res) => {
             percentBaseFixedValue: 0,
             saleNumber: detail.saleNumber || null,
             saleId: detail.saleId || null,
+            saleOpenedAt: detail.saleOpenedAt || null,
             laborName: detail.kind || null,
             vehiclePlate: detail.vehiclePlate || null,
             vehicleLabel: detail.vehicleLabel || null,

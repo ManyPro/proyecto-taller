@@ -11,6 +11,7 @@ const ItemSchema = new mongoose.Schema({
   // Metadatos opcionales (para previsualización/impresión de mano de obra por venta)
   saleId: { type: mongoose.Schema.Types.ObjectId, default: null },
   saleNumber: { type: Number, default: null },
+  saleOpenedAt: { type: Date, default: null }, // fecha/hora de apertura (createdAt de la venta)
   vehiclePlate: { type: String, default: '' },
   vehicleLabel: { type: String, default: '' }, // placa + detalles (si existen)
   serviceName: { type: String, default: '' },  // nombre servicio/combo asociado
