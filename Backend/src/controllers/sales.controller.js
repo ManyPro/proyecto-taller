@@ -1812,14 +1812,23 @@ export const closeSale = async (req, res) => {
           throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${itemStock}, Requerido: ${q}`);
         }
 
-        // A partir de aquí solo nos encargamos de DESCONTAR el inventario,
-        // pero ya sabemos que hay stock suficiente gracias a itemStock.
+        // A partir de aquí solo nos encargamos de DESCONTAR el inventario.
+        // CRÍTICO: Descontar `Item.stock` de forma ATÓMICA para evitar carreras (doble-cierre simultáneo).
+        // `Item.stock` es la fuente de verdad operativa para permitir/vetar cierres.
+        const dec = await Item.updateOne(
+          { _id: target._id, companyId: target.companyId, stock: { $gte: q } },
+          { $inc: { stock: -q } }
+        ).session(session);
+        if (dec.matchedCount === 0) {
+          // Puede ocurrir si otra operación consumió stock entre la lectura y el update (race).
+          throw new Error(`Stock insuficiente para ${target.sku || target.name}. Requerido: ${q}`);
+        }
 
         // Descontar primero usando FIFO sobre las StockEntries (si existen).
         const stockCompanyFilter = itemCompanyFilter;
         let remainingQty = q;
         const stockEntries = await StockEntry.find({
-          companyId: stockCompanyFilter,
+          companyId: target.companyId,
           itemId: target._id,
           qty: { $gt: 0 }
         })
@@ -1846,14 +1855,14 @@ export const closeSale = async (req, res) => {
               stockEntriesUsed.push({
                 entryId: preferred._id,
                 qty: qtyToDeduct,
-                vehicleIntakeId: preferred.vehicleIntakeId
+                vehicleIntakeId: preferred.vehicleIntakeId,
+                investorId: preferred.investorId || null,
+                purchaseId: preferred.purchaseId || null,
+                supplierId: preferred.supplierId || null
               });
-              
-              if (preferred.qty <= 0) {
-                await StockEntry.deleteOne({ _id: preferred._id }).session(session);
-              } else {
-                await preferred.save({ session });
-              }
+              if (preferred.qty < 0) preferred.qty = 0;
+              // NO borrar StockEntry (puede estar referenciado por InvestmentItem / trazabilidad)
+              await preferred.save({ session });
               
               // Remove preferred from FIFO list to avoid double-processing
               fifoEntries = stockEntries.filter(e => String(e._id) !== qrEntryId);
@@ -1870,14 +1879,14 @@ export const closeSale = async (req, res) => {
             stockEntriesUsed.push({
               entryId: entry._id,
               qty: qtyToDeduct,
-              vehicleIntakeId: entry.vehicleIntakeId
+              vehicleIntakeId: entry.vehicleIntakeId,
+              investorId: entry.investorId || null,
+              purchaseId: entry.purchaseId || null,
+              supplierId: entry.supplierId || null
             });
-            
-            if (entry.qty <= 0) {
-              await StockEntry.deleteOne({ _id: entry._id }).session(session);
-            } else {
-              await entry.save({ session });
-            }
+            if (entry.qty < 0) entry.qty = 0;
+            // NO borrar StockEntry (puede estar referenciado por InvestmentItem / trazabilidad)
+            await entry.save({ session });
           }
         }
         
@@ -1899,51 +1908,8 @@ export const closeSale = async (req, res) => {
           }));
         }
 
-        // Actualizar stock total del item
-        // CRÍTICO: El Item.stock debe reflejar el stock total disponible
-        // Si hay StockEntries, calculamos el stock total desde ellas después del descuento
-        // Si no hay StockEntries, descontamos directamente del Item.stock
-        if (stockEntries.length > 0) {
-          // Si hay StockEntries, calcular el stock total desde las StockEntries restantes
-          // Esto asegura que Item.stock = suma de todas las StockEntries restantes
-          const remainingEntries = await StockEntry.find({
-            companyId: stockCompanyFilter,
-            itemId: target._id,
-            qty: { $gt: 0 }
-          }).session(session);
-          
-          const totalFromEntries = remainingEntries.reduce((sum, e) => sum + (e.qty || 0), 0);
-          
-          // Si quedó cantidad por descontar que no se pudo descontar de StockEntries,
-          // descontarla del Item.stock y luego sincronizar
-          if (remainingQty > 0) {
-            // Descontar remainingQty del Item.stock
-            await Item.updateOne(
-              { _id: target._id, companyId: itemCompanyFilter },
-              { $inc: { stock: -remainingQty } }
-            ).session(session);
-          }
-          
-          // Sincronizar Item.stock con la suma de StockEntries restantes
-          // Esto asegura que Item.stock refleje el stock real disponible
-          await Item.updateOne(
-            { _id: target._id, companyId: itemCompanyFilter },
-            { $set: { stock: totalFromEntries } }
-          ).session(session);
-        } else {
-          // Si no hay StockEntries, descontar directamente del Item.stock
-          const upd = await Item.updateOne(
-            { _id: target._id, companyId: itemCompanyFilter },
-            { $inc: { stock: -q } }
-          ).session(session);
-          
-          if (upd.matchedCount === 0) {
-            throw new Error(`No se pudo actualizar el stock para ${target.sku || target.name}`);
-          }
-        }
-
         // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
-        const fresh = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
+        const fresh = await Item.findOne({ _id: target._id, companyId: target.companyId }).session(session);
         if ((fresh?.stock || 0) <= 0 && fresh?.published) {
           fresh.published = false;
           await fresh.save({ session });
@@ -1951,7 +1917,7 @@ export const closeSale = async (req, res) => {
 
         // Registrar movimientos de stock con información de procedencia
         const stockMoves = stockEntriesUsed.map(se => ({
-          companyId: req.companyId,
+          companyId: sale.companyId,
           itemId: target._id,
           qty: se.qty,
           reason: 'OUT',
@@ -1963,6 +1929,21 @@ export const closeSale = async (req, res) => {
             vehicleIntakeId: se.vehicleIntakeId
           }
         }));
+        // Si no hubo StockEntries suficientes para registrar FIFO, guardar un movimiento "sin entrada"
+        if (remainingQty > 0) {
+          stockMoves.push({
+            companyId: sale.companyId,
+            itemId: target._id,
+            qty: remainingQty,
+            reason: 'OUT',
+            meta: {
+              saleId: sale._id,
+              sku: it.sku,
+              name: it.name,
+              note: 'Salida sin StockEntry (entradas desincronizadas o no existentes)'
+            }
+          });
+        }
 
         if (stockMoves.length > 0) {
           await StockMove.insertMany(stockMoves, { session });
@@ -1971,17 +1952,11 @@ export const closeSale = async (req, res) => {
         // Actualizar InvestmentItems si hay inversor asociado a los StockEntries usados
         if (stockEntriesUsed.length > 0) {
           for (const seUsed of stockEntriesUsed) {
-            // Buscar el StockEntry para obtener investorId
-            const stockEntry = await StockEntry.findOne({
-              _id: seUsed.entryId,
-              companyId: req.companyId
-            }).session(session);
-
-            if (stockEntry && stockEntry.investorId) {
+            if (seUsed.investorId) {
               // Buscar InvestmentItems relacionados con este stockEntry que estén disponibles
               const investmentItems = await InvestmentItem.find({
-                companyId: req.companyId,
-                stockEntryId: stockEntry._id,
+                companyId: sale.companyId,
+                stockEntryId: seUsed.entryId,
                 status: 'available',
                 qty: { $gt: 0 }
               })
@@ -2007,7 +1982,7 @@ export const closeSale = async (req, res) => {
                   // Si quedó cantidad, crear un nuevo InvestmentItem para lo vendido
                   // y mantener el original con lo que queda
                   await InvestmentItem.create([{
-                    companyId: req.companyId,
+                    companyId: sale.companyId,
                     investorId: invItem.investorId,
                     purchaseId: invItem.purchaseId,
                     itemId: invItem.itemId,
@@ -2457,7 +2432,7 @@ export const closeSale = async (req, res) => {
     // Verificar alertas de stock después del cierre de venta (una sola vez)
     if (affectedItemIds.length > 0) {
       try {
-        await checkLowStockForMany(req.companyId, affectedItemIds);
+        await checkLowStockForMany(saleCompanyId, affectedItemIds);
       } catch (e) {
         logger.error('Error checking stock alerts after sale close', { error: e?.message, stack: e?.stack });
       }

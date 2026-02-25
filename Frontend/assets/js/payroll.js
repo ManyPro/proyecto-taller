@@ -10,7 +10,6 @@ function formatSaleOpenedAt(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat('es-CO', {
-    timeZone: 'UTC',
     dateStyle: 'short',
     timeStyle: 'short'
   }).format(d);

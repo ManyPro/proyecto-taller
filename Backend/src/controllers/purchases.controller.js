@@ -485,11 +485,8 @@ export const deletePurchaseItems = async (req, res) => {
           // Reducir cantidad en StockEntry
           stockEntry.qty = Math.max(0, stockEntry.qty - qty);
           await stockEntry.save({ session });
-          
-          // Si el StockEntry queda en 0, eliminarlo
-          if (stockEntry.qty <= 0) {
-            await StockEntry.deleteOne({ _id: stockEntry._id }).session(session);
-          }
+          // NO borrar StockEntry cuando queda en 0:
+          // puede estar referenciado por InvestmentItem / trazabilidad y borrarlo genera inconsistencias.
           
           // Eliminar InvestmentItems relacionados con este StockEntry
           if (purchase.investorId && stockEntry.investorId) {
@@ -620,11 +617,7 @@ export const updatePurchase = async (req, res) => {
             // Reducir cantidad en StockEntry
             stockEntry.qty = Math.max(0, stockEntry.qty - originalItem.qty);
             await stockEntry.save({ session });
-            
-            // Si el StockEntry queda en 0, eliminarlo
-            if (stockEntry.qty <= 0) {
-              await StockEntry.deleteOne({ _id: stockEntry._id }).session(session);
-            }
+            // NO borrar StockEntry cuando queda en 0 (ver nota arriba).
             
             // Eliminar InvestmentItems relacionados
             if (purchase.investorId && stockEntry.investorId) {

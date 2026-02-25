@@ -378,11 +378,8 @@ export const deleteAvailableItem = async (req, res) => {
       if (stockEntry) {
         stockEntry.qty = Math.max(0, stockEntry.qty - qtyToRemove);
         await stockEntry.save({ session });
-        
-        // Si el StockEntry queda en 0, eliminarlo
-        if (stockEntry.qty <= 0) {
-          await StockEntry.deleteOne({ _id: stockEntryId }).session(session);
-        }
+        // NO borrar StockEntry cuando queda en 0:
+        // puede estar referenciado por InvestmentItem / trazabilidad y borrarlo genera inconsistencias.
       }
       
       // Registrar movimiento de stock (OUT)
