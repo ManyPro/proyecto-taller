@@ -5302,9 +5302,11 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
     }
     
     function parseInventoryCode(text) {
+      // IMPORTANTE:
+      // Si es un QR de inventario (IT:...), NO extraer solo itemId.
+      // Enviar el payload completo al backend para que respete entryId/inversor/proveedor.
       if (text.toUpperCase().startsWith('IT:')) {
-        const parts = text.split(':').map(p => p.trim()).filter(Boolean);
-        return { itemId: parts.length >= 3 ? parts[2] : (parts.length === 2 ? parts[1] : null) };
+        return { sku: text }; // payload completo
       }
       return { sku: text.toUpperCase() };
     }
@@ -5339,11 +5341,9 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
         let itemId = null;
         let sku = null;
         
-        if (parsed.itemId) {
-          itemId = parsed.itemId;
-        } else if (parsed.sku) {
-          sku = parsed.sku;
-        }
+        // Si viene payload IT:, lo enviamos como sku (payload completo) para que el backend lo parsee.
+        if (parsed.itemId) itemId = parsed.itemId;
+        if (parsed.sku) sku = parsed.sku;
         
         // Asegurar que comboPriceId sea un string (puede venir como ObjectId de MongoDB)
         const comboPriceId = slot.comboPriceId ? String(slot.comboPriceId) : null;
@@ -6097,17 +6097,23 @@ function openQR(){
     console.log('Código detectado, deshabilitando cámara temporalmente:', text);
     
     const li=document.createElement('li'); li.textContent=text; list.prepend(li);
-    const parsed = parseInventoryCode(text);
     try{
       // Validar y refrescar la venta antes de agregar
       await ensureCurrentSale();
       const saleId = String(current._id).trim();
       
-      if (parsed.itemId){
-        current = await API.sales.addItem(saleId, { source:'inventory', refId: parsed.itemId, qty:1 });
+      // Si es un QR de inventario (IT:...), usar SIEMPRE el endpoint addByQR
+      // para no perder entryId/inversor/proveedor.
+      if (text.toUpperCase().startsWith('IT:')) {
+        current = await API.sales.addByQR(saleId, text);
       } else {
-        const candidate = (parsed.sku || text).toUpperCase();
-        current = await API.sales.addItem(saleId, { source:'inventory', sku:candidate, qty:1 });
+        const parsed = parseInventoryCode(text);
+        if (parsed.itemId){
+          current = await API.sales.addItem(saleId, { source:'inventory', refId: parsed.itemId, qty:1 });
+        } else {
+          const candidate = (parsed.sku || text).toUpperCase();
+          current = await API.sales.addItem(saleId, { source:'inventory', sku:candidate, qty:1 });
+        }
       }
       syncCurrentIntoOpenList();
       await renderAll();

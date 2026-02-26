@@ -17,6 +17,21 @@ import { createDateRange } from '../lib/dateTime.js';
 import { logger } from '../lib/logger.js';
 import { getAllSharedCompanyIds as getAllSharedCompanyIdsHelper } from '../lib/sharedDatabase.js';
 import { orderStockEntriesForSaleItem } from '../lib/stockEntrySelection.js';
+import { parseInventoryQrPayload } from '../lib/inventoryQr.js';
+
+function ensureInvestorSourceIsNotAmbiguous(stockEntries, meta) {
+  const hasHint = !!(meta?.entryId || meta?.investorId);
+  if (hasHint) return;
+
+  const entries = Array.isArray(stockEntries) ? stockEntries : [];
+  const investorIds = new Set(entries.map(e => (e?.investorId ? String(e.investorId) : null)).filter(Boolean));
+  if (investorIds.size === 0) return;
+
+  const hasGeneral = entries.some(e => !e?.investorId);
+  if (investorIds.size > 1 || hasGeneral) {
+    throw new Error('Este item tiene stock de inversor y requiere escanear el QR (sticker) para respetar inversor/proveedor.');
+  }
+}
 
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -1842,6 +1857,7 @@ export const closeSale = async (req, res) => {
         // Importante: si el item viene de QR con meta.entryId, priorizar esa entrada para
         // respetar el inversor/proveedor del sticker escaneado.
         if (stockEntries.length > 0) {
+          ensureInvestorSourceIsNotAmbiguous(stockEntries, it.meta);
           const { preferred, ordered } = orderStockEntriesForSaleItem(stockEntries, it.meta);
           let fifoEntries = ordered;
 
@@ -3188,38 +3204,15 @@ export const completeOpenSlot = async (req, res) => {
     ? payload.trim()
     : ((typeof rawSku === 'string' && rawSku.trim().toUpperCase().startsWith('IT:')) ? rawSku.trim() : null);
   if (maybePayload && maybePayload.toUpperCase().startsWith('IT:')) {
-    const parts = maybePayload.split(':').map(p => p.trim()).filter(Boolean);
-    let parsedItemId = null;
-    let entryId = null;
-    let supplierId = null;
-    let investorId = null;
-    let purchaseId = null;
-    // Formatos soportados:
-    // IT:<companyId>:<itemId>:<sku>:<supplierId>:<investorId>[:<entryId>][:P<purchaseId>]
-    // IT:<companyId>:<itemId>:<sku>
-    // IT:<itemId>
-    if (parts.length >= 4) {
-      parsedItemId = parts[2];
-      supplierId = parts[4] || null;
-      investorId = parts[5] || null;
-      entryId = parts[6] || null;
-      const pPart = parts.find(p => /^P[a-f0-9]{24}$/i.test(p));
-      purchaseId = pPart ? pPart.slice(1) : null;
-      if (entryId && /^P[a-f0-9]{24}$/i.test(entryId)) entryId = null;
-      // sku real del item si lo necesitamos para UI/debug
-      sku = parts[3] || sku;
-    } else if (parts.length === 2) {
-      parsedItemId = parts[1];
-    } else if (parts.length >= 3) {
-      parsedItemId = parts[2] || parts[1] || null;
-    }
-    if (parsedItemId) itemId = parsedItemId;
-    if (entryId || supplierId || investorId || purchaseId) {
+    const parsed = parseInventoryQrPayload(maybePayload);
+    if (parsed?.itemId) itemId = parsed.itemId;
+    if (parsed?.sku) sku = parsed.sku;
+    if (parsed?.entryId || parsed?.supplierId || parsed?.investorId || parsed?.purchaseId) {
       qrMeta = {
-        ...(entryId ? { entryId } : {}),
-        ...(supplierId ? { supplierId } : {}),
-        ...(investorId ? { investorId } : {}),
-        ...(purchaseId ? { purchaseId } : {})
+        ...(parsed.entryId ? { entryId: parsed.entryId } : {}),
+        ...(parsed.supplierId ? { supplierId: parsed.supplierId } : {}),
+        ...(parsed.investorId ? { investorId: parsed.investorId } : {}),
+        ...(parsed.purchaseId ? { purchaseId: parsed.purchaseId } : {})
       };
     }
   }
@@ -3579,49 +3572,17 @@ export const addByQR = async (req, res) => {
   const s = String(payload || '').trim();
 
   if (s.toUpperCase().startsWith('IT:')) {
-    const parts = s.split(':').map(p => p.trim()).filter(Boolean);
-    let itemId = null;
-    let entryId = null;
-    let supplierId = null;
-    let investorId = null;
-    let purchaseId = null;
-
-    // Formatos soportados:
-    // - Nuevo (inventory.makeQrData):
-    //   IT:<companyId>:<itemId>:<sku>:<supplierId>:<investorId>[:<entryId>][:P<purchaseId>]
-    // - Intermedio:
-    //   IT:<companyId>:<itemId>:<sku>
-    // - Antiguo:
-    //   IT:<itemId>
-    if (parts.length >= 4) {
-      itemId = parts[2];
-      // supplier/investor pueden ser 'GENERAL' o un ObjectId (24hex)
-      supplierId = parts[4] || null;
-      investorId = parts[5] || null;
-      // entryId, si existe, va después de supplier/investor (posición 6)
-      entryId = parts[6] || null;
-      // purchaseId viene como "P<id>" en cualquier posición posterior
-      const pPart = parts.find(p => /^P[a-f0-9]{24}$/i.test(p));
-      purchaseId = pPart ? pPart.slice(1) : null;
-      // Si entryId en realidad es el purchase-part, limpiarlo
-      if (entryId && /^P[a-f0-9]{24}$/i.test(entryId)) entryId = null;
-    } else if (parts.length === 2) {
-      itemId = parts[1];
-    } else if (parts.length >= 3) {
-      // Fallback por compatibilidad
-      itemId = parts[2] || parts[1] || null;
-    }
-
-    if (itemId) {
+    const parsed = parseInventoryQrPayload(s);
+    if (parsed?.itemId) {
       // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
       const itemCompanyFilter = await getItemQueryCompanyFilter(req);
-      const it = await Item.findOne({ _id: itemId, companyId: itemCompanyFilter });
+      const it = await Item.findOne({ _id: parsed.itemId, companyId: itemCompanyFilter });
       if (!it) return res.status(404).json({ error: 'Item not found for QR' });
 
       // Si hay entryId, validar que existe y tiene stock disponible
-      if (entryId && mongoose.Types.ObjectId.isValid(entryId)) {
+      if (parsed.entryId && mongoose.Types.ObjectId.isValid(parsed.entryId)) {
         const stockEntry = await StockEntry.findOne({
-          _id: entryId,
+          _id: parsed.entryId,
           companyId: it.companyId,
           itemId: it._id,
           qty: { $gt: 0 }
@@ -3646,13 +3607,13 @@ export const addByQR = async (req, res) => {
       
       // Agregar entryId al meta si está presente
       // Guardar también supplierId/investorId/purchaseId del QR para trazabilidad (y debug).
-      if (entryId || supplierId || investorId || purchaseId) {
+      if (parsed.entryId || parsed.supplierId || parsed.investorId || parsed.purchaseId) {
         saleItem.meta = {
           ...(saleItem.meta || {}),
-          ...(entryId ? { entryId } : {}),
-          ...(supplierId ? { supplierId } : {}),
-          ...(investorId ? { investorId } : {}),
-          ...(purchaseId ? { purchaseId } : {})
+          ...(parsed.entryId ? { entryId: parsed.entryId } : {}),
+          ...(parsed.supplierId ? { supplierId: parsed.supplierId } : {}),
+          ...(parsed.investorId ? { investorId: parsed.investorId } : {}),
+          ...(parsed.purchaseId ? { purchaseId: parsed.purchaseId } : {})
         };
       }
       
