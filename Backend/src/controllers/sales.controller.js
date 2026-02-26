@@ -16,22 +16,8 @@ import { publish } from '../lib/live.js';
 import { createDateRange } from '../lib/dateTime.js';
 import { logger } from '../lib/logger.js';
 import { getAllSharedCompanyIds as getAllSharedCompanyIdsHelper } from '../lib/sharedDatabase.js';
-import { orderStockEntriesForSaleItem } from '../lib/stockEntrySelection.js';
+import { orderStockEntriesForSaleItem, getSaleItemQrHints } from '../lib/stockEntrySelection.js';
 import { parseInventoryQrPayload } from '../lib/inventoryQr.js';
-
-function ensureInvestorSourceIsNotAmbiguous(stockEntries, meta) {
-  const hasHint = !!(meta?.entryId || meta?.investorId);
-  if (hasHint) return;
-
-  const entries = Array.isArray(stockEntries) ? stockEntries : [];
-  const investorIds = new Set(entries.map(e => (e?.investorId ? String(e.investorId) : null)).filter(Boolean));
-  if (investorIds.size === 0) return;
-
-  const hasGeneral = entries.some(e => !e?.investorId);
-  if (investorIds.size > 1 || hasGeneral) {
-    throw new Error('Este item tiene stock de inversor y requiere escanear el QR (sticker) para respetar inversor/proveedor.');
-  }
-}
 
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -1857,8 +1843,12 @@ export const closeSale = async (req, res) => {
         // Importante: si el item viene de QR con meta.entryId, priorizar esa entrada para
         // respetar el inversor/proveedor del sticker escaneado.
         if (stockEntries.length > 0) {
-          ensureInvestorSourceIsNotAmbiguous(stockEntries, it.meta);
-          const { preferred, ordered } = orderStockEntriesForSaleItem(stockEntries, it.meta);
+          const hints = getSaleItemQrHints(it.meta);
+          const relevantEntries = hints.hasAny
+            ? stockEntries
+            : stockEntries.filter(e => !e?.investorId); // sin QR: NO tocar stock de inversor
+
+          const { preferred, ordered } = orderStockEntriesForSaleItem(relevantEntries, it.meta);
           let fifoEntries = ordered;
 
           // Deduct first from the QR-linked entry (if present and available)

@@ -5,6 +5,18 @@ function validObjectIdString(v) {
   return s && mongoose.Types.ObjectId.isValid(s) ? s : null;
 }
 
+export function getSaleItemQrHints(meta) {
+  const entryId = validObjectIdString(meta?.entryId);
+  const investorId = validObjectIdString(meta?.investorId);
+  const supplierId = validObjectIdString(meta?.supplierId);
+  return {
+    entryId,
+    investorId,
+    supplierId,
+    hasAny: !!(entryId || investorId || supplierId)
+  };
+}
+
 /**
  * Decide el orden de StockEntries a descontar para un SaleItem.
  *
@@ -16,11 +28,7 @@ function validObjectIdString(v) {
 export function orderStockEntriesForSaleItem(stockEntries, meta) {
   const entries = Array.isArray(stockEntries) ? stockEntries.slice() : [];
 
-  const qrEntryId = validObjectIdString(meta?.entryId);
-  const qrInvestorId = validObjectIdString(meta?.investorId);
-  const qrSupplierId = validObjectIdString(meta?.supplierId);
-
-  const hasQrHints = !!(qrEntryId || qrInvestorId || qrSupplierId);
+  const { entryId: qrEntryId, investorId: qrInvestorId, supplierId: qrSupplierId, hasAny: hasQrHints } = getSaleItemQrHints(meta);
   if (!entries.length || !hasQrHints) {
     return { preferred: null, ordered: entries };
   }

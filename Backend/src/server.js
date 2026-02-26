@@ -208,7 +208,11 @@ app.use(publicCacheHeaders);
 // Static uploads (local driver)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  // Los archivos se guardan con nombre único (timestamp+uuid), así que es seguro cachear fuerte.
+  maxAge: '365d',
+  immutable: true
+}));
 
 app.get('/', (_req, res) => {
   res.status(200).json({ ok: true, name: 'taller-backend', ts: new Date().toISOString() });

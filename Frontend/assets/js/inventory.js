@@ -249,8 +249,56 @@ function invOpenOverlay(innerHTML) {
   document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ close(); } }, { once: true });
 }
 
+function isCloudinaryUrl(url) {
+  try {
+    return typeof url === "string" && url.includes("res.cloudinary.com") && url.includes("/upload/");
+  } catch {
+    return false;
+  }
+}
+
+function cloudinaryInsertTransform(url, transform) {
+  if (!isCloudinaryUrl(url)) return url;
+  const marker = "/upload/";
+  const i = url.indexOf(marker);
+  if (i < 0) return url;
+  const prefix = url.slice(0, i + marker.length);
+  const rest = url.slice(i + marker.length);
+  const t = String(transform || "").replace(/^\/+/, "").replace(/\/+$/, "");
+  if (!t) return url;
+  return `${prefix}${t}/${rest}`;
+}
+
+function cloudinaryVideoOptimizedUrl(url, width = 720) {
+  if (!isCloudinaryUrl(url)) return url;
+  const w = Math.min(Math.max(parseInt(width || 720, 10) || 720, 240), 1280);
+  // MP4 H.264 + calidad automática + limitar ancho para acelerar carga/reproducción
+  return cloudinaryInsertTransform(url, `f_mp4,q_auto,vc_h264,w_${w}`);
+}
+
+function cloudinaryVideoThumbUrl(url, width = 240) {
+  if (!isCloudinaryUrl(url)) return "";
+  const w = Math.min(Math.max(parseInt(width || 240, 10) || 240, 120), 640);
+  const transformed = cloudinaryInsertTransform(url, `so_0,w_${w},q_auto,f_jpg`);
+  // Cloudinary genera thumbnail si se solicita como .jpg
+  const [base] = transformed.split("?");
+  if (/\.(jpg|jpeg|png|webp|gif)$/i.test(base)) return base;
+  if (/\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(base)) return base.replace(/\.(mp4|webm|mov|mkv|avi|m4v)$/i, ".jpg");
+  return `${base}.jpg`;
+}
+
+function getVideoPlaybackUrl(url) {
+  return cloudinaryVideoOptimizedUrl(url, 720) || url;
+}
+
+function getVideoThumbUrl(url, width = 240) {
+  return cloudinaryVideoThumbUrl(url, width) || "";
+}
+
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
+  const videoSrc = isVideo ? getVideoPlaybackUrl(media.url) : "";
+  const videoPoster = isVideo ? getVideoThumbUrl(media.url, 720) : "";
   // Detectar si es pantalla grande (PC)
   const isDesktop = window.innerWidth >= 768;
   // En PC: modal grande pero imagen pequeña (30% del viewport)
@@ -264,7 +312,7 @@ function openLightbox(media) {
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex-shrink-0">Vista previa</h3>
        <div class="relative flex items-center justify-center w-full flex-shrink-0" style="min-height: ${containerHeight}; max-height: ${containerHeight}; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 20px;">
        ${isVideo ? 
-           `<video controls src="${media.url}" class="object-contain rounded-lg" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto;"></video>` : 
+           `<video controls preload="metadata" playsinline ${videoPoster ? `poster="${videoPoster}"` : ""} src="${videoSrc || media.url}" class="object-contain rounded-lg" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto;"></video>` : 
            `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in border-2 border-slate-600/30" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px); display: block; margin: 0 auto;" />`
        }
        </div>
@@ -1270,9 +1318,15 @@ if (__ON_INV_PAGE__) {
         const isVid = (m.mimetype || "").startsWith("video/");
         const type = isVid ? "video" : "image";
         const src = m.url;
-        return isVid
-          ? `<video class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" muted playsinline></video>`
-          : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
+        if (isVid) {
+          const thumb = getVideoThumbUrl(src, 240);
+          return thumb
+            ? `<img class="item-thumb video-thumb" data-full="${src}" data-type="${type}" src="${thumb}" alt="${(it.name || "video") + " " + (i + 1)}" loading="lazy">`
+            : `<div class="item-thumb video-thumb" role="button" tabindex="0" data-full="${src}" data-type="${type}" aria-label="Video ${(it.name || "").toString().trim()} ${i + 1}" style="display:flex;align-items:center;justify-content:center;min-height:84px;background:rgba(15,23,42,0.35);border-radius:8px;">
+                 <span style="font-weight:700;letter-spacing:0.5px;">VIDEO</span>
+               </div>`;
+        }
+        return `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
       })
       .join("");
     const qrCell = `<img id="qr-${it._id}" class="item-thumb qr-thumb" alt="QR ${it.sku || it._id}" loading="lazy"/>`;
@@ -2511,10 +2565,12 @@ if (__ON_INV_PAGE__) {
         previewBtn.onclick = (ev) => {
           ev.preventDefault();
           const isVideo = m.mimetype?.startsWith('video/');
+          const vSrc = isVideo ? getVideoPlaybackUrl(m.url) : '';
+          const vPoster = isVideo ? getVideoThumbUrl(m.url, 720) : '';
           invOpenOverlay(
             `<div class='flex flex-col items-center justify-center'>
               ${isVideo
-                ? `<video controls src='${m.url}' class='max-w-[90vw] max-h-[80vh] object-contain rounded-lg'></video>`
+                ? `<video controls preload="metadata" playsinline ${vPoster ? `poster="${vPoster}"` : ""} src='${vSrc || m.url}' class='max-w-[90vw] max-h-[80vh] object-contain rounded-lg'></video>`
                 : `<img src='${m.url}' alt='media' class='max-w-[90vw] max-h-[80vh] object-contain rounded-lg'/>`}
             </div>`
           );
@@ -2715,7 +2771,11 @@ function openMarketplaceHelper(item){
   const whatsappLink = 'https://wa.me/3043593520';
   // Removido el script sugerido
   const thumbs = media.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
-        ${(m.mimetype||'').startsWith('video/') ? `<video src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;" muted></video>` : `<img src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`}
+        ${(m.mimetype||'').startsWith('video/')
+          ? (getVideoThumbUrl(m.url, 240)
+              ? `<img src="${getVideoThumbUrl(m.url, 240)}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`
+              : `<div style="width:160px;height:120px;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.35);border:1px solid rgba(148,163,184,0.3);border-radius:8px;color:white;font-weight:700;">VIDEO</div>`)
+          : `<img src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`}
         <button class="secondary" data-dl-index="${i}">Descargar</button>
       </div>`).join('') || '<div class="muted">Sin imágenes.</div>';
 

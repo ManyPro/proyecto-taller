@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { orderStockEntriesForSaleItem } from './stockEntrySelection.js';
+import { orderStockEntriesForSaleItem, getSaleItemQrHints } from './stockEntrySelection.js';
 
 function entry({ id, entryDate, investorId = null, supplierId = null }) {
   return {
@@ -18,6 +18,12 @@ test('FIFO puro si no hay meta de QR', () => {
   const { preferred, ordered } = orderStockEntriesForSaleItem([e1, e2], null);
   assert.equal(preferred, null);
   assert.deepEqual(ordered.map(e => String(e._id)), [String(e1._id), String(e2._id)]);
+});
+
+test('getSaleItemQrHints detecta cuando hay hints', () => {
+  assert.equal(getSaleItemQrHints(null).hasAny, false);
+  assert.equal(getSaleItemQrHints({}).hasAny, false);
+  assert.equal(getSaleItemQrHints({ entryId: 'aaaaaaaaaaaaaaaaaaaaaaaa' }).hasAny, true);
 });
 
 test('prioriza entryId exacto cuando viene en meta', () => {
