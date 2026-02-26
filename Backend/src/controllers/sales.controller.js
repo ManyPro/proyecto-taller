@@ -1842,7 +1842,32 @@ export const closeSale = async (req, res) => {
         // respetar el inversor/proveedor del sticker escaneado.
         if (stockEntries.length > 0) {
           const qrEntryId = it.meta?.entryId ? String(it.meta.entryId) : null;
-          let fifoEntries = stockEntries;
+          // Regla de negocio:
+          // - Si hay entradas con inversor, preferir SIEMPRE esas entradas por defecto.
+          //   Esto mantiene consistente el "Inventario del inversor" aunque el item no traiga meta.entryId.
+          const hasInvestorEntries = stockEntries.some(e => !!e.investorId);
+          let fifoEntries = hasInvestorEntries ? stockEntries.filter(e => !!e.investorId) : stockEntries;
+          
+          // Si el frontend/envío del QR incluye investorId/supplierId (además de entryId), reordenar
+          // para preferir coincidencias exactas (sin romper FIFO dentro del mismo grupo).
+          const qrInvestorId = it.meta?.investorId && mongoose.Types.ObjectId.isValid(String(it.meta.investorId))
+            ? String(it.meta.investorId)
+            : null;
+          const qrSupplierId = it.meta?.supplierId && mongoose.Types.ObjectId.isValid(String(it.meta.supplierId))
+            ? String(it.meta.supplierId)
+            : null;
+          if (qrInvestorId || qrSupplierId) {
+            const score = (e) => {
+              let s = 0;
+              if (qrInvestorId && e.investorId && String(e.investorId) === qrInvestorId) s += 2;
+              if (qrSupplierId && e.supplierId && String(e.supplierId) === qrSupplierId) s += 1;
+              return s;
+            };
+            fifoEntries = fifoEntries
+              .map(e => ({ e, s: score(e) }))
+              .sort((a, b) => (b.s - a.s) || (new Date(a.e.entryDate) - new Date(b.e.entryDate)) || (String(a.e._id).localeCompare(String(b.e._id))))
+              .map(x => x.e);
+          }
           
           // Deduct first from the QR-linked entry (if present and available)
           if (qrEntryId && mongoose.Types.ObjectId.isValid(qrEntryId)) {
@@ -1865,7 +1890,9 @@ export const closeSale = async (req, res) => {
               await preferred.save({ session });
               
               // Remove preferred from FIFO list to avoid double-processing
-              fifoEntries = stockEntries.filter(e => String(e._id) !== qrEntryId);
+              fifoEntries = fifoEntries.filter(e => String(e._id) !== qrEntryId);
+              // Si preferimos entradas de inversor pero el preferred no es de inversor, aún así lo respetamos
+              // (fue escaneado explícitamente).
             }
           }
           
