@@ -1955,7 +1955,7 @@ export const closeSale = async (req, res) => {
             if (seUsed.investorId) {
               // Buscar InvestmentItems relacionados con este stockEntry que estén disponibles
               const investmentItems = await InvestmentItem.find({
-                companyId: sale.companyId,
+                companyId: target.companyId,
                 stockEntryId: seUsed.entryId,
                 status: 'available',
                 qty: { $gt: 0 }
@@ -1969,11 +1969,10 @@ export const closeSale = async (req, res) => {
                 if (remainingQtyToMark <= 0) break;
                 
                 const qtyToMark = Math.min(remainingQtyToMark, invItem.qty);
-                invItem.qty -= qtyToMark;
                 remainingQtyToMark -= qtyToMark;
                 
-                if (invItem.qty <= 0) {
-                  // Si se vendió todo, marcar como vendido
+                if (qtyToMark >= invItem.qty) {
+                  // Si se vendió todo, marcar como vendido (mantener qty original)
                   invItem.status = 'sold';
                   invItem.saleId = sale._id;
                   invItem.soldAt = new Date();
@@ -1981,8 +1980,9 @@ export const closeSale = async (req, res) => {
                 } else {
                   // Si quedó cantidad, crear un nuevo InvestmentItem para lo vendido
                   // y mantener el original con lo que queda
+                  invItem.qty -= qtyToMark;
                   await InvestmentItem.create([{
-                    companyId: sale.companyId,
+                    companyId: invItem.companyId,
                     investorId: invItem.investorId,
                     purchaseId: invItem.purchaseId,
                     itemId: invItem.itemId,
@@ -3171,7 +3171,7 @@ export const deleteSalesBulk = async (req, res) => {
 // ===== Completar slot abierto mediante QR =====
 export const completeOpenSlot = async (req, res) => {
   const { id } = req.params; // saleId
-  const { slotIndex, comboPriceId, itemId, sku } = req.body || {};
+  const { slotIndex, comboPriceId, itemId: rawItemId, sku: rawSku, payload } = req.body || {};
   
   if (slotIndex === undefined || slotIndex === null) {
     return res.status(400).json({ error: 'slotIndex requerido' });
@@ -3179,6 +3179,51 @@ export const completeOpenSlot = async (req, res) => {
   
   if (!comboPriceId) {
     return res.status(400).json({ error: 'comboPriceId requerido' });
+  }
+
+  // Permitir que el frontend envíe el QR completo en `sku` o en `payload`.
+  // Si viene en formato IT:, extraemos itemId/entryId para respetar procedencia.
+  let itemId = rawItemId || null;
+  let sku = rawSku || null;
+  let qrMeta = null;
+  const maybePayload = (typeof payload === 'string' && payload.trim())
+    ? payload.trim()
+    : ((typeof rawSku === 'string' && rawSku.trim().toUpperCase().startsWith('IT:')) ? rawSku.trim() : null);
+  if (maybePayload && maybePayload.toUpperCase().startsWith('IT:')) {
+    const parts = maybePayload.split(':').map(p => p.trim()).filter(Boolean);
+    let parsedItemId = null;
+    let entryId = null;
+    let supplierId = null;
+    let investorId = null;
+    let purchaseId = null;
+    // Formatos soportados:
+    // IT:<companyId>:<itemId>:<sku>:<supplierId>:<investorId>[:<entryId>][:P<purchaseId>]
+    // IT:<companyId>:<itemId>:<sku>
+    // IT:<itemId>
+    if (parts.length >= 4) {
+      parsedItemId = parts[2];
+      supplierId = parts[4] || null;
+      investorId = parts[5] || null;
+      entryId = parts[6] || null;
+      const pPart = parts.find(p => /^P[a-f0-9]{24}$/i.test(p));
+      purchaseId = pPart ? pPart.slice(1) : null;
+      if (entryId && /^P[a-f0-9]{24}$/i.test(entryId)) entryId = null;
+      // sku real del item si lo necesitamos para UI/debug
+      sku = parts[3] || sku;
+    } else if (parts.length === 2) {
+      parsedItemId = parts[1];
+    } else if (parts.length >= 3) {
+      parsedItemId = parts[2] || parts[1] || null;
+    }
+    if (parsedItemId) itemId = parsedItemId;
+    if (entryId || supplierId || investorId || purchaseId) {
+      qrMeta = {
+        ...(entryId ? { entryId } : {}),
+        ...(supplierId ? { supplierId } : {}),
+        ...(investorId ? { investorId } : {}),
+        ...(purchaseId ? { purchaseId } : {})
+      };
+    }
   }
   
   const companyFilter = getSaleQueryCompanyFilter(req);
@@ -3222,6 +3267,19 @@ export const completeOpenSlot = async (req, res) => {
   if (!item && !usePlaceholderName) {
     return res.status(404).json({ error: 'Item del inventario no encontrado' });
   }
+
+  // Si tenemos entryId desde QR, validar que la StockEntry existe y tiene stock disponible.
+  if (item && qrMeta?.entryId && mongoose.Types.ObjectId.isValid(String(qrMeta.entryId))) {
+    const stockEntry = await StockEntry.findOne({
+      _id: qrMeta.entryId,
+      companyId: item.companyId,
+      itemId: item._id,
+      qty: { $gt: 0 }
+    });
+    if (!stockEntry) {
+      return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+    }
+  }
   
   // Completar el slot
   slot.completed = true;
@@ -3243,9 +3301,11 @@ export const completeOpenSlot = async (req, res) => {
   // Esto previene duplicación si completeOpenSlot se llama dos veces por error
   // Buscar SOLO por refId - no comparar cantidad ni SKU porque pueden variar
   // Solo buscar si hay item (no aplica para slots con nombre placeholder)
+  const slotKey = `${String(comboPriceId)}:${String(slotIndex)}`;
   const existingItemForSlot = item ? sale.items.find(it => {
     const itRefId = it.refId ? String(it.refId) : '';
-    return itRefId === String(item._id);
+    const itSlotKey = it?.meta?.slotKey ? String(it.meta.slotKey) : '';
+    return itRefId === String(item._id) && itSlotKey === slotKey;
   }) : null;
   
   if (existingItemForSlot && item) {
@@ -3266,6 +3326,14 @@ export const completeOpenSlot = async (req, res) => {
         existingItemForSlot.total = Math.round((existingItemForSlot.qty || 1) * realPrice);
       }
     }
+
+    // Guardar trazabilidad del slot y del QR (si aplica)
+    existingItemForSlot.meta = {
+      ...(existingItemForSlot.meta || {}),
+      slotKey,
+      openSlot: { comboPriceId, slotIndex },
+      ...(qrMeta || {})
+    };
     
     // Recalcular totales
     computeTotals(sale);
@@ -3386,7 +3454,12 @@ export const completeOpenSlot = async (req, res) => {
           name: item.name || slot.slotName,
           qty: slot.qty || 1,
           unitPrice: realPrice,
-          total: Math.round((slot.qty || 1) * realPrice)
+          total: Math.round((slot.qty || 1) * realPrice),
+          meta: {
+            slotKey,
+            openSlot: { comboPriceId, slotIndex },
+            ...(qrMeta || {})
+          }
         });
       } else {
         // Si no hay item, usar nombre placeholder (slot.slotName) y crear un SKU único
@@ -3398,7 +3471,8 @@ export const completeOpenSlot = async (req, res) => {
           name: slot.slotName || 'Producto del combo',
           qty: slot.qty || 1,
           unitPrice: realPrice,
-          total: Math.round((slot.qty || 1) * realPrice)
+          total: Math.round((slot.qty || 1) * realPrice),
+          meta: { slotKey, openSlot: { comboPriceId, slotIndex } }
         });
       }
     } else {
@@ -3411,7 +3485,12 @@ export const completeOpenSlot = async (req, res) => {
           name: item.name || slot.slotName,
           qty: slot.qty || 1,
           unitPrice: realPrice,
-          total: Math.round((slot.qty || 1) * realPrice)
+          total: Math.round((slot.qty || 1) * realPrice),
+          meta: {
+            slotKey,
+            openSlot: { comboPriceId, slotIndex },
+            ...(qrMeta || {})
+          }
         });
       } else {
         // Si no hay item, usar nombre placeholder
@@ -3423,7 +3502,8 @@ export const completeOpenSlot = async (req, res) => {
           name: slot.slotName || 'Producto del combo',
           qty: slot.qty || 1,
           unitPrice: realPrice,
-          total: Math.round((slot.qty || 1) * realPrice)
+          total: Math.round((slot.qty || 1) * realPrice),
+          meta: { slotKey, openSlot: { comboPriceId, slotIndex } }
         });
       }
     }
@@ -3437,7 +3517,12 @@ export const completeOpenSlot = async (req, res) => {
         name: item.name || slot.slotName,
         qty: slot.qty || 1,
         unitPrice: realPrice,
-        total: Math.round((slot.qty || 1) * realPrice)
+        total: Math.round((slot.qty || 1) * realPrice),
+        meta: {
+          slotKey,
+          openSlot: { comboPriceId, slotIndex },
+          ...(qrMeta || {})
+        }
       });
     } else {
       // Si no hay item, usar nombre placeholder
@@ -3449,7 +3534,8 @@ export const completeOpenSlot = async (req, res) => {
         name: slot.slotName || 'Producto del combo',
         qty: slot.qty || 1,
         unitPrice: realPrice,
-        total: Math.round((slot.qty || 1) * realPrice)
+        total: Math.round((slot.qty || 1) * realPrice),
+        meta: { slotKey, openSlot: { comboPriceId, slotIndex } }
       });
     }
   }
@@ -3538,7 +3624,7 @@ export const addByQR = async (req, res) => {
       if (entryId && mongoose.Types.ObjectId.isValid(entryId)) {
         const stockEntry = await StockEntry.findOne({
           _id: entryId,
-          companyId: req.companyId,
+          companyId: it.companyId,
           itemId: it._id,
           qty: { $gt: 0 }
         });

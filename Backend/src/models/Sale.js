@@ -7,7 +7,9 @@ const SaleItemSchema = new mongoose.Schema({
   name: { type: String, default: '' },
   qty: { type: Number, default: 1 },
   unitPrice: { type: Number, default: 0 },
-  total: { type: Number, default: 0 }
+  total: { type: Number, default: 0 },
+  // Metadatos opcionales (p.ej. trazabilidad de QR / StockEntry / slots abiertos)
+  meta: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { _id: true });
 
 const SaleSchema = new mongoose.Schema({
