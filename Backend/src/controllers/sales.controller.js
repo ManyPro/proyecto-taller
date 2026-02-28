@@ -1766,7 +1766,9 @@ export const closeSale = async (req, res) => {
       // CRÍTICO: Recalcular totales después de procesar slots para asegurar que los precios sean correctos
       computeTotals(sale);
       
-      // Descuento inventario por lÃ­neas 'inventory'
+      // Descuento inventario por líneas 'inventory'
+      // Acumular uso por (entryId, investorId) para verificación post-cierre (cobro inversor)
+      const investorQtyUsed = {};
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
         const q = asNum(it.qty) || 0;
@@ -1891,6 +1893,14 @@ export const closeSale = async (req, res) => {
             if (entry.qty < 0) entry.qty = 0;
             // NO borrar StockEntry (puede estar referenciado por InvestmentItem / trazabilidad)
             await entry.save({ session });
+          }
+        }
+
+        // Acumular uso de stock de inversor para verificación al final del cierre
+        for (const se of stockEntriesUsed) {
+          if (se.investorId) {
+            const k = `${se.entryId}|${se.investorId}`;
+            investorQtyUsed[k] = (investorQtyUsed[k] || 0) + se.qty;
           }
         }
         
@@ -2031,6 +2041,42 @@ export const closeSale = async (req, res) => {
 
         affectedItemIds.push(String(target._id));
       }
+
+        // Verificación post-cierre: asegurar que todo el stock de inversor usado tenga InvestmentItem 'sold'
+        // para que aparezca por cobrar (red de seguridad si algo falló en el flujo anterior).
+        for (const key of Object.keys(investorQtyUsed)) {
+          const [entryIdStr, investorIdStr] = key.split('|');
+          const needed = investorQtyUsed[key];
+          if (!entryIdStr || !investorIdStr || needed <= 0) continue;
+          const entryId = new mongoose.Types.ObjectId(entryIdStr);
+          const investorId = new mongoose.Types.ObjectId(investorIdStr);
+          const existing = await InvestmentItem.find({
+            companyId: sale.companyId,
+            saleId: sale._id,
+            stockEntryId: entryId,
+            investorId,
+            status: 'sold'
+          }).session(session).lean();
+          const existingQty = existing.reduce((s, i) => s + (i.qty || 0), 0);
+          if (existingQty >= needed) continue;
+          const toCreate = needed - existingQty;
+          const stockEntry = await StockEntry.findById(entryId).session(session);
+          if (!stockEntry) continue;
+          const purchasePrice = stockEntry.entryPrice ?? 0;
+          const purchaseId = stockEntry.purchaseId || null;
+          await InvestmentItem.create([{
+            companyId: sale.companyId,
+            investorId,
+            purchaseId,
+            itemId: stockEntry.itemId,
+            stockEntryId: entryId,
+            purchasePrice,
+            qty: toCreate,
+            status: 'sold',
+            saleId: sale._id,
+            soldAt: new Date()
+          }], { session });
+        }
 
   // === Verificar si hay link de empresa para esta placa ===
       let companyAccountId = null;
