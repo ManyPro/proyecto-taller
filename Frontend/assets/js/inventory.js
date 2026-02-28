@@ -1053,19 +1053,40 @@ if (__ON_INV_PAGE__) {
 
     document.getElementById("stk-generate").onclick = async () => {
       showBusy('Generando PDF de stickers...');
-      const list = [];
+      const rawList = [];
       rows.querySelectorAll("tr").forEach((tr) => {
         const id = tr.dataset.id;
         const count = parseInt(tr.querySelector(".qty").value || "0", 10);
         const it = items.find((x) => String(x._id) === String(id));
-        if (it && count > 0) list.push({ it, count });
+        if (it && count > 0) rawList.push({ it, count });
       });
-      if (!list.length) {
+      if (!rawList.length) {
         hideBusy();
         alert("Coloca al menos 1 sticker.");
         return;
       }
       try {
+        const list = [];
+        for (const { it, count } of rawList) {
+          let stockEntries = [];
+          try {
+            const seResp = await invAPI.getItemStockEntries(it._id);
+            stockEntries = (Array.isArray(seResp?.stockEntries) ? seResp.stockEntries : [])
+              .filter(se => (se?.qty || 0) > 0)
+              .sort((a, b) => new Date(a?.entryDate || 0) - new Date(b?.entryDate || 0));
+          } catch {}
+          let remaining = count;
+          if (stockEntries.length > 0) {
+            for (const se of stockEntries) {
+              if (remaining <= 0) break;
+              const take = Math.min(remaining, se.qty || 0);
+              if (take <= 0) continue;
+              list.push({ it: { ...it, stockEntryId: se._id }, count: take });
+              remaining -= take;
+            }
+          }
+          if (remaining > 0) list.push({ it, count: remaining });
+        }
         const base = list[0]?.it?.sku || list[0]?.it?._id || 'stickers';
         await renderStickerPdf(list, `stickers-${base}`);
         invCloseModal();

@@ -2002,6 +2002,29 @@ export const closeSale = async (req, res) => {
                   await invItem.save({ session });
                 }
               }
+
+              // Si aún queda qty por marcar: el StockEntry tiene inversor pero no había
+              // (suficientes) InvestmentItems (ej. stock legacy). Crear InvestmentItems
+              // 'sold' para que aparezcan por cobrar y no se pierda la trazabilidad.
+              if (remainingQtyToMark > 0) {
+                const stockEntry = await StockEntry.findById(seUsed.entryId).session(session);
+                if (stockEntry) {
+                  const purchasePrice = stockEntry.entryPrice ?? 0;
+                  const purchaseId = stockEntry.purchaseId || null;
+                  await InvestmentItem.create([{
+                    companyId: target.companyId,
+                    investorId: seUsed.investorId,
+                    purchaseId,
+                    itemId: target._id,
+                    stockEntryId: seUsed.entryId,
+                    purchasePrice,
+                    qty: remainingQtyToMark,
+                    status: 'sold',
+                    saleId: sale._id,
+                    soldAt: new Date()
+                  }], { session });
+                }
+              }
             }
           }
         }

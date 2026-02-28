@@ -2043,8 +2043,12 @@ export function initQuotes({ getCompanyEmail }) {
     };
   }
 
+  let saveInProgress = false;
   async function saveToBackend(){
+    if (saveInProgress) return;
     try{
+      saveInProgress = true;
+      if (btnSaveBackend) btnSaveBackend.disabled = true;
       const creating = !currentQuoteId;
       const payload = payloadFromUI();
       
@@ -2054,6 +2058,8 @@ export function initQuotes({ getCompanyEmail }) {
       if (!payload.items || payload.items.length === 0) {
         if (!payload.customer?.name && !payload.vehicle?.plate) {
           alert('⚠️ La cotización está vacía. Agrega al menos un item o datos del cliente/vehículo.');
+          saveInProgress = false;
+          if (btnSaveBackend) btnSaveBackend.disabled = false;
           return;
         }
       }
@@ -2084,6 +2090,9 @@ export function initQuotes({ getCompanyEmail }) {
     }catch(e){
       console.error('[saveToBackend] Error:', e);
       alert(e?.message || 'Error guardando la cotización');
+    } finally {
+      saveInProgress = false;
+      if (btnSaveBackend) btnSaveBackend.disabled = false;
     }
   }
 
@@ -3100,7 +3109,9 @@ export function initQuotes({ getCompanyEmail }) {
       let itemType = 'PRODUCTO';
       if (k === 'SERVICIO') itemType = 'SERVICIO';
       else if (k === 'COMBO') itemType = 'COMBO';
-      addRowFromData({ type: itemType, desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
+      const refId = it.refId ? String(it.refId) : undefined;
+      const comboParent = it.comboParent ? String(it.comboParent) : undefined;
+      addRowFromData({ type: itemType, desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId, sku:it.sku, comboParent });
     });
     if(!(doc?.items||[]).length) addRow();
     recalc();
@@ -3271,8 +3282,13 @@ export function initQuotes({ getCompanyEmail }) {
         alert(e?.message||'Error generando PDF');
       }
     });
+    let modalSaveInProgress = false;
     q('#m-save')?.addEventListener('click', async ()=>{
+      if (modalSaveInProgress) return;
+      const saveBtn = q('#m-save');
       try{
+        modalSaveInProgress = true;
+        if (saveBtn) saveBtn.disabled = true;
         const rows=readRows();
         
         // Calcular descuento para guardar
@@ -3352,6 +3368,9 @@ export function initQuotes({ getCompanyEmail }) {
         }, 1500);
       }catch(e){ 
         alert(e?.message||'No se pudo guardar'); 
+      } finally {
+        modalSaveInProgress = false;
+        if (saveBtn) saveBtn.disabled = false;
       }
     });
 
@@ -3624,6 +3643,7 @@ export function initQuotes({ getCompanyEmail }) {
     const currentSpecialNotes = typeof specialNotes !== 'undefined' ? specialNotes : [];
     const bak={ 
       n:iNumber.value, 
+      dt:iDatetime?.value,
       c:iClientName.value, 
       b:iBrand.value, 
       l:iLine.value, 
@@ -3639,6 +3659,7 @@ export function initQuotes({ getCompanyEmail }) {
     // Cargar datos del documento en la UI temporalmente
     const numStr = d?.number ? (typeof d.number === 'string' ? d.number : String(d.number)) : '';
     iNumber.value = numStr.padStart(5, '0');
+    if (iDatetime) iDatetime.value = d?.createdAt ? new Date(d.createdAt).toISOString().slice(0, 16) : '';
     iClientName.value = d.customer?.name || '';
     iBrand.value = d.vehicle?.make || ''; 
     iLine.value = d.vehicle?.line || ''; 
@@ -3697,6 +3718,7 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Restaurar valores originales de la UI
     iNumber.value = bak.n; 
+    if (iDatetime && bak.dt !== undefined) iDatetime.value = bak.dt;
     iClientName.value = bak.c; 
     iBrand.value = bak.b; 
     iLine.value = bak.l; 
