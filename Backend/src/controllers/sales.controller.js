@@ -9,6 +9,7 @@ import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
 import StockEntry from '../models/StockEntry.js';
 import InvestmentItem from '../models/InvestmentItem.js';
+import Investor from '../models/Investor.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import { upsertProfileFromSource } from './profile.helper.js';
@@ -1591,6 +1592,33 @@ export const closeSale = async (req, res) => {
   
   const session = await mongoose.startSession();
   try {
+    const closeSummaryGeneralMap = new Map();
+    const closeSummaryInvestorMap = new Map();
+    const investorIdsUsed = new Set();
+    const addCloseSummaryLine = ({ kind, investorId = null, sku = '', name = '', qty = 0, unitPrice = 0 }) => {
+      const q = Number(qty || 0);
+      if (!Number.isFinite(q) || q <= 0) return;
+      const up = Math.round(Number(unitPrice || 0) || 0);
+      const lineValue = Math.round(q * up);
+      const safeSku = String(sku || '').trim().toUpperCase();
+      const safeName = String(name || '').trim();
+      if (kind === 'investor') {
+        const invId = investorId ? String(investorId) : 'unknown';
+        const key = `${invId}|${safeSku}|${safeName}|${up}`;
+        const prev = closeSummaryInvestorMap.get(key) || { investorId: invId, sku: safeSku, name: safeName, qty: 0, unitPrice: up, value: 0 };
+        prev.qty += q;
+        prev.value += lineValue;
+        closeSummaryInvestorMap.set(key, prev);
+        if (investorId) investorIdsUsed.add(String(investorId));
+        return;
+      }
+      const key = `${safeSku}|${safeName}|${up}`;
+      const prev = closeSummaryGeneralMap.get(key) || { sku: safeSku, name: safeName, qty: 0, unitPrice: up, value: 0 };
+      prev.qty += q;
+      prev.value += lineValue;
+      closeSummaryGeneralMap.set(key, prev);
+    };
+
     const affectedItemIds = [];
     // CRÍTICO: Determinar si hay base de datos compartida ANTES del loop
     // Esto debe estar definido fuera del loop para evitar errores de scope
@@ -1846,6 +1874,14 @@ export const closeSale = async (req, res) => {
         // respetar el inversor/proveedor del sticker escaneado.
         if (stockEntries.length > 0) {
           const hints = getSaleItemQrHints(it.meta);
+          const isOpenSlotLine = !!it?.meta?.openSlot;
+          const hasInvestorEntries = stockEntries.some(e => !!e?.investorId);
+          const hasGeneralEntries = stockEntries.some(e => !e?.investorId);
+          // Protección crítica para slots abiertos:
+          // si solo existe stock de inversor, exigir QR con hints para no perder trazabilidad de cobro.
+          if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries && !hasGeneralEntries) {
+            throw new Error(`Slot abierto "${it.name || it.sku}" requiere QR del inversor (con entryId/investorId) para cerrar la venta.`);
+          }
           const relevantEntries = hints.hasAny
             ? stockEntries
             : stockEntries.filter(e => !e?.investorId); // sin QR: NO tocar stock de inversor
@@ -1896,6 +1932,28 @@ export const closeSale = async (req, res) => {
           }
         }
 
+        // Acumular resumen de descuento para popup de cierre (inventario general vs inversor)
+        for (const se of stockEntriesUsed) {
+          addCloseSummaryLine({
+            kind: se.investorId ? 'investor' : 'general',
+            investorId: se.investorId ? String(se.investorId) : null,
+            sku: target.sku || it.sku || '',
+            name: target.name || it.name || '',
+            qty: se.qty,
+            unitPrice: it.unitPrice || 0
+          });
+        }
+        // Si hubo descuento sin StockEntry, contarlo como inventario general "sin entrada"
+        if (remainingQty > 0) {
+          addCloseSummaryLine({
+            kind: 'general',
+            sku: target.sku || it.sku || '',
+            name: target.name || it.name || '',
+            qty: remainingQty,
+            unitPrice: it.unitPrice || 0
+          });
+        }
+
         // Acumular uso de stock de inversor para verificación al final del cierre
         for (const se of stockEntriesUsed) {
           if (se.investorId) {
@@ -1918,7 +1976,10 @@ export const closeSale = async (req, res) => {
           it.meta.entriesUsed = stockEntriesUsed.map(se => ({
             entryId: String(se.entryId),
             qty: se.qty,
-            vehicleIntakeId: se.vehicleIntakeId ? String(se.vehicleIntakeId) : null
+            vehicleIntakeId: se.vehicleIntakeId ? String(se.vehicleIntakeId) : null,
+            investorId: se.investorId ? String(se.investorId) : null,
+            supplierId: se.supplierId ? String(se.supplierId) : null,
+            purchaseId: se.purchaseId ? String(se.purchaseId) : null
           }));
         }
 
@@ -2581,8 +2642,43 @@ export const closeSale = async (req, res) => {
         logger.warn('[closeSale] Error publicando evento a empresa', { companyId, error: e?.message });
       }
     }
+
+    // Construir resumen final de descuentos para UX de cierre
+    const investorNameById = new Map();
+    if (investorIdsUsed.size > 0) {
+      const ids = [...investorIdsUsed]
+        .filter(v => mongoose.Types.ObjectId.isValid(v))
+        .map(v => new mongoose.Types.ObjectId(v));
+      if (ids.length > 0) {
+        const investors = await Investor.find({ _id: { $in: ids } }).select('_id name').lean();
+        for (const inv of investors) {
+          investorNameById.set(String(inv._id), String(inv.name || 'INVERSOR'));
+        }
+      }
+    }
+
+    const inventoryItems = [...closeSummaryGeneralMap.values()]
+      .sort((a, b) => (b.value - a.value) || (b.qty - a.qty));
+    const investorItems = [...closeSummaryInvestorMap.values()]
+      .map(x => ({ ...x, investorName: investorNameById.get(String(x.investorId)) || 'INVERSOR' }))
+      .sort((a, b) => (b.value - a.value) || (b.qty - a.qty));
+    const totals = {
+      inventoryQty: inventoryItems.reduce((s, x) => s + (Number(x.qty) || 0), 0),
+      inventoryValue: inventoryItems.reduce((s, x) => s + (Number(x.value) || 0), 0),
+      investorQty: investorItems.reduce((s, x) => s + (Number(x.qty) || 0), 0),
+      investorValue: investorItems.reduce((s, x) => s + (Number(x.value) || 0), 0)
+    };
+    const closeSummary = {
+      inventoryItems,
+      investorItems,
+      totals: {
+        ...totals,
+        totalQty: totals.inventoryQty + totals.investorQty,
+        totalValue: totals.inventoryValue + totals.investorValue
+      }
+    };
     
-    res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject() });
+    res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject(), closeSummary });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });

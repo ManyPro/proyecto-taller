@@ -3749,14 +3749,145 @@ function fillCloseModal(){
         completedMaintenanceServices: maintenanceSelection.services || [],
         mileage: maintenanceSelection.mileage || null
       };
-      await API.sales.close(current._id, payload);
-      alert('Venta cerrada');
+      const closeResult = await API.sales.close(current._id, payload);
       document.getElementById('modal')?.classList.add('hidden');
+      const closedSale = closeResult?.sale || current;
       setSaleQuoteLink(current._id, null);
       current = null;
       await refreshOpenSales();
+      showCloseSaleSummaryPopup(closeResult, closedSale);
     }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
   });
+}
+
+function showCloseSaleSummaryPopup(closeResult, closedSale) {
+  const summary = closeResult?.closeSummary || {};
+  const invGeneral = Array.isArray(summary.inventoryItems) ? summary.inventoryItems : [];
+  const invInvestor = Array.isArray(summary.investorItems) ? summary.investorItems : [];
+  const totals = summary.totals || {};
+  const saleNumber = closedSale?.number ? String(closedSale.number).padStart(5, '0') : 'N/A';
+  const saleTotal = Number(closedSale?.total || 0);
+
+  const renderRows = (rows, withInvestor = false) => {
+    if (!rows.length) {
+      return `
+        <tr>
+          <td colspan="${withInvestor ? 6 : 5}" class="px-3 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            Sin movimientos en este grupo
+          </td>
+        </tr>
+      `;
+    }
+    return rows.map(r => {
+      const sku = escapeHtml(String(r?.sku || 'SIN-SKU'));
+      const name = escapeHtml(String(r?.name || 'Sin nombre'));
+      const qty = Number(r?.qty || 0);
+      const unitPrice = Number(r?.unitPrice || 0);
+      const value = Number(r?.value || 0);
+      const investorName = escapeHtml(String(r?.investorName || 'INVERSOR'));
+      return `
+        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+          ${withInvestor ? `<td class="px-3 py-2 text-xs text-amber-300 dark:text-amber-300 theme-light:text-amber-700 font-semibold">${investorName}</td>` : ''}
+          <td class="px-3 py-2 text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-semibold">${sku}</td>
+          <td class="px-3 py-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700">${name}</td>
+          <td class="px-3 py-2 text-xs text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800">${qty}</td>
+          <td class="px-3 py-2 text-xs text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700">${money(unitPrice)}</td>
+          <td class="px-3 py-2 text-xs text-right text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 font-semibold">${money(value)}</td>
+        </tr>
+      `;
+    }).join('');
+  };
+
+  const node = document.createElement('div');
+  node.className = 'w-[min(1000px,95vw)] max-h-[85vh] overflow-hidden rounded-2xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 bg-slate-900 dark:bg-slate-900 theme-light:bg-white shadow-2xl';
+  node.innerHTML = `
+    <div class="px-5 py-4 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 dark:from-emerald-600/20 dark:to-cyan-600/20 theme-light:from-emerald-100 theme-light:to-cyan-100">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-extrabold text-white dark:text-white theme-light:text-slate-900">Venta cerrada con éxito</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mt-1">Remisión #${saleNumber}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total venta</p>
+          <p class="text-base font-bold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(saleTotal)}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-5 py-4 overflow-y-auto max-h-[62vh] space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+          <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Unidades inventario general</p>
+          <p class="mt-1 text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.inventoryQty || 0)}</p>
+          <p class="text-xs text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700">${money(Number(totals.inventoryValue || 0))}</p>
+        </div>
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+          <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Unidades inventario inversor</p>
+          <p class="mt-1 text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.investorQty || 0)}</p>
+          <p class="text-xs text-amber-300 dark:text-amber-300 theme-light:text-amber-700">${money(Number(totals.investorValue || 0))}</p>
+        </div>
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+          <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total descontado</p>
+          <p class="mt-1 text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.totalQty || 0)} und</p>
+          <p class="text-xs text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(Number(totals.totalValue || 0))}</p>
+        </div>
+      </div>
+
+      <section class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden">
+        <div class="px-4 py-2 bg-cyan-600/15 dark:bg-cyan-600/15 theme-light:bg-cyan-100 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200">
+          <h4 class="text-sm font-bold text-cyan-200 dark:text-cyan-200 theme-light:text-cyan-800">Inventario general descontado</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-100">
+              <tr class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                <th class="px-3 py-2 text-left">SKU</th>
+                <th class="px-3 py-2 text-left">Item</th>
+                <th class="px-3 py-2 text-right">Cant.</th>
+                <th class="px-3 py-2 text-right">Vlr Unit.</th>
+                <th class="px-3 py-2 text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderRows(invGeneral, false)}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden">
+        <div class="px-4 py-2 bg-amber-600/15 dark:bg-amber-600/15 theme-light:bg-amber-100 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200">
+          <h4 class="text-sm font-bold text-amber-200 dark:text-amber-200 theme-light:text-amber-800">Inventario de inversor descontado</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-100">
+              <tr class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                <th class="px-3 py-2 text-left">Inversor</th>
+                <th class="px-3 py-2 text-left">SKU</th>
+                <th class="px-3 py-2 text-left">Item</th>
+                <th class="px-3 py-2 text-right">Cant.</th>
+                <th class="px-3 py-2 text-right">Vlr Unit.</th>
+                <th class="px-3 py-2 text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderRows(invInvestor, true)}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div class="px-5 py-4 border-t border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 flex justify-end bg-slate-900/70 dark:bg-slate-900/70 theme-light:bg-white">
+      <button id="close-sale-summary-ok" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors">
+        Entendido
+      </button>
+    </div>
+  `;
+
+  openModal(node);
+  node.querySelector('#close-sale-summary-ok')?.addEventListener('click', () => closeModal());
 }
 
 // Función para configurar la sección de inversión
@@ -5351,7 +5482,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
           throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
         }
         
-        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, itemId, sku);
+        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, itemId, sku, text);
         current = result.sale;
         syncCurrentIntoOpenList();
         await renderAll();
