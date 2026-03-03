@@ -1893,11 +1893,11 @@ export const closeSale = async (req, res) => {
           const hints = getSaleItemQrHints(it.meta);
           const isOpenSlotLine = !!it?.meta?.openSlot;
           const hasInvestorEntries = stockEntries.some(e => !!e?.investorId);
-          const hasGeneralEntries = stockEntries.some(e => !e?.investorId);
           // Protección crítica para slots abiertos:
-          // si solo existe stock de inversor, exigir QR con hints para no perder trazabilidad de cobro.
-          if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries && !hasGeneralEntries) {
-            throw new Error(`Slot abierto "${it.name || it.sku}" requiere QR del inversor (con entryId/investorId) para cerrar la venta.`);
+          // si hay cualquier stock de inversor disponible, exigir QR con hints para
+          // evitar descuentos erróneos desde stock general en combos.
+          if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries) {
+            throw new Error(`Slot abierto "${it.name || it.sku}" requiere QR del item (entryId/investorId) para cerrar. Reescanea el QR del producto del inversor.`);
           }
           const relevantEntries = hints.hasAny
             ? stockEntries
