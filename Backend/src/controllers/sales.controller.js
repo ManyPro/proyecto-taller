@@ -3555,6 +3555,19 @@ export const completeOpenSlot = async (req, res) => {
     if (targetSlotId && itSlotId) return itSlotId === targetSlotId;
     return itSlotKey === slotKey;
   }) : null;
+  const placeholderItemsForSlot = sale.items.filter(it => {
+    const itSlotKey = it?.meta?.slotKey ? String(it.meta.slotKey) : '';
+    const itSlotId = it?.meta?.openSlot?.slotId ? String(it.meta.openSlot.slotId) : '';
+    const targetSlotId = slot?._id ? String(slot._id) : '';
+    const slotMatch = (targetSlotId && itSlotId && itSlotId === targetSlotId) || (!targetSlotId && itSlotKey === slotKey) || (itSlotKey === slotKey);
+    if (!slotMatch) return false;
+    const isPlaceholderSku = String(it?.sku || '').toUpperCase().includes('PLACEHOLDER');
+    return String(it?.source || '') === 'price' || isPlaceholderSku;
+  });
+  // Si llega item real para un slot previamente completado con placeholder, limpiar placeholders del slot.
+  if (item && placeholderItemsForSlot.length > 0) {
+    sale.items = sale.items.filter(it => !placeholderItemsForSlot.includes(it));
+  }
   
   if (existingItemForSlot && item) {
     // El item ya existe para este slot, actualizar el precio según el slot
@@ -3605,6 +3618,24 @@ export const completeOpenSlot = async (req, res) => {
           sku: item.sku,
           name: item.name,
           salePrice: item.salePrice
+        }
+      }
+    });
+  }
+  // Si es modo placeholder y ya existe placeholder para este slot, evitar duplicar líneas.
+  if (!item && placeholderItemsForSlot.length > 0) {
+    computeTotals(sale);
+    await sale.save();
+    return res.json({
+      ok: true,
+      sale: sale.toObject(),
+      slot: {
+        slotIndex,
+        slotName: slot.slotName,
+        completed: true,
+        item: {
+          name: slot.slotName,
+          placeholder: true
         }
       }
     });
