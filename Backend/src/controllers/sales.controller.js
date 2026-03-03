@@ -1705,7 +1705,7 @@ export const closeSale = async (req, res) => {
         for (const slot of sale.openSlots) {
           if (!slot.completed || !slot.completedItemId) continue;
           
-          const slotKey = `${slot.comboPriceId}_${slot.slotIndex}_${slot.completedItemId}`;
+          const slotKey = `${slot._id || ''}_${slot.comboPriceId}_${slot.slotIndex}_${slot.completedItemId}`;
           if (processedSlots.has(slotKey)) continue; // Ya procesamos este slot
           processedSlots.add(slotKey);
           
@@ -1716,19 +1716,22 @@ export const closeSale = async (req, res) => {
           const slotItemSku = item.sku ? String(item.sku).toUpperCase() : '';
           const slotQty = slot.qty || 1;
           
-          // Buscar TODOS los items en sale.items que coincidan con este slot
-          // CRÍTICO: Buscar SOLO por refId (más confiable) - el SKU puede variar (con o sin CP-)
-          // La cantidad puede variar si se editó manualmente, así que no la usamos para la búsqueda
-          // Un slot puede tener múltiples items si se agregó varias veces (no debería pasar, pero por seguridad)
+          // Buscar items por slot exacto (slotId/slotKey) para soportar múltiples slots y múltiples combos.
+          const expectedSlotId = slot?._id ? String(slot._id) : '';
+          const expectedSlotKey = `${String(slot.comboPriceId)}:${String(slot.slotIndex)}`;
           const matchingItems = sale.items.filter(it => {
             const itRefId = it.refId ? String(it.refId) : '';
-            
-            // Coincidencia SOLO por refId - esto es lo más confiable
-            // No comparar cantidad ni SKU porque pueden variar
-            if (itRefId === slotItemRefId) {
-              return true;
+            if (itRefId !== slotItemRefId) return false;
+            const itOpenSlot = it?.meta?.openSlot || {};
+            const itSlotId = itOpenSlot?.slotId ? String(itOpenSlot.slotId) : '';
+            const itSlotKey = it?.meta?.slotKey ? String(it.meta.slotKey) : '';
+            if (expectedSlotId && itSlotId) return itSlotId === expectedSlotId;
+            if (itSlotKey) return itSlotKey === expectedSlotKey;
+            // Legacy: si no hay slotId/slotKey, usar combo+slotIndex como fallback.
+            if (itOpenSlot?.comboPriceId && Number(itOpenSlot?.slotIndex) >= 0) {
+              return String(itOpenSlot.comboPriceId) === String(slot.comboPriceId)
+                && Number(itOpenSlot.slotIndex) === Number(slot.slotIndex);
             }
-            
             return false;
           });
           
@@ -1922,8 +1925,11 @@ export const closeSale = async (req, res) => {
           if (isOpenSlotLine && !hints.hasAny) {
             const slotRef = it?.meta?.openSlot || {};
             const slotMatch = (sale.openSlots || []).find(s =>
-              String(s?.comboPriceId || '') === String(slotRef?.comboPriceId || '') &&
-              Number(s?.slotIndex) === Number(slotRef?.slotIndex)
+              (slotRef?.slotId && String(s?._id || '') === String(slotRef.slotId))
+              || (
+                String(s?.comboPriceId || '') === String(slotRef?.comboPriceId || '') &&
+                Number(s?.slotIndex) === Number(slotRef?.slotIndex)
+              )
             );
             const slotMeta = slotMatch?.completedMeta && typeof slotMatch.completedMeta === 'object'
               ? slotMatch.completedMeta
@@ -3463,16 +3469,25 @@ export const completeOpenSlot = async (req, res) => {
   
   // CRÍTICO: Buscar el slot usando slotIndex Y comboPriceId para identificar de forma única
   // Esto evita conflictos cuando múltiples combos tienen slots con el mismo índice
-  const slot = sale.openSlots.find(s => 
-    s.slotIndex === slotIndex && 
-    s.comboPriceId && 
+  const slotCandidates = (sale.openSlots || []).filter(s =>
+    s.slotIndex === slotIndex &&
+    s.comboPriceId &&
     String(s.comboPriceId) === String(comboPriceId)
   );
+  // Si hay múltiples slots iguales (mismo combo/índice), priorizar el pendiente.
+  let slot = slotCandidates.find(s => !s.completed) || slotCandidates[0] || null;
   if (!slot) {
     return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} y comboPriceId ${comboPriceId} no encontrado` });
   }
   
-  if (slot.completed) {
+  const slotKey = `${String(comboPriceId)}:${String(slotIndex)}`;
+  const openSlotMeta = {
+    comboPriceId,
+    slotIndex,
+    ...(slot?._id ? { slotId: String(slot._id) } : {})
+  };
+  const hasQrTrace = !!(qrMeta?.entryId || qrMeta?.investorId || qrMeta?.supplierId || qrMeta?.purchaseId);
+  if (slot.completed && !hasQrTrace) {
     return res.status(400).json({ error: 'Este slot ya está completado' });
   }
   
@@ -3528,11 +3543,17 @@ export const completeOpenSlot = async (req, res) => {
   // Esto previene duplicación si completeOpenSlot se llama dos veces por error
   // Buscar SOLO por refId - no comparar cantidad ni SKU porque pueden variar
   // Solo buscar si hay item (no aplica para slots con nombre placeholder)
-  const slotKey = `${String(comboPriceId)}:${String(slotIndex)}`;
+  if (slot.completed && item && slot.completedItemId && String(slot.completedItemId) !== String(item._id)) {
+    return res.status(400).json({ error: 'Este slot ya fue completado con otro item. Reabre el slot o usa el QR del item correcto.' });
+  }
   const existingItemForSlot = item ? sale.items.find(it => {
     const itRefId = it.refId ? String(it.refId) : '';
     const itSlotKey = it?.meta?.slotKey ? String(it.meta.slotKey) : '';
-    return itRefId === String(item._id) && itSlotKey === slotKey;
+    const itSlotId = it?.meta?.openSlot?.slotId ? String(it.meta.openSlot.slotId) : '';
+    const targetSlotId = slot?._id ? String(slot._id) : '';
+    if (itRefId !== String(item._id)) return false;
+    if (targetSlotId && itSlotId) return itSlotId === targetSlotId;
+    return itSlotKey === slotKey;
   }) : null;
   
   if (existingItemForSlot && item) {
@@ -3558,9 +3579,15 @@ export const completeOpenSlot = async (req, res) => {
     existingItemForSlot.meta = {
       ...(existingItemForSlot.meta || {}),
       slotKey,
-      openSlot: { comboPriceId, slotIndex },
+      openSlot: openSlotMeta,
       ...(qrMeta || {})
     };
+    if (qrMeta) {
+      slot.completedMeta = {
+        ...(slot.completedMeta || {}),
+        ...(qrMeta || {})
+      };
+    }
     
     // Recalcular totales
     computeTotals(sale);
@@ -3684,7 +3711,7 @@ export const completeOpenSlot = async (req, res) => {
           total: Math.round((slot.qty || 1) * realPrice),
           meta: {
             slotKey,
-            openSlot: { comboPriceId, slotIndex },
+            openSlot: openSlotMeta,
             ...(qrMeta || {})
           }
         });
@@ -3699,7 +3726,7 @@ export const completeOpenSlot = async (req, res) => {
           qty: slot.qty || 1,
           unitPrice: realPrice,
           total: Math.round((slot.qty || 1) * realPrice),
-          meta: { slotKey, openSlot: { comboPriceId, slotIndex } }
+          meta: { slotKey, openSlot: openSlotMeta }
         });
       }
     } else {
@@ -3715,7 +3742,7 @@ export const completeOpenSlot = async (req, res) => {
           total: Math.round((slot.qty || 1) * realPrice),
           meta: {
             slotKey,
-            openSlot: { comboPriceId, slotIndex },
+            openSlot: openSlotMeta,
             ...(qrMeta || {})
           }
         });
@@ -3730,7 +3757,7 @@ export const completeOpenSlot = async (req, res) => {
           qty: slot.qty || 1,
           unitPrice: realPrice,
           total: Math.round((slot.qty || 1) * realPrice),
-          meta: { slotKey, openSlot: { comboPriceId, slotIndex } }
+          meta: { slotKey, openSlot: openSlotMeta }
         });
       }
     }
@@ -3747,7 +3774,7 @@ export const completeOpenSlot = async (req, res) => {
         total: Math.round((slot.qty || 1) * realPrice),
         meta: {
           slotKey,
-          openSlot: { comboPriceId, slotIndex },
+          openSlot: openSlotMeta,
           ...(qrMeta || {})
         }
       });
@@ -3762,7 +3789,7 @@ export const completeOpenSlot = async (req, res) => {
         qty: slot.qty || 1,
         unitPrice: realPrice,
         total: Math.round((slot.qty || 1) * realPrice),
-        meta: { slotKey, openSlot: { comboPriceId, slotIndex } }
+        meta: { slotKey, openSlot: openSlotMeta }
       });
     }
   }
