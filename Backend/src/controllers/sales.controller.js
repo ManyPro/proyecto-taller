@@ -1890,13 +1890,75 @@ export const closeSale = async (req, res) => {
         // Importante: si el item viene de QR con meta.entryId, priorizar esa entrada para
         // respetar el inversor/proveedor del sticker escaneado.
         if (stockEntries.length > 0) {
-          const hints = getSaleItemQrHints(it.meta);
+          let hints = getSaleItemQrHints(it.meta);
           const isOpenSlotLine = !!it?.meta?.openSlot;
           const hasInvestorEntries = stockEntries.some(e => !!e?.investorId);
+          const hasGeneralEntries = stockEntries.some(e => !e?.investorId);
+          const investorEntries = stockEntries.filter(e => !!e?.investorId);
+          const uniqueInvestorIds = [...new Set(investorEntries.map(e => String(e.investorId)).filter(Boolean))];
+
+          // Si viene QR con entryId/investorId, validar consistencia estricta.
+          // Esto evita asignar por error a otro inversor cuando el mismo SKU existe en varios inversores.
+          if (hints.entryId) {
+            const entryByHint = stockEntries.find(e => String(e._id) === String(hints.entryId));
+            if (!entryByHint) {
+              throw new Error(`El QR del item "${it.name || it.sku}" no coincide con una entrada activa de stock (entryId). Reescanea el QR correcto.`);
+            }
+            if (hints.investorId) {
+              const entryInvestorId = entryByHint?.investorId ? String(entryByHint.investorId) : null;
+              if (!entryInvestorId || entryInvestorId !== String(hints.investorId)) {
+                throw new Error(`El QR del item "${it.name || it.sku}" no coincide con el inversor de la entrada (entryId/investorId).`);
+              }
+            }
+          } else if (hints.investorId) {
+            const investorMatch = stockEntries.some(e => e?.investorId && String(e.investorId) === String(hints.investorId));
+            if (!investorMatch) {
+              throw new Error(`El QR del item "${it.name || it.sku}" trae un inversor que no tiene stock disponible para este producto.`);
+            }
+          }
+
+          // Recuperación fuerte para combos:
+          // 1) intentar rehidratar hints desde openSlots.completedMeta si la línea no los tiene.
+          if (isOpenSlotLine && !hints.hasAny) {
+            const slotRef = it?.meta?.openSlot || {};
+            const slotMatch = (sale.openSlots || []).find(s =>
+              String(s?.comboPriceId || '') === String(slotRef?.comboPriceId || '') &&
+              Number(s?.slotIndex) === Number(slotRef?.slotIndex)
+            );
+            const slotMeta = slotMatch?.completedMeta && typeof slotMatch.completedMeta === 'object'
+              ? slotMatch.completedMeta
+              : null;
+            if (slotMeta && (slotMeta.entryId || slotMeta.investorId || slotMeta.supplierId || slotMeta.purchaseId)) {
+              it.meta = {
+                ...(it.meta || {}),
+                ...(slotMeta.entryId ? { entryId: String(slotMeta.entryId) } : {}),
+                ...(slotMeta.investorId ? { investorId: String(slotMeta.investorId) } : {}),
+                ...(slotMeta.supplierId ? { supplierId: String(slotMeta.supplierId) } : {}),
+                ...(slotMeta.purchaseId ? { purchaseId: String(slotMeta.purchaseId) } : {})
+              };
+              hints = getSaleItemQrHints(it.meta);
+            }
+          }
           // Protección crítica para slots abiertos:
-          // si hay cualquier stock de inversor disponible, exigir QR con hints para
-          // evitar descuentos erróneos desde stock general en combos.
-          if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries) {
+          // si no existe stock general y sí de inversor, exigir QR con hints para
+          // evitar descuentos erróneos o pérdida de trazabilidad.
+          // Si no hay hints pero hay un único INVERSOR posible (sin stock general),
+          // autoasignar ese inversor para no romper el flujo por pérdida de meta en combos legacy.
+          // Si hay más de un inversor posible, se bloquea por ambigüedad.
+          if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries && !hasGeneralEntries) {
+            if (uniqueInvestorIds.length === 1) {
+              const onlyInvestorId = uniqueInvestorIds[0];
+              const only = investorEntries.find(e => String(e.investorId) === onlyInvestorId);
+              it.meta = {
+                ...(it.meta || {}),
+                investorId: String(onlyInvestorId),
+                ...(only?.supplierId ? { supplierId: String(only.supplierId) } : {}),
+                ...(only?.purchaseId ? { purchaseId: String(only.purchaseId) } : {})
+              };
+              hints = getSaleItemQrHints(it.meta);
+            }
+          }
+          if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries && !hasGeneralEntries) {
             throw new Error(`Slot abierto "${it.name || it.sku}" requiere QR del item (entryId/investorId) para cerrar. Reescanea el QR del producto del inversor.`);
           }
           const relevantEntries = hints.hasAny
