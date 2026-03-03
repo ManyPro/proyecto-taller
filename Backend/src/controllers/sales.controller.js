@@ -460,7 +460,8 @@ export const getSale = async (req, res) => {
     saleObj.openSlots = saleObj.openSlots.map(slot => ({
       ...slot,
       comboPriceId: slot.comboPriceId ? String(slot.comboPriceId) : null,
-      completedItemId: slot.completedItemId ? String(slot.completedItemId) : null
+      completedItemId: slot.completedItemId ? String(slot.completedItemId) : null,
+      completedMeta: slot.completedMeta || null
     }));
   }
   
@@ -1739,6 +1740,10 @@ export const closeSale = async (req, res) => {
             console.error(`[closeSale] ERROR CRÍTICO: Item del slot ${slot.slotName} (refId: ${slotItemRefId}) no encontrado en sale.items. El slot está marcado como completado pero el item no está en la venta. Esto puede indicar un problema de sincronización.`);
             // Continuar sin agregar el item - no queremos duplicar
           } else {
+            // Rehidratar metadatos QR del slot (entry/inversor/proveedor/compra) si faltan en la línea.
+            const slotQrMeta = slot.completedMeta && typeof slot.completedMeta === 'object'
+              ? slot.completedMeta
+              : null;
             // El item existe, actualizar precio si es necesario
             // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
             // Solo si estimatedPrice no está definido, usar item.salePrice
@@ -1751,6 +1756,18 @@ export const closeSale = async (req, res) => {
             // 2. O si el precio actual no coincide con el realPrice Y el realPrice viene del slot (estimatedPrice)
             // NO actualizar si estimatedPrice es 0 - debe mantenerse en 0
             for (const foundItem of matchingItems) {
+              if (slotQrMeta) {
+                const hasAnyHint = !!(foundItem?.meta?.entryId || foundItem?.meta?.investorId || foundItem?.meta?.supplierId);
+                if (!hasAnyHint) {
+                  foundItem.meta = {
+                    ...(foundItem.meta || {}),
+                    ...(slotQrMeta.entryId ? { entryId: String(slotQrMeta.entryId) } : {}),
+                    ...(slotQrMeta.investorId ? { investorId: String(slotQrMeta.investorId) } : {}),
+                    ...(slotQrMeta.supplierId ? { supplierId: String(slotQrMeta.supplierId) } : {}),
+                    ...(slotQrMeta.purchaseId ? { purchaseId: String(slotQrMeta.purchaseId) } : {})
+                  };
+                }
+              }
               // Si el slot tiene estimatedPrice definido (incluso si es 0), usar ese valor
               if (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) {
                 // Si el precio actual no coincide con estimatedPrice, actualizarlo
@@ -3435,6 +3452,8 @@ export const completeOpenSlot = async (req, res) => {
     // Si no hay item, no se asigna completedItemId (usará nombre placeholder)
     slot.completedItemId = null;
   }
+  // Persistir metadatos QR del slot para usarlos al cerrar la venta.
+  slot.completedMeta = qrMeta || null;
   
   // CRÍTICO: Si estimatedPrice está definido (incluso si es 0), usarlo
   // Solo si estimatedPrice no está definido, usar el precio del item (salePrice) o 0 si no hay item

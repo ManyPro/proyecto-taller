@@ -36,7 +36,9 @@ const SaleSchema = new mongoose.Schema({
     qty: { type: Number, default: 1, min: 1 },
     estimatedPrice: { type: Number, default: 0 }, // Precio estimado del slot
     completed: { type: Boolean, default: false }, // true cuando se escaneó el QR
-    completedItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null } // Item asignado al completar
+    completedItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null }, // Item asignado al completar
+    // Trazabilidad QR del slot abierto (entry/inversor/proveedor/compra)
+    completedMeta: { type: mongoose.Schema.Types.Mixed, default: null }
   }], default: [] },
   customer: {
     type: { type: String, default: '' },
