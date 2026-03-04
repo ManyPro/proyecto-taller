@@ -3508,6 +3508,38 @@ export const completeOpenSlot = async (req, res) => {
     return res.status(404).json({ error: 'Item del inventario no encontrado' });
   }
 
+  // Robustez para slots abiertos:
+  // Si no viene meta QR para un item con stock de inversores, resolver aquí (no esperar al cierre).
+  // - Si hay una sola entrada de inversor posible y no hay general: autoasignar hints.
+  // - Si hay múltiples inversores posibles y no hay general: bloquear por ambigüedad y exigir QR.
+  if (item && !qrMeta) {
+    const activeEntries = await StockEntry.find({
+      companyId: item.companyId,
+      itemId: item._id,
+      qty: { $gt: 0 }
+    }).sort({ entryDate: 1, _id: 1 }).lean();
+    if (activeEntries.length > 0) {
+      const invEntries = activeEntries.filter(e => !!e?.investorId);
+      const hasGeneral = activeEntries.some(e => !e?.investorId);
+      if (invEntries.length > 0 && !hasGeneral) {
+        const uniqueInvIds = [...new Set(invEntries.map(e => String(e.investorId)).filter(Boolean))];
+        if (uniqueInvIds.length === 1) {
+          const first = invEntries[0];
+          qrMeta = {
+            entryId: String(first._id),
+            investorId: String(first.investorId),
+            ...(first.supplierId ? { supplierId: String(first.supplierId) } : {}),
+            ...(first.purchaseId ? { purchaseId: String(first.purchaseId) } : {})
+          };
+        } else {
+          return res.status(400).json({
+            error: `El slot "${slot.slotName}" tiene stock de múltiples inversores para este item. Escanea el QR específico (entryId/investorId).`
+          });
+        }
+      }
+    }
+  }
+
   // Si tenemos entryId desde QR, validar que la StockEntry existe y tiene stock disponible.
   if (item && qrMeta?.entryId && mongoose.Types.ObjectId.isValid(String(qrMeta.entryId))) {
     const stockEntry = await StockEntry.findOne({
