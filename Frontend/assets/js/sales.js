@@ -5460,7 +5460,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
           throw new Error('El slot no tiene comboPriceId. Por favor, recarga la página.');
         }
         
-        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, itemId, sku, text);
+        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, String(slot._id || ''), itemId, sku, text);
         current = result.sale;
         syncCurrentIntoOpenList();
         await renderAll();
@@ -5535,7 +5535,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
         }
         
         // Completar slot sin itemId ni sku (usará nombre placeholder)
-        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, null, null);
+        const result = await API.sales.completeSlot(saleId, slotIndex, comboPriceId, String(slot._id || ''), null, null);
         current = result.sale;
         syncCurrentIntoOpenList();
         await renderAll();

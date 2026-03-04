@@ -3425,7 +3425,7 @@ export const deleteSalesBulk = async (req, res) => {
 // ===== Completar slot abierto mediante QR =====
 export const completeOpenSlot = async (req, res) => {
   const { id } = req.params; // saleId
-  const { slotIndex, comboPriceId, itemId: rawItemId, sku: rawSku, payload } = req.body || {};
+  const { slotIndex, comboPriceId, slotId, itemId: rawItemId, sku: rawSku, payload } = req.body || {};
   
   if (slotIndex === undefined || slotIndex === null) {
     return res.status(400).json({ error: 'slotIndex requerido' });
@@ -3469,15 +3469,21 @@ export const completeOpenSlot = async (req, res) => {
   
   // CRÍTICO: Buscar el slot usando slotIndex Y comboPriceId para identificar de forma única
   // Esto evita conflictos cuando múltiples combos tienen slots con el mismo índice
-  const slotCandidates = (sale.openSlots || []).filter(s =>
-    s.slotIndex === slotIndex &&
-    s.comboPriceId &&
-    String(s.comboPriceId) === String(comboPriceId)
-  );
-  // Si hay múltiples slots iguales (mismo combo/índice), priorizar el pendiente.
-  let slot = slotCandidates.find(s => !s.completed) || slotCandidates[0] || null;
+  let slot = null;
+  if (slotId && mongoose.Types.ObjectId.isValid(String(slotId))) {
+    slot = (sale.openSlots || []).find(s => String(s?._id || '') === String(slotId)) || null;
+  }
   if (!slot) {
-    return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} y comboPriceId ${comboPriceId} no encontrado` });
+    const slotCandidates = (sale.openSlots || []).filter(s =>
+      s.slotIndex === slotIndex &&
+      s.comboPriceId &&
+      String(s.comboPriceId) === String(comboPriceId)
+    );
+    // Fallback legacy: si hay múltiples slots iguales (mismo combo/índice), priorizar el pendiente.
+    slot = slotCandidates.find(s => !s.completed) || slotCandidates[0] || null;
+  }
+  if (!slot) {
+    return res.status(404).json({ error: `Slot abierto no encontrado (slotId/slotIndex/comboPriceId)` });
   }
   
   const slotKey = `${String(comboPriceId)}:${String(slotIndex)}`;
