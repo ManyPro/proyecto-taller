@@ -3443,6 +3443,7 @@ export const completeOpenSlot = async (req, res) => {
   const maybePayload = (typeof payload === 'string' && payload.trim())
     ? payload.trim()
     : ((typeof rawSku === 'string' && rawSku.trim().toUpperCase().startsWith('IT:')) ? rawSku.trim() : null);
+  const looksLikeInventoryQr = !!(maybePayload && maybePayload.toUpperCase().startsWith('IT:'));
   if (maybePayload && maybePayload.toUpperCase().startsWith('IT:')) {
     const parsed = parseInventoryQrPayload(maybePayload);
     if (parsed?.itemId) itemId = parsed.itemId;
@@ -3539,7 +3540,9 @@ export const completeOpenSlot = async (req, res) => {
           };
         } else {
           return res.status(400).json({
-            error: `El slot "${slot.slotName}" tiene stock de múltiples inversores para este item. Escanea el QR específico (entryId/investorId).`
+            error: looksLikeInventoryQr
+              ? `El QR leído para el slot "${slot.slotName}" está incompleto o ambiguo. Reescanéalo hasta que capture entryId/investorId.`
+              : `El slot "${slot.slotName}" tiene stock de múltiples inversores para este item. Escanea el QR específico (entryId/investorId).`
           });
         }
       }

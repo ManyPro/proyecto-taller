@@ -7,7 +7,11 @@ function clean(v) {
 function validObjectIdOrNull(v) {
   const s = clean(v);
   if (!s || s.toUpperCase() === 'GENERAL') return null;
-  return mongoose.Types.ObjectId.isValid(s) ? s : null;
+  if (mongoose.Types.ObjectId.isValid(s)) return s;
+  // Robustez: aceptar tokens con ruido (p.ej. puntuación al final) y extraer el ObjectId.
+  const match = s.match(/[a-f0-9]{24}/i);
+  if (match && mongoose.Types.ObjectId.isValid(match[0])) return match[0];
+  return null;
 }
 
 /**
