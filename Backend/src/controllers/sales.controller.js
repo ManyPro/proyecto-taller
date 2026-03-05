@@ -1967,6 +1967,31 @@ export const closeSale = async (req, res) => {
           if (isOpenSlotLine && !hints.hasAny && hasInvestorEntries && !hasGeneralEntries) {
             throw new Error(`Slot abierto "${it.name || it.sku}" requiere QR del item (entryId/investorId) para cerrar. Reescanea el QR del producto del inversor.`);
           }
+          // Protección global:
+          // si una línea viene de QR de inventario y no tiene hints, no permitir cerrar
+          // cuando hay stock de inversor para evitar consumir stock general por error.
+          const isInventoryQrLine = !!it?.meta?.qrScanned && String(it?.meta?.qrKind || '') === 'inventory';
+          if (isInventoryQrLine && !hints.hasAny && hasInvestorEntries) {
+            throw new Error(`El QR del item "${it.name || it.sku}" llegó sin datos de entrada/inversor. Reescanea el sticker para descontar el stock correcto.`);
+          }
+          // Si no hay stock general y solo hay stock de inversor, nunca dejar pasar sin hints:
+          // autoasignar si hay un único inversor posible; bloquear si es ambiguo.
+          if (!hints.hasAny && hasInvestorEntries && !hasGeneralEntries) {
+            if (uniqueInvestorIds.length === 1) {
+              const onlyInvestorId = uniqueInvestorIds[0];
+              const only = investorEntries.find(e => String(e.investorId) === onlyInvestorId);
+              it.meta = {
+                ...(it.meta || {}),
+                investorId: String(onlyInvestorId),
+                ...(only?._id ? { entryId: String(only._id) } : {}),
+                ...(only?.supplierId ? { supplierId: String(only.supplierId) } : {}),
+                ...(only?.purchaseId ? { purchaseId: String(only.purchaseId) } : {})
+              };
+              hints = getSaleItemQrHints(it.meta);
+            } else {
+              throw new Error(`El item "${it.name || it.sku}" solo tiene stock de inversor y falta QR con entryId/investorId. Reescanea el QR correcto.`);
+            }
+          }
           const relevantEntries = hints.hasAny
             ? stockEntries
             : stockEntries.filter(e => !e?.investorId); // sin QR: NO tocar stock de inversor
@@ -3937,8 +3962,22 @@ export const addByQR = async (req, res) => {
         name: it.name || it.sku,
         qty: q,
         unitPrice: up,
-        total: Math.round(q * up)
+        total: Math.round(q * up),
+        meta: {
+          qrScanned: true,
+          qrKind: 'inventory'
+        }
       };
+
+      // Si parece QR extendido pero no trae hints parseables, bloquear para evitar
+      // pérdida de trazabilidad (descuento en stock equivocado).
+      const qrParts = s.split(':').map(p => String(p || '').trim()).filter(Boolean);
+      const hasQrHints = !!(parsed.entryId || parsed.supplierId || parsed.investorId || parsed.purchaseId);
+      if (!hasQrHints && qrParts.length >= 6) {
+        return res.status(400).json({
+          error: 'QR incompleto o ambiguo. Reescanea el sticker del item para incluir entrada/inversor.'
+        });
+      }
       
       // Agregar entryId al meta si está presente
       // Guardar también supplierId/investorId/purchaseId del QR para trazabilidad (y debug).

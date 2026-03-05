@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -166,6 +166,21 @@
     body.theme-light #modal,
     body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
       color: #000000 !important;
+    }
+    /* Asegurar fondos claros en modal para evitar negro sobre negro */
+    body.theme-light #modal [class*="bg-slate-900"],
+    body.theme-light #modal [class*="bg-slate-800"],
+    body.theme-light #modal [class*="bg-slate-700"] {
+      background-color: #f8fafc !important;
+    }
+    body.theme-light #modal [class*="from-slate-900"],
+    body.theme-light #modal [class*="to-slate-900"],
+    body.theme-light #modal [class*="via-slate-900"] {
+      background: linear-gradient(to right, #e2e8f0, #f1f5f9, #e2e8f0) !important;
+    }
+    body.theme-light #modal [class*="border-slate-700"],
+    body.theme-light #modal [class*="border-slate-600"] {
+      border-color: #cbd5e1 !important;
     }
     body.theme-light #modal label,
     body.theme-light #modal .text-slate-300,
