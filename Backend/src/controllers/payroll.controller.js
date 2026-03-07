@@ -2161,17 +2161,19 @@ function buildCompactPayrollPdfHtml({ context }) {
     ? serviceRows.map((it) => {
         const plate = String(it.vehicleLabel || it.vehiclePlate || '-').trim() || '-';
         const laborValue = Number(it.base || 0);
+        const laborName = String(it.serviceName || it.laborName || it.name || '-').trim() || '-';
         return `
           <tr>
             <td>${escapeHtml(formatServiceDate(it))}</td>
             <td>${escapeHtml(plate)}</td>
+            <td>${escapeHtml(laborName)}</td>
             <td class="right">${escapeHtml(formatMoney(laborValue))}</td>
           </tr>
         `;
       }).join('')
     : `
       <tr>
-        <td colspan="3" style="text-align:center;color:#64748b;">Sin líneas de servicio para mostrar</td>
+        <td colspan="4" style="text-align:center;color:#64748b;">Sin líneas de servicio para mostrar</td>
       </tr>
     `;
 
@@ -2191,9 +2193,10 @@ function buildCompactPayrollPdfHtml({ context }) {
       <table class="tbl">
         <thead>
           <tr>
-            <th style="width: 30%;">Día del servicio</th>
-            <th style="width: 42%;">Placa del vehículo</th>
-            <th class="right" style="width: 28%;">Valor mano de obra</th>
+            <th style="width: 17%;">Día del servicio</th>
+            <th style="width: 24%;">Placa del vehículo</th>
+            <th style="width: 39%;">Mano de obra pagada</th>
+            <th class="right" style="width: 20%;">Valor mano de obra</th>
           </tr>
         </thead>
         <tbody>
