@@ -2061,6 +2061,158 @@ function buildFallbackPayrollHtml({ context }) {
   `;
 }
 
+function buildCompactPayrollPdfStyles() {
+  return `
+    @page { size: A4; margin: 8mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      color: #0f172a;
+      background: #fff;
+      font-size: 10px;
+      line-height: 1.2;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .compact-doc { width: 100%; }
+    .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .title { margin: 0; font-size: 13px; font-weight: 700; }
+    .subtitle { margin: 2px 0 0 0; color: #475569; font-size: 9px; }
+    .pay-card {
+      border: 1px solid #94a3b8;
+      border-radius: 6px;
+      padding: 6px 8px;
+      min-width: 180px;
+      text-align: right;
+    }
+    .pay-card .k { color: #475569; font-size: 9px; margin-bottom: 2px; }
+    .pay-card .v { font-weight: 800; font-size: 14px; color: #065f46; }
+    .tbl {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #334155;
+      table-layout: fixed;
+      font-size: 9px;
+    }
+    .tbl th {
+      background: #f1f5f9;
+      border: 1px solid #334155;
+      text-align: left;
+      padding: 4px 5px;
+      font-weight: 700;
+    }
+    .tbl td {
+      border: 1px solid #334155;
+      padding: 4px 5px;
+      vertical-align: top;
+    }
+    .right { text-align: right; white-space: nowrap; }
+    .sign {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .sign-box {
+      border: 1px dashed #94a3b8;
+      border-radius: 6px;
+      padding: 6px;
+      min-height: 42px;
+    }
+    .sign-line {
+      border-top: 1px solid #64748b;
+      margin-top: 16px;
+      padding-top: 3px;
+      text-align: center;
+      color: #475569;
+      font-size: 8px;
+    }
+  `;
+}
+
+function buildCompactPayrollPdfHtml({ context }) {
+  const settlement = context.settlement || {};
+  const company = context.company || {};
+  const itemsByType = settlement.itemsByType || buildItemsByType(settlement.items || []);
+  const formatMoney = (val) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+
+  const formatServiceDate = (item) => {
+    const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
+    if (!raw) return '-';
+    const dt = new Date(raw);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const serviceRows = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
+    .filter((it) => it && (it.saleId || it.saleNumber || it.vehiclePlate || it.vehicleLabel || Number(it.base || 0) > 0));
+
+  const rowsHtml = serviceRows.length
+    ? serviceRows.map((it) => {
+        const plate = String(it.vehicleLabel || it.vehiclePlate || '-').trim() || '-';
+        const laborValue = Number(it.base || 0);
+        return `
+          <tr>
+            <td>${escapeHtml(formatServiceDate(it))}</td>
+            <td>${escapeHtml(plate)}</td>
+            <td class="right">${escapeHtml(formatMoney(laborValue))}</td>
+          </tr>
+        `;
+      }).join('')
+    : `
+      <tr>
+        <td colspan="3" style="text-align:center;color:#64748b;">Sin líneas de servicio para mostrar</td>
+      </tr>
+    `;
+
+  return `
+    <div class="compact-doc">
+      <div class="head">
+        <div>
+          <h1 class="title">Liquidación técnica</h1>
+          <p class="subtitle">${escapeHtml(company.name || '')}</p>
+        </div>
+        <div class="pay-card">
+          <div class="k">Valor a pagar</div>
+          <div class="v">${escapeHtml(settlement.formattedNetTotal || formatMoney(settlement.netTotal || 0))}</div>
+        </div>
+      </div>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width: 30%;">Día del servicio</th>
+            <th style="width: 42%;">Placa del vehículo</th>
+            <th class="right" style="width: 28%;">Valor mano de obra</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <div class="sign">
+        <div class="sign-box">
+          <div class="sign-line">Firma del técnico</div>
+        </div>
+        <div class="sign-box">
+          <div class="sign-line">Firma empresa</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export const printSettlementHtml = async (req, res) => {
   try {
     const { id } = req.params;
@@ -2506,8 +2658,7 @@ export const generateSettlementPdf = async (req, res) => {
     if(!st) return res.status(404).json({ error: 'Settlement not found' });
     
     // Reutilizar lógica de datos, pero generar PDF real desde HTML (Chromium)
-    const [tpl, company, period] = await Promise.all([
-      Template.findOne({ companyId: req.companyId, type: 'payroll', active: true }).sort({ updatedAt: -1 }),
+    const [company, period] = await Promise.all([
       Company.findOne({ _id: req.companyId }),
       PayrollPeriod.findOne({ _id: st.periodId, companyId: req.companyId })
     ]);
@@ -2541,25 +2692,9 @@ export const generateSettlementPdf = async (req, res) => {
       formattedNow: new Date().toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     };
 
-    let htmlBody = '';
-    let css = '';
-    if (tpl?.contentHtml) {
-      ensureHB();
-      try {
-        htmlBody = Handlebars.compile(tpl.contentHtml || '')(context);
-        css = tpl.contentCss || '';
-      } catch (e) {
-        htmlBody = '';
-        css = '';
-      }
-    }
-    if (!htmlBody) {
-      htmlBody = buildFallbackPayrollHtml({ context });
-      css = '';
-    }
-
-    const pageStyles = buildPdfPageStyles();
-    const htmlDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${pageStyles}${css || ''}</style></head><body><div class="doc">${htmlBody}</div></body></html>`;
+    const htmlBody = buildCompactPayrollPdfHtml({ context });
+    const pageStyles = buildCompactPayrollPdfStyles();
+    const htmlDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${pageStyles}</style></head><body>${htmlBody}</body></html>`;
 
     try {
       const pdfBuffer = await htmlToPdfBuffer(htmlDoc, {
