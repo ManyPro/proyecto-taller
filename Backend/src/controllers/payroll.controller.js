@@ -2160,14 +2160,14 @@ function buildCompactPayrollPdfHtml({ context }) {
   const rowsHtml = serviceRows.length
     ? serviceRows.map((it) => {
         const plate = String(it.vehicleLabel || it.vehiclePlate || '-').trim() || '-';
-        const laborValue = Number(it.base || 0);
+        const paidValue = Number(it.value || 0);
         const laborName = String(it.serviceName || it.laborName || it.name || '-').trim() || '-';
         return `
           <tr>
             <td>${escapeHtml(formatServiceDate(it))}</td>
             <td>${escapeHtml(plate)}</td>
             <td>${escapeHtml(laborName)}</td>
-            <td class="right">${escapeHtml(formatMoney(laborValue))}</td>
+            <td class="right">${escapeHtml(formatMoney(paidValue))}</td>
           </tr>
         `;
       }).join('')
