@@ -2142,9 +2142,14 @@ function buildCompactPayrollPdfStyles() {
 function buildCompactPayrollPdfHtml({ context }) {
   const settlement = context.settlement || {};
   const company = context.company || {};
+  const period = context.period || {};
   const itemsByType = settlement.itemsByType || buildItemsByType(settlement.items || []);
   const formatMoney = (val) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+  const technicianName = String(settlement.technicianName || '-').trim() || '-';
+  const periodLabel = (period.formattedStartDate && period.formattedEndDate)
+    ? `${period.formattedStartDate} - ${period.formattedEndDate}`
+    : '-';
 
   const formatServiceDate = (item) => {
     const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
@@ -2183,6 +2188,8 @@ function buildCompactPayrollPdfHtml({ context }) {
         <div>
           <h1 class="title">Liquidación técnica</h1>
           <p class="subtitle">${escapeHtml(company.name || '')}</p>
+          <p class="subtitle"><strong>Técnico:</strong> ${escapeHtml(technicianName)}</p>
+          <p class="subtitle"><strong>Período cancelado:</strong> ${escapeHtml(periodLabel)}</p>
         </div>
         <div class="pay-card">
           <div class="k">Valor a pagar</div>

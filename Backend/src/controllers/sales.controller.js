@@ -23,6 +23,23 @@ import { parseInventoryQrPayload } from '../lib/inventoryQr.js';
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
+function mergeComboProductsPreservingOpenSlots(baseComboProducts = [], overrideComboProducts = []) {
+  const base = Array.isArray(baseComboProducts) ? baseComboProducts : [];
+  const override = Array.isArray(overrideComboProducts) ? overrideComboProducts : [];
+  if (!override.length) return base;
+
+  return base.map((cp, idx) => {
+    const ov = override[idx] || {};
+    return {
+      ...cp,
+      ...ov,
+      // CRÍTICO: el estado del slot abierto viene del combo original.
+      // Si se pierde aquí (ej. cotización -> venta), el slot deja de ser escaneable.
+      isOpenSlot: !!cp?.isOpenSlot
+    };
+  });
+}
+
 function normalizeLaborKind(kind) {
   return String(kind || '').trim().toUpperCase();
 }
@@ -638,8 +655,8 @@ export const addItem = async (req, res) => {
         sale.laborValue = Math.round(currentLabor + (laborVal * q));
       }
 
-      const comboProductsToUse = Array.isArray(customComboProducts) && customComboProducts.length > 0
-        ? customComboProducts
+      const comboProductsToUse = (Array.isArray(customComboProducts) && customComboProducts.length > 0)
+        ? mergeComboProductsPreservingOpenSlots(pe.comboProducts, customComboProducts)
         : (Array.isArray(pe.comboProducts) ? pe.comboProducts : []);
 
       const vehicleId = sale.vehicle?.vehicleId;
@@ -965,7 +982,7 @@ export const addItemsBatch = async (req, res) => {
           }
 
           const comboProductsToUse = comboProductsOverride
-            ? comboProductsOverride
+            ? mergeComboProductsPreservingOpenSlots(pe.comboProducts, comboProductsOverride)
             : (Array.isArray(pe.comboProducts) ? pe.comboProducts : []);
 
           const vehicleId = sale.vehicle?.vehicleId;
@@ -3576,14 +3593,37 @@ export const completeOpenSlot = async (req, res) => {
 
   // Si tenemos entryId desde QR, validar que la StockEntry existe y tiene stock disponible.
   if (item && qrMeta?.entryId && mongoose.Types.ObjectId.isValid(String(qrMeta.entryId))) {
-    const stockEntry = await StockEntry.findOne({
+    let stockEntry = await StockEntry.findOne({
       _id: qrMeta.entryId,
       companyId: item.companyId,
       itemId: item._id,
       qty: { $gt: 0 }
     });
     if (!stockEntry) {
-      return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+      // QR general legacy: si el entryId leído ya no tiene stock, pero existe stock general
+      // del mismo item, permitir continuar usando una entrada general activa (FIFO).
+      const hasInvestorHint = !!qrMeta?.investorId;
+      if (!hasInvestorHint) {
+        const fallbackGeneral = await StockEntry.findOne({
+          companyId: item.companyId,
+          itemId: item._id,
+          investorId: null,
+          qty: { $gt: 0 }
+        }).sort({ entryDate: 1, _id: 1 });
+        if (fallbackGeneral) {
+          qrMeta = {
+            ...(qrMeta || {}),
+            entryId: String(fallbackGeneral._id),
+            ...(fallbackGeneral.supplierId ? { supplierId: String(fallbackGeneral.supplierId) } : {}),
+            ...(fallbackGeneral.purchaseId ? { purchaseId: String(fallbackGeneral.purchaseId) } : {})
+          };
+          stockEntry = fallbackGeneral;
+        } else {
+          return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+        }
+      } else {
+        return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+      }
     }
   }
   
@@ -3941,14 +3981,33 @@ export const addByQR = async (req, res) => {
 
       // Si hay entryId, validar que existe y tiene stock disponible
       if (parsed.entryId && mongoose.Types.ObjectId.isValid(parsed.entryId)) {
-        const stockEntry = await StockEntry.findOne({
+        let stockEntry = await StockEntry.findOne({
           _id: parsed.entryId,
           companyId: it.companyId,
           itemId: it._id,
           qty: { $gt: 0 }
         });
         if (!stockEntry) {
-          return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+          // QR general legacy: permitir fallback a entrada general activa del mismo item.
+          const hasInvestorHint = !!parsed.investorId;
+          if (!hasInvestorHint) {
+            const fallbackGeneral = await StockEntry.findOne({
+              companyId: it.companyId,
+              itemId: it._id,
+              investorId: null,
+              qty: { $gt: 0 }
+            }).sort({ entryDate: 1, _id: 1 });
+            if (fallbackGeneral) {
+              stockEntry = fallbackGeneral;
+              parsed.entryId = String(fallbackGeneral._id);
+              if (fallbackGeneral.supplierId) parsed.supplierId = String(fallbackGeneral.supplierId);
+              if (fallbackGeneral.purchaseId) parsed.purchaseId = String(fallbackGeneral.purchaseId);
+            } else {
+              return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+            }
+          } else {
+            return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+          }
         }
         // Guardar entryId en meta para trazabilidad
       }
