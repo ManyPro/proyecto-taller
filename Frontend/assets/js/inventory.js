@@ -7405,14 +7405,135 @@ async function openQRReader() {
     const upper = text.toUpperCase();
     if (upper.startsWith('IT:')) {
       const parts = text.split(':').map(p => p.trim()).filter(Boolean);
+      const pPart = parts.find(p => /^P[a-f0-9]{24}$/i.test(p));
+      const purchaseId = pPart ? pPart.slice(1) : '';
+      const isObjectId = (v) => /^[a-f0-9]{24}$/i.test(String(v || '').trim());
+      const rawEntry = parts[6] || '';
+      const entryId = isObjectId(rawEntry) ? rawEntry : '';
       return {
         companyId: parts[1] || '',
         itemId: parts[2] || '',
-        sku: parts[3] || ''
+        sku: parts[3] || '',
+        supplierId: parts[4] || '',
+        investorId: parts[5] || '',
+        entryId,
+        purchaseId,
+        raw: text
       };
     }
     const match = text.match(/[a-f0-9]{24}/i);
-    return { companyId: '', itemId: match ? match[0] : '', sku: '', raw: text };
+    return { companyId: '', itemId: match ? match[0] : '', sku: '', supplierId: '', investorId: '', entryId: '', purchaseId: '', raw: text };
+  }
+
+  async function buildQrVerificationData(parsed, item) {
+    const stockData = await invAPI.getItemStockEntries(item._id);
+    const stockEntries = Array.isArray(stockData?.stockEntries) ? stockData.stockEntries : [];
+
+    let matchedEntry = null;
+    if (parsed.entryId) {
+      matchedEntry = stockEntries.find(se => String(se?._id || '') === String(parsed.entryId)) || null;
+    }
+    if (!matchedEntry && parsed.purchaseId) {
+      matchedEntry = stockEntries.find(se => String(se?.purchaseId?._id || '') === String(parsed.purchaseId)) || null;
+    }
+    if (!matchedEntry && parsed.investorId) {
+      matchedEntry = stockEntries.find(se => {
+        const fromPurchase = String(se?.purchaseId?.investorId?._id || se?.purchaseId?.investorId || '');
+        const fromEntry = String(se?.investorId?._id || se?.investorId || '');
+        return fromPurchase === String(parsed.investorId) || fromEntry === String(parsed.investorId);
+      }) || null;
+    }
+
+    const investors = await API.purchases.investors.list().catch(() => []);
+    const suppliers = await API.purchases.suppliers.list().catch(() => []);
+    const findById = (arr, id) => (arr || []).find(x => String(x?._id || '') === String(id || '')) || null;
+
+    const investorFromQr = findById(investors, parsed.investorId);
+    const supplierFromQr = findById(suppliers, parsed.supplierId);
+    const investorFromEntry =
+      matchedEntry?.purchaseId?.investorId?.name ||
+      matchedEntry?.investorId?.name ||
+      '';
+    const supplierFromEntry =
+      matchedEntry?.purchaseId?.supplierId?.name ||
+      matchedEntry?.supplierId?.name ||
+      '';
+
+    return {
+      item,
+      parsed,
+      matchedEntry,
+      investorName: investorFromEntry || investorFromQr?.name || (parsed.investorId ? parsed.investorId : 'GENERAL'),
+      supplierName: supplierFromEntry || supplierFromQr?.name || (parsed.supplierId ? parsed.supplierId : 'GENERAL'),
+      purchaseId: parsed.purchaseId || String(matchedEntry?.purchaseId?._id || ''),
+      entryId: parsed.entryId || String(matchedEntry?._id || '')
+    };
+  }
+
+  function openQrVerificationModal(data) {
+    const { item, parsed, matchedEntry, investorName, supplierName, purchaseId, entryId } = data;
+    const purchaseDate = matchedEntry?.purchaseId?.purchaseDate
+      ? new Date(matchedEntry.purchaseId.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '-';
+
+    invOpenModal(`
+      <div class="p-4 sm:p-6 w-full max-w-3xl max-h-[82vh] overflow-y-auto custom-scrollbar">
+        <h3 class="text-lg sm:text-xl font-bold text-white theme-light:text-slate-900 mb-3 sm:mb-4">Verificador de QR</h3>
+        <div class="space-y-3 mb-4 sm:mb-5">
+          <div class="p-3 rounded-lg bg-slate-800/40 border border-slate-700/40 theme-light:bg-sky-50 theme-light:border-sky-200">
+            <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Item</div>
+            <div class="text-sm sm:text-base font-semibold text-white theme-light:text-slate-900 break-words">${escapeHtml(item?.name || '-')}</div>
+            <div class="text-xs sm:text-sm text-slate-300 theme-light:text-slate-700">SKU: ${escapeHtml(item?.sku || parsed?.sku || '-')}</div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-white theme-light:border-slate-300">
+              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Inversor</div>
+              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-words">${escapeHtml(investorName || 'GENERAL')}</div>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-white theme-light:border-slate-300">
+              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Proveedor</div>
+              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-words">${escapeHtml(supplierName || 'GENERAL')}</div>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-white theme-light:border-slate-300">
+              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Compra</div>
+              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-all">${escapeHtml(purchaseId || 'No especificada')}</div>
+              <div class="text-xs text-slate-400 theme-light:text-slate-600 mt-1">Fecha: ${escapeHtml(purchaseDate)}</div>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-white theme-light:border-slate-300">
+              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">StockEntry</div>
+              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-all">${escapeHtml(entryId || 'No especificada')}</div>
+              <div class="text-xs text-slate-400 theme-light:text-slate-600 mt-1">Stock en entrada: ${Number(matchedEntry?.qty || 0)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="p-3 rounded-lg bg-slate-900/40 border border-slate-700/40 theme-light:bg-slate-100 theme-light:border-slate-300 text-[11px] sm:text-xs text-slate-300 theme-light:text-slate-700 break-all mb-4 sm:mb-5">
+          ${escapeHtml(parsed?.raw || '')}
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <button id="qrv-open-summary" class="w-full px-4 py-3 sm:py-2 bg-blue-600 hover:bg-blue-700 theme-light:bg-blue-500 theme-light:hover:bg-blue-600 text-white rounded-lg font-semibold text-sm transition-colors">Ver resumen del item</button>
+          <button id="qrv-scan-again" class="w-full px-4 py-3 sm:py-2 bg-purple-600 hover:bg-purple-700 theme-light:bg-purple-500 theme-light:hover:bg-purple-600 text-white rounded-lg font-semibold text-sm transition-colors">Escanear otro QR</button>
+          <button id="qrv-close" class="w-full px-4 py-3 sm:py-2 bg-slate-700/50 hover:bg-slate-700 border border-slate-600/40 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 theme-light:border-slate-300 text-white theme-light:text-slate-900 rounded-lg text-sm transition-colors">Cerrar</button>
+        </div>
+      </div>
+    `);
+
+    const openSummaryBtn = document.getElementById('qrv-open-summary');
+    if (openSummaryBtn) {
+      openSummaryBtn.onclick = async () => {
+        await openItemSummaryModal(item);
+      };
+    }
+    const scanAgainBtn = document.getElementById('qrv-scan-again');
+    if (scanAgainBtn) {
+      scanAgainBtn.onclick = async () => {
+        invCloseModal();
+        setTimeout(() => {
+          openQRReader();
+        }, 120);
+      };
+    }
+    const closeBtn = document.getElementById('qrv-close');
+    if (closeBtn) closeBtn.onclick = invCloseModal;
   }
   
   async function handleCode(raw, fromManual = false) {
@@ -7444,12 +7565,11 @@ async function openQRReader() {
       
       // Obtener el item completo
       const item = await invAPI.getItem(itemId);
-      
-      // Cerrar el modal de QR
+      const verificationData = await buildQrVerificationData(parsed, item);
+
+      // Cerrar el lector y abrir modal verificador
       invCloseModal();
-      
-      // Abrir el resumen del item
-      await openItemSummaryModal(item);
+      openQrVerificationModal(verificationData);
       
     } catch (e) {
       msg.textContent = 'Error: ' + (e?.message || 'No se pudo procesar el código');

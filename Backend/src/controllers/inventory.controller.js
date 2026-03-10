@@ -1379,6 +1379,14 @@ export const getItemStockEntries = async (req, res) => {
   const totalInEntriesAdjusted = enriched.reduce((sum, se) => sum + (se.qty || 0), 0);
   if (Number.isFinite(totalInEntriesAdjusted)) {
     itemObj.stock = totalInEntriesAdjusted;
+    // Mantener Item.stock sincronizado con el resumen de entradas para evitar
+    // que la tarjeta del inventario y "Ver resumen" muestren valores distintos.
+    if ((item.stock || 0) !== totalInEntriesAdjusted) {
+      await Item.updateOne(
+        { _id: item._id, companyId: req.companyId },
+        { $set: { stock: totalInEntriesAdjusted } }
+      );
+    }
   }
   res.json({ item: itemObj, stockEntries: enriched });
 };

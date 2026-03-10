@@ -180,9 +180,16 @@ export const deleteInvestor = async (req, res) => {
     if (!investor) {
       return res.status(404).json({ error: 'Inversor no encontrado' });
     }
-    
-    await Investor.deleteOne({ _id: id, companyId: req.companyId });
-    res.json({ ok: true });
+
+    // No eliminar físicamente para evitar IDs huérfanos en StockEntry/Purchase/InvestmentItem.
+    // Solo desactivar para preservar trazabilidad histórica.
+    if (!investor.active) {
+      return res.json({ ok: true, alreadyInactive: true });
+    }
+
+    investor.active = false;
+    await investor.save();
+    res.json({ ok: true, deactivated: true });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar inversor', message: err.message });
   }
