@@ -7440,6 +7440,31 @@ async function openQRReader() {
       matchedEntry?.purchaseId?.supplierId?.name ||
       matchedEntry?.supplierId?.name ||
       '';
+    const effectivePurchaseId = parsed.purchaseId || String(matchedEntry?.purchaseId?._id || '');
+
+    let entryInitialQty = Number(
+      matchedEntry?.meta?.initialQty ??
+      matchedEntry?.meta?.originalQty ??
+      0
+    ) || 0;
+    let remainingQty = Number(matchedEntry?.qty || 0);
+    let soldQty = 0;
+
+    if (!entryInitialQty && effectivePurchaseId) {
+      try {
+        const purchaseDetail = await API.purchases.purchases.get(effectivePurchaseId);
+        const purchaseItems = Array.isArray(purchaseDetail?.items) ? purchaseDetail.items : [];
+        entryInitialQty = purchaseItems.reduce((sum, pi) => {
+          const purchaseItemId = String(pi?.itemId?._id || pi?.itemId || '');
+          if (purchaseItemId !== String(item?._id || '')) return sum;
+          return sum + Number(pi?.qty || 0);
+        }, 0);
+      } catch (e) {
+        // Si no se puede consultar la compra, se mantiene fallback abajo.
+      }
+    }
+    if (!entryInitialQty && remainingQty > 0) entryInitialQty = remainingQty;
+    soldQty = Math.max(0, entryInitialQty - remainingQty);
 
     return {
       item,
@@ -7447,13 +7472,15 @@ async function openQRReader() {
       matchedEntry,
       investorName: investorFromEntry || investorFromQr?.name || (parsed.investorId ? parsed.investorId : 'GENERAL'),
       supplierName: supplierFromEntry || supplierFromQr?.name || (parsed.supplierId ? parsed.supplierId : 'GENERAL'),
-      purchaseId: parsed.purchaseId || String(matchedEntry?.purchaseId?._id || ''),
-      entryId: parsed.entryId || String(matchedEntry?._id || '')
+      purchaseId: effectivePurchaseId,
+      entryId: parsed.entryId || String(matchedEntry?._id || ''),
+      remainingQty,
+      soldQty
     };
   }
 
   function openQrVerificationModal(data) {
-    const { item, parsed, matchedEntry, investorName, supplierName, purchaseId, entryId } = data;
+    const { item, parsed, matchedEntry, investorName, supplierName, remainingQty, soldQty } = data;
     const purchaseDate = matchedEntry?.purchaseId?.purchaseDate
       ? new Date(matchedEntry.purchaseId.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
       : '-';
@@ -7477,14 +7504,13 @@ async function openQRReader() {
               <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-words">${escapeHtml(supplierName || 'GENERAL')}</div>
             </div>
             <div class="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-white theme-light:border-slate-300">
-              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Compra</div>
-              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-all">${escapeHtml(purchaseId || 'No especificada')}</div>
-              <div class="text-xs text-slate-400 theme-light:text-slate-600 mt-1">Fecha: ${escapeHtml(purchaseDate)}</div>
+              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Fecha de compra</div>
+              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-words">${escapeHtml(purchaseDate)}</div>
             </div>
             <div class="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-white theme-light:border-slate-300">
-              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">StockEntry</div>
-              <div class="text-xs sm:text-sm font-semibold text-white theme-light:text-slate-900 break-all">${escapeHtml(entryId || 'No especificada')}</div>
-              <div class="text-xs text-slate-400 theme-light:text-slate-600 mt-1">Stock en entrada: ${Number(matchedEntry?.qty || 0)}</div>
+              <div class="text-xs sm:text-sm text-slate-400 theme-light:text-slate-600">Cantidad de esta entrada</div>
+              <div class="text-xs sm:text-sm text-white theme-light:text-slate-900">Quedan: <span class="font-semibold">${Number(remainingQty || 0)}</span></div>
+              <div class="text-xs sm:text-sm text-white theme-light:text-slate-900 mt-1">Vendidos: <span class="font-semibold">${Number(soldQty || 0)}</span></div>
             </div>
           </div>
         </div>
