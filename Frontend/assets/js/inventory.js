@@ -7237,17 +7237,11 @@ async function openQRReader() {
         <canvas id="qr-canvas" class="hidden"></canvas>
       </div>
       <div class="mb-4">
-        <select id="qr-cam" class="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 rounded-lg mb-2">
-          <option value="">Cargando cámaras...</option>
+        <select id="qr-cam" class="hidden">
+          <option value="">auto</option>
         </select>
       </div>
-      <div class="mb-4">
-        <div class="flex flex-col sm:flex-row gap-2">
-          <input id="qr-manual" type="text" placeholder="O ingresa el código manualmente" class="flex-1 px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 rounded-lg" />
-          <button id="qr-add-manual" class="px-4 py-2 sm:px-4 sm:py-2 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg whitespace-nowrap">Agregar</button>
-        </div>
-      </div>
-      <div id="qr-msg" class="text-xs sm:text-sm text-slate-300 theme-light:text-slate-700 mb-4 min-h-[1.5rem]"></div>
+      <div id="qr-msg" class="text-xs sm:text-sm text-slate-300 theme-light:text-slate-700 mb-4 min-h-[1.5rem]">Abriendo cámara trasera...</div>
       <div class="flex gap-3">
         <button id="qr-close" class="flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2 text-sm sm:text-base bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cerrar</button>
       </div>
@@ -7261,8 +7255,6 @@ async function openQRReader() {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const sel = document.getElementById('qr-cam');
   const msg = document.getElementById('qr-msg');
-  const manualInput = document.getElementById('qr-manual');
-  const manualBtn = document.getElementById('qr-add-manual');
   const closeBtn = document.getElementById('qr-close');
   
   let stream = null;
@@ -7271,6 +7263,7 @@ async function openQRReader() {
   let lastCode = '';
   let lastTs = 0;
   let cameraDisabled = false;
+  let rearDeviceId = '';
   
   function stop() {
     running = false;
@@ -7285,78 +7278,67 @@ async function openQRReader() {
   
   async function fillCams() {
     try {
-      // En móvil, primero pedir permisos básicos para que las cámaras muestren sus labels
-      try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
-      } catch (permErr) {
-        // Si falla, continuar de todas formas
-        console.warn('No se pudieron obtener permisos de cámara:', permErr);
-      }
-      
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
-      sel.innerHTML = '<option value="">-- Seleccionar cámara --</option>';
+      sel.innerHTML = '<option value="">auto</option>';
       videoDevices.forEach((device, idx) => {
         const opt = document.createElement('option');
         opt.value = device.deviceId;
         opt.textContent = device.label || `Cámara ${idx + 1}`;
         sel.appendChild(opt);
       });
-      if (videoDevices.length > 0 && !sel.value) {
-        sel.value = videoDevices[0].deviceId;
-        // En móvil, intentar iniciar automáticamente
-        if (videoDevices.length === 1) {
-          setTimeout(() => start(), 100);
-        }
-      }
+      const rearRx = /(back|rear|environment|trasera|posterior|externa)/i;
+      const candidateRear = videoDevices.find(d => rearRx.test(String(d.label || '')));
+      rearDeviceId = candidateRear?.deviceId || '';
+      if (rearDeviceId) sel.value = rearDeviceId;
     } catch (e) {
       console.error('Error enumerando cámaras:', e);
-      sel.innerHTML = '<option value="">Error cargando cámaras</option>';
+      sel.innerHTML = '<option value="">auto</option>';
     }
   }
   
   async function start() {
     if (running) return;
-    const deviceId = sel.value;
     
     try {
       stop();
-      
-      // Configuración de video para móvil y desktop
-      let videoConstraints = {};
-      
-      if (deviceId) {
-        // Si hay deviceId, usarlo
-        videoConstraints = { deviceId: { exact: deviceId } };
-      } else {
-        // Si no hay deviceId (móvil), usar facingMode para la cámara trasera
-        videoConstraints = { facingMode: 'environment' };
-      }
-      
-      // En móvil, también intentar con facingMode si falla
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints
-        });
-      } catch (firstTry) {
-        // Si falla con deviceId exacto, intentar sin exact
-        if (deviceId) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: deviceId }
-            });
-          } catch (secondTry) {
-            // Si aún falla, intentar solo con facingMode (móvil)
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: 'environment' }
-            });
-          }
-        } else {
-          throw firstTry;
+
+      const attempts = [];
+      attempts.push({ video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+      if (rearDeviceId) attempts.push({ video: { deviceId: { exact: rearDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+      attempts.push({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
+      attempts.push({ video: true });
+
+      let lastError = null;
+      for (const constraints of attempts) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (err) {
+          lastError = err;
         }
+      }
+      if (!stream) {
+        throw lastError || new Error('No se pudo abrir la cámara');
       }
       
       video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('autoplay', 'true');
+      video.setAttribute('muted', 'true');
+      try { await video.play(); } catch {}
+
+      // Si el navegador abrió frontal ignorando constraints, reintenta una sola vez con deviceId trasero.
+      const activeTrack = stream.getVideoTracks?.()[0] || null;
+      const activeFacing = String(activeTrack?.getSettings?.().facingMode || '').toLowerCase();
+      if (activeFacing === 'user' && rearDeviceId) {
+        stop();
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: rearDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        video.srcObject = stream;
+        try { await video.play(); } catch {}
+      }
       running = true;
       
       if (typeof BarcodeDetector !== 'undefined') {
@@ -7374,7 +7356,7 @@ async function openQRReader() {
       console.error('Error al iniciar cámara:', e);
       let errorMsg = '';
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        errorMsg = '❌ Permisos de cámara denegados.';
+        errorMsg = '❌ Permisos de cámara denegados. Habilita cámara para este sitio.';
       } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
         errorMsg = '❌ No se encontró ninguna cámara.';
       } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
@@ -7536,10 +7518,10 @@ async function openQRReader() {
     if (closeBtn) closeBtn.onclick = invCloseModal;
   }
   
-  async function handleCode(raw, fromManual = false) {
+  async function handleCode(raw) {
     const text = String(raw || '').trim();
     if (!text) return;
-    if (!fromManual && !accept(text)) return;
+    if (!accept(text)) return;
     
     cameraDisabled = true;
     stop();
@@ -7580,11 +7562,9 @@ async function openQRReader() {
         cameraDisabled = false;
         lastCode = '';
         lastTs = 0;
-        if (sel.value) {
-          start().catch(err => {
-            console.warn('Error al reanudar cámara:', err);
-          });
-        }
+        start().catch(err => {
+          console.warn('Error al reanudar cámara:', err);
+        });
       }, 2000);
     }
   }
@@ -7644,50 +7624,18 @@ async function openQRReader() {
   
   // Event listeners
   sel.addEventListener('change', start);
-  manualBtn.addEventListener('click', () => {
-    const val = manualInput.value.trim();
-    if (!val) return;
-    handleCode(val, true);
-    manualInput.value = '';
-  });
-  manualInput.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter') {
-      ev.preventDefault();
-      const val = manualInput.value.trim();
-      if (val) handleCode(val, true);
-    }
-  });
   closeBtn.addEventListener('click', () => {
     stop();
     invCloseModal();
   });
   
-  // Cargar cámaras y iniciar automáticamente
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
+  // Cargar cámaras e iniciar inmediatamente (gesture viene del click del botón)
   await fillCams();
-  
-  // En móvil, intentar iniciar automáticamente (incluso sin deviceId)
-  if (isMobile) {
-    setTimeout(() => {
-      if (!running) {
-        start().catch(err => {
-          console.warn('Error iniciando cámara automáticamente en móvil:', err);
-          msg.textContent = 'Error al acceder a la cámara. Verifica los permisos.';
-          msg.className = 'text-sm text-red-500 theme-light:text-red-600';
-        });
-      }
-    }, 500);
-  } else if (sel.value) {
-    // En desktop, iniciar si hay una cámara seleccionada
-    setTimeout(() => {
-      if (!running) {
-        start().catch(err => {
-          console.warn('Error iniciando cámara:', err);
-        });
-      }
-    }, 100);
-  }
+  start().catch(err => {
+    console.warn('Error iniciando cámara:', err);
+    msg.textContent = 'Error al acceder a la cámara. Verifica permisos y que no esté en uso.';
+    msg.className = 'text-sm text-red-500 theme-light:text-red-600';
+  });
 }
 
 // Hacer las funciones disponibles globalmente
