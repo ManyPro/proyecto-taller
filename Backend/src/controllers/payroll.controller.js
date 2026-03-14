@@ -2182,6 +2182,42 @@ function buildCompactPayrollPdfHtml({ context }) {
       </tr>
     `;
 
+  const isLaborLine = (it) => !!(it && (it.saleId || it.saleNumber || it.vehiclePlate || it.vehicleLabel));
+  const basicIncomeItems = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
+    .filter((it) => it && !isLaborLine(it) && Number(it.value || 0) !== 0);
+  const deductionItems = (itemsByType.deductions || []).filter((it) => it && Number(it.value || 0) !== 0);
+
+  const hasBasicConcepts = basicIncomeItems.length > 0 || deductionItems.length > 0;
+  const basicConceptsHtml = hasBasicConcepts
+    ? `
+      <div class="concepts-section" style="margin-top: 10px;">
+        <div class="concepts-title" style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 6px;">Conceptos básicos</div>
+        <table class="tbl concepts-tbl" style="margin-bottom: 8px;">
+          <thead>
+            <tr>
+              <th style="width: 70%;">Concepto</th>
+              <th class="right" style="width: 30%;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${basicIncomeItems.map((it) => `
+              <tr>
+                <td>${escapeHtml(String(it.name || it.serviceName || it.laborName || 'Ingreso').trim() || 'Ingreso')}</td>
+                <td class="right" style="color: #065f46;">${escapeHtml(formatMoney(it.value || 0))}</td>
+              </tr>
+            `).join('')}
+            ${deductionItems.map((it) => `
+              <tr>
+                <td>${escapeHtml(String(it.name || 'Descuento').trim() || 'Descuento')}</td>
+                <td class="right" style="color: #b91c1c;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+    : '';
+
   return `
     <div class="compact-doc">
       <div class="head">
@@ -2210,6 +2246,7 @@ function buildCompactPayrollPdfHtml({ context }) {
           ${rowsHtml}
         </tbody>
       </table>
+      ${basicConceptsHtml}
 
       <div class="sign">
         <div class="sign-box">
