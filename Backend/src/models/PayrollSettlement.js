@@ -21,7 +21,9 @@ const ItemSchema = new mongoose.Schema({
   percentValue: { type: Number, default: null },
   percentBaseType: { type: String, enum: ['total_gross', 'specific_concept', 'fixed_value'], default: 'total_gross' },
   percentBaseConceptId: { type: mongoose.Schema.Types.ObjectId, default: null },
-  percentBaseFixedValue: { type: Number, default: 0 }
+  percentBaseFixedValue: { type: Number, default: 0 },
+  // Préstamo descontado en esta línea (para revertir anulación de aprobación)
+  loanId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeLoan', default: null }
 }, { _id: false });
 
 const PayrollSettlementSchema = new mongoose.Schema({

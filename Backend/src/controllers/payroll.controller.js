@@ -1353,7 +1353,7 @@ export const approveSettlement = async (req, res) => {
                   base: pending,
                   value: paymentAmount,
                   calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
-                  loanId: String(loan._id),
+                  loanId: loan._id,
                   notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
                 });
                 
@@ -1492,6 +1492,108 @@ export const approveSettlement = async (req, res) => {
   } catch (err) {
     console.error('Error in approveSettlement:', err);
     res.status(500).json({ error: 'Error al aprobar liquidación', message: err.message });
+  }
+};
+
+/** Líneas de descuento por préstamo en liquidación aprobada */
+function settlementLoanDeductionItems(items = []) {
+  return (items || []).filter(i => {
+    const r = i?.calcRule || '';
+    return r === 'LOAN_PAYMENT_DEDUCTION' || r === 'employee_loans' || r === 'employee_loan';
+  });
+}
+
+/**
+ * Anula la aprobación: vuelve a borrador conservando ítems y montos.
+ * Revierte abonos a préstamos vinculados a esta liquidación.
+ * No permitido si ya hubo pago (paid / partially_paid).
+ */
+export const unapproveSettlement = async (req, res) => {
+  try {
+    const { settlementId } = req.body || {};
+    if (!settlementId || !mongoose.Types.ObjectId.isValid(String(settlementId))) {
+      return res.status(400).json({ error: 'settlementId válido requerido' });
+    }
+
+    const st = await PayrollSettlement.findOne({ _id: settlementId, companyId: req.companyId });
+    if (!st) {
+      return res.status(404).json({ error: 'Liquidación no encontrada' });
+    }
+    if (st.status === 'paid' || st.status === 'partially_paid') {
+      return res.status(400).json({
+        error: 'No se puede anular: esta liquidación ya tiene pagos registrados. Solo aplica a liquidaciones aprobadas sin pago.'
+      });
+    }
+    if (st.status !== 'approved') {
+      return res.status(400).json({ error: 'Solo se puede anular una liquidación en estado aprobada' });
+    }
+
+    const loanItems = settlementLoanDeductionItems(st.items);
+    const loansLinked = await EmployeeLoan.find({
+      companyId: req.companyId,
+      settlementIds: st._id
+    }).sort({ loanDate: 1 });
+
+    const usedLoanIds = new Set();
+
+    for (const item of loanItems) {
+      const paymentAmount = Math.round(Number(item.value) || 0);
+      if (paymentAmount <= 0) continue;
+
+      let loan = null;
+      const lid = item.loanId;
+      if (lid && mongoose.Types.ObjectId.isValid(String(lid))) {
+        loan = await EmployeeLoan.findOne({ _id: lid, companyId: req.companyId });
+        if (loan && !(loan.settlementIds || []).some(id => String(id) === String(st._id))) {
+          loan = null;
+        }
+      }
+      if (!loan) {
+        loan = loansLinked.find(l => !usedLoanIds.has(String(l._id)));
+      }
+
+      if (!loan) {
+        return res.status(400).json({
+          error: 'No se pudo asociar una línea de préstamo de la liquidación con un préstamo en el sistema. Revisá los datos o contactá soporte.'
+        });
+      }
+
+      usedLoanIds.add(String(loan._id));
+
+      const newPaidAmount = Math.max(0, (loan.paidAmount || 0) - paymentAmount);
+      let newStatus = 'pending';
+      if (newPaidAmount > 0) {
+        newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
+      }
+
+      await EmployeeLoan.findByIdAndUpdate(loan._id, {
+        paidAmount: newPaidAmount,
+        status: newStatus,
+        $pull: { settlementIds: st._id }
+      });
+    }
+
+    const leftover = loansLinked.filter(l => !usedLoanIds.has(String(l._id)));
+    if (leftover.length > 0) {
+      return res.status(400).json({
+        error:
+          'Hay préstamos vinculados a esta liquidación sin líneas de descuento reconocibles. No se anuló la aprobación para evitar inconsistencias. Contactá soporte.'
+      });
+    }
+
+    st.status = 'draft';
+    st.approvedBy = null;
+    st.approvedAt = null;
+    await st.save();
+
+    res.json({
+      ok: true,
+      settlement: st,
+      message: 'Aprobación anulada. La liquidación quedó en borrador; podés volver a previsualizar y aprobar.'
+    });
+  } catch (err) {
+    console.error('Error in unapproveSettlement:', err);
+    res.status(500).json({ error: 'Error al anular aprobación', message: err.message });
   }
 };
 

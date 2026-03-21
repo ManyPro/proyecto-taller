@@ -2124,6 +2124,31 @@ async function pay(){
   }
 }
 
+async function unapproveSettlementAction(settlementId, technicianLabel) {
+  if (!settlementId) return;
+  const label = technicianLabel || 'este técnico';
+  if (!confirm(
+    `¿Anular la aprobación de la liquidación de ${label}?\n\n` +
+    'La liquidación volverá a estado borrador: se conservan los datos y montos guardados. ' +
+    'Si hubo descuentos por préstamos, se revierten en los préstamos.\n\n' +
+    'No podés usar esto si ya registraste pagos de nómina a esta liquidación.'
+  )) {
+    return;
+  }
+  try {
+    await api.post('/api/v1/payroll/settlements/unapprove', { settlementId });
+    alert('✓ Aprobación anulada. Podés corregir en vista previa y volver a aprobar.');
+    await loadSettlements();
+    const techSel = document.getElementById('pl-technicianSel');
+    if (techSel?.value) {
+      await loadConceptsForTechnician();
+    }
+  } catch (err) {
+    const msg = err?.message || err?.error || 'Error desconocido';
+    alert('❌ No se pudo anular: ' + msg);
+  }
+}
+
 async function loadSettlements(){
   try {
     const periodId = (document.getElementById('pl-periodSel')||{}).value || '';
@@ -2138,7 +2163,8 @@ async function loadSettlements(){
     const statusLabels = {
       'draft': { label: 'Borrador', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
       'approved': { label: 'Aprobada', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-      'paid': { label: 'Pagada', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' }
+      'paid': { label: 'Pagada', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
+      'partially_paid': { label: 'Pago parcial', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' }
     };
     
     const rows = items.map(s => {
@@ -2171,7 +2197,10 @@ async function loadSettlements(){
               <div>Desc: <strong class="text-red-400 dark:text-red-400 theme-light:text-red-600">-${formatMoney(s.deductionsTotal)}</strong></div>
               <div class="mt-1 text-sm font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              ${s.status === 'approved' ? `<button type="button" data-settlement-id="${settlementId}" data-tech-name="${htmlEscape(s.technicianName || '')}" class="unapprove-settlement-btn px-3 py-1.5 text-xs border border-amber-600/40 dark:border-amber-600/40 theme-light:border-amber-300 rounded-md bg-amber-500/10 dark:bg-amber-500/10 theme-light:bg-amber-50 text-amber-200 dark:text-amber-200 theme-light:text-amber-900 hover:bg-amber-500/20 transition-all duration-200" title="Vuelve a borrador sin borrar datos; podés corregir y volver a aprobar">
+                ↩ Anular aprobación
+              </button>` : ''}
               <button data-settlement-id="${settlementId}" class="print-settlement-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 transition-all duration-200" title="Imprimir con template configurado">
                 🖨️ Imprimir
               </button>
@@ -2925,6 +2954,17 @@ function init(){
   
   // Event delegation para botones de PDF e Imprimir (se crean dinámicamente)
   document.addEventListener('click', async (e) => {
+    const unapproveBtn = e.target.closest('.unapprove-settlement-btn');
+    if (unapproveBtn) {
+      const settlementId = unapproveBtn.getAttribute('data-settlement-id');
+      const techName = unapproveBtn.getAttribute('data-tech-name') || '';
+      if (settlementId) {
+        e.preventDefault();
+        await unapproveSettlementAction(settlementId, techName);
+      }
+      return;
+    }
+
     const pdfBtn = e.target.closest('.pdf-download-btn');
     if (pdfBtn) {
       const settlementId = pdfBtn.getAttribute('data-settlement-id');
