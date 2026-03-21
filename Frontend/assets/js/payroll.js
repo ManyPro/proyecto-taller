@@ -1273,7 +1273,7 @@ function getLoanPaymentsForTechnician(technicianName) {
   const input = document.getElementById('loan-payment-amount');
   if (!input) return [];
   
-  const amount = editedLoanPayments[technicianName] ?? Number(input.value) || 0;
+  const amount = editedLoanPayments[technicianName] ?? (Number(input.value) || 0);
   if (amount <= 0) return [];
   
   return [{ technicianName, totalAmount: amount }];
