@@ -717,9 +717,85 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
   return { commissionDetails, commission };
 }
 
+/**
+ * Distribuye el pago de préstamos entre préstamos pendientes.
+ * loanPayments puede ser:
+ * - [{ loanId, amount }, ...] montos explícitos por préstamo (cada uno acotado al pendiente)
+ * - [{ technicianName, totalAmount }] reparto proporcional del total
+ * - [] usar total pendiente y reparto proporcional
+ */
+function computeLoanPaymentDistribution(pendingLoans, loanPayments = []) {
+  const perLoan = [];
+  if (!pendingLoans.length) {
+    return { totalLoanPayment: 0, perLoan: [] };
+  }
+
+  const totalPendingAll = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
+  if (totalPendingAll <= 0) {
+    return { totalLoanPayment: 0, perLoan: [] };
+  }
+
+  const hasExplicit = Array.isArray(loanPayments) && loanPayments.some(
+    p => p && p.loanId != null && p.amount !== undefined && p.amount !== null
+  );
+
+  if (hasExplicit) {
+    const byId = new Map();
+    for (const p of loanPayments) {
+      if (!p || p.loanId == null || p.amount == null) continue;
+      const loan = pendingLoans.find(l => String(l._id) === String(p.loanId));
+      if (!loan) continue;
+      const pend = loan.amount - (loan.paidAmount || 0);
+      const amt = Math.max(0, Math.round(Number(p.amount) || 0));
+      const applied = Math.min(amt, pend);
+      if (applied > 0) {
+        byId.set(String(loan._id), (byId.get(String(loan._id)) || 0) + applied);
+      }
+    }
+    let totalLoanPayment = 0;
+    for (const loan of pendingLoans) {
+      const pay = byId.get(String(loan._id)) || 0;
+      if (pay > 0) {
+        perLoan.push({ loan, paymentAmount: pay });
+        totalLoanPayment += pay;
+      }
+    }
+    return { totalLoanPayment, perLoan };
+  }
+
+  let totalLoanPayment = 0;
+  if (loanPayments.length > 0 && loanPayments[0].totalAmount != null && loanPayments[0].totalAmount !== '') {
+    totalLoanPayment = Math.max(0, Math.round(Number(loanPayments[0].totalAmount) || 0));
+  } else {
+    totalLoanPayment = totalPendingAll;
+  }
+
+  totalLoanPayment = Math.min(totalLoanPayment, totalPendingAll);
+  if (totalLoanPayment <= 0) {
+    return { totalLoanPayment: 0, perLoan: [] };
+  }
+
+  let remaining = totalLoanPayment;
+  pendingLoans.forEach((loan, idx) => {
+    if (remaining <= 0) return;
+    const pending = loan.amount - (loan.paidAmount || 0);
+    if (pending > 0) {
+      const paymentAmount = idx === pendingLoans.length - 1
+        ? remaining
+        : Math.min(remaining, Math.round((totalLoanPayment * pending / totalPendingAll)));
+      if (paymentAmount > 0) {
+        perLoan.push({ loan, paymentAmount });
+        remaining -= paymentAmount;
+      }
+    }
+  });
+
+  return { totalLoanPayment, perLoan };
+}
+
 export const previewSettlement = async (req, res) => {
   try {
-    const { periodId, technicianId, technicianName, selectedConceptIds = [] } = req.body;
+    const { periodId, technicianId, technicianName, selectedConceptIds = [], loanPayments = [] } = req.body;
     
     // Validaciones
     if (!periodId) {
@@ -975,8 +1051,7 @@ export const previewSettlement = async (req, res) => {
     
     // AGREGAR PRÉSTAMOS PENDIENTES del empleado (solo si están seleccionados)
     const includeLoans = specialConcepts.includes('LOAN_PAYMENT');
-    const { loanPayments = [] } = req.body;
-    let loansInfo = []; // Inicializar loansInfo
+    let loansInfo = [];
     
     if (includeLoans) {
       const pendingLoans = await EmployeeLoan.find({
@@ -986,19 +1061,8 @@ export const previewSettlement = async (req, res) => {
       }).sort({ loanDate: 1 });
       
       if (pendingLoans.length > 0) {
-        // Asegurar que el concepto PAGO_PRESTAMOS existe
         const loanConcept = await ensureLoanConcept(req.companyId);
         
-        // Obtener monto total a pagar (desde configuración inicial o desde loanPayments)
-        let totalLoanPayment = 0;
-        if (loanPayments.length > 0 && loanPayments[0].totalAmount) {
-          totalLoanPayment = Math.max(0, Number(loanPayments[0].totalAmount) || 0);
-        } else {
-          // Si no hay monto específico, usar el total pendiente
-          totalLoanPayment = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
-        }
-        
-        // Construir información detallada de préstamos
         loansInfo = pendingLoans.map(loan => ({
           loanId: String(loan._id),
           amount: loan.amount,
@@ -1008,18 +1072,23 @@ export const previewSettlement = async (req, res) => {
           loanDate: loan.loanDate
         }));
         
+        const { totalLoanPayment, perLoan } = computeLoanPaymentDistribution(pendingLoans, loanPayments);
+        
         if (totalLoanPayment > 0) {
-          // Agregar como un solo item de préstamos (no individual)
-          // Usar un ID único para identificar préstamos y excluirlos del cálculo del concepto variable
-          items.push({
-            conceptId: loanConcept._id,
-            name: 'Pago préstamos',
-            type: 'deduction',
-            base: pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0),
-            value: totalLoanPayment,
-            calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
-            notes: `${pendingLoans.length} préstamo(s) pendiente(s)`
-          });
+          for (const { loan, paymentAmount } of perLoan) {
+            if (paymentAmount <= 0) continue;
+            const pending = loan.amount - (loan.paidAmount || 0);
+            items.push({
+              conceptId: loanConcept._id,
+              name: `Préstamo ${loan.description ? `(${loan.description})` : ''} - ${new Date(loan.loanDate).toLocaleDateString('es-CO')}`,
+              type: 'deduction',
+              base: pending,
+              value: paymentAmount,
+              calcRule: 'LOAN_PAYMENT_DEDUCTION',
+              loanId: loan._id,
+              notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
+            });
+          }
         }
       }
     }
@@ -1319,59 +1388,35 @@ export const approveSettlement = async (req, res) => {
       }).sort({ loanDate: 1 });
       
       if (pendingLoans.length > 0) {
-        // Asegurar que el concepto PAGO_PRESTAMOS existe
         const loanConcept = await ensureLoanConcept(req.companyId);
         
-        // Obtener monto total a pagar (desde configuración inicial)
-        let totalLoanPayment = 0;
-        if (loanPayments.length > 0 && loanPayments[0].totalAmount) {
-          totalLoanPayment = Math.max(0, Number(loanPayments[0].totalAmount) || 0);
-        } else {
-          // Si no hay monto específico, usar el total pendiente
-          totalLoanPayment = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
-        }
+        const { totalLoanPayment, perLoan } = computeLoanPaymentDistribution(pendingLoans, loanPayments);
         
         if (totalLoanPayment > 0) {
-          // Distribuir el monto total proporcionalmente entre los préstamos
-          const totalPending = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
-          let remaining = Math.min(totalLoanPayment, totalPending);
-          
-          pendingLoans.forEach((loan, idx) => {
-            if (remaining <= 0) return;
+          for (const { loan, paymentAmount } of perLoan) {
+            if (paymentAmount <= 0) continue;
             const pending = loan.amount - (loan.paidAmount || 0);
-            if (pending > 0) {
-              const paymentAmount = idx === pendingLoans.length - 1 
-                ? remaining // El último préstamo recibe el resto
-                : Math.min(remaining, Math.round((totalLoanPayment * pending / totalPending)));
-              
-              if (paymentAmount > 0) {
-                // Agregar item individual para este préstamo
-                items.push({
-                  conceptId: loanConcept._id,
-                  name: `Préstamo ${loan.description ? `(${loan.description})` : ''} - ${new Date(loan.loanDate).toLocaleDateString('es-CO')}`,
-                  type: 'deduction',
-                  base: pending,
-                  value: paymentAmount,
-                  calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
-                  loanId: loan._id,
-                  notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
-                });
-                
-                // Preparar actualización del préstamo
-                const newPaidAmount = (loan.paidAmount || 0) + paymentAmount;
-                const newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
-                
-                loanUpdates.push({
-                  loanId: loan._id,
-                  paymentAmount,
-                  newPaidAmount,
-                  newStatus
-                });
-                
-                remaining -= paymentAmount;
-              }
-            }
-          });
+            items.push({
+              conceptId: loanConcept._id,
+              name: `Préstamo ${loan.description ? `(${loan.description})` : ''} - ${new Date(loan.loanDate).toLocaleDateString('es-CO')}`,
+              type: 'deduction',
+              base: pending,
+              value: paymentAmount,
+              calcRule: 'LOAN_PAYMENT_DEDUCTION',
+              loanId: loan._id,
+              notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
+            });
+            
+            const newPaidAmount = (loan.paidAmount || 0) + paymentAmount;
+            const newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
+            
+            loanUpdates.push({
+              loanId: loan._id,
+              paymentAmount,
+              newPaidAmount,
+              newStatus
+            });
+          }
         }
       }
     }

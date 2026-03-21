@@ -927,6 +927,8 @@ async function saveAssignment(){
 
 // Variable global para almacenar valores editados de préstamos
 let editedLoanPayments = {};
+// Montos por préstamo cuando hay varios: { [technicianName]: { [loanId]: number } }
+let editedLoanPaymentsByLoan = {};
 
 // Variable global para almacenar comisiones calculadas
 let calculatedCommissions = {};
@@ -1074,7 +1076,65 @@ async function loadConceptsForTechnician(){
     if (pendingLoans.length > 0) {
       const totalPending = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
       const loanCardId = 'loan-payment-card';
-      const storedValue = editedLoanPayments[technicianName] || totalPending;
+      const storedTotal = editedLoanPayments[technicianName] ?? totalPending;
+      const byLoan = editedLoanPaymentsByLoan[technicianName] || {};
+      
+      const loanRowsHtml = pendingLoans.map(loan => {
+        const pend = loan.amount - (loan.paidAmount || 0);
+        const dateStr = new Date(loan.loanDate).toLocaleDateString('es-CO');
+        const desc = (loan.description || '').trim() || 'Sin descripción';
+        const lid = String(loan._id);
+        const stored = byLoan[lid];
+        const val = stored !== undefined && stored !== null ? stored : pend;
+        return `
+        <div class="pl-3 border-l-2 border-blue-500/40 dark:border-blue-500/40 theme-light:border-blue-300 mb-3 last:mb-0">
+          <div class="text-xs font-medium text-white dark:text-white theme-light:text-slate-900 mb-0.5">${htmlEscape(desc)}</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">📅 ${dateStr} · Saldo pendiente: <strong>${formatMoney(pend)}</strong></div>
+          <div class="flex gap-2 items-center flex-wrap">
+            <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Descontar en nómina:</label>
+            <input type="number"
+                   class="loan-payment-input w-[128px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   data-loan-id="${lid}"
+                   data-tech-name="${htmlEscape(technicianName)}"
+                   data-max="${pend}"
+                   min="0"
+                   max="${pend}"
+                   step="1"
+                   value="${val}"
+                   onchange="saveLoanPaymentByLoan(this)" />
+            <span class="text-[11px] text-slate-500">Máx. ${formatMoney(pend)}</span>
+          </div>
+        </div>`;
+      }).join('');
+      
+      const oneLoan = pendingLoans[0];
+      const onePend = oneLoan ? oneLoan.amount - (oneLoan.paidAmount || 0) : 0;
+      const oneDateStr = oneLoan ? new Date(oneLoan.loanDate).toLocaleDateString('es-CO') : '';
+      const oneDesc = oneLoan ? ((oneLoan.description || '').trim() || 'Sin descripción') : '';
+      
+      const singleLoanBlock = pendingLoans.length === 1 ? `
+        <div class="pl-3 border-l-2 border-blue-500/40 dark:border-blue-500/40 theme-light:border-blue-300 mb-2">
+          <div class="text-xs font-medium text-white dark:text-white theme-light:text-slate-900 mb-0.5">${htmlEscape(oneDesc)}</div>
+          <div class="text-[11px] text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">📅 ${oneDateStr} · Saldo pendiente: <strong>${formatMoney(onePend)}</strong></div>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap">
+          <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Monto a descontar:</label>
+          <input type="number"
+                 id="loan-payment-amount"
+                 data-technician="${htmlEscape(technicianName)}"
+                 data-max="${totalPending}"
+                 min="0"
+                 max="${totalPending}"
+                 step="1"
+                 value="${storedTotal}"
+                 class="w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 onchange="saveLoanPaymentAmount('${htmlEscape(technicianName)}')" />
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Máx: ${formatMoney(totalPending)}</span>
+        </div>` : `
+        <div class="mt-1">${loanRowsHtml}</div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-500 theme-light:text-slate-600 mt-2 mb-0">
+          Indicá cuánto descontar de <strong>cada</strong> préstamo. La vista previa y la liquidación mostrarán una línea por préstamo.
+        </p>`;
       
       html += `<div class="concept-card loan-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200" id="${loanCardId}">
         <label class="flex items-center gap-2.5 cursor-pointer mb-2.5 m-0">
@@ -1087,23 +1147,10 @@ async function loadConceptsForTechnician(){
               <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">💰 Préstamos</span>
             </div>
             <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">Pago préstamos</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${pendingLoans.length} préstamo(s) pendiente(s) · Total pendiente: ${formatMoney(totalPending)}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${pendingLoans.length} préstamo(s) · Total pendiente: ${formatMoney(totalPending)}</div>
           </div>
         </label>
-        <div class="flex gap-2 items-center flex-wrap">
-          <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Monto a pagar:</label>
-          <input type="number" 
-                 id="loan-payment-amount" 
-                 data-technician="${technicianName}"
-                 data-max="${totalPending}"
-                 min="0" 
-                 max="${totalPending}" 
-                 step="1" 
-                 value="${storedValue}"
-                 class="w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 onchange="saveLoanPaymentAmount('${technicianName}')" />
-          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Máx: ${formatMoney(totalPending)}</span>
-        </div>
+        ${singleLoanBlock}
       </div>`;
     }
     
@@ -1139,6 +1186,24 @@ window.saveLoanPaymentAmount = function(technicianName) {
     card.style.borderColor = '#10b981';
     setTimeout(() => {
     card.style.borderColor = '#3b82f6';
+    }, 1000);
+  }
+};
+
+window.saveLoanPaymentByLoan = function(input) {
+  if (!input) return;
+  const technicianName = input.dataset.techName;
+  const loanId = input.dataset.loanId;
+  const max = Number(input.dataset.max) || 0;
+  const amount = Math.max(0, Math.min(Math.round(Number(input.value) || 0), max));
+  input.value = amount;
+  if (!editedLoanPaymentsByLoan[technicianName]) editedLoanPaymentsByLoan[technicianName] = {};
+  editedLoanPaymentsByLoan[technicianName][loanId] = amount;
+  const card = input.closest('.loan-card');
+  if (card) {
+    card.style.borderColor = '#10b981';
+    setTimeout(() => {
+      card.style.borderColor = '#3b82f6';
     }, 1000);
   }
 };
@@ -1193,14 +1258,24 @@ function getLoanPaymentsForTechnician(technicianName) {
     return [];
   }
   
-  // Obtener el monto editado o usar el máximo disponible
+  const perLoanInputs = document.querySelectorAll('input.loan-payment-input[data-loan-id]');
+  if (perLoanInputs.length > 0) {
+    const arr = [];
+    perLoanInputs.forEach(inp => {
+      const loanId = inp.dataset.loanId;
+      const max = Number(inp.dataset.max) || 0;
+      const amt = Math.max(0, Math.round(Math.min(Number(inp.value) || 0, max)));
+      if (amt > 0) arr.push({ loanId, amount: amt });
+    });
+    return arr;
+  }
+  
   const input = document.getElementById('loan-payment-amount');
   if (!input) return [];
   
-  const amount = editedLoanPayments[technicianName] || Number(input.value) || 0;
+  const amount = editedLoanPayments[technicianName] ?? Number(input.value) || 0;
   if (amount <= 0) return [];
   
-  // Retornar un array especial que el backend procesará
   return [{ technicianName, totalAmount: amount }];
 }
 
@@ -1235,13 +1310,23 @@ async function preview(){
     // Mano de obra se envía como conceptId MANO_OBRA seleccionado (no requiere strings especiales)
     if (loanSelected) {
       selectedConceptIds.push('LOAN_PAYMENT');
-      // Asegurar que el valor editado del préstamo se guarde antes de hacer preview
       const loanInput = document.getElementById('loan-payment-amount');
       if (loanInput) {
         const amount = Math.max(0, Math.min(Number(loanInput.value) || 0, Number(loanInput.dataset.max) || 0));
         loanInput.value = amount;
         editedLoanPayments[technicianName] = amount;
       }
+      document.querySelectorAll('input.loan-payment-input[data-loan-id]').forEach(inp => {
+        const max = Number(inp.dataset.max) || 0;
+        const amt = Math.max(0, Math.min(Math.round(Number(inp.value) || 0), max));
+        inp.value = amt;
+        const tid = inp.dataset.techName;
+        const lid = inp.dataset.loanId;
+        if (tid && lid) {
+          if (!editedLoanPaymentsByLoan[tid]) editedLoanPaymentsByLoan[tid] = {};
+          editedLoanPaymentsByLoan[tid][lid] = amt;
+        }
+      });
     }
     
     const payload = {
@@ -1552,15 +1637,16 @@ async function approve(){
       return;
     }
     
-    // Recolectar pagos de préstamos desde la configuración inicial
-    const loanPayments = [];
-    
-    // Obtener préstamos desde la lista de conceptos
+    let loanPayments = [];
     const loanCheckbox = document.querySelector('input[data-loan-concept="true"]');
     if (loanCheckbox && loanCheckbox.checked) {
       const loanConfig = getLoanPaymentsForTechnician(technicianName);
-      if (loanConfig.length > 0 && loanConfig[0].totalAmount > 0) {
-        loanPayments.push({ technicianName, totalAmount: loanConfig[0].totalAmount });
+      if (loanConfig.length > 0) {
+        if (loanConfig[0].loanId != null) {
+          loanPayments = loanConfig;
+        } else if (loanConfig[0].totalAmount > 0) {
+          loanPayments = [{ technicianName, totalAmount: loanConfig[0].totalAmount }];
+        }
       }
     }
     
@@ -1578,7 +1664,7 @@ async function approve(){
       periodId,
       technicianName,
       selectedConceptIds,
-      loanPayments // Array de { technicianName, totalAmount } para préstamos
+      loanPayments // [{ technicianName, totalAmount }] o [{ loanId, amount }, ...]
     };
     
     // Deshabilitar botones durante la petición
