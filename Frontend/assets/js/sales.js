@@ -1708,16 +1708,16 @@ async function openMaintenanceServicesModal() {
       // Construir HTML del modal
       const mileageValue = currentSelection.mileage || currentMileage || '';
       const mileageInput = `
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Kilometraje actual del vehículo</label>
+        <div class="mb-4 rounded-xl border border-slate-600/50 dark:border-slate-600/50 theme-light:border-sky-200 bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-sky-50/80 p-4 border-l-4 border-l-cyan-500 dark:border-l-cyan-400 theme-light:border-l-cyan-600">
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">🛣️</span> Kilometraje actual del vehículo</label>
           <input 
             type="number" 
             id="maintenance-mileage" 
             value="${mileageValue}" 
             placeholder="Ej: 50000"
-            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white"
+            class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
-          <p class="text-xs text-slate-400 mt-1">Ingresa el kilometraje actual para actualizar la planilla</p>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Ingresa el kilometraje actual para actualizar la planilla</p>
         </div>
       `;
 
@@ -1973,7 +1973,7 @@ async function openMaintenanceServicesModal() {
       const servicesHTML = `
         <div class="mb-4">
           <div class="flex items-center justify-between mb-3">
-            <label class="block text-sm font-semibold text-white">Servicios realizados</label>
+            <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">🔩</span> Servicios realizados</label>
           </div>
           
           <!-- Barra de búsqueda -->
@@ -1982,7 +1982,7 @@ async function openMaintenanceServicesModal() {
               type="text" 
               id="maintenance-search" 
               placeholder="Buscar servicio..." 
-              class="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+              class="w-full px-4 py-2.5 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
             />
             <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -2039,10 +2039,8 @@ async function openMaintenanceServicesModal() {
               </div>
             ` : ''}
           </div>
-          <p class="text-xs text-slate-400 mt-3 flex items-center gap-1">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-3 flex items-center gap-1">
+            <span aria-hidden="true">💡</span>
             Selecciona los servicios que se realizaron en esta venta
           </p>
         </div>
@@ -2051,22 +2049,17 @@ async function openMaintenanceServicesModal() {
       const modalHTML = `
         <div class="p-6 flex flex-col h-full max-h-[90vh]">
           <div class="flex-1 overflow-y-auto modal-body-scroll">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-blue-600/20 rounded-lg">
-                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
-                  <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
+            <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="p-2 bg-blue-600/25 dark:bg-blue-600/25 theme-light:bg-sky-200 rounded-xl shrink-0 text-2xl leading-none" aria-hidden="true">🔧</div>
+                <div class="min-w-0">
+                  <h2 class="text-xl sm:text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Servicios de mantenimiento</h2>
+                  <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
                 </div>
               </div>
-              <!-- Botón para cerrar solo el modal de servicios -->
               <button 
                 id="maintenance-modal-close" 
-                class="px-3 py-2 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500 text-sm"
+                class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-800 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm shrink-0"
                 title="Cerrar modal de servicios"
               >
                 Cerrar
@@ -2077,17 +2070,16 @@ async function openMaintenanceServicesModal() {
             ${servicesHTML}
           </div>
           
-          <!-- Botones siempre visibles en la parte inferior -->
-          <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700/50 flex-shrink-0 bg-slate-800 sticky bottom-0 pb-2">
+          <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 flex-shrink-0 bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-sky-50/95 sticky bottom-0 pb-2 -mx-1 px-1">
             <button 
               id="maintenance-skip" 
-              class="flex-1 px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500"
+              class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:bg-white theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-800 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300"
             >
               Omitir
             </button>
             <button 
               id="maintenance-continue" 
-              class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+              class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Continuar
             </button>
@@ -2503,15 +2495,22 @@ function buildCloseModalContent(){
   const wrap = document.createElement('div');
   wrap.className = 'space-y-4';
   wrap.innerHTML = `
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cerrar venta</h3>
+    <div class="rounded-xl p-4 mb-1 border border-slate-600/40 dark:border-slate-600/40 theme-light:border-sky-200
+      bg-gradient-to-br from-blue-950/55 via-slate-900/70 to-violet-950/40
+      dark:from-blue-950/55 dark:via-slate-900/70 dark:to-violet-950/40
+      theme-light:from-sky-100 theme-light:via-white theme-light:to-indigo-50 shadow-sm">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap">
+        <span class="text-2xl shrink-0 leading-none" aria-hidden="true">💰</span>
+        <span>Cerrar venta</span>
+      </h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Total venta:
+        <strong class="text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 tabular-nums">${money(total)}</strong>
+      </p>
     </div>
-    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
-    </div>
-    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-blue-500 dark:border-l-blue-500 theme-light:border-l-blue-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">💳</span> Formas de pago</strong>
         <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
       <table class="w-full text-xs border-collapse" id="cv-payments-table">
@@ -2528,10 +2527,10 @@ function buildCloseModalContent(){
       <div id="cv-payments-summary" class="mt-3 text-xs"></div>
       <div id="cv-advance-info" class="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300"></div>
     </div>
-    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-violet-500 dark:border-l-violet-500 theme-light:border-l-violet-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">🛠️</span> Desglose de mano de obra</label>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
           <p id="cv-labor-total" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(current?.laborValue || 0)}</strong></p>
         </div>
@@ -2562,9 +2561,9 @@ function buildCloseModalContent(){
         </table>
       </div>
     </div>
-    <div id="cv-investment-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-investment-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-amber-500 dark:border-l-amber-500 theme-light:border-l-amber-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Inversión</label>
+        <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">📈</span> Inversión</label>
       </div>
       <div class="flex gap-2 mb-3">
         <input id="cv-investment-amount" type="number" min="0" step="0.01" placeholder="Valor de inversión (opcional)" class="flex-1 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400" />
@@ -2603,8 +2602,8 @@ function buildCloseModalContent(){
         </div>
         <div id="cv-laborSharePreview" class="mt-3 p-2 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300 text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-700 font-medium hidden"></div>
       </div>
-      <div class="md:col-span-2">
-        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+      <div class="md:col-span-2 rounded-lg border border-slate-600/40 dark:border-slate-600/40 theme-light:border-slate-200 border-l-4 border-l-slate-500 dark:border-l-slate-400 theme-light:border-l-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white/80 p-4">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">📎</span> Comprobante (opcional)</label>
         <div class="relative">
           <input id="cv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
         </div>
@@ -5004,12 +5003,14 @@ async function openAdvancePaymentModal(){
   const wrap = document.createElement('div');
   wrap.className = 'p-5 sm:p-6 space-y-4';
   wrap.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Agregar abono</h3>
-        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Se registra en flujo de caja según la cuenta seleccionada.</p>
+    <div class="rounded-xl p-4 border border-emerald-700/30 dark:border-emerald-700/30 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/50 to-slate-900/30 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">💵</span> Agregar abono</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-1">Se registra en flujo de caja según la cuenta seleccionada.</p>
+        </div>
+        <button type="button" id="adv-close" class="shrink-0 px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
       </div>
-      <button type="button" id="adv-close" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -5152,12 +5153,14 @@ async function openDiscountModal(){
   const wrap = document.createElement('div');
   wrap.className = 'p-5 sm:p-6 space-y-4';
   wrap.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Descuento</h3>
-        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">El descuento puede ser valor fijo o porcentaje.</p>
+    <div class="rounded-xl p-4 border border-violet-700/35 dark:border-violet-700/35 theme-light:border-violet-200 bg-gradient-to-br from-violet-950/45 via-slate-900/50 to-slate-900/30 theme-light:from-violet-50 theme-light:via-white theme-light:to-sky-50">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">🏷️</span> Descuento</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-1">El descuento puede ser valor fijo o porcentaje.</p>
+        </div>
+        <button type="button" id="disc-close" class="shrink-0 px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
       </div>
-      <button type="button" id="disc-close" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6634,10 +6637,12 @@ async function showPriceConfirmationModal({ price, vehicleId }) {
   const node = document.createElement('div');
   node.className = 'p-6 bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 w-full max-w-3xl';
   node.innerHTML = `
-    <div class="flex items-start justify-between gap-4 mb-4">
-      <div>
-        <h2 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Confirmar precio</h2>
-        <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${price?.name || 'Item'} (${String(price?.type || '').toUpperCase()})</p>
+    <div class="rounded-xl p-4 mb-4 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-gradient-to-br from-blue-950/45 via-slate-900/50 to-slate-900/25 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">💲</span> Confirmar precio</h2>
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">${price?.name || 'Item'} <span class="opacity-80">(${String(price?.type || '').toUpperCase()})</span></p>
+        </div>
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -6652,9 +6657,9 @@ async function showPriceConfirmationModal({ price, vehicleId }) {
       </div>
     </div>
     ${isCombo ? `
-    <div class="mb-5">
+    <div class="mb-5 rounded-lg border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 border-l-4 border-l-indigo-500 dark:border-l-indigo-500 theme-light:border-l-indigo-600 p-3 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-slate-50/80">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Productos del combo</h3>
+        <h3 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2 m-0"><span aria-hidden="true">📦</span> Productos del combo</h3>
         <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Marca los que se incluirán</span>
       </div>
       <div class="space-y-2 max-h-64 overflow-auto custom-scrollbar" id="pc-combo-list">
@@ -8214,11 +8219,14 @@ async function openPostServiceConfigModal() {
     
     body.innerHTML = `
       <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
-        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Configurar mensaje post-servicio</h3>
+        <div class="rounded-xl p-4 border border-sky-600/30 dark:border-sky-600/30 theme-light:border-sky-200 bg-gradient-to-br from-sky-950/40 via-slate-900/45 to-indigo-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50 mb-2">
+          <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">💬</span> Mensaje post-servicio</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Personaliza el texto que recibe el cliente tras el servicio.</p>
+        </div>
         
-        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 mb-4">
-          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            <strong>Plantilla del mensaje:</strong>
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-teal-500 dark:border-l-teal-500 theme-light:border-l-teal-600 mb-4">
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2 flex items-center gap-2">
+            <span aria-hidden="true">📄</span><strong>Plantilla del mensaje</strong>
           </p>
           <pre class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-pre-wrap bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white p-3 rounded border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Hola {nombre del cliente}, ha sido un placer atenderte en nuestras instalaciones.
 
@@ -8227,9 +8235,9 @@ Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por e
 Muchas gracias!</pre>
         </div>
         
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            Link de calificación <span class="text-red-400">*</span>
+        <div class="mb-4 rounded-lg p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white/60">
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2 flex items-center gap-2">
+            <span aria-hidden="true">🔗</span> Link de calificación <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">*</span>
           </label>
           <input 
             id="ps-rating-link" 
@@ -8333,11 +8341,14 @@ async function openSpecialNotesModal() {
     
     body.innerHTML = `
       <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
-        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">📝 Notas Especiales</h3>
+        <div class="rounded-xl p-4 border border-amber-600/35 dark:border-amber-600/35 theme-light:border-amber-200 bg-gradient-to-br from-amber-950/35 via-slate-900/45 to-slate-900/30 theme-light:from-amber-50 theme-light:via-white theme-light:to-sky-50 mb-2">
+          <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">📝</span> Notas especiales</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Aparecen en la remisión debajo del total. Puedes agregar varias.</p>
+        </div>
         
-        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 mb-4">
-          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            Las notas especiales aparecerán en la remisión debajo del total. Puedes agregar múltiples notas.
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-amber-500 dark:border-l-amber-500 theme-light:border-l-amber-600 mb-4">
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-0 flex items-start gap-2">
+            <span class="shrink-0" aria-hidden="true">💡</span><span>Úsalas para condiciones, garantías o mensajes que el cliente deba ver al facturar.</span>
           </p>
         </div>
         
@@ -13857,10 +13868,12 @@ function openReportModal() {
   
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">📊 Generar Reporte de Ventas</h3>
-    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Selecciona el rango de fechas para generar un reporte completo con estadísticas de ventas, flujo de caja, cartera, inventario y mano de obra.
-    </p>
+    <div class="rounded-xl p-4 border border-emerald-600/35 dark:border-emerald-600/35 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/50 to-slate-900/25 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">📊</span> Reporte de ventas</h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Elige el rango de fechas: incluye ventas, caja, cartera, inventario y mano de obra.
+      </p>
+    </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>
@@ -14537,10 +14550,12 @@ function openTechnicianReportModal() {
   div.className = 'space-y-4';
   
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">👷 Generar Reporte de Técnicos</h3>
-    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Selecciona el rango de fechas y el técnico para generar un reporte con todas las ventas en las que participó.
-    </p>
+    <div class="rounded-xl p-4 border border-purple-600/35 dark:border-purple-600/35 theme-light:border-purple-200 bg-gradient-to-br from-purple-950/45 via-slate-900/50 to-slate-900/25 theme-light:from-purple-50 theme-light:via-white theme-light:to-sky-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">👷</span> Reporte de técnicos</h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Rango de fechas y técnico: resume ventas en las que participó.
+      </p>
+    </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>

@@ -808,6 +808,66 @@ body.theme-light #appHeader #notifBellMobile:hover {
   color: #0f172a;
 }
 
+/* Panel campana — modo claro legible (evita choque con overrides globales bg-slate-800 → blanco) */
+body.theme-light .notif-panel {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow:
+    0 20px 40px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(15, 23, 42, 0.06) !important;
+  color: #0f172a;
+}
+
+body.theme-light .notif-panel__title {
+  color: #0f172a !important;
+}
+
+body.theme-light .notif-panel__btn {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.theme-light .notif-panel__btn:hover {
+  background: #e2e8f0 !important;
+}
+
+body.theme-light .notif-panel__list {
+  color: #334155;
+}
+
+body.theme-light .notif-item:not(.notif-item--urgent) {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.theme-light .notif-item:not(.notif-item--urgent) .notif-title {
+  color: #0f172a !important;
+}
+
+body.theme-light .notif-item:not(.notif-item--urgent) .notif-body {
+  color: #475569 !important;
+}
+
+body.theme-light .notif-item:not(.notif-item--urgent) .notif-meta {
+  color: #64748b !important;
+}
+
+body.theme-light .notif-item:not(.notif-item--urgent) .notif-read-btn {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.theme-light .notif-item:not(.notif-item--urgent) .notif-read-btn:hover {
+  background: #e2e8f0 !important;
+}
+
+body.theme-light .notif-empty {
+  color: #64748b;
+}
+
 /* Pestañas hub (desktop + móvil): vidrio, sin bloques planos */
 #appHeader .nav-tab,
 #appHeader .mobile-nav-tab {

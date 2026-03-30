@@ -882,8 +882,8 @@ if(typeof window !== 'undefined' && window.addEventListener) {
     if(panel) return panel;
     panel = document.createElement('div');
     panel.id='notifPanel';
-    panel.className = 'fixed top-[60px] right-[14px] w-80 max-h-[70vh] overflow-auto bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-lg shadow-2xl p-3 hidden z-[2000]';
-    panel.innerHTML='<div class="flex justify-between items-center mb-1.5"><strong class="text-white dark:text-white theme-light:text-slate-900">Notificaciones</strong><div class="flex gap-1.5"><button id="notifMarkAll" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Marcar todo</button><button id="notifClose" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button></div></div><div id="notifList" class="flex flex-col gap-2 text-xs"></div>';
+    panel.className = 'notif-panel fixed top-[60px] right-[14px] w-80 max-h-[70vh] overflow-auto rounded-xl p-3 hidden z-[2000] bg-slate-900/95 border border-slate-600/40 shadow-2xl shadow-black/40';
+    panel.innerHTML='<div class="notif-panel__head flex justify-between items-center mb-2 gap-2"><strong class="notif-panel__title text-sm font-semibold">Notificaciones</strong><div class="flex shrink-0 gap-1.5"><button type="button" id="notifMarkAll" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Marcar todo</button><button type="button" id="notifClose" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Cerrar</button></div></div><div id="notifList" class="notif-panel__list flex flex-col gap-2 text-xs"></div>';
     document.body.appendChild(panel);
     panel.querySelector('#notifClose').onclick = togglePanel;
     panel.querySelector('#notifMarkAll').onclick = markAll;
@@ -978,37 +978,43 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       lastIds.add(String(n._id));
       const info = fmt(n);
       const div = document.createElement('div');
-      
-      // Aplicar estilos urgentes si es necesario
       const isUrgent = info.urgent === true;
-      const urgentStyles = isUrgent ? 
-        'background:linear-gradient(135deg, #dc2626, #b91c1c);border:2px solid #fca5a5;box-shadow:0 4px 12px rgba(220,38,38,0.3);' : 
-        'background:rgba(30,41,59,0.9);border:1px solid rgba(148,163,184,0.3);';
-      
-      div.style.cssText=`${urgentStyles}padding:10px;border-radius:10px;display:flex;gap:10px;align-items:flex-start;`;
-      
-      const titleStyle = isUrgent ? 
-        'font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);' : 
-        'font-weight:700;';
-      
-      const bodyStyle = isUrgent ? 
-        'opacity:1;margin:4px 0;color:#fff;' : 
-        'opacity:.9;margin:4px 0;';
-      
+      if (isUrgent) {
+        div.className =
+          'notif-item notif-item--urgent rounded-[10px] border-2 border-red-400/70 bg-gradient-to-br from-red-600 to-red-800 p-2.5 flex gap-2.5 items-start text-white shadow-md shadow-red-900/30';
+      } else {
+        div.className =
+          'notif-item rounded-[10px] border p-2.5 flex gap-2.5 items-start bg-slate-800/90 border-slate-600/45 text-slate-100';
+      }
+      const titleCls = isUrgent
+        ? 'notif-title font-extrabold text-sm text-white drop-shadow-sm'
+        : 'notif-title font-bold text-sm text-slate-100';
+      const bodyCls = isUrgent
+        ? 'notif-body text-xs mt-1 leading-snug text-red-50/95'
+        : 'notif-body text-xs mt-1 leading-snug text-slate-300';
+      const metaCls = isUrgent
+        ? 'notif-meta text-[11px] text-red-100/90 shrink-0'
+        : 'notif-meta text-[11px] text-slate-400 shrink-0';
+      const btnCls = isUrgent
+        ? 'notif-read-btn shrink-0 px-2 py-1 text-xs font-semibold rounded-md border border-white/35 bg-white/15 text-white hover:bg-white/25 transition-colors'
+        : 'notif-read-btn shrink-0 px-2 py-1 text-xs font-semibold rounded-md border border-slate-600/50 bg-slate-700/70 text-slate-100 hover:bg-slate-600 transition-colors';
       div.innerHTML = `
-        <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
-        <div style="flex:1;min-width:0;">
-          <div style='${titleStyle}'>${info.title}</div>
-          <div style='${bodyStyle}'>${info.body}</div>
-          <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
-            <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
-            <button data-read='${n._id}' class='px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'>Marcar leído</button>
+        <div class="text-xl leading-tight shrink-0" aria-hidden="true">${info.icon}</div>
+        <div class="flex-1 min-w-0">
+          <div class="${titleCls}">${info.title}</div>
+          <div class="${bodyCls}">${info.body}</div>
+          <div class="flex justify-between items-center mt-1.5 gap-2">
+            <span class="${metaCls}">${info.meta}</span>
+            <button type="button" data-read="${n._id}" class="${btnCls}">Marcar leído</button>
           </div>
         </div>`;
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
       ul.appendChild(div);
     });
-    if(!list.length){ ul.innerHTML = '<div style="text-align:center;opacity:.6;">Sin nuevas notificaciones</div>'; }
+    if (!list.length) {
+      ul.innerHTML =
+        '<div class="notif-empty text-center text-sm py-6">Sin nuevas notificaciones</div>';
+    }
   }
   async function markRead(id, el){
     try{
