@@ -1,13 +1,19 @@
-# Metadatos de imagen (no servir al público)
+# Metadatos de la imagen
 Dockerfile
 .dockerignore
 
-# Dependencias (no van en nginx)
+# Nunca enviar a la imagen nginx
 node_modules
 npm-debug.log*
 yarn-error.log*
 
-# Control de versiones / IDE
+# Solo hace falta ui.css compilado en producción (ver Dockerfile)
+package.json
+package-lock.json
+tailwind.config.cjs
+assets/tailwind.css
+
+# Repo / IDE
 .git
 .gitignore
 .DS_Store
@@ -15,9 +21,6 @@ Thumbs.db
 .vscode
 .idea
 
-# Solo documentación en contexto de imagen
 *.md
-
-# Entornos locales
 .env
 .env.*
