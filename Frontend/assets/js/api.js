@@ -240,6 +240,8 @@ const API = {
     update: (id, payload) => http.put(`/api/v1/calendar/${id}`, payload),
     delete: (id) => http.del(`/api/v1/calendar/${id}`),
     syncNoteReminders: () => http.post('/api/v1/calendar/sync-note-reminders'),
+    syncAgendaColors: (query = '') =>
+      http.post(`/api/v1/calendar/sync-agenda-colors${query ? `?${query.replace(/^\?/, '')}` : ''}`),
     searchByPlate: (plate) => http.get(`/api/v1/calendar/search-by-plate/${encodeURIComponent(plate)}`),
     getQuotesByPlate: (plate) => http.get(`/api/v1/calendar/quotes-by-plate/${encodeURIComponent(plate)}`),
     getSettings: () => http.get('/api/v1/calendar/settings'),

@@ -5,6 +5,7 @@ import {
   updateEvent, 
   deleteEvent, 
   syncNoteReminders,
+  syncAgendaColors,
   searchByPlate,
   getQuotesByPlate,
   getSettings,
@@ -16,6 +17,7 @@ const router = Router();
 router.get('/', listEvents);
 router.post('/', createEvent);
 router.post('/sync-note-reminders', syncNoteReminders);
+router.post('/sync-agenda-colors', syncAgendaColors);
 router.get('/search-by-plate/:plate', searchByPlate);
 router.get('/quotes-by-plate/:plate', getQuotesByPlate);
 // Rutas de settings ANTES de las rutas con parámetros dinámicos

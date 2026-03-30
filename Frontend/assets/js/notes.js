@@ -22,6 +22,7 @@ async function syncRemindersWithCalendar() {
   if (typeof API !== 'undefined' && API.calendar && API.calendar.syncNoteReminders) {
     try {
       await API.calendar.syncNoteReminders();
+      if (API.calendar.syncAgendaColors) await API.calendar.syncAgendaColors();
       if (typeof window !== 'undefined' && window.calendarReload) {
         window.calendarReload();
       }

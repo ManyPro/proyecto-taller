@@ -13,22 +13,168 @@ import { parseDate, localToUTC, createDateRange, now } from "../lib/dateTime.js"
 const DEFAULT_APPOINTMENT_COLOR = '#2563EB';
 const isValidHexColor = (value) => /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(value || '').trim());
 
+/** @returns {string} '' o #RRGGBB mayúsculas */
+const normalizeHexColor = (value) => {
+  let c = String(value || '').trim();
+  if (!c) return '';
+  if (!c.startsWith('#')) c = `#${c}`;
+  const m = c.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!m) return '';
+  let h = m[1];
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('');
+  return `#${h.toUpperCase()}`;
+};
+
+const hexToRgb = (hex) => {
+  const n = normalizeHexColor(hex).slice(1);
+  if (n.length !== 6) return null;
+  return {
+    r: parseInt(n.slice(0, 2), 16),
+    g: parseInt(n.slice(2, 4), 16),
+    b: parseInt(n.slice(4, 6), 16),
+  };
+};
+
+const hueFromHex = (hex) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const r = rgb.r / 255;
+  const g = rgb.g / 255;
+  const b = rgb.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === min) return null;
+  const d = max - min;
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return h * 360;
+};
+
+/**
+ * Colores legacy de citas (morado/rosa → Milo, verde → Sandra, amarillo → Giovanny).
+ * No toca citas azules u otros tonos.
+ */
+const legacyColorBucketFromHex = (hex) => {
+  const n = normalizeHexColor(hex);
+  if (!n) return null;
+  const exact = {
+    '#8B5CF6': 'purple_pink',
+    '#7C3AED': 'purple_pink',
+    '#A855F7': 'purple_pink',
+    '#C026D3': 'purple_pink',
+    '#D946EF': 'purple_pink',
+    '#E879F9': 'purple_pink',
+    '#EC4899': 'purple_pink',
+    '#F472B6': 'purple_pink',
+    '#10B981': 'green',
+    '#059669': 'green',
+    '#22C55E': 'green',
+    '#16A34A': 'green',
+    '#F59E0B': 'yellow',
+    '#EAB308': 'yellow',
+    '#FBBF24': 'yellow',
+    '#CA8A04': 'yellow',
+  };
+  if (exact[n]) return exact[n];
+  const h = hueFromHex(n);
+  if (h == null) return null;
+  if (h >= 245 && h <= 345) return 'purple_pink';
+  if (h >= 85 && h <= 175) return 'green';
+  if (h >= 28 && h <= 62) return 'yellow';
+  return null;
+};
+
+const normTechName = (s) =>
+  String(s || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+/**
+ * Técnicos que pueden agendar citas (misma lista que el calendario).
+ * Si hay al menos uno con isAppointmentTechnician (configurado en Nómina), solo esos.
+ * Si ninguno (empresa sin pestaña Nómina o sin marcar agenda), se aceptan todos los técnicos de empresa.
+ */
+const getSchedulingTechnicianEntries = (company) => {
+  const raw = Array.isArray(company?.technicians) ? company.technicians : [];
+  const objects = raw
+    .map((t) => {
+      if (typeof t === 'string') {
+        const n = String(t).trim();
+        if (!n) return null;
+        return {
+          name: n,
+          isAppointmentTechnician: false,
+          appointmentColor: DEFAULT_APPOINTMENT_COLOR,
+        };
+      }
+      if (!t || !String(t.name || '').trim()) return null;
+      return {
+        name: String(t.name).trim(),
+        isAppointmentTechnician: t.isAppointmentTechnician === true,
+        appointmentColor: isValidHexColor(t.appointmentColor)
+          ? normalizeHexColor(t.appointmentColor)
+          : DEFAULT_APPOINTMENT_COLOR,
+      };
+    })
+    .filter(Boolean);
+  const onlyAgenda = objects.filter((t) => t.isAppointmentTechnician === true);
+  if (onlyAgenda.length > 0) return onlyAgenda;
+  return objects;
+};
+
+/**
+ * Encuentra técnico de agenda por bucket de color legacy (Milo/Mili, Sandra, Giovanny).
+ */
+const findTechByLegacyBucket = (appointmentTechs, bucket) => {
+  if (!bucket || !appointmentTechs.length) return null;
+  /** Nombre más largo primero (p. ej. MILI vs MIL) para no colgar todo en el primero genérico. */
+  const sorted = [...appointmentTechs].sort(
+    (a, b) => normTechName(b.name).length - normTechName(a.name).length
+  );
+  for (const t of sorted) {
+    const name = normTechName(t.name);
+    if (bucket === 'purple_pink') {
+      if (name.includes('MIL') || name.includes('MILI') || name.includes('MILO')) return t;
+    } else if (bucket === 'green') {
+      if (name.includes('SANDRA')) return t;
+    } else if (bucket === 'yellow') {
+      if (name.includes('GIO')) return t;
+    }
+  }
+  return null;
+};
+
+const schedulerFromNoteResponsible = (note, appointmentTechs) => {
+  const resp = normTechName(note.responsible);
+  if (!resp) return null;
+  const tech = appointmentTechs.find((t) => normTechName(t.name) === resp);
+  if (!tech) return null;
+  const color = isValidHexColor(tech.appointmentColor)
+    ? normalizeHexColor(tech.appointmentColor)
+    : DEFAULT_APPOINTMENT_COLOR;
+  return { scheduledByTechnician: normTechName(tech.name), color };
+};
+
 async function resolveAppointmentTechnician(companyId, rawTechnicianName) {
   const normalizedName = String(rawTechnicianName || '').trim().toUpperCase();
   if (!normalizedName) {
     return { error: 'Debes seleccionar quién agenda la cita' };
   }
   const company = await Company.findById(companyId).select({ technicians: 1 }).lean();
-  const technicians = Array.isArray(company?.technicians) ? company.technicians : [];
-  const tech = technicians.find((t) => {
-    const name = typeof t === 'string' ? t : t?.name;
-    return String(name || '').trim().toUpperCase() === normalizedName;
-  });
-  if (!tech || typeof tech === 'string' || tech.isAppointmentTechnician !== true) {
-    return { error: 'La persona seleccionada no existe en técnicos de agenda' };
+  const eligible = getSchedulingTechnicianEntries(company);
+  const tech = eligible.find((t) => normTechName(t.name) === normalizedName);
+  if (!tech) {
+    return {
+      error:
+        'La persona seleccionada no está en la lista de técnicos de la empresa. Pedí a un administrador que cargue técnicos o habilite Nómina.',
+    };
   }
   const appointmentColor = isValidHexColor(tech.appointmentColor)
-    ? String(tech.appointmentColor).trim().toUpperCase()
+    ? normalizeHexColor(tech.appointmentColor)
     : DEFAULT_APPOINTMENT_COLOR;
   return { scheduledByTechnician: normalizedName, appointmentColor };
 }
@@ -222,15 +368,18 @@ export const deleteEvent = async (req, res) => {
 // Sincronizar recordatorios de notas como eventos del calendario
 export const syncNoteReminders = async (req, res) => {
   const companyId = new mongoose.Types.ObjectId(req.companyId);
-  
+
+  const company = await Company.findById(companyId).select({ technicians: 1 }).lean();
+  const appointmentTechs = getSchedulingTechnicianEntries(company);
+
   // Obtener todas las notas con recordatorios
   const notes = await Note.find({
     companyId,
     reminderAt: { $exists: true, $ne: null }
   }).lean();
-  
+
   const synced = [];
-  
+
   for (const note of notes) {
     // Buscar si ya existe un evento para este recordatorio
     let event = await CalendarEvent.findOne({
@@ -238,21 +387,23 @@ export const syncNoteReminders = async (req, res) => {
       noteId: note._id,
       eventType: 'reminder'
     });
-    
+
     // Parsear la fecha del recordatorio (puede venir como Date de MongoDB o como string)
     const reminderDate = parseDate(note.reminderAt);
-    
+    const sched = schedulerFromNoteResponsible(note, appointmentTechs);
+    const reminderColor = sched?.color || '#F59E0B';
+    const reminderTech = sched?.scheduledByTechnician || '';
+
     if (event) {
-      // Actualizar evento existente
       event.startDate = reminderDate;
       event.title = `Recordatorio: ${note.plate}`;
       event.description = note.text || '';
       event.hasNotification = true;
       event.notificationAt = reminderDate;
-      event.color = '#f59e0b'; // Color amarillo/naranja para recordatorios
+      event.color = reminderColor;
+      event.scheduledByTechnician = reminderTech;
       await event.save();
     } else {
-      // Crear nuevo evento
       event = await CalendarEvent.create({
         title: `Recordatorio: ${note.plate}`,
         description: note.text || '',
@@ -260,26 +411,105 @@ export const syncNoteReminders = async (req, res) => {
         allDay: false,
         hasNotification: true,
         notificationAt: reminderDate,
-        color: '#f59e0b',
+        color: reminderColor,
+        scheduledByTechnician: reminderTech,
         eventType: 'reminder',
         noteId: note._id,
         companyId,
         userId: note.userId ? new mongoose.Types.ObjectId(note.userId) : undefined
       });
     }
-    
+
     synced.push(event);
   }
-  
+
   // Eliminar eventos de recordatorios para notas que ya no tienen recordatorio
-  const noteIds = notes.map(n => n._id);
+  const noteIds = notes.map((n) => n._id);
   await CalendarEvent.deleteMany({
     companyId,
     eventType: 'reminder',
     noteId: { $nin: noteIds }
   });
-  
+
   res.json({ synced: synced.length, items: synced });
+};
+
+/**
+ * Citas (eventType event): sin técnico, infiere técnico por color legacy y guarda color de nómina.
+ * Con técnico ya guardado, alinea siempre `color` al appointmentColor de ese técnico (un solo tono por persona).
+ */
+export const syncAgendaColors = async (req, res) => {
+  const companyId = new mongoose.Types.ObjectId(req.companyId);
+
+  const company = await Company.findById(companyId).select({ technicians: 1 }).lean();
+  const appointmentTechs = getSchedulingTechnicianEntries(company);
+  if (!appointmentTechs.length) {
+    return res.json({ updated: 0, message: 'No hay técnicos de agenda en la empresa' });
+  }
+
+  const events = await CalendarEvent.find({
+    companyId,
+    eventType: 'event',
+  }).lean();
+
+  let updated = 0;
+  const details = [];
+
+  for (const ev of events) {
+    const hasTech = String(ev.scheduledByTechnician || '').trim().length > 0;
+
+    if (hasTech) {
+      const tech = appointmentTechs.find(
+        (t) => normTechName(t.name) === normTechName(ev.scheduledByTechnician)
+      );
+      if (tech) {
+        const canon = isValidHexColor(tech.appointmentColor)
+          ? normalizeHexColor(tech.appointmentColor)
+          : DEFAULT_APPOINTMENT_COLOR;
+        const current = normalizeHexColor(ev.color);
+        if (canon && current !== canon) {
+          await CalendarEvent.updateOne(
+            { _id: ev._id, companyId },
+            { $set: { color: canon } }
+          );
+          updated += 1;
+          details.push({ id: String(ev._id), action: 'color_aligned', color: canon });
+        }
+      }
+      continue;
+    }
+
+    const bucket = legacyColorBucketFromHex(ev.color);
+    if (!bucket) continue;
+
+    const tech = findTechByLegacyBucket(appointmentTechs, bucket);
+    if (!tech) continue;
+
+    const canonColor = isValidHexColor(tech.appointmentColor)
+      ? normalizeHexColor(tech.appointmentColor)
+      : DEFAULT_APPOINTMENT_COLOR;
+    const techName = normTechName(tech.name);
+
+    await CalendarEvent.updateOne(
+      { _id: ev._id, companyId },
+      {
+        $set: {
+          scheduledByTechnician: techName,
+          color: canonColor,
+        },
+      }
+    );
+    updated += 1;
+    details.push({
+      id: String(ev._id),
+      action: 'technician_from_legacy_color',
+      scheduledByTechnician: techName,
+      color: canonColor,
+      bucket,
+    });
+  }
+
+  res.json({ updated, details });
 };
 
 // Buscar cliente/vehículo por placa para autocompletar

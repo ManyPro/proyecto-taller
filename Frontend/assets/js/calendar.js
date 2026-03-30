@@ -19,14 +19,17 @@ const formatDateTime = formatDateTimeForInput;
 async function fetchAppointmentTechnicians() {
   const r = await API.get('/api/v1/company/technicians');
   const techs = Array.isArray(r?.technicians) ? r.technicians : [];
-  return techs
-    .filter(t => t && typeof t === 'object' && t.isAppointmentTechnician === true && String(t.name || '').trim())
-    .map(t => ({
-      name: String(t.name || '').trim().toUpperCase(),
-      appointmentColor: /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(t.appointmentColor || '').trim())
-        ? String(t.appointmentColor).trim().toUpperCase()
-        : '#2563EB'
-    }));
+  const withName = techs.filter(
+    t => t && typeof t === 'object' && String(t.name || '').trim()
+  );
+  const flagged = withName.filter(t => t.isAppointmentTechnician === true);
+  const source = flagged.length ? flagged : withName;
+  return source.map(t => ({
+    name: String(t.name || '').trim().toUpperCase(),
+    appointmentColor: /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(t.appointmentColor || '').trim())
+      ? String(t.appointmentColor).trim().toUpperCase()
+      : '#2563EB'
+  }));
 }
 
 function getEventsForDate(date) {
@@ -1386,11 +1389,16 @@ async function loadEvents() {
 async function syncReminders() {
   try {
     await API.calendar.syncNoteReminders();
+    const agendaRes = await API.calendar.syncAgendaColors();
     await loadEvents();
     renderCalendar();
-    alert("Recordatorios sincronizados correctamente");
+    const extra =
+      typeof agendaRes?.updated === "number" && agendaRes.updated > 0
+        ? `\nCitas alineadas con técnico/color: ${agendaRes.updated}.`
+        : "";
+    alert("Recordatorios y agendas sincronizados correctamente." + extra);
   } catch (e) {
-    alert("Error al sincronizar recordatorios: " + e.message);
+    alert("Error al sincronizar: " + (e.message || e));
   }
 }
 
