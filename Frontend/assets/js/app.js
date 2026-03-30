@@ -27,7 +27,7 @@ function applyTheme(theme){
   if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
   try{ localStorage.setItem(THEME_KEY, theme); }catch{}
   // Actualizar todos los botones de tema (desktop, mobile, portal, login, admin)
-  const themeButtons = document.querySelectorAll('#themeToggle, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin');
+  const themeButtons = document.querySelectorAll('#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin');
   themeButtons.forEach(btn => {
     btn.textContent = theme === 'light' ? '🌙' : '🌞';
     btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Usar event delegation para manejar clicks en todos los botones de tema (desktop y mobile)
   document.addEventListener('click', (e) => {
     // Verificar si el click fue en un botón con id themeToggle
-    if (e.target && e.target.id === 'themeToggle') {
+    if (e.target && (e.target.id === 'themeToggle' || e.target.id === 'themeToggleMobile')) {
       if (window.MMTheme?.toggleTheme) {
         window.MMTheme.toggleTheme();
       } else {
@@ -394,26 +394,7 @@ function highlightCurrentNav() {
     btn.classList.toggle('active', btn.dataset.tab === current);
   });
   document.querySelectorAll('button.nav-tab[data-tab], button.mobile-nav-tab[data-tab]').forEach(btn => {
-    const isActive = btn.dataset.tab === current;
-    btn.classList.toggle('active', isActive);
-    if (btn.classList.contains('nav-tab')) {
-      if (isActive) {
-        btn.classList.add('bg-blue-600', 'text-white');
-        btn.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
-      } else {
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('text-slate-300', 'hover:text-white', 'hover:bg-slate-700/50');
-      }
-    }
-    if (btn.classList.contains('mobile-nav-tab')) {
-      if (isActive) {
-        btn.classList.add('bg-blue-600', 'text-white');
-        btn.classList.remove('text-slate-300', 'hover:text-white', 'hover:bg-slate-700/50');
-      } else {
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('text-slate-300', 'hover:text-white', 'hover:bg-slate-700/50');
-      }
-    }
+    btn.classList.toggle('active', btn.dataset.tab === current);
   });
   if (current && current !== 'home') setLastTab(current);
 }
@@ -788,7 +769,7 @@ if(typeof window !== 'undefined' && window.addEventListener) {
     if(!desktopActions && !mobileActions) {
       const allDivs = appHeaderEl.querySelectorAll('div');
       for(let div of allDivs) {
-        if(div.querySelector('#themeToggle')) {
+        if(div.querySelector('#themeToggle') || div.querySelector('#themeToggleMobile')) {
           return div;
         }
       }
@@ -878,7 +859,7 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       bell.id='notifBell';
       bell.className='p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200 relative';
       bell.innerHTML='🔔 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
-      const lastButton = desktopHeader.querySelector('#themeToggle') || desktopHeader.querySelector('#mobileMenuToggle');
+      const lastButton = desktopHeader.querySelector('#themeToggle') || desktopHeader.querySelector('#themeToggleMobile') || desktopHeader.querySelector('#mobileMenuToggle');
       if(lastButton && lastButton.parentNode) {
         lastButton.parentNode.insertBefore(bell, lastButton);
       } else {
@@ -897,7 +878,7 @@ if(typeof window !== 'undefined' && window.addEventListener) {
         mobileBell.className='p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200 relative';
         mobileBell.innerHTML='🔔 <span id="notifCountMobile" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
         // Insertar antes del botón de tema o menú hamburguesa
-        const themeToggle = mobileActions.querySelector('#themeToggle');
+        const themeToggle = mobileActions.querySelector('#themeToggle') || mobileActions.querySelector('#themeToggleMobile');
         const menuToggle = mobileActions.querySelector('#mobileMenuToggle');
         const insertBefore = themeToggle || menuToggle;
         if(insertBefore && insertBefore.parentNode) {

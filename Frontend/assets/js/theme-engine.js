@@ -52,11 +52,11 @@
 
   function bindToggles() {
     document
-      .querySelectorAll("#themeToggle, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin")
+      .querySelectorAll("#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin")
       .forEach((btn) => btn.setAttribute("data-theme-toggle", "1"));
     document.addEventListener("click", (event) => {
       const trigger = event.target.closest(
-        "[data-theme-toggle], #themeToggle, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin"
+        "[data-theme-toggle], #themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin"
       );
       if (!trigger) return;
       event.preventDefault();

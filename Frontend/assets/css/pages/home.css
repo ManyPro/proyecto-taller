@@ -120,23 +120,224 @@ body.theme-light #registerBtn:hover {
   border-color: #7dd3fc !important;
 }
 
-/* Pestañas del hub en modo claro (barra superior index) */
-body.theme-light .nav-tab:not(.active),
-body.theme-light .mobile-nav-tab:not(.active) {
-  color: #000000 !important;
-  background-color: transparent !important;
+/* ========== Inicio: barra de app (vidrio claro / oscuro) ========== */
+#appHeader .home-header-shell {
+  background: linear-gradient(
+    125deg,
+    rgba(15, 23, 42, 0.78) 0%,
+    rgba(30, 41, 59, 0.62) 45%,
+    rgba(15, 23, 42, 0.78) 100%
+  );
+  backdrop-filter: blur(20px) saturate(1.35);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
-body.theme-light .nav-tab:not(.active):hover,
-body.theme-light .mobile-nav-tab:not(.active):hover {
-  color: #000000 !important;
-  background-color: rgba(203, 213, 225, 0.5) !important;
+body.theme-light #appHeader .home-header-shell {
+  background: linear-gradient(
+    125deg,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(241, 245, 249, 0.82) 42%,
+    rgba(224, 242, 254, 0.75) 100%
+  );
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.07);
 }
 
-body.theme-light .nav-tab.active,
-body.theme-light .mobile-nav-tab.active {
-  color: #ffffff !important;
-  background-color: #2563eb !important;
+#appHeader .home-header-nav-row {
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+body.theme-light #appHeader .home-header-nav-row {
+  background: rgba(255, 255, 255, 0.52);
+  border-top-color: rgba(15, 23, 42, 0.06);
+}
+
+#appHeader .home-header-eyebrow {
+  color: rgba(148, 163, 184, 0.95) !important;
+}
+
+body.theme-light #appHeader .home-header-eyebrow {
+  color: rgba(51, 65, 85, 0.9) !important;
+}
+
+#appHeader .home-header-company {
+  color: rgba(248, 250, 252, 0.98) !important;
+}
+
+body.theme-light #appHeader .home-header-company {
+  color: #0f172a !important;
+}
+
+/* Botones Salir / Catálogo / tema / menú */
+#appHeader .home-header-btn {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(241, 245, 249, 0.98);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+#appHeader .home-header-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(186, 230, 253, 0.35);
+  color: #fff;
+}
+
+body.theme-light #appHeader .home-header-btn {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.65);
+  color: #1e293b;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+body.theme-light #appHeader .home-header-btn:hover {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #0f172a;
+}
+
+#appHeader .home-header-mobile-drawer {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+body.theme-light #appHeader .home-header-mobile-drawer {
+  background: rgba(255, 255, 255, 0.94);
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+
+#appHeader #notifBell,
+#appHeader #notifBellMobile {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(241, 245, 249, 0.98);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#appHeader #notifBell:hover,
+#appHeader #notifBellMobile:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+body.theme-light #appHeader #notifBell,
+body.theme-light #appHeader #notifBellMobile {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.65);
+  color: #1e293b;
+}
+
+body.theme-light #appHeader #notifBell:hover,
+body.theme-light #appHeader #notifBellMobile:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+}
+
+/* Pestañas hub (desktop + móvil): vidrio, sin bloques planos */
+#appHeader .nav-tab,
+#appHeader .mobile-nav-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(203, 213, 225, 0.95);
+}
+
+#appHeader .nav-tab:hover:not(.active),
+#appHeader .mobile-nav-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #f8fafc;
+}
+
+#appHeader .nav-tab.active,
+#appHeader .mobile-nav-tab.active {
+  color: #fff !important;
+  border-color: rgba(147, 197, 253, 0.45) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.55),
+    rgba(99, 102, 241, 0.5)
+  ) !important;
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body.theme-light #appHeader .nav-tab:not(.active),
+body.theme-light #appHeader .mobile-nav-tab:not(.active) {
+  color: #334155 !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+body.theme-light #appHeader .nav-tab:not(.active):hover,
+body.theme-light #appHeader .mobile-nav-tab:not(.active):hover {
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #0f172a !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+body.theme-light #appHeader .nav-tab.active,
+body.theme-light #appHeader .mobile-nav-tab.active {
+  color: #fff !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.95),
+    rgba(79, 70, 229, 0.9)
+  ) !important;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Tarjeta de bienvenida y tipografía (contraste modo claro) */
+#tab-home .home-welcome-card {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+body.theme-light #tab-home .home-welcome-card {
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(241, 245, 249, 0.9)
+  ) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.12);
+}
+
+#tab-home .home-welcome-title {
+  background-image: linear-gradient(90deg, #7dd3fc, #c4b5fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+body.theme-light #tab-home .home-welcome-title {
+  background-image: linear-gradient(92deg, #0369a1, #5b21b6);
+  -webkit-text-fill-color: transparent;
+}
+
+body.theme-light #tab-home .home-welcome-card .text-slate-400 {
+  color: #64748b !important;
+}
+
+body.theme-light #tab-home .home-welcome-card .text-slate-300 {
+  color: #475569 !important;
+}
+
+body.theme-light #tab-home .home-welcome-divider {
+  border-color: rgba(148, 163, 184, 0.45) !important;
 }
 
 /* Tablets 768px–1024px */
