@@ -44,18 +44,35 @@
       );
       btn.setAttribute("aria-label", btn.getAttribute("title"));
     });
+
+    const logo = document.getElementById("brandLogo");
+    if (logo) {
+      const src = isLight ? "assets/darklogo.png" : "assets/lightlogo.png";
+      if (logo.getAttribute("src") !== src) logo.setAttribute("src", src);
+    }
   }
 
   function toggleTheme() {
     setTheme(document.body.classList.contains("theme-light") ? "dark" : "light");
   }
 
+  function eventTargetElement(target) {
+    if (!target) return null;
+    if (target.nodeType === Node.ELEMENT_NODE) return target;
+    const p = target.parentElement;
+    return p && p.nodeType === Node.ELEMENT_NODE ? p : null;
+  }
+
+  let themeClickBound = false;
   function bindToggles() {
     document
       .querySelectorAll("#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin")
       .forEach((btn) => btn.setAttribute("data-theme-toggle", "1"));
+    if (themeClickBound) return;
+    themeClickBound = true;
     document.addEventListener("click", (event) => {
-      const trigger = event.target.closest(
+      const el = eventTargetElement(event.target);
+      const trigger = el && el.closest(
         "[data-theme-toggle], #themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin"
       );
       if (!trigger) return;

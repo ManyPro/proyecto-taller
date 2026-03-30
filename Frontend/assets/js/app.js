@@ -148,13 +148,13 @@ function detectInitialTheme(){
 })();
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  if (window.MMTheme?.init) window.MMTheme.init();
+  /* theme-engine.js ya registra MMTheme.init en DOMContentLoaded; no llamarlo de nuevo (duplicaba listeners y anulaba el toggle) */
   if (window.MMModal?.init) window.MMModal.init();
   initializeDOMElements();
   initializeEventListeners();
   initializeLogoutListener();
   initializeAuth();
-  applyTheme(detectInitialTheme());
+  if (!window.MMTheme?.setTheme) applyTheme(detectInitialTheme());
   
   // Inicializar autocorrector en todos los campos de texto
   setupAutocorrectForSelector('input[type="text"], textarea, input:not([type]), [contenteditable="true"]');
@@ -180,18 +180,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   observer.observe(document.body, { childList: true, subtree: true });
   
-  // Usar event delegation para manejar clicks en todos los botones de tema (desktop y mobile)
-  document.addEventListener('click', (e) => {
-    // Verificar si el click fue en un botón con id themeToggle
-    if (e.target && (e.target.id === 'themeToggle' || e.target.id === 'themeToggleMobile')) {
-      if (window.MMTheme?.toggleTheme) {
-        window.MMTheme.toggleTheme();
-      } else {
-        const isLight = document.body.classList.contains('theme-light');
-        applyTheme(isLight ? 'dark' : 'light');
-      }
-    }
-  });
   initFAB();
   initCollapsibles();
   const main = document.querySelector('main');
