@@ -344,8 +344,47 @@
     #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
       box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.45);
     }
-    body.theme-light #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
+    body.theme-light     #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
       box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
+    }
+
+    /* Modo oscuro: botones primarios del calendario y del modal (contraste estable; evita gris claro + texto blanco) */
+    body.theme-dark #tab-notas .mm-btn-primary,
+    body.theme-dark #modal .mm-btn-primary {
+      background: linear-gradient(92deg, #2563eb, #1d4ed8) !important;
+      background-image: linear-gradient(92deg, #2563eb, #1d4ed8) !important;
+      color: #f8fafc !important;
+      border: 1px solid rgba(96, 165, 250, 0.45);
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+    }
+    body.theme-dark #tab-notas .mm-btn-primary:hover,
+    body.theme-dark #modal .mm-btn-primary:hover {
+      filter: brightness(1.07);
+      border-color: rgba(147, 197, 253, 0.55);
+    }
+    body.theme-dark #tab-notas .mm-btn-success,
+    body.theme-dark #modal .mm-btn-success {
+      background: linear-gradient(92deg, #059669, #047857) !important;
+      background-image: linear-gradient(92deg, #059669, #047857) !important;
+      color: #f8fafc !important;
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3);
+    }
+    body.theme-dark #tab-notas .mm-btn-success:hover,
+    body.theme-dark #modal .mm-btn-success:hover {
+      filter: brightness(1.07);
+    }
+    body.theme-dark #tab-notas .mm-btn-sync {
+      background: rgba(14, 165, 233, 0.14) !important;
+      background-image: none !important;
+      color: #7dd3fc !important;
+      border: 1px solid rgba(56, 189, 248, 0.4) !important;
+      box-shadow: 0 2px 12px rgba(14, 165, 233, 0.12);
+    }
+    body.theme-dark #tab-notas .mm-btn-sync:hover {
+      background: rgba(14, 165, 233, 0.22) !important;
+      color: #e0f2fe !important;
+      border-color: rgba(125, 211, 252, 0.55) !important;
     }
   </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -452,7 +491,7 @@
                   <span>⚙️</span>
                   <span>Configuración</span>
                 </button>
-                <button id="calendar-new-event" class="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm">+ Nuevo Evento</button>
+                <button type="button" id="calendar-new-event" class="mm-btn-primary w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm">+ Nuevo Evento</button>
               </div>
             </div>
             
@@ -464,7 +503,7 @@
                 <button id="calendar-next-month" class="px-2 sm:px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-all duration-200 text-sm sm:text-base font-bold">›</button>
                 <button id="calendar-today" class="px-2 sm:px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-all duration-200 text-xs sm:text-sm ml-1 sm:ml-2">Hoy</button>
               </div>
-              <button id="calendar-sync-reminders" class="w-full sm:w-auto px-3 py-1.5 bg-yellow-600/20 dark:bg-yellow-600/20 hover:bg-yellow-600/40 dark:hover:bg-yellow-600/40 text-yellow-400 dark:text-yellow-400 hover:text-yellow-300 dark:hover:text-yellow-300 font-medium rounded-lg transition-all duration-200 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:bg-yellow-50 theme-light:text-yellow-600 theme-light:hover:bg-yellow-100 theme-light:border-yellow-300 text-xs sm:text-sm text-center">Sincronizar Recordatorios</button>
+              <button type="button" id="calendar-sync-reminders" class="mm-btn-sync w-full sm:w-auto px-3 py-1.5 bg-yellow-600/20 dark:bg-yellow-600/20 hover:bg-yellow-600/40 dark:hover:bg-yellow-600/40 text-yellow-400 dark:text-yellow-400 hover:text-yellow-300 dark:hover:text-yellow-300 font-medium rounded-lg transition-all duration-200 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:bg-yellow-50 theme-light:text-yellow-700 theme-light:hover:bg-yellow-100 theme-light:border-amber-300/80 text-xs sm:text-sm text-center">Sincronizar Recordatorios</button>
             </div>
 
             <!-- Grid del calendario -->
@@ -597,7 +636,7 @@
                 <input id="n-files" type="file" multiple class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
               </div>
               
-              <button id="n-save" class="w-full px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar Nota</button>
+              <button type="button" id="n-save" class="mm-btn-success w-full px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar Nota</button>
             </div>
 
             <!-- Historial -->
