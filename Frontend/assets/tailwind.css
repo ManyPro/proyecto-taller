@@ -286,3 +286,24 @@ html {
     }
   }
 }
+
+/* Hub: ancho útil completo en todas las pestañas (carga con ui.css) */
+#appHeader .max-w-7xl.mx-auto {
+  max-width: none !important;
+  width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+#appSection .max-w-7xl.mx-auto {
+  max-width: none !important;
+  width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+body:not([data-page="admin"]):not(:has(#portalSection:not(.hidden))):not(:has(#loginSection:not(.hidden))) main {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
