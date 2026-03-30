@@ -1,0 +1,23 @@
+# Metadatos de imagen (no servir al público)
+Dockerfile
+.dockerignore
+
+# Dependencias (no van en nginx)
+node_modules
+npm-debug.log*
+yarn-error.log*
+
+# Control de versiones / IDE
+.git
+.gitignore
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Solo documentación en contexto de imagen
+*.md
+
+# Entornos locales
+.env
+.env.*
