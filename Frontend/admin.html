@@ -264,6 +264,7 @@
   <meta http-equiv="Expires" content="0" />
   <script src="./assets/js/cache-buster.js"></script>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260330" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
@@ -286,107 +287,89 @@
   </div>
 
   <main>
-    <section id="loginSection" class="h-screen flex items-center justify-center px-4 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
-      <!-- Botón de cambio de tema -->
-      <button id="themeToggleAdmin" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
-      <div class="w-full max-w-xl space-y-4">
-        <!-- Card de Login Admin -->
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 relative overflow-hidden">
-          <!-- Decoración de fondo -->
-          <div class="absolute inset-0 opacity-5">
-            <div class="absolute top-0 right-0 w-48 h-48 bg-purple-500 rounded-full blur-3xl"></div>
-            <div class="absolute bottom-0 left-0 w-48 h-48 bg-pink-500 rounded-full blur-3xl"></div>
-          </div>
-          
+    <section id="loginSection" class="home-admin-login h-screen min-h-0 flex items-center justify-center px-4 py-8 overflow-hidden relative w-full">
+      <div class="home-auth-bg home-auth-bg--purple" aria-hidden="true"></div>
+      <button type="button" id="themeToggleAdmin" class="home-auth-theme-btn absolute top-4 right-4 p-3 rounded-xl z-20" title="Cambiar tema">🌗</button>
+      <div class="w-full max-w-xl space-y-4 relative z-10">
+        <div class="home-admin-card rounded-2xl p-5 sm:p-6 relative overflow-hidden shadow-2xl">
           <div class="relative z-10">
-            <!-- Header -->
-            <div class="text-center mb-4">
-              <div class="flex justify-center mb-2">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="text-center mb-5">
+              <div class="flex justify-center mb-3">
+                <div class="home-admin-icon-ring w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-lg">
+                  <svg class="home-admin-icon-svg w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                   </svg>
-        </div>
-      </div>
-              <h2 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Ingreso Admin</h2>
-              <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Accede al panel de administración</p>
+                </div>
+              </div>
+              <h2 class="home-admin-title text-lg font-bold mb-1">Ingreso Admin</h2>
+              <p class="home-admin-subtitle text-xs">Accede al panel de administración</p>
             </div>
 
-            <!-- Formulario -->
             <form class="space-y-3" onsubmit="event.preventDefault(); document.getElementById('a-login')?.click();">
               <div>
-                <label for="a-email" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Correo</label>
-                <input id="a-email" type="email" placeholder="admin@correo.com" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
-          </div>
-          <div>
-                <label for="a-password" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Contraseña</label>
-                <input id="a-password" type="password" placeholder="********" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                <label for="a-email" class="home-admin-label block text-xs font-medium mb-1.5">Correo</label>
+                <input id="a-email" type="email" placeholder="admin@correo.com" class="home-admin-input w-full px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <button id="a-login" type="button" class="w-full px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">Entrar</button>
-              <button id="backToPortal" type="button" class="w-full mt-3 px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200">← Volver al portal de acceso</button>
+              <div>
+                <label for="a-password" class="home-admin-label block text-xs font-medium mb-1.5">Contraseña</label>
+                <input id="a-password" type="password" placeholder="********" class="home-admin-input w-full px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <button id="a-login" type="button" class="home-admin-btn-primary w-full px-4 py-2.5 text-sm font-semibold shadow-lg transition-all duration-200">Entrar</button>
+              <button id="backToPortal" type="button" class="home-admin-btn-secondary w-full mt-2 px-4 py-2.5 text-sm font-medium transition-all duration-200">← Volver al portal de acceso</button>
             </form>
           </div>
         </div>
 
-        <!-- Card de Registro Admin -->
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 relative overflow-hidden">
-          <!-- Decoración de fondo -->
-          <div class="absolute inset-0 opacity-5">
-            <div class="absolute top-0 left-0 w-48 h-48 bg-blue-500 rounded-full blur-3xl"></div>
-            <div class="absolute bottom-0 right-0 w-48 h-48 bg-purple-500 rounded-full blur-3xl"></div>
-          </div>
-          
+        <div class="home-admin-card rounded-2xl p-5 sm:p-6 relative overflow-hidden shadow-2xl">
           <div class="relative z-10">
-            <h3 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-3">Crear cuenta de Admin</h3>
-            <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Solicita un código de aprobación para crear tu cuenta de administrador.</p>
-            
-            <!-- Solicitar código -->
+            <h3 class="home-admin-title text-base font-bold mb-3">Crear cuenta de Admin</h3>
+            <p class="home-admin-muted text-xs mb-4">Solicita un código de aprobación para crear tu cuenta de administrador.</p>
+
             <div class="space-y-3 mb-4">
               <div>
-                <label for="s-email" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Correo</label>
+                <label for="s-email" class="home-admin-label block text-xs font-medium mb-1.5">Correo</label>
                 <div class="flex gap-2">
-                  <input id="s-email" type="email" placeholder="tu-correo@dominio.com" class="flex-1 px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
-                  <button id="s-request" type="button" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 theme-light:!bg-white theme-light:border-2 theme-light:!border-2 theme-light:border-slate-300 theme-light:!border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 theme-light:!hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">Solicitar</button>
+                  <input id="s-email" type="email" placeholder="tu-correo@dominio.com" class="home-admin-input flex-1 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                  <button id="s-request" type="button" class="home-admin-btn-secondary px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all duration-200">Solicitar</button>
                 </div>
               </div>
             </div>
 
-            <div class="h-px bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-300/50 my-4"></div>
+            <div class="home-admin-sep h-px my-4"></div>
 
-            <!-- Confirmar registro -->
             <div class="space-y-3">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label for="s-code" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Código</label>
-                  <input id="s-code" type="text" placeholder="000000" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
-          </div>
-          <div>
-                  <label for="s-pass" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Contraseña</label>
-                  <input id="s-pass" type="password" placeholder="********" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                  <label for="s-code" class="home-admin-label block text-xs font-medium mb-1.5">Código</label>
+                  <input id="s-code" type="text" placeholder="000000" class="home-admin-input w-full px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                </div>
+                <div>
+                  <label for="s-pass" class="home-admin-label block text-xs font-medium mb-1.5">Contraseña</label>
+                  <input id="s-pass" type="password" placeholder="********" class="home-admin-input w-full px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
                 </div>
               </div>
-              <button id="s-confirm" type="button" class="w-full px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">Confirmar registro</button>
-              <div id="s-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2 text-center"></div>
+              <button id="s-confirm" type="button" class="home-admin-btn-primary w-full px-4 py-2.5 text-sm font-semibold shadow-lg transition-all duration-200">Confirmar registro</button>
+              <div id="s-msg" class="home-admin-muted text-xs mt-2 text-center"></div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Selector de Empresa -->
-    <section id="companySelectorSection" class="hidden h-screen flex items-center justify-center px-4 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
-      <button id="themeToggleSelector" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
-      <div class="w-full max-w-4xl">
+    <section id="companySelectorSection" class="home-admin-selector hidden h-screen min-h-0 flex items-center justify-center px-4 py-8 overflow-hidden relative w-full">
+      <div class="home-auth-bg home-auth-bg--purple" aria-hidden="true"></div>
+      <button type="button" id="themeToggleSelector" class="home-auth-theme-btn absolute top-4 right-4 p-3 rounded-xl z-20" title="Cambiar tema">🌗</button>
+      <div class="w-full max-w-4xl relative z-10">
         <div class="text-center mb-6">
-          <h1 class="text-2xl sm:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Seleccionar Empresa</h1>
-          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Elige la empresa con la que deseas trabajar</p>
+          <h1 class="home-admin-page-title text-2xl sm:text-3xl font-bold mb-2">Seleccionar Empresa</h1>
+          <p class="home-admin-page-subtitle text-sm">Elige la empresa con la que deseas trabajar</p>
         </div>
         <div id="companiesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Las empresas se cargarán aquí dinámicamente -->
         </div>
         <div class="text-center mt-6">
-          <button id="backToAdmin" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 theme-light:border-2 theme-light:border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Volver al portal de acceso</button>
+          <button id="backToAdmin" type="button" class="home-admin-btn-secondary px-4 py-2.5 text-sm font-semibold transition-all duration-200">Volver al portal de acceso</button>
         </div>
       </div>
     </section>
@@ -636,21 +619,21 @@
   // Cargar empresas para el selector
   async function loadCompaniesForSelector(){
     const grid = document.getElementById('companiesGrid');
-    grid.innerHTML = '<div class="col-span-full text-center text-slate-400">Cargando empresas...</div>';
+    grid.innerHTML = '<div class="col-span-full text-center home-admin-muted">Cargando empresas...</div>';
     try{
       const r = await req('/api/v1/admin/companies');
       companiesList = r.items || [];
       grid.innerHTML = '';
       if(!companiesList.length){
-        grid.innerHTML = '<div class="col-span-full text-center text-slate-400">No hay empresas disponibles</div>';
+        grid.innerHTML = '<div class="col-span-full text-center home-admin-muted">No hay empresas disponibles</div>';
         return;
       }
       companiesList.forEach(c => {
         const card = document.createElement('div');
-        card.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer';
+        card.className = 'home-admin-card rounded-xl p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer';
         card.innerHTML = `
-          <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${c.name || '-'}</h3>
-          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">${c.email || '-'}</p>
+          <h3 class="home-admin-title text-lg font-bold mb-2">${c.name || '-'}</h3>
+          <p class="home-admin-muted text-sm mb-3">${c.email || '-'}</p>
           <div class="flex items-center gap-2">
             <span class="px-2 py-1 text-xs rounded-full ${c.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${c.active ? 'Activa' : 'Inactiva'}</span>
           </div>

@@ -14,7 +14,8 @@ html {
 
 /* Portal / login: sin scroll; fondo en body al mismo tono que el portal (evita franja sin duplicar altura con zoom 0.85) */
 body:has(#portalSection:not(.hidden)),
-body:has(#loginSection:not(.hidden)) {
+body:has(#loginSection:not(.hidden)),
+body[data-page="admin"]:has(#companySelectorSection:not(.hidden)) {
   overflow: hidden !important;
   margin: 0;
   background-color: #0d1526;
@@ -22,7 +23,8 @@ body:has(#loginSection:not(.hidden)) {
 }
 
 body.theme-light:has(#portalSection:not(.hidden)),
-body.theme-light:has(#loginSection:not(.hidden)) {
+body.theme-light:has(#loginSection:not(.hidden)),
+body.theme-light[data-page="admin"]:has(#companySelectorSection:not(.hidden)) {
   background-color: #e2e8f0;
   background-image: linear-gradient(165deg, #e8f4fc 0%, #f1f5f9 38%, #e2e8f0 100%);
 }
@@ -45,7 +47,7 @@ body.theme-light:has(#loginSection:not(.hidden)) {
   box-sizing: border-box;
 }
 
-.home-portal-bg {
+.home-auth-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -53,7 +55,7 @@ body.theme-light:has(#loginSection:not(.hidden)) {
   pointer-events: none;
 }
 
-.home-portal-bg::before {
+.home-auth-bg::before {
   content: "";
   position: absolute;
   top: -16%;
@@ -65,7 +67,7 @@ body.theme-light:has(#loginSection:not(.hidden)) {
   filter: blur(2px);
 }
 
-.home-portal-bg::after {
+.home-auth-bg::after {
   content: "";
   position: absolute;
   bottom: -12%;
@@ -77,19 +79,45 @@ body.theme-light:has(#loginSection:not(.hidden)) {
   filter: blur(2px);
 }
 
-body.theme-light #portalSection .home-portal-bg {
+/* Admin: orbes más violeta/rosa */
+.home-auth-bg.home-auth-bg--purple::before {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.26) 0%, transparent 68%);
+}
+
+.home-auth-bg.home-auth-bg--purple::after {
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.14) 0%, transparent 70%);
+}
+
+body.theme-light #portalSection .home-auth-bg,
+body.theme-light #loginSection.home-login .home-auth-bg,
+body.theme-light #loginSection.home-admin-login .home-auth-bg,
+body.theme-light #companySelectorSection.home-admin-selector .home-auth-bg {
   background: linear-gradient(165deg, #e8f4fc 0%, #f1f5f9 38%, #e2e8f0 100%);
 }
 
-body.theme-light #portalSection .home-portal-bg::before {
+body.theme-light #portalSection .home-auth-bg::before,
+body.theme-light #loginSection.home-login .home-auth-bg::before,
+body.theme-light #loginSection.home-admin-login .home-auth-bg::before,
+body.theme-light #companySelectorSection.home-admin-selector .home-auth-bg::before {
   background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, transparent 65%);
 }
 
-body.theme-light #portalSection .home-portal-bg::after {
+body.theme-light #portalSection .home-auth-bg::after,
+body.theme-light #loginSection.home-login .home-auth-bg::after,
+body.theme-light #loginSection.home-admin-login .home-auth-bg::after,
+body.theme-light #companySelectorSection.home-admin-selector .home-auth-bg::after {
   background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 68%);
 }
 
-.home-portal-theme-btn {
+body.theme-light .home-auth-bg.home-auth-bg--purple::before {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, transparent 65%);
+}
+
+body.theme-light .home-auth-bg.home-auth-bg--purple::after {
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 68%);
+}
+
+.home-auth-theme-btn {
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(255, 255, 255, 0.08);
   color: #f8fafc;
@@ -98,21 +126,330 @@ body.theme-light #portalSection .home-portal-bg::after {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-.home-portal-theme-btn:hover {
+.home-auth-theme-btn:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(186, 230, 253, 0.35);
 }
 
-body.theme-light #portalSection .home-portal-theme-btn {
+body.theme-light #portalSection .home-auth-theme-btn,
+body.theme-light #loginSection.home-login .home-auth-theme-btn,
+body.theme-light #loginSection.home-admin-login .home-auth-theme-btn,
+body.theme-light #companySelectorSection.home-admin-selector .home-auth-theme-btn {
   border-color: rgba(15, 23, 42, 0.12);
   background: rgba(255, 255, 255, 0.72);
   color: #1e293b;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
 }
 
-body.theme-light #portalSection .home-portal-theme-btn:hover {
+body.theme-light #portalSection .home-auth-theme-btn:hover,
+body.theme-light #loginSection.home-login .home-auth-theme-btn:hover,
+body.theme-light #loginSection.home-admin-login .home-auth-theme-btn:hover,
+body.theme-light #companySelectorSection.home-admin-selector .home-auth-theme-btn:hover {
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(59, 130, 246, 0.35);
+}
+
+/* Sin scroll cuando selector empresa admin a pantalla completa */
+body[data-page="admin"]:has(#companySelectorSection:not(.hidden)) {
+  overflow: hidden !important;
+}
+
+/* Login empresa (index): tarjeta, tipografía, campos, acciones */
+#loginSection.home-login {
+  box-sizing: border-box;
+}
+
+#loginSection.home-login .home-login-card {
+  background: rgba(30, 41, 59, 0.48);
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+body.theme-light #loginSection.home-login .home-login-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+#loginSection.home-login .home-login-icon-ring {
+  background: linear-gradient(145deg, #2563eb, #6366f1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.3);
+}
+
+#loginSection.home-login .home-login-icon-svg {
+  color: #ffffff;
+}
+
+body.theme-light #loginSection.home-login .home-login-icon-ring {
+  background: linear-gradient(145deg, #dbeafe, #e0e7ff);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+}
+
+body.theme-light #loginSection.home-login .home-login-icon-svg {
+  color: #1d4ed8;
+}
+
+#loginSection.home-login .home-login-title {
+  color: #f8fafc !important;
+}
+
+#loginSection.home-login .home-login-subtitle {
+  color: rgba(203, 213, 225, 0.95) !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-title {
+  color: #0f172a !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-subtitle {
+  color: #475569 !important;
+}
+
+#loginSection.home-login .home-login-label {
+  color: rgba(203, 213, 225, 0.95) !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-label {
+  color: #334155 !important;
+}
+
+#loginSection.home-login .home-login-input {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #f8fafc !important;
+}
+
+#loginSection.home-login .home-login-input::placeholder {
+  color: rgba(148, 163, 184, 0.75);
+}
+
+body.theme-light #loginSection.home-login .home-login-input {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-input::placeholder {
+  color: #64748b;
+}
+
+#loginSection.home-login .home-login-btn-primary {
+  border: 1px solid rgba(147, 197, 253, 0.35);
+  color: #ffffff !important;
+  background: linear-gradient(92deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35);
+  cursor: pointer;
+}
+
+#loginSection.home-login .home-login-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+body.theme-light #loginSection.home-login .home-login-btn-primary {
+  color: #ffffff !important;
+  background: linear-gradient(92deg, #2563eb, #1e40af);
+}
+
+#loginSection.home-login .home-login-btn-secondary {
+  cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc !important;
+}
+
+#loginSection.home-login .home-login-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+body.theme-light #loginSection.home-login .home-login-btn-secondary {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 2px solid #cbd5e1 !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-btn-secondary:hover {
+  background: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+}
+
+#loginSection.home-login .home-login-forgot {
+  color: #93c5fd !important;
+}
+
+#loginSection.home-login .home-login-forgot:hover {
+  color: #bfdbfe !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-forgot {
+  color: #1d4ed8 !important;
+}
+
+body.theme-light #loginSection.home-login .home-login-forgot:hover {
+  color: #1e3a8a !important;
+}
+
+/* Panel admin: login + registro + selector empresa */
+body[data-page="admin"] #loginSection.home-admin-login {
+  max-width: none !important;
+  margin: 0 auto !important;
+  width: 100%;
+  background: transparent !important;
+  box-sizing: border-box;
+}
+
+body[data-page="admin"] #companySelectorSection.home-admin-selector {
+  max-width: none !important;
+  margin: 0 auto !important;
+  width: 100%;
+  background: transparent !important;
+  box-sizing: border-box;
+}
+
+#loginSection.home-admin-login .home-admin-card,
+#companySelectorSection.home-admin-selector .home-admin-card {
+  background: rgba(30, 41, 59, 0.48);
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-card,
+body.theme-light #companySelectorSection.home-admin-selector .home-admin-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+#loginSection.home-admin-login .home-admin-icon-ring {
+  background: linear-gradient(145deg, #7c3aed, #db2777);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 28px rgba(109, 40, 217, 0.35);
+}
+
+#loginSection.home-admin-login .home-admin-icon-svg {
+  color: #ffffff;
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-icon-ring {
+  background: linear-gradient(145deg, #ede9fe, #fce7f3);
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  box-shadow: 0 8px 24px rgba(91, 33, 182, 0.12);
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-icon-svg {
+  color: #6d28d9;
+}
+
+#loginSection.home-admin-login .home-admin-title,
+#loginSection.home-admin-login .home-admin-card h3,
+#companySelectorSection.home-admin-selector .home-admin-title,
+#companySelectorSection.home-admin-selector .home-admin-card h3 {
+  color: #f8fafc !important;
+}
+
+#loginSection.home-admin-login .home-admin-subtitle,
+#loginSection.home-admin-login .home-admin-muted,
+#loginSection.home-admin-login .home-admin-label,
+#loginSection.home-admin-login label.home-admin-label,
+#companySelectorSection.home-admin-selector .home-admin-muted {
+  color: rgba(203, 213, 225, 0.95) !important;
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-title,
+body.theme-light #loginSection.home-admin-login .home-admin-card h3,
+body.theme-light #companySelectorSection.home-admin-selector .home-admin-title,
+body.theme-light #companySelectorSection.home-admin-selector .home-admin-card h3 {
+  color: #0f172a !important;
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-subtitle,
+body.theme-light #loginSection.home-admin-login .home-admin-muted,
+body.theme-light #loginSection.home-admin-login .home-admin-label,
+body.theme-light #loginSection.home-admin-login label.home-admin-label,
+body.theme-light #companySelectorSection.home-admin-selector .home-admin-muted {
+  color: #475569 !important;
+}
+
+#loginSection.home-admin-login .home-admin-input {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 0.75rem;
+  color: #f8fafc !important;
+}
+
+#loginSection.home-admin-login .home-admin-input::placeholder {
+  color: rgba(148, 163, 184, 0.75);
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-input {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+#loginSection.home-admin-login .home-admin-sep {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-sep {
+  background: rgba(15, 23, 42, 0.1);
+}
+
+#loginSection.home-admin-login .home-admin-btn-primary {
+  border: 1px solid rgba(196, 181, 253, 0.4);
+  color: #ffffff !important;
+  background: linear-gradient(92deg, #7c3aed, #6d28d9);
+  box-shadow: 0 8px 22px rgba(109, 40, 217, 0.32);
+  cursor: pointer;
+  border-radius: 0.75rem;
+}
+
+#loginSection.home-admin-login .home-admin-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-btn-primary {
+  color: #ffffff !important;
+  background: linear-gradient(92deg, #6d28d9, #5b21b6);
+}
+
+#loginSection.home-admin-login .home-admin-btn-secondary {
+  cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc !important;
+  border-radius: 0.75rem;
+}
+
+#loginSection.home-admin-login .home-admin-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+body.theme-light #loginSection.home-admin-login .home-admin-btn-secondary {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+#companySelectorSection.home-admin-selector .home-admin-page-title {
+  color: #f8fafc !important;
+}
+
+#companySelectorSection.home-admin-selector .home-admin-page-subtitle {
+  color: rgba(203, 213, 225, 0.95) !important;
+}
+
+body.theme-light #companySelectorSection.home-admin-selector .home-admin-page-title {
+  color: #0f172a !important;
+}
+
+body.theme-light #companySelectorSection.home-admin-selector .home-admin-page-subtitle {
+  color: #475569 !important;
 }
 
 #portalSection .home-portal-icon-ring {

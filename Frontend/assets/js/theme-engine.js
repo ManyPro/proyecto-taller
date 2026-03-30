@@ -66,14 +66,14 @@
   let themeClickBound = false;
   function bindToggles() {
     document
-      .querySelectorAll("#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin")
+      .querySelectorAll("#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin, #themeToggleSelector")
       .forEach((btn) => btn.setAttribute("data-theme-toggle", "1"));
     if (themeClickBound) return;
     themeClickBound = true;
     document.addEventListener("click", (event) => {
       const el = eventTargetElement(event.target);
       const trigger = el && el.closest(
-        "[data-theme-toggle], #themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin"
+        "[data-theme-toggle], #themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin, #themeToggleSelector"
       );
       if (!trigger) return;
       event.preventDefault();

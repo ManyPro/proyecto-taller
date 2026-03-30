@@ -27,7 +27,7 @@ function applyTheme(theme){
   if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
   try{ localStorage.setItem(THEME_KEY, theme); }catch{}
   // Actualizar todos los botones de tema (desktop, mobile, portal, login, admin)
-  const themeButtons = document.querySelectorAll('#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin');
+  const themeButtons = document.querySelectorAll('#themeToggle, #themeToggleMobile, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin, #themeToggleSelector');
   themeButtons.forEach(btn => {
     btn.textContent = theme === 'light' ? '🌙' : '🌞';
     btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
