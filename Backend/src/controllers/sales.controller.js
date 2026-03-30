@@ -2996,7 +2996,9 @@ export const updateCloseSale = async (req, res) => {
       const existingEntries = await CashFlowEntry.find({ 
         companyId: req.companyId, 
         source: 'SALE', 
-        sourceRef: sale._id 
+        sourceRef: sale._id,
+        // CRÍTICO: solo pagos de cierre; nunca tocar abonos
+        'meta.isAdvancePayment': { $ne: true }
       }).session(session);
       
       // Si cambiaron los métodos de pago O si no hay entradas en el flujo de caja, actualizar/crear
@@ -3057,12 +3059,24 @@ export const updateCloseSale = async (req, res) => {
             if (Math.abs(oldAmount - newAmount) > 0.01) {
               existingEntry.amount = newAmount;
               existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
-              existingEntry.meta = { saleNumber: sale.number, paymentMethod: m.method };
+              existingEntry.meta = {
+                saleNumber: sale.number,
+                salePlate: sale.vehicle?.plate || '',
+                paymentMethod: m.method,
+                isAdvancePayment: false,
+                isSaleClosePayment: true
+              };
               await existingEntry.save({ session });
             } else {
               // Solo actualizar descripción y meta si el monto no cambió
               existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
-              existingEntry.meta = { saleNumber: sale.number, paymentMethod: m.method };
+              existingEntry.meta = {
+                saleNumber: sale.number,
+                salePlate: sale.vehicle?.plate || '',
+                paymentMethod: m.method,
+                isAdvancePayment: false,
+                isSaleClosePayment: true
+              };
               await existingEntry.save({ session });
             }
           } else {
@@ -3083,7 +3097,13 @@ export const updateCloseSale = async (req, res) => {
               amount: Number(m.amount || 0),
               balanceAfter: newBal,
               date: saleDate,
-              meta: { saleNumber: sale.number, paymentMethod: m.method }
+              meta: {
+                saleNumber: sale.number,
+                salePlate: sale.vehicle?.plate || '',
+                paymentMethod: m.method,
+                isAdvancePayment: false,
+                isSaleClosePayment: true
+              }
             }], { session });
           }
         }
@@ -3329,7 +3349,9 @@ export const registerSaleCashflow = async (req, res) => {
     const existingEntries = await CashFlowEntry.find({ 
       companyId: req.companyId, 
       source: 'SALE', 
-      sourceRef: sale._id 
+      sourceRef: sale._id,
+      // Si solo hay abonos, aún debemos crear el flujo del cierre
+      'meta.isAdvancePayment': { $ne: true }
     });
     
     if (existingEntries.length > 0) {

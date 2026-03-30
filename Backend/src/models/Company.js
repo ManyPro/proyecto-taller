@@ -1,4 +1,4 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 
 const CompanySchema = new mongoose.Schema(
   {
@@ -71,7 +71,8 @@ const CompanySchema = new mongoose.Schema(
         basicSalary: { type: Number, default: null }, // Salario básico mensual
         workHoursPerMonth: { type: Number, default: null }, // Horas de trabajo por mes
         basicSalaryPerDay: { type: Number, default: null }, // Salario básico por día
-        contractType: { type: String, default: '', trim: true } // Tipo de contrato
+        contractType: { type: String, default: '', trim: true }, // Tipo de contrato
+        receivesLaborCommission: { type: Boolean, default: true } // Si gana % de mano de obra
       }],
       default: []
     },

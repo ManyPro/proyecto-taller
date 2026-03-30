@@ -363,6 +363,7 @@ async function loadTechnicians(){
       let workHoursPerMonth = null;
       let basicSalaryPerDay = null;
       let contractType = '';
+      let receivesLaborCommission = true;
       
       if (t && typeof t === 'object') {
         identification = String(t.identification || '').trim();
@@ -370,6 +371,7 @@ async function loadTechnicians(){
         workHoursPerMonth = (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null;
         basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
         contractType = String(t.contractType || '').trim();
+        receivesLaborCommission = t.receivesLaborCommission !== false;
       }
       
       // Retornar objeto normalizado con nombre SIEMPRE como string
@@ -379,7 +381,8 @@ async function loadTechnicians(){
         basicSalary: basicSalary,
         workHoursPerMonth: workHoursPerMonth,
         basicSalaryPerDay: basicSalaryPerDay,
-        contractType: contractType
+        contractType: contractType,
+        receivesLaborCommission
       };
     });
     const names = normalizedTechs.map(t => t.name);
@@ -406,8 +409,11 @@ async function loadTechnicians(){
       } else {
         listEl.innerHTML = normalizedTechs.map(t => {
           const identificationText = t.identification ? ` <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(t.identification)})</span>` : '';
+          const laborText = t.receivesLaborCommission !== false
+            ? '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-600/20 text-green-300 theme-light:bg-green-100 theme-light:text-green-700 border border-green-600/30">MO %</span>'
+            : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-600/20 text-slate-300 theme-light:bg-slate-100 theme-light:text-slate-700 border border-slate-600/30">Sin MO %</span>';
           return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
-            <span>👤 ${htmlEscape(t.name)}${identificationText}</span>
+            <span>👤 ${htmlEscape(t.name)}${identificationText} ${laborText}</span>
             <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" 
               data-name="${htmlEscape(t.name)}" 
               data-identification="${htmlEscape(t.identification || '')}"
@@ -415,6 +421,7 @@ async function loadTechnicians(){
               data-work-hours="${t.workHoursPerMonth !== null && t.workHoursPerMonth !== undefined ? t.workHoursPerMonth : ''}"
               data-salary-per-day="${t.basicSalaryPerDay !== null && t.basicSalaryPerDay !== undefined ? t.basicSalaryPerDay : ''}"
               data-contract-type="${htmlEscape(t.contractType || '')}"
+              data-receives-labor-commission="${t.receivesLaborCommission !== false ? '1' : '0'}"
               title="Editar técnico">
               ✏️ Editar
             </button>
@@ -433,10 +440,11 @@ async function loadTechnicians(){
             const workHoursPerMonth = btn.getAttribute('data-work-hours') || '';
             const basicSalaryPerDay = btn.getAttribute('data-salary-per-day') || '';
             const contractType = btn.getAttribute('data-contract-type') || '';
+            const receivesLaborCommission = btn.getAttribute('data-receives-labor-commission') !== '0';
             if (!name) return;
             
             // Mostrar modal para editar
-            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission);
           });
         });
         
@@ -3116,6 +3124,7 @@ async function createTechnician(){
     const workHoursInput = document.getElementById('tk-add-work-hours');
     const salaryPerDayInput = document.getElementById('tk-add-salary-per-day');
     const contractTypeInput = document.getElementById('tk-add-contract-type');
+    const receivesLaborCommissionInput = document.getElementById('tk-add-receives-labor-commission');
     
     const name = (nameInput?.value || '').trim();
     const identification = (identificationInput?.value || '').trim();
@@ -3123,6 +3132,7 @@ async function createTechnician(){
     const workHoursStr = (workHoursInput?.value || '').trim();
     const basicSalaryPerDayStr = (salaryPerDayInput?.value || '').trim();
     const contractType = (contractTypeInput?.value || '').trim();
+    const receivesLaborCommission = receivesLaborCommissionInput?.checked !== false;
     
     // Convertir valores numéricos
     const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
@@ -3176,7 +3186,8 @@ async function createTechnician(){
         basicSalary,
         workHoursPerMonth,
         basicSalaryPerDay,
-        contractType
+        contractType,
+        receivesLaborCommission
       );
       
       // Limpiar campos
@@ -3186,6 +3197,7 @@ async function createTechnician(){
       if (workHoursInput) workHoursInput.value = '';
       if (salaryPerDayInput) salaryPerDayInput.value = '';
       if (contractTypeInput) contractTypeInput.value = '';
+      if (receivesLaborCommissionInput) receivesLaborCommissionInput.checked = true;
       
       // Recargar lista de técnicos
       await loadTechnicians();
@@ -3219,7 +3231,7 @@ async function createTechnician(){
   }
 }
 
-function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) {
   const modal = document.getElementById('modal');
   const modalBody = document.getElementById('modalBody');
   const modalClose = document.getElementById('modalClose');
@@ -3321,6 +3333,16 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             placeholder="Ej: Término Indefinido"
           />
         </div>
+        
+        <label class="inline-flex items-center gap-2 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+          <input 
+            id="edit-tech-receives-labor-commission" 
+            type="checkbox" 
+            class="w-4 h-4"
+            ${receivesLaborCommission !== false ? 'checked' : ''}
+          />
+          Cobra porcentaje de mano de obra
+        </label>
       </div>
       
       <div class="flex gap-3 mt-6">
@@ -3366,6 +3388,7 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       const workHoursStr = document.getElementById('edit-tech-work-hours')?.value?.trim() || '';
       const basicSalaryPerDayStr = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
       const contractType = document.getElementById('edit-tech-contract-type')?.value?.trim() || '';
+      const receivesLaborCommission = document.getElementById('edit-tech-receives-labor-commission')?.checked !== false;
       
       // Convertir valores numéricos
       const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
@@ -3394,7 +3417,7 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
           throw new Error('API no disponible. Por favor recarga la página.');
         }
         
-        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission);
         await loadTechnicians();
         closeModal();
       } catch (err) {
@@ -3425,12 +3448,12 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
   document.addEventListener('keydown', escHandler);
 }
 
-async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) {
   if (!name) {
     throw new Error('Nombre de técnico requerido');
   }
   
-  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission);
   await loadTechnicians();
 }
 

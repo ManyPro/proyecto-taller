@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import Company from '../models/Company.js';
 import TechnicianConfig from '../models/TechnicianConfig.js';
 import { authCompany } from '../middlewares/auth.js';
@@ -78,6 +78,7 @@ router.get('/technicians', (req, res) => {
     let workHoursPerMonth = null;
     let basicSalaryPerDay = null;
     let contractType = '';
+    let receivesLaborCommission = true;
     
     if (t && typeof t === 'object') {
       identification = String(t.identification || '').trim();
@@ -85,6 +86,7 @@ router.get('/technicians', (req, res) => {
       workHoursPerMonth = (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null;
       basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
       contractType = String(t.contractType || '').trim();
+      receivesLaborCommission = t.receivesLaborCommission !== false;
     }
     
     // Retornar objeto normalizado con nombre SIEMPRE como string
@@ -94,7 +96,8 @@ router.get('/technicians', (req, res) => {
       basicSalary: basicSalary,
       workHoursPerMonth: workHoursPerMonth,
       basicSalaryPerDay: basicSalaryPerDay,
-      contractType: contractType
+      contractType: contractType,
+      receivesLaborCommission
     };
   });
   
@@ -108,6 +111,7 @@ router.post('/technicians', async (req, res) => {
   const workHoursPerMonth = (req.body?.workHoursPerMonth !== null && req.body?.workHoursPerMonth !== undefined && req.body?.workHoursPerMonth !== '') ? Number(req.body.workHoursPerMonth) : null;
   const basicSalaryPerDay = (req.body?.basicSalaryPerDay !== null && req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== '') ? Number(req.body.basicSalaryPerDay) : null;
   const contractType = String(req.body?.contractType || '').trim();
+  const receivesLaborCommission = req.body?.receivesLaborCommission !== false;
   
   if (!name) return res.status(400).json({ error: 'nombre requerido' });
   
@@ -130,7 +134,8 @@ router.post('/technicians', async (req, res) => {
     basicSalary, 
     workHoursPerMonth, 
     basicSalaryPerDay, 
-    contractType 
+    contractType,
+    receivesLaborCommission
   });
   technicians.sort((a, b) => {
     const aName = typeof a === 'string' ? a : String(a?.name || '');
@@ -167,6 +172,10 @@ router.put('/technicians/:name', async (req, res) => {
     if (existingIndex < 0) {
       return res.status(404).json({ error: 'Técnico no encontrado' });
     }
+    const existingTech = technicians[existingIndex] || {};
+    const receivesLaborCommission = req.body?.receivesLaborCommission !== undefined
+      ? req.body.receivesLaborCommission !== false
+      : (typeof existingTech === 'object' ? existingTech.receivesLaborCommission !== false : true);
     
     // Si el nombre cambió, verificar que no exista otro
     if (newName !== name) {
@@ -186,7 +195,8 @@ router.put('/technicians/:name', async (req, res) => {
       basicSalary,
       workHoursPerMonth,
       basicSalaryPerDay,
-      contractType
+      contractType,
+      receivesLaborCommission
     };
     
     // Si el nombre cambió, actualizar referencias
@@ -265,7 +275,8 @@ router.delete('/technicians/:name', async (req, res) => {
           name: extractedName,
           normalizedName: normalizedName,
           original: t,
-          identification: '' 
+          identification: '',
+          receivesLaborCommission: true
         };
       }
       return { 
@@ -277,7 +288,8 @@ router.delete('/technicians/:name', async (req, res) => {
         basicSalary: (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null,
         workHoursPerMonth: (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null,
         basicSalaryPerDay: (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null,
-        contractType: String(t.contractType || '').trim()
+        contractType: String(t.contractType || '').trim(),
+        receivesLaborCommission: t.receivesLaborCommission !== false
       };
     });
     
@@ -300,7 +312,7 @@ router.delete('/technicians/:name', async (req, res) => {
     req.companyDoc.technicians = updatedTechnicians.map(t => {
       const extractedName = extractTechName(t);
       if (typeof t === 'string') {
-        return { name: extractedName, identification: '' };
+        return { name: extractedName, identification: '', receivesLaborCommission: true };
       }
       return {
         name: extractedName,
@@ -308,7 +320,8 @@ router.delete('/technicians/:name', async (req, res) => {
         basicSalary: (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null,
         workHoursPerMonth: (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null,
         basicSalaryPerDay: (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null,
-        contractType: String(t.contractType || '').trim()
+        contractType: String(t.contractType || '').trim(),
+        receivesLaborCommission: t.receivesLaborCommission !== false
       };
     });
     
@@ -387,7 +400,7 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
       } else {
         // Normalizar técnico válido
         if (typeof tech === 'string') {
-          validTechnicians.push({ name: extractedName, identification: '' });
+          validTechnicians.push({ name: extractedName, identification: '', receivesLaborCommission: true });
         } else {
           validTechnicians.push({
             name: extractedName,
@@ -395,7 +408,8 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
             basicSalary: (tech.basicSalary !== undefined && tech.basicSalary !== null) ? Number(tech.basicSalary) : null,
             workHoursPerMonth: (tech.workHoursPerMonth !== undefined && tech.workHoursPerMonth !== null) ? Number(tech.workHoursPerMonth) : null,
             basicSalaryPerDay: (tech.basicSalaryPerDay !== undefined && tech.basicSalaryPerDay !== null) ? Number(tech.basicSalaryPerDay) : null,
-            contractType: String(tech.contractType || '').trim()
+            contractType: String(tech.contractType || '').trim(),
+            receivesLaborCommission: tech.receivesLaborCommission !== false
           });
         }
       }

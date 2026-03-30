@@ -1,4 +1,4 @@
-﻿import Account from '../models/Account.js';
+import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
@@ -320,7 +320,9 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
     const existing = await CashFlowEntry.find({ 
       companyId, 
       source: 'SALE', 
-      sourceRef: sale._id 
+      sourceRef: sale._id,
+      // Ignorar abonos: solo validar pagos de cierre/edición de cierre
+      'meta.isAdvancePayment': { $ne: true }
     }).lean();
     if (existing.length) return existing;
   }
@@ -393,7 +395,9 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
       meta: { 
         saleNumber: sale.number, 
         salePlate: sale.vehicle?.plate || '',
-        paymentMethod: m.method 
+        paymentMethod: m.method,
+        isAdvancePayment: false,
+        isSaleClosePayment: true
       }
     });
   }

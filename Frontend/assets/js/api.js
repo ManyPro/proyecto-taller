@@ -131,14 +131,15 @@ const API = {
         return '';
       }).filter(n => n && n.trim() !== '') : [];
     },
-    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) => {
       const res = await http.post('/api/v1/company/technicians', { 
         name,
         identification: identification || '',
         basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
         workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
         basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
-        contractType: contractType || ''
+        contractType: contractType || '',
+        receivesLaborCommission: receivesLaborCommission !== false
       });
       return res.technicians || [];
     },
@@ -150,14 +151,15 @@ const API = {
       const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
       return res.technicians || [];
     },
-    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) => {
       const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(currentName||''))}`, {
         name: newName,
         identification: identification || '',
         basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
         workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
         basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
-        contractType: contractType || ''
+        contractType: contractType || '',
+        receivesLaborCommission: receivesLaborCommission !== false
       });
       return res.technicians || [];
     },

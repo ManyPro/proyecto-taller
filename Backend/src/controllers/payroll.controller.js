@@ -454,6 +454,18 @@ function normalizeTechName(name) {
   return String(name || '').trim().toUpperCase();
 }
 
+function technicianReceivesLaborCommission(companyDoc, techNameUpper) {
+  const tech = normalizeTechName(techNameUpper);
+  if (!tech || !companyDoc) return true;
+  const technicians = Array.isArray(companyDoc.technicians) ? companyDoc.technicians : [];
+  const record = technicians.find((t) => {
+    const name = typeof t === 'string' ? t : t?.name;
+    return normalizeTechName(name) === tech;
+  });
+  if (!record || typeof record === 'string') return true;
+  return record.receivesLaborCommission !== false;
+}
+
 function buildVehicleLabelFromSale(sale) {
   const plate = String(sale?.vehicle?.plate || '').trim();
   const brand = String(sale?.vehicle?.brand || '').trim();
@@ -830,11 +842,16 @@ export const previewSettlement = async (req, res) => {
     const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
     const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
 
+    const companyDoc = await Company.findById(req.companyId).select({ technicians: 1 }).lean();
+    const technicianEligibleForLaborCommission = technicianReceivesLaborCommission(companyDoc, techNameUpper);
     const laborConcept = await ensureLaborConcept(req.companyId);
     const includeCommission =
-      specialConcepts.includes('COMMISSION') || // compat legacy
-      selectedConceptIds.length === 0 ||        // modo "solo cálculo" desde frontend
-      normalConceptIds.some(id => String(id) === String(laborConcept?._id));
+      technicianEligibleForLaborCommission &&
+      (
+        specialConcepts.includes('COMMISSION') || // compat legacy
+        selectedConceptIds.length === 0 ||        // modo "solo cálculo" desde frontend
+        normalConceptIds.some(id => String(id) === String(laborConcept?._id))
+      );
     
     // Buscar conceptos asignados que el usuario seleccionó (debe estar en ambos arrays)
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -858,45 +875,49 @@ export const previewSettlement = async (req, res) => {
     // Ajustar endDate para incluir todo el día (hasta 23:59:59.999)
     endDate.setHours(23, 59, 59, 999);
     
-    const sales = await Sale.find({
-      companyId: req.companyId,
-      status: 'closed',
-      closedAt: { 
-        $ne: null,  // Excluir ventas sin fecha de cierre
-        $gte: startDate, 
-        $lte: endDate 
-      },
-      $or: [
-        { 'laborCommissions.technician': techNameUpper },
-        { 'laborCommissions.technicianName': techNameUpper },
-        { closingTechnician: techNameUpper },
-        { technician: techNameUpper },
-        { initialTechnician: techNameUpper }
-      ]
-    }).sort({ createdAt: 1 }).select({
-      laborCommissions: 1,
-      laborValue: 1,
-      laborPercent: 1,
-      laborShare: 1,
-      technician: 1,
-      initialTechnician: 1,
-      closingTechnician: 1,
-      closedAt: 1,
-      createdAt: 1,
-      number: 1,
-      vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
-      items: 1
-    });
-    
-    // Recolectar detalles de comisiones con porcentajes
-    // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
-    const { commissionDetails, commission } = await collectCommissionDetailsForSales({
-      sales,
-      techNameUpper,
-      startDate,
-      endDate,
-      companyId: req.companyId
-    });
+    let commissionDetails = [];
+    let commission = 0;
+    if (includeCommission) {
+      const sales = await Sale.find({
+        companyId: req.companyId,
+        status: 'closed',
+        closedAt: {
+          $ne: null,  // Excluir ventas sin fecha de cierre
+          $gte: startDate,
+          $lte: endDate
+        },
+        $or: [
+          { 'laborCommissions.technician': techNameUpper },
+          { 'laborCommissions.technicianName': techNameUpper },
+          { closingTechnician: techNameUpper },
+          { technician: techNameUpper },
+          { initialTechnician: techNameUpper }
+        ]
+      }).sort({ createdAt: 1 }).select({
+        laborCommissions: 1,
+        laborValue: 1,
+        laborPercent: 1,
+        laborShare: 1,
+        technician: 1,
+        initialTechnician: 1,
+        closingTechnician: 1,
+        closedAt: 1,
+        createdAt: 1,
+        number: 1,
+        vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
+        items: 1
+      });
+
+      // Recolectar detalles de comisiones con porcentajes
+      // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
+      ({ commissionDetails, commission } = await collectCommissionDetailsForSales({
+        sales,
+        techNameUpper,
+        startDate,
+        endDate,
+        companyId: req.companyId
+      }));
+    }
     
     const commissionRounded = Math.round(commission * 100) / 100;
     
@@ -1172,45 +1193,59 @@ export const approveSettlement = async (req, res) => {
     // Ajustar endDate para incluir todo el día (hasta 23:59:59.999)
     endDate.setHours(23, 59, 59, 999);
     
-    const sales = await Sale.find({
-      companyId: req.companyId,
-      status: 'closed',
-      closedAt: { 
-        $ne: null,  // Excluir ventas sin fecha de cierre
-        $gte: startDate, 
-        $lte: endDate 
-      },
-      $or: [
-        { 'laborCommissions.technician': techNameUpper },
-        { 'laborCommissions.technicianName': techNameUpper },
-        { closingTechnician: techNameUpper },
-        { technician: techNameUpper },
-        { initialTechnician: techNameUpper }
-      ]
-    }).sort({ createdAt: 1 }).select({
-      laborCommissions: 1,
-      laborValue: 1,
-      laborPercent: 1,
-      laborShare: 1,
-      technician: 1,
-      initialTechnician: 1,
-      closingTechnician: 1,
-      closedAt: 1,
-      createdAt: 1,
-      number: 1,
-      vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
-      items: 1
-    });
-    
-    // Recolectar detalles de comisiones con porcentajes
-    // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
-    const { commissionDetails, commission } = await collectCommissionDetailsForSales({
-      sales,
-      techNameUpper,
-      startDate,
-      endDate,
-      companyId: req.companyId
-    });
+    const companyDoc = await Company.findById(req.companyId).select({ technicians: 1 }).lean();
+    const technicianEligibleForLaborCommission = technicianReceivesLaborCommission(companyDoc, techNameUpper);
+    const laborConcept = await ensureLaborConcept(req.companyId);
+    const includeCommission =
+      technicianEligibleForLaborCommission &&
+      (
+        specialConcepts.includes('COMMISSION') || // compat legacy
+        normalConceptIds.some(id => String(id) === String(laborConcept?._id))
+      );
+
+    let commissionDetails = [];
+    let commission = 0;
+    if (includeCommission) {
+      const sales = await Sale.find({
+        companyId: req.companyId,
+        status: 'closed',
+        closedAt: {
+          $ne: null,  // Excluir ventas sin fecha de cierre
+          $gte: startDate,
+          $lte: endDate
+        },
+        $or: [
+          { 'laborCommissions.technician': techNameUpper },
+          { 'laborCommissions.technicianName': techNameUpper },
+          { closingTechnician: techNameUpper },
+          { technician: techNameUpper },
+          { initialTechnician: techNameUpper }
+        ]
+      }).sort({ createdAt: 1 }).select({
+        laborCommissions: 1,
+        laborValue: 1,
+        laborPercent: 1,
+        laborShare: 1,
+        technician: 1,
+        initialTechnician: 1,
+        closingTechnician: 1,
+        closedAt: 1,
+        createdAt: 1,
+        number: 1,
+        vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
+        items: 1
+      });
+
+      // Recolectar detalles de comisiones con porcentajes
+      // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
+      ({ commissionDetails, commission } = await collectCommissionDetailsForSales({
+        sales,
+        techNameUpper,
+        startDate,
+        endDate,
+        companyId: req.companyId
+      }));
+    }
     
     const commissionRounded = Math.round(commission * 100) / 100;
     
@@ -1229,11 +1264,6 @@ export const approveSettlement = async (req, res) => {
     
     // PRIMERO agregar las comisiones de ventas (solo si están seleccionadas)
     const items = [];
-    const laborConcept = await ensureLaborConcept(req.companyId);
-    const includeCommission =
-      specialConcepts.includes('COMMISSION') || // compat legacy
-      normalConceptIds.some(id => String(id) === String(laborConcept?._id));
-    
     if (includeCommission && commissionRounded > 0) {
       // Usar monto editado si existe, sino usar el calculado
       const finalCommissionAmount = commissionAmount !== undefined && commissionAmount !== null 
