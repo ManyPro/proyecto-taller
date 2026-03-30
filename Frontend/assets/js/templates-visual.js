@@ -81,10 +81,11 @@
     }, 3000);
   }
 
-  // Asegurar que la fila de DESCUENTO esté envuelta en {{#if S.hasDiscount}}
+  // Asegurar que la fila de DESCUENTO esté envuelta en {{#if S.hasDiscount}} (remisión y factura)
   function ensureDiscountConditional(html, templateType = '') {
     if (!html) return html;
-    if (templateType !== 'invoice' && templateType !== 'invoice-factura') return html;
+    const t = String(templateType || '');
+    if (!/^(invoice|invoice-factura|remission)$/.test(t)) return html;
 
     const hasWrapped = /\{\{#if\s+S\.hasDiscount\}\}\s*<tr[\s\S]*?DESCUENTO[\s\S]*?<\/tr>\s*\{\{\/if\}\}/i.test(html);
     if (hasWrapped) return html;
@@ -93,6 +94,41 @@
     if (!discountRowRegex.test(html)) return html;
 
     return html.replace(discountRowRegex, (row) => `{{#if S.hasDiscount}}\n${row}\n{{/if}}`);
+  }
+
+  /** Fila ABONO(S) antes del TOTAL cuando existan abonos (plantillas antiguas). */
+  function ensureAdvanceConditional(html, templateType = '') {
+    if (!html) return html;
+    const t = String(templateType || '');
+    if (!/^(invoice|invoice-factura|remission)$/.test(t)) return html;
+    if (/\bhasAdvancePayments\b/.test(html)) return html;
+
+    const tableRe = /<table([^>]*class="[^"]*remission-table[^"]*"[^>]*)>([\s\S]*?)<\/table>/gi;
+    return html.replace(tableRe, (full, attrs, inner) => {
+      if (/workorder-table/i.test(attrs)) return full;
+      if (!/<tfoot/i.test(inner)) return full;
+
+      const newInner = inner.replace(/<tfoot>([\s\S]*?)<\/tfoot>/i, (m, tfootBody) => {
+        let tb = tfootBody;
+        const rows = tb.match(/<tr[\s\S]*?<\/tr>/gi);
+        if (!rows || !rows.length) return `<tfoot>${tb}</tfoot>`;
+        const lastRow = rows[rows.length - 1];
+        const hasTotalVar = /S\.total/.test(lastRow) ||
+          /\{\{\$\s*S\.total\}\}/.test(lastRow) ||
+          /\{\{money\s+sale\.total\}\}/.test(lastRow);
+        if (!/TOTAL/i.test(lastRow) || !hasTotalVar) return `<tfoot>${tb}</tfoot>`;
+        const block =
+          '{{#if S.hasAdvancePayments}}\n' +
+          '          <tr>\n' +
+          '            <td colspan="3" style="text-align: right; padding: 2px 4px;">ABONO(S)</td>\n' +
+          '            <td style="text-align: right; padding: 2px 4px;">-{{money S.advancePaymentsTotal}}</td>\n' +
+          '          </tr>\n' +
+          '          {{/if}}\n';
+        tb = tb.replace(lastRow, block + lastRow);
+        return `<tfoot>${tb}</tfoot>`;
+      });
+      return `<table${attrs}>${newInner}</table>`;
+    });
   }
 
   // Initialize when DOM is ready
@@ -2924,7 +2960,10 @@
           console.log('📄 Formato existente detectado - Cargando HTML guardado...');
 
           // Asegurar condicional de descuento en remisión/factura sin dañar nada
-          template.contentHtml = ensureDiscountConditional(template.contentHtml, template.type);
+          template.contentHtml = ensureAdvanceConditional(
+            ensureDiscountConditional(template.contentHtml, template.type),
+            template.type
+          );
           
           // Guardar HTML original para restaurar variables al guardar
           if (!window.templateOriginalHtml) {
@@ -3777,10 +3816,24 @@
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">SUBTOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money S.subtotal}}</td>
           </tr>
+          {{#if S.hasDiscount}}
           <tr>
             <td colspan="3" style="text-align: right; padding: 2px 4px; font-size: 9px;">DESCUENTO{{#if sale.discount.reason}} ({{sale.discount.reason}}){{/if}}</td>
             <td style="text-align: right; padding: 2px 4px; font-size: 9px;">-{{money S.discount}}</td>
           </tr>
+          {{/if}}
+          {{#if S.hasIva}}
+          <tr>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">IVA (19%)</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.iva}}</td>
+          </tr>
+          {{/if}}
+          {{#if S.hasAdvancePayments}}
+          <tr>
+            <td colspan="3" style="text-align: right; padding: 2px 4px; font-size: 9px;">ABONO(S)</td>
+            <td style="text-align: right; padding: 2px 4px; font-size: 9px;">-{{money S.advancePaymentsTotal}}</td>
+          </tr>
+          {{/if}}
           <tr style="border-top: 2px solid #000;">
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
@@ -4162,18 +4215,30 @@
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">SUBTOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.subtotal}}</td>
           </tr>
+          {{#if S.hasDiscount}}
           <tr>
             <td colspan="3" style="text-align: right; padding: 2px 4px;">DESCUENTO{{#if sale.discount.reason}} ({{sale.discount.reason}}){{/if}}</td>
             <td style="text-align: right; padding: 2px 4px;">-{{money S.discount}}</td>
           </tr>
+          {{/if}}
+          {{#if S.hasDiscount}}
           <tr>
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">SUBTOTAL CON DESCUENTO</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.subtotalAfterDiscount}}</td>
           </tr>
+          {{/if}}
+          {{#if S.hasIva}}
           <tr>
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">IVA (19%)</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.iva}}</td>
           </tr>
+          {{/if}}
+          {{#if S.hasAdvancePayments}}
+          <tr>
+            <td colspan="3" style="text-align: right; padding: 2px 4px;">ABONO(S)</td>
+            <td style="text-align: right; padding: 2px 4px;">-{{money S.advancePaymentsTotal}}</td>
+          </tr>
+          {{/if}}
           <tr style="border-top: 2px solid #000;">
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">TOTAL</td>
             <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.total}}</td>

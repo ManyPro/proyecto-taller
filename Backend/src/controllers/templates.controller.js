@@ -596,7 +596,7 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       
       ctx.sale = saleObj;
       
-      // Calcular descuento si existe
+      // Totales alineados con sales.controller computeTotals (descuento, IVA opcional, abonos)
       const subtotalRaw = Number(saleObj.subtotal) || 0;
       let discountAmount = 0;
       if (saleObj.discount && saleObj.discount.type && Number(saleObj.discount.value) > 0) {
@@ -610,48 +610,52 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
       }
 
       const hasDiscount = discountAmount > 0;
-      
-      // Para facturas (invoice-factura), calcular subtotal, IVA y total
-      // El total de la venta es el subtotal, calcular IVA (19%) y total con IVA
-      if (effective === 'invoice-factura') {
-        const subtotal = subtotalRaw;
-        const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
-        const iva = Math.round(subtotalAfterDiscount * 0.19);
-        const totalWithIva = Math.round(subtotalAfterDiscount + iva);
-        
-        // Crear objeto S con valores calculados para facturas
-        ctx.S = {
-          subtotal: subtotal,
-          discount: discountAmount,
-          hasDiscount,
-          subtotalAfterDiscount: subtotalAfterDiscount,
-          iva: iva,
-          total: totalWithIva,
-          'nº': saleObj.formattedNumber || saleObj.number || '',
-          fecha: saleObj.date || saleObj.createdAt || new Date(),
-          P: saleObj.itemsGrouped?.hasProducts || false,
-          S: saleObj.itemsGrouped?.hasServices || false,
-          C: saleObj.itemsGrouped?.hasCombos || false
-        };
-      } else {
-        // Para remisiones, S.total es igual al total de la venta (sin IVA)
-        const subtotal = subtotalRaw;
-        ctx.S = {
-          subtotal: subtotal,
-          discount: discountAmount,
-          hasDiscount,
-          total: Number(saleObj.total) || 0,
-          'nº': saleObj.formattedNumber || saleObj.number || '',
-          fecha: saleObj.date || saleObj.createdAt || new Date(),
-          P: saleObj.itemsGrouped?.hasProducts || false,
-          S: saleObj.itemsGrouped?.hasServices || false,
-          C: saleObj.itemsGrouped?.hasCombos || false
-        };
+      const subtotalAfterDiscount = Math.max(0, Math.round(subtotalRaw - discountAmount));
+
+      const advancePaymentsTotal = (saleObj.advancePayments || []).reduce(
+        (s, p) => s + Math.round(Number(p?.amount) || 0),
+        0
+      );
+      const hasAdvancePayments = advancePaymentsTotal > 0;
+
+      const ivaOn = !!saleObj.ivaEnabled;
+      let taxAmount = ivaOn ? Math.round(Number(saleObj.tax) || 0) : 0;
+      if (ivaOn && taxAmount === 0 && subtotalAfterDiscount > 0) {
+        taxAmount = Math.round(subtotalAfterDiscount * 0.19);
       }
+      const hasIva = ivaOn && taxAmount > 0;
+      const documentTotal = Math.round(subtotalAfterDiscount + taxAmount);
+      // Misma fórmula que computeTotals: saldo = base + IVA − abonos
+      const balanceTotal = Math.max(0, Math.round(documentTotal - advancePaymentsTotal));
+
+      ctx.S = {
+        subtotal: subtotalRaw,
+        discount: discountAmount,
+        hasDiscount,
+        subtotalAfterDiscount,
+        advancePaymentsTotal,
+        hasAdvancePayments,
+        iva: taxAmount,
+        hasIva,
+        documentTotal,
+        total: balanceTotal,
+        'nº': saleObj.formattedNumber || saleObj.number || '',
+        fecha: saleObj.date || saleObj.createdAt || new Date(),
+        P: saleObj.itemsGrouped?.hasProducts || false,
+        S: saleObj.itemsGrouped?.hasServices || false,
+        C: saleObj.itemsGrouped?.hasCombos || false
+      };
       
-      // Exponer descuento calculado en sale (útil para plantillas)
+      // Exponer totales en sale (útil para plantillas que usan sale.*)
       saleObj.discountAmount = discountAmount;
       saleObj.hasDiscount = hasDiscount;
+      saleObj.advancePaymentsTotal = advancePaymentsTotal;
+      saleObj.hasAdvancePayments = hasAdvancePayments;
+      saleObj.subtotalAfterDiscount = subtotalAfterDiscount;
+      saleObj.documentTotal = documentTotal;
+      saleObj.hasIva = hasIva;
+      saleObj.tax = taxAmount;
+      saleObj.total = balanceTotal;
     } else {
       // Log si no se encontró la venta
       if (process.env.NODE_ENV !== 'production') {
@@ -1226,6 +1230,64 @@ function renderHB(tpl, context) {
 // Sanitizador simple (server-side) para evitar <script> y atributos on*
 function sanitize(html=''){ if(!html) return ''; let out = String(html); out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,''); out = out.replace(/ on[a-z]+="[^"]*"/gi,''); out = out.replace(/ on[a-z]+='[^']*'/gi,''); return out; }
 
+/** Descuento / IVA / abono condicionales en tfoot de tablas remission-table (plantillas guardadas). */
+function normalizeSaleRemissionTableTfoot(html) {
+  if (!html || !html.includes('remission-table')) return html;
+  const tableRe = /<table([^>]*class="[^"]*remission-table[^"]*"[^>]*)>([\s\S]*?)<\/table>/gi;
+  return html.replace(tableRe, (full, attrs, inner) => {
+    if (/workorder-table/i.test(attrs)) return full;
+    if (!/<tfoot/i.test(inner)) return full;
+
+    const newInner = inner.replace(/<tfoot>([\s\S]*?)<\/tfoot>/i, (m, tfootBody) => {
+      let tb = tfootBody;
+
+      if ((/DESCUENTO|Descuento|descuento/.test(tb)) && !/\{\{#if\s+S\.hasDiscount\}\}[\s\S]*DESCUENTO/i.test(tb)) {
+        tb = tb.replace(
+          /(<tr[^>]*>[\s\S]*?(?:DESCUENTO|Descuento|descuento)[\s\S]*?<\/tr>)/i,
+          '{{#if S.hasDiscount}}\n$1\n{{/if}}'
+        );
+      }
+      if (/SUBTOTAL CON DESCUENTO/i.test(tb) && !/\{\{#if\s+S\.hasDiscount\}\}[\s\S]*SUBTOTAL CON DESCUENTO/i.test(tb)) {
+        tb = tb.replace(
+          /(<tr[^>]*>[\s\S]*?SUBTOTAL CON DESCUENTO[\s\S]*?<\/tr>)/i,
+          '{{#if S.hasDiscount}}\n$1\n{{/if}}'
+        );
+      }
+      if ((/\bIVA\b/i.test(tb) && (/\{\{\$\s*S\.iva\}\}/.test(tb) || /\{\{money\s+S\.iva/.test(tb))) &&
+          !/\{\{#if\s+S\.hasIva\}\}[\s\S]*\bIVA\b/i.test(tb)) {
+        tb = tb.replace(
+          /(<tr[^>]*>[\s\S]*?\bIVA\b[\s\S]*?<\/tr>)/i,
+          '{{#if S.hasIva}}\n$1\n{{/if}}'
+        );
+      }
+
+      if (!/\bhasAdvancePayments\b/.test(tb)) {
+        const rows = tb.match(/<tr[\s\S]*?<\/tr>/gi);
+        if (rows && rows.length) {
+          const lastRow = rows[rows.length - 1];
+          const hasTotalVar = /S\.total/.test(lastRow) ||
+            /\{\{\$\s*S\.total\}\}/.test(lastRow) ||
+            /\{\{money\s+sale\.total\}\}/.test(lastRow);
+          if (/TOTAL/i.test(lastRow) && hasTotalVar) {
+            const block =
+              '{{#if S.hasAdvancePayments}}\n' +
+              '          <tr>\n' +
+              '            <td colspan="3" style="text-align: right; padding: 2px 4px;">ABONO(S)</td>\n' +
+              '            <td style="text-align: right; padding: 2px 4px;">-{{money S.advancePaymentsTotal}}</td>\n' +
+              '          </tr>\n' +
+              '          {{/if}}\n';
+            tb = tb.replace(lastRow, block + lastRow);
+          }
+        }
+      }
+
+      return `<tfoot>${tb}</tfoot>`;
+    });
+
+    return `<table${attrs}>${newInner}</table>`;
+  });
+}
+
 function normalizeTemplateHtml(html='') {
   if (!html) return '';
   let output = String(html);
@@ -1436,10 +1498,7 @@ function normalizeTemplateHtml(html='') {
       });
     }
 
-    // Ocultar fila de descuento si no hay descuento (solo remisión/factura)
-    // REMOVIDO: No agregar condicionales automáticamente alrededor de DESCUENTO
-    // La plantilla por defecto ya tiene la estructura correcta sin condicionales
-    // Si el usuario quiere condicionales, debe agregarlos manualmente en el editor
+    output = normalizeSaleRemissionTableTfoot(output);
   }
   
   // Para cotizaciones - convertir a estructura agrupada igual que remisiones
