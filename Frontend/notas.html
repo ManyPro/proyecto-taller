@@ -421,6 +421,47 @@
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Noto Sans", "Source Sans 3", sans-serif;
     }
+
+    /* Contención: evita que inputs/selects se salgan del flex/grid (PC y móvil) */
+    #tab-notas #notes-body {
+      min-width: 0;
+    }
+    #tab-notas #notes-new,
+    #tab-notas #notes-history,
+    #tab-notas #notes-filters {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #tab-notas #notes-filters .notes-filter-grid {
+      min-width: 0;
+    }
+    #tab-notas #notes-new input:not([type="checkbox"]):not([type="radio"]),
+    #tab-notas #notes-new select,
+    #tab-notas #notes-new textarea {
+      max-width: 100%;
+      width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    #tab-notas #notes-new input[type="file"] {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #tab-notas #notes-filters input,
+    #tab-notas #notes-filters #f-apply {
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    #tab-notas #notes-filters #f-apply {
+      width: 100%;
+    }
+    @media (min-width: 640px) {
+      #tab-notas #notes-filters #f-apply {
+        width: auto;
+      }
+    }
     #tab-notas input[type="date"],
     #tab-notas input[type="datetime-local"] {
       color-scheme: dark;
@@ -551,8 +592,8 @@
       </div>
 
       <!-- ========== NOTAS ========== -->
-      <section id="tab-notas" class="tab active">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <section id="tab-notas" class="tab active min-w-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 min-w-0">
           <!-- Calendario -->
           <div class="notes-calendar-panel mb-6 rounded-2xl border p-3 sm:p-6">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
@@ -615,31 +656,31 @@
           </div>
 
           <!-- Filtros -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="notes-filters">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 mb-6" id="notes-filters">
             <h3 class="font-sans text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Filtros</h3>
-            <div class="flex flex-wrap gap-4 items-end">
-              <div class="flex-1 min-w-[150px]">
+            <div class="notes-filter-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-12 xl:items-end xl:gap-x-3 xl:gap-y-4">
+              <div class="min-w-0 sm:col-span-2 xl:col-span-4">
                 <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Placa</label>
-                <input id="f-plate" placeholder="ABC123" class="font-sans w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <input id="f-plate" placeholder="ABC123" class="font-sans w-full min-w-0 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <div class="flex-1 min-w-[150px]">
+              <div class="min-w-0 xl:col-span-3">
                 <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Desde</label>
-                <input id="f-from" type="date" class="font-sans w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <input id="f-from" type="date" class="font-sans w-full min-w-0 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <div class="flex-1 min-w-[150px]">
+              <div class="min-w-0 xl:col-span-3">
                 <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Hasta</label>
-                <input id="f-to" type="date" class="font-sans w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <input id="f-to" type="date" class="font-sans w-full min-w-0 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <div>
-                <button type="button" id="f-apply" class="mm-btn-primary px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg bg-gradient-to-r from-blue-600 to-blue-700">Aplicar</button>
+              <div class="min-w-0 sm:col-span-2 xl:col-span-2 flex sm:justify-end xl:justify-start xl:items-end">
+                <button type="button" id="f-apply" class="mm-btn-primary shrink-0 px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg bg-gradient-to-r from-blue-600 to-blue-700">Aplicar</button>
               </div>
             </div>
           </div>
 
           <!-- Grid de 2 columnas -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="notes-body">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0" id="notes-body">
             <!-- Nueva Nota -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="notes-new">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-new">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Nueva Nota</h3>
               
               <div class="mb-4">
@@ -711,7 +752,7 @@
             </div>
 
             <!-- Historial -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="notes-history">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-history">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Historial</h3>
               <div id="notesList" class="space-y-3 custom-scrollbar max-h-[600px] overflow-y-auto"></div>
             </div>
