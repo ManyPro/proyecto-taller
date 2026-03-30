@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Notas</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260331" />
-  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260331" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260332" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
@@ -542,7 +542,7 @@
 
       <div class="hidden md:block home-header-nav-row">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
-          <nav class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+          <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
             <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
             <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
             <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
@@ -595,10 +595,10 @@
 
       <!-- ========== NOTAS ========== -->
       <section id="tab-notas" class="tab active min-w-0">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 min-w-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 min-w-0">
           <!-- Calendario -->
-          <div class="notes-calendar-panel mb-6 rounded-2xl border p-3 sm:p-6">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+          <div class="notes-calendar-panel mb-4 sm:mb-5 rounded-2xl border p-3 sm:p-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-2">
               <h3 class="font-sans text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Calendario</h3>
               <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <button type="button" id="calendar-settings" class="notes-cal-btn w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 font-semibold rounded-lg transition-all duration-200 text-xs sm:text-sm flex items-center justify-center gap-1">
@@ -610,7 +610,7 @@
             </div>
             
             <!-- Controles del calendario -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 gap-2">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-3 gap-2">
               <div class="flex items-center gap-1 sm:gap-2 justify-center sm:justify-start">
                 <button type="button" id="calendar-prev-month" class="notes-cal-btn px-2 sm:px-3 py-1.5 min-w-[2.25rem] rounded-lg transition-all duration-200 text-sm sm:text-base font-bold leading-none">‹</button>
                 <span id="calendar-month-year" class="px-2 sm:px-4 py-1.5 font-sans tabular-nums text-white dark:text-white theme-light:text-slate-900 font-semibold text-xs sm:text-sm min-w-[120px] sm:min-w-auto text-center"></span>
@@ -621,45 +621,45 @@
             </div>
 
             <!-- Grid del calendario -->
-            <div id="calendar-grid" class="font-sans grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
+            <div id="calendar-grid" class="font-sans grid grid-cols-7 gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
               <!-- Días de la semana -->
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">D</span>
                 <span class="hidden sm:inline">Dom</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">L</span>
                 <span class="hidden sm:inline">Lun</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">M</span>
                 <span class="hidden sm:inline">Mar</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">X</span>
                 <span class="hidden sm:inline">Mié</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">J</span>
                 <span class="hidden sm:inline">Jue</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">V</span>
                 <span class="hidden sm:inline">Vie</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">S</span>
                 <span class="hidden sm:inline">Sáb</span>
               </div>
             </div>
             
             <!-- Días del mes -->
-            <div id="calendar-days" class="grid grid-cols-7 gap-0.5 sm:gap-1"></div>
+            <div id="calendar-days" class="grid grid-cols-7 gap-0.5 sm:gap-1 content-start"></div>
           </div>
 
           <!-- Filtros -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 mb-6" id="notes-filters">
-            <h3 class="font-sans text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Filtros</h3>
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-5 mb-4 sm:mb-5" id="notes-filters">
+            <h3 class="font-sans text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-3">Filtros</h3>
             <div class="notes-filter-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-12 xl:items-end xl:gap-x-3 xl:gap-y-4">
               <div class="min-w-0 sm:col-span-2 xl:col-span-4">
                 <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Placa</label>
@@ -680,7 +680,7 @@
           </div>
 
           <!-- Grid de 2 columnas -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0" id="notes-body">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 min-w-0" id="notes-body">
             <!-- Nueva Nota -->
             <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-new">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Nueva Nota</h3>
@@ -713,7 +713,7 @@
               
               <div class="mb-4">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Contenido</label>
-                <textarea id="n-content" rows="4" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"></textarea>
+                <textarea id="n-content" rows="3" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y min-h-0"></textarea>
               </div>
               
               <div class="mb-4">
@@ -756,7 +756,7 @@
             <!-- Historial -->
             <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-history">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Historial</h3>
-              <div id="notesList" class="space-y-3 custom-scrollbar max-h-[600px] overflow-y-auto"></div>
+              <div id="notesList" class="space-y-3 custom-scrollbar max-h-[min(42vh,26rem)] overflow-y-auto overscroll-y-contain"></div>
             </div>
           </div>
         </div>

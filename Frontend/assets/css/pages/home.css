@@ -723,6 +723,14 @@ body.theme-light #appHeader .home-header-nav-row {
   border-top-color: rgba(15, 23, 42, 0.06);
 }
 
+/* Píldoras del hub centradas; varias filas si no caben (evita barra “recostada” a un lado) */
+#appHeader .home-header-nav-row nav {
+  justify-content: center;
+  flex-wrap: wrap;
+  overflow-x: visible;
+  row-gap: 0.375rem;
+}
+
 #appHeader .home-header-eyebrow {
   color: rgba(148, 163, 184, 0.95) !important;
 }
