@@ -11,6 +11,19 @@ module.exports = {
   },
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          '"Source Sans 3"',
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          '"Noto Sans"',
+          "sans-serif",
+        ],
+      },
       colors: {
         brand: {
           50: "#ecfeff",
