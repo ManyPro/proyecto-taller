@@ -1,28 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
         <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M&M - SKUs</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: ['class', '.theme-light'],
-            theme: {
-                extend: {
-                    colors: {
-                        'dark-bg': '#000000',
-                        'dark-card': '#111827',
-                        'dark-card-alt': '#0b1220',
-                        'dark-text': '#e5e7eb',
-                        'dark-muted': '#9ca3af',
-                        'dark-border': '#1f2937',
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="./assets/ui.css?v=20260330" />
+    <script src="./assets/js/theme-engine.js"></script>
+    <script src="./assets/js/modal-system.js"></script>
     <style>
         /* Estilos para modo claro - Sobrescribir colores de Tailwind */
         body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],

@@ -1,4 +1,4 @@
-﻿/* assets/js/app.js
+/* assets/js/app.js
    Orquestador de la UI: login, tabs y boot de módulos (notas, inventario, cotizaciones, precios, ventas)
 */
 
@@ -18,6 +18,10 @@ export { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } fro
 // ========== THEME (oscuro / claro) ==========
 const THEME_KEY = 'app:theme';
 function applyTheme(theme){
+  if (window.MMTheme?.setTheme) {
+    window.MMTheme.setTheme(theme);
+    return;
+  }
   const body = document.body;
   if(!body) return;
   if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
@@ -41,6 +45,9 @@ if (typeof window !== 'undefined') {
   window.applyTheme = applyTheme;
 }
 function detectInitialTheme(){
+  if (window.MMTheme?.detectTheme) {
+    return window.MMTheme.detectTheme();
+  }
   try{
     const stored = localStorage.getItem(THEME_KEY);
     if(stored === 'light' || stored === 'dark') return stored;
@@ -141,6 +148,8 @@ function detectInitialTheme(){
 })();
 
 document.addEventListener('DOMContentLoaded', ()=>{
+  if (window.MMTheme?.init) window.MMTheme.init();
+  if (window.MMModal?.init) window.MMModal.init();
   initializeDOMElements();
   initializeEventListeners();
   initializeLogoutListener();
@@ -175,8 +184,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.addEventListener('click', (e) => {
     // Verificar si el click fue en un botón con id themeToggle
     if (e.target && e.target.id === 'themeToggle') {
-      const isLight = document.body.classList.contains('theme-light');
-      applyTheme(isLight ? 'dark' : 'light');
+      if (window.MMTheme?.toggleTheme) {
+        window.MMTheme.toggleTheme();
+      } else {
+        const isLight = document.body.classList.contains('theme-light');
+        applyTheme(isLight ? 'dark' : 'light');
+      }
     }
   });
   initFAB();
@@ -334,7 +347,9 @@ function showTab(name) {
     }
   }
   
-  const btn = document.querySelector(`.tabs button[data-tab="${name}"]`);
+  const btn =
+    document.querySelector(`button[data-tab="${name}"][data-href]`) ||
+    document.querySelector(`.tabs button[data-tab="${name}"]`);
   const href = btn?.dataset?.href;
   if (href) {
     if (name !== 'home') setLastTab(name);
@@ -378,11 +393,34 @@ function highlightCurrentNav() {
   document.querySelectorAll('.tabs button[data-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === current);
   });
+  document.querySelectorAll('button.nav-tab[data-tab], button.mobile-nav-tab[data-tab]').forEach(btn => {
+    const isActive = btn.dataset.tab === current;
+    btn.classList.toggle('active', isActive);
+    if (btn.classList.contains('nav-tab')) {
+      if (isActive) {
+        btn.classList.add('bg-blue-600', 'text-white');
+        btn.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
+      } else {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('text-slate-300', 'hover:text-white', 'hover:bg-slate-700/50');
+      }
+    }
+    if (btn.classList.contains('mobile-nav-tab')) {
+      if (isActive) {
+        btn.classList.add('bg-blue-600', 'text-white');
+        btn.classList.remove('text-slate-300', 'hover:text-white', 'hover:bg-slate-700/50');
+      } else {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('text-slate-300', 'hover:text-white', 'hover:bg-slate-700/50');
+      }
+    }
+  });
   if (current && current !== 'home') setLastTab(current);
 }
 
 function setupNavigation() {
-  document.querySelectorAll('.tabs button[data-tab]').forEach(btn => {
+  const navSelector = '.tabs button[data-tab], button.nav-tab[data-tab], button.mobile-nav-tab[data-tab]';
+  document.querySelectorAll(navSelector).forEach(btn => {
     if (btn.dataset.navBound === '1') return;
     btn.dataset.navBound = '1';
     btn.addEventListener('click', (ev) => {

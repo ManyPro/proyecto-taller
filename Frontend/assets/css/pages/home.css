@@ -1,0 +1,345 @@
+/* Inicio (index.html) — estilos propios; tema/modales globales en ui.css */
+
+html {
+  zoom: 0.85;
+  -moz-transform: scale(0.85);
+  -moz-transform-origin: 0 0;
+}
+
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  html {
+    zoom: 0.85;
+  }
+}
+
+/* Sin scroll cuando solo se ve portal o login */
+body:has(#portalSection:not(.hidden)),
+body:has(#loginSection:not(.hidden)) {
+  overflow: hidden !important;
+}
+
+/* Portal de acceso */
+#portalSection {
+  max-width: 980px;
+  margin: 24px auto 8px;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.portal-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.portal-card h3 {
+  margin: 0 0 6px 0;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tab-bg-active);
+  color: var(--tab-text-active);
+}
+
+.sep {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+}
+
+.portal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.portal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(59, 130, 246, 0.16);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.portal-button:hover {
+  background: rgba(59, 130, 246, 0.28);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.25);
+  transform: translateY(-1px);
+}
+
+.portal-button.secondary {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.28);
+  color: var(--muted);
+}
+
+.portal-button.secondary:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text);
+}
+
+.portal-button span.icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Modo claro: botón registrar en login */
+body.theme-light #registerBtn {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #cbd5e1 !important;
+}
+
+body.theme-light #registerBtn:hover {
+  background-color: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+}
+
+/* Pestañas del hub en modo claro (barra superior index) */
+body.theme-light .nav-tab:not(.active),
+body.theme-light .mobile-nav-tab:not(.active) {
+  color: #000000 !important;
+  background-color: transparent !important;
+}
+
+body.theme-light .nav-tab:not(.active):hover,
+body.theme-light .mobile-nav-tab:not(.active):hover {
+  color: #000000 !important;
+  background-color: rgba(203, 213, 225, 0.5) !important;
+}
+
+body.theme-light .nav-tab.active,
+body.theme-light .mobile-nav-tab.active {
+  color: #ffffff !important;
+  background-color: #2563eb !important;
+}
+
+/* Tablets 768px–1024px */
+@media (min-width: 768px) and (max-width: 1024px) {
+  html {
+    font-size: 14px !important;
+  }
+
+  .container,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .p-6 {
+    padding: 1rem !important;
+  }
+  .p-8 {
+    padding: 1.25rem !important;
+  }
+  .px-6 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  .py-6 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+  .mb-6 {
+    margin-bottom: 1rem !important;
+  }
+  .mt-6 {
+    margin-top: 1rem !important;
+  }
+  .gap-6 {
+    gap: 1rem !important;
+  }
+
+  .text-4xl {
+    font-size: 1.875rem !important;
+    line-height: 2.25rem !important;
+  }
+  .text-3xl {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+  }
+  .text-2xl {
+    font-size: 1.25rem !important;
+    line-height: 1.75rem !important;
+  }
+  .text-xl {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+  }
+  .text-lg {
+    font-size: 1rem !important;
+    line-height: 1.5rem !important;
+  }
+
+  .grid-cols-1.md\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .grid-cols-1.md\:grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .grid-cols-1.md\:grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  button,
+  .btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+  .px-4 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  .py-3 {
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+  }
+
+  table {
+    font-size: 0.875rem !important;
+  }
+  th,
+  td {
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  input,
+  textarea,
+  select {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  #modal .max-w-4xl {
+    max-width: 90% !important;
+    margin: 1rem auto !important;
+  }
+  #modal .max-w-3xl {
+    max-width: 85% !important;
+    margin: 1rem auto !important;
+  }
+  #modal .max-w-2xl {
+    max-width: 80% !important;
+    margin: 1rem auto !important;
+  }
+
+  .nav-tab,
+  .mobile-nav-tab {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .topbar {
+    padding: 0 !important;
+  }
+  .topbar .h-16 {
+    height: 3.5rem !important;
+  }
+  .topbar .h-20 {
+    height: 3.5rem !important;
+  }
+  .topbar nav {
+    gap: 0.25rem !important;
+    padding: 0.5rem 0 !important;
+  }
+  .topbar .nav-tab {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    min-width: auto !important;
+  }
+  .topbar .max-w-7xl {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .card,
+  [class*="bg-slate-800"],
+  [class*="bg-slate-700"] {
+    padding: 1rem !important;
+  }
+
+  ul,
+  ol {
+    padding-left: 1.25rem !important;
+  }
+  li {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .space-y-4 > * + * {
+    margin-top: 0.75rem !important;
+  }
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  .space-y-8 > * + * {
+    margin-top: 1.25rem !important;
+  }
+
+  .text-5xl {
+    font-size: 2rem !important;
+  }
+  .text-6xl {
+    font-size: 2.5rem !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  #brandLogo,
+  img[alt="M&M logo"],
+  img[src*="lightlogo"],
+  img[src*="logo"] {
+    max-height: 2.5rem !important;
+    max-width: 8rem !important;
+    height: auto !important;
+    width: auto !important;
+  }
+
+  .rounded-xl {
+    border-radius: 0.5rem !important;
+  }
+  .rounded-2xl {
+    border-radius: 0.75rem !important;
+  }
+
+  .shadow-lg {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  }
+  .shadow-xl {
+    box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important;
+  }
+}

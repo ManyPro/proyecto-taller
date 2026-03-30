@@ -1,38 +1,12 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Cotizaciones</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Suprimir warning de producción para Tailwind CDN (usado intencionalmente)
-    if(typeof console !== 'undefined' && console.warn) {
-      const originalWarn = console.warn;
-      console.warn = function(...args) {
-        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
-          return; // Suprimir warning de Tailwind CDN
-        }
-        originalWarn.apply(console, args);
-      };
-    }
-    tailwind.config = {
-      darkMode: ['class', '.theme-light'],
-      theme: {
-        extend: {
-          colors: {
-            'dark-bg': '#0f172a',
-            'dark-card': '#111827',
-            'dark-card-alt': '#0b1220',
-            'dark-text': '#e5e7eb',
-            'dark-muted': '#9ca3af',
-            'dark-border': '#1f2937',
-          }
-        }
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260330" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
   <style>
     /* Zoom global del 85% para toda la página */
     html {
