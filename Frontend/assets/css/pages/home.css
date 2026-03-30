@@ -12,10 +12,37 @@ html {
   }
 }
 
-/* Sin scroll cuando solo se ve portal o login */
+/* Portal / login pantalla completa: sin scroll y sin “franja” inferior (zoom + body distinto) */
 body:has(#portalSection:not(.hidden)),
 body:has(#loginSection:not(.hidden)) {
   overflow: hidden !important;
+  margin: 0;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background-color: #0d1526;
+  background-image: linear-gradient(155deg, #0b1220 0%, #151f33 42%, #0d1526 100%);
+}
+
+body.theme-light:has(#portalSection:not(.hidden)),
+body.theme-light:has(#loginSection:not(.hidden)) {
+  background-color: #e2e8f0;
+  background-image: linear-gradient(165deg, #e8f4fc 0%, #f1f5f9 38%, #e2e8f0 100%);
+}
+
+html:has(#portalSection:not(.hidden)),
+html:has(#loginSection:not(.hidden)) {
+  margin: 0;
+  min-height: 100dvh;
+  min-height: 100vh;
+  height: auto;
+  background-color: #0d1526;
+  background-image: linear-gradient(155deg, #0b1220 0%, #151f33 42%, #0d1526 100%);
+}
+
+html:has(body.theme-light #portalSection:not(.hidden)),
+html:has(body.theme-light #loginSection:not(.hidden)) {
+  background-color: #e2e8f0;
+  background-image: linear-gradient(165deg, #e8f4fc 0%, #f1f5f9 38%, #e2e8f0 100%);
 }
 
 /* ========== Portal de acceso (vidrio, contraste claro/oscuro) ========== */
@@ -23,11 +50,33 @@ body:has(#loginSection:not(.hidden)) {
   width: 100%;
   max-width: none;
   margin: 0;
+  position: relative;
+  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+
+/* Login: mismo trato que portal (styles.css limitaba ancho y creaba franjas) */
+#loginSection.home-login:not(.hidden) {
+  max-width: none !important;
+  margin: 0 auto !important;
+  width: 100%;
+  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  background: transparent !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
 }
 
 .home-portal-bg {
   position: absolute;
   inset: 0;
+  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
   z-index: 0;
   background: linear-gradient(155deg, #0b1220 0%, #151f33 42%, #0d1526 100%);
   pointer-events: none;
