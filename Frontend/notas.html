@@ -387,6 +387,20 @@
       border-color: rgba(125, 211, 252, 0.55) !important;
     }
 
+    /* Modo claro: sincronizar — texto oscuro sobre fondo claro (evita amarillo sobre crema) */
+    body.theme-light #tab-notas .mm-btn-sync {
+      background: #ffffff !important;
+      background-image: none !important;
+      color: #92400e !important;
+      border: 1px solid rgba(180, 83, 9, 0.45) !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+    body.theme-light #tab-notas .mm-btn-sync:hover {
+      background: rgb(254 243 199) !important;
+      color: #78350f !important;
+      border-color: rgba(146, 64, 14, 0.55) !important;
+    }
+
     /* Modo claro: primarios siempre texto blanco sobre azul (evita "Aplicar" ilegible) */
     body.theme-light #tab-notas .mm-btn-primary,
     body.theme-light #modal .mm-btn-primary {
@@ -560,7 +574,7 @@
                 <button type="button" id="calendar-next-month" class="notes-cal-btn px-2 sm:px-3 py-1.5 min-w-[2.25rem] rounded-lg transition-all duration-200 text-sm sm:text-base font-bold leading-none">›</button>
                 <button type="button" id="calendar-today" class="notes-cal-btn px-2 sm:px-3 py-1.5 rounded-lg transition-all duration-200 text-xs sm:text-sm ml-1 sm:ml-2 font-semibold">Hoy</button>
               </div>
-              <button type="button" id="calendar-sync-reminders" class="mm-btn-sync w-full sm:w-auto px-3 py-1.5 bg-yellow-600/20 dark:bg-yellow-600/20 hover:bg-yellow-600/40 dark:hover:bg-yellow-600/40 text-yellow-400 dark:text-yellow-400 hover:text-yellow-300 dark:hover:text-yellow-300 font-medium rounded-lg transition-all duration-200 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:bg-yellow-50 theme-light:text-yellow-700 theme-light:hover:bg-yellow-100 theme-light:border-amber-300/80 text-xs sm:text-sm text-center">Sincronizar Recordatorios</button>
+              <button type="button" id="calendar-sync-reminders" class="mm-btn-sync w-full sm:w-auto px-3 py-1.5 font-medium rounded-lg transition-all duration-200 text-xs sm:text-sm text-center border bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 hover:text-yellow-300 border-yellow-600/30 dark:bg-yellow-600/20 dark:hover:bg-yellow-600/40 dark:text-yellow-400 dark:hover:text-yellow-300 dark:border-yellow-600/30">Sincronizar Recordatorios</button>
             </div>
 
             <!-- Grid del calendario -->

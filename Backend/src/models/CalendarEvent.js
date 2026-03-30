@@ -25,6 +25,7 @@ const CalendarEventSchema = new mongoose.Schema(
     
     // Color del evento (opcional)
     color: { type: String, default: '#3b82f6' },
+    scheduledByTechnician: { type: String, uppercase: true, trim: true, default: '' },
     
     // Nuevos campos para eventos de cita/agenda
     plate: { type: String, uppercase: true, trim: true, default: '' },
@@ -51,6 +52,7 @@ CalendarEventSchema.index({ companyId: 1, startDate: 1, endDate: 1 });
 CalendarEventSchema.index({ companyId: 1, noteId: 1 });
 CalendarEventSchema.index({ companyId: 1, notificationAt: 1 });
 CalendarEventSchema.index({ companyId: 1, plate: 1 });
+CalendarEventSchema.index({ companyId: 1, scheduledByTechnician: 1 });
 CalendarEventSchema.index({ companyId: 1, quoteId: 1 });
 CalendarEventSchema.index({ companyId: 1, saleId: 1 });
 

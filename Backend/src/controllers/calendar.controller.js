@@ -10,6 +10,29 @@ import { publish } from "../lib/live.js";
 import mongoose from "mongoose";
 import { parseDate, localToUTC, createDateRange, now } from "../lib/dateTime.js";
 
+const DEFAULT_APPOINTMENT_COLOR = '#2563EB';
+const isValidHexColor = (value) => /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(value || '').trim());
+
+async function resolveAppointmentTechnician(companyId, rawTechnicianName) {
+  const normalizedName = String(rawTechnicianName || '').trim().toUpperCase();
+  if (!normalizedName) {
+    return { error: 'Debes seleccionar quién agenda la cita' };
+  }
+  const company = await Company.findById(companyId).select({ technicians: 1 }).lean();
+  const technicians = Array.isArray(company?.technicians) ? company.technicians : [];
+  const tech = technicians.find((t) => {
+    const name = typeof t === 'string' ? t : t?.name;
+    return String(name || '').trim().toUpperCase() === normalizedName;
+  });
+  if (!tech || typeof tech === 'string' || tech.isAppointmentTechnician !== true) {
+    return { error: 'La persona seleccionada no existe en técnicos de agenda' };
+  }
+  const appointmentColor = isValidHexColor(tech.appointmentColor)
+    ? String(tech.appointmentColor).trim().toUpperCase()
+    : DEFAULT_APPOINTMENT_COLOR;
+  return { scheduledByTechnician: normalizedName, appointmentColor };
+}
+
 export const listEvents = async (req, res) => {
   const { from, to } = req.query;
   
@@ -44,7 +67,7 @@ export const listEvents = async (req, res) => {
 export const createEvent = async (req, res) => {
   const { 
     title, description, startDate, endDate, allDay, hasNotification, notificationAt, color,
-    plate, customer, vehicleId, quoteId
+    plate, customer, vehicleId, quoteId, scheduledByTechnician
   } = req.body || {};
   
   if (!title || !startDate) {
@@ -52,6 +75,10 @@ export const createEvent = async (req, res) => {
   }
   
   const companyId = new mongoose.Types.ObjectId(req.companyId);
+  const scheduler = await resolveAppointmentTechnician(req.companyId, scheduledByTechnician);
+  if (scheduler.error) {
+    return res.status(400).json({ error: scheduler.error });
+  }
   
   // Si hay placa, cliente y teléfono, crear/actualizar perfil de cliente
   if (plate && customer?.name && customer?.phone) {
@@ -93,7 +120,8 @@ export const createEvent = async (req, res) => {
     allDay: Boolean(allDay),
     hasNotification: Boolean(hasNotification),
     notificationAt: hasNotification && notificationAt ? localToUTC(notificationAt) : undefined,
-    color: color || '#3b82f6',
+    color: scheduler.appointmentColor || color || '#3b82f6',
+    scheduledByTechnician: scheduler.scheduledByTechnician,
     eventType: 'event',
     plate: plate ? String(plate).trim().toUpperCase() : '',
     customer: plate && customer ? {
@@ -131,6 +159,14 @@ export const updateEvent = async (req, res) => {
   if (body.vehicleId) body.vehicleId = new mongoose.Types.ObjectId(body.vehicleId);
   if (body.quoteId) body.quoteId = new mongoose.Types.ObjectId(body.quoteId);
   if (body.saleId) body.saleId = new mongoose.Types.ObjectId(body.saleId);
+  if (body.scheduledByTechnician !== undefined) {
+    const scheduler = await resolveAppointmentTechnician(req.companyId, body.scheduledByTechnician);
+    if (scheduler.error) {
+      return res.status(400).json({ error: scheduler.error });
+    }
+    body.scheduledByTechnician = scheduler.scheduledByTechnician;
+    body.color = scheduler.appointmentColor;
+  }
   
   // Si hay placa, cliente y teléfono, crear/actualizar perfil de cliente
   if (body.plate && body.customer?.name && body.customer?.phone) {

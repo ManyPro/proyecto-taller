@@ -127,11 +127,12 @@ const API = {
       // Normalizar: extraer nombres como strings
       return Array.isArray(techs) ? techs.map(t => {
         if (typeof t === 'string') return t.trim();
+        if (t && typeof t === 'object' && t.isAppointmentTechnician === true) return '';
         if (t && typeof t === 'object' && t.name) return String(t.name).trim();
         return '';
       }).filter(n => n && n.trim() !== '') : [];
     },
-    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) => {
+    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') => {
       const res = await http.post('/api/v1/company/technicians', { 
         name,
         identification: identification || '',
@@ -139,7 +140,9 @@ const API = {
         workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
         basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
         contractType: contractType || '',
-        receivesLaborCommission: receivesLaborCommission !== false
+        receivesLaborCommission: receivesLaborCommission !== false,
+        isAppointmentTechnician: isAppointmentTechnician === true,
+        appointmentColor: appointmentColor || '#2563EB'
       });
       return res.technicians || [];
     },
@@ -151,7 +154,7 @@ const API = {
       const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
       return res.technicians || [];
     },
-    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) => {
+    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') => {
       const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(currentName||''))}`, {
         name: newName,
         identification: identification || '',
@@ -159,7 +162,9 @@ const API = {
         workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
         basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
         contractType: contractType || '',
-        receivesLaborCommission: receivesLaborCommission !== false
+        receivesLaborCommission: receivesLaborCommission !== false,
+        isAppointmentTechnician: isAppointmentTechnician === true,
+        appointmentColor: appointmentColor || '#2563EB'
       });
       return res.technicians || [];
     },

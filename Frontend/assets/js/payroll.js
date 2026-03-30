@@ -364,6 +364,8 @@ async function loadTechnicians(){
       let basicSalaryPerDay = null;
       let contractType = '';
       let receivesLaborCommission = true;
+      let isAppointmentTechnician = false;
+      let appointmentColor = '#2563EB';
       
       if (t && typeof t === 'object') {
         identification = String(t.identification || '').trim();
@@ -372,6 +374,10 @@ async function loadTechnicians(){
         basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
         contractType = String(t.contractType || '').trim();
         receivesLaborCommission = t.receivesLaborCommission !== false;
+        isAppointmentTechnician = t.isAppointmentTechnician === true;
+        appointmentColor = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(t.appointmentColor || '').trim())
+          ? String(t.appointmentColor).trim().toUpperCase()
+          : '#2563EB';
       }
       
       // Retornar objeto normalizado con nombre SIEMPRE como string
@@ -382,11 +388,14 @@ async function loadTechnicians(){
         workHoursPerMonth: workHoursPerMonth,
         basicSalaryPerDay: basicSalaryPerDay,
         contractType: contractType,
-        receivesLaborCommission
+        receivesLaborCommission,
+        isAppointmentTechnician,
+        appointmentColor
       };
     });
-    const names = normalizedTechs.map(t => t.name);
-    const opts = normalizedTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
+    const payrollTechs = normalizedTechs.filter(t => t.isAppointmentTechnician !== true);
+    const names = payrollTechs.map(t => t.name);
+    const opts = payrollTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
     
     // Actualizar selects de técnicos
     const techSel = document.getElementById('pl-technicianSel');
@@ -412,8 +421,11 @@ async function loadTechnicians(){
           const laborText = t.receivesLaborCommission !== false
             ? '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-600/20 text-green-300 theme-light:bg-green-100 theme-light:text-green-700 border border-green-600/30">MO %</span>'
             : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-600/20 text-slate-300 theme-light:bg-slate-100 theme-light:text-slate-700 border border-slate-600/30">Sin MO %</span>';
+          const appointmentText = t.isAppointmentTechnician === true
+            ? `<span class="text-[11px] px-1.5 py-0.5 rounded border border-indigo-600/40" style="background:${htmlEscape(t.appointmentColor)}22;color:${htmlEscape(t.appointmentColor)}">Agenda</span>`
+            : '';
           return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
-            <span>👤 ${htmlEscape(t.name)}${identificationText} ${laborText}</span>
+            <span>👤 ${htmlEscape(t.name)}${identificationText} ${laborText} ${appointmentText}</span>
             <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" 
               data-name="${htmlEscape(t.name)}" 
               data-identification="${htmlEscape(t.identification || '')}"
@@ -422,6 +434,8 @@ async function loadTechnicians(){
               data-salary-per-day="${t.basicSalaryPerDay !== null && t.basicSalaryPerDay !== undefined ? t.basicSalaryPerDay : ''}"
               data-contract-type="${htmlEscape(t.contractType || '')}"
               data-receives-labor-commission="${t.receivesLaborCommission !== false ? '1' : '0'}"
+              data-is-appointment-technician="${t.isAppointmentTechnician === true ? '1' : '0'}"
+              data-appointment-color="${htmlEscape(t.appointmentColor || '#2563EB')}"
               title="Editar técnico">
               ✏️ Editar
             </button>
@@ -441,10 +455,12 @@ async function loadTechnicians(){
             const basicSalaryPerDay = btn.getAttribute('data-salary-per-day') || '';
             const contractType = btn.getAttribute('data-contract-type') || '';
             const receivesLaborCommission = btn.getAttribute('data-receives-labor-commission') !== '0';
+            const isAppointmentTechnician = btn.getAttribute('data-is-appointment-technician') === '1';
+            const appointmentColor = btn.getAttribute('data-appointment-color') || '#2563EB';
             if (!name) return;
             
             // Mostrar modal para editar
-            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission);
+            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission, isAppointmentTechnician, appointmentColor);
           });
         });
         
@@ -3125,6 +3141,8 @@ async function createTechnician(){
     const salaryPerDayInput = document.getElementById('tk-add-salary-per-day');
     const contractTypeInput = document.getElementById('tk-add-contract-type');
     const receivesLaborCommissionInput = document.getElementById('tk-add-receives-labor-commission');
+    const isAppointmentTechnicianInput = document.getElementById('tk-add-is-appointment-technician');
+    const appointmentColorInput = document.getElementById('tk-add-appointment-color');
     
     const name = (nameInput?.value || '').trim();
     const identification = (identificationInput?.value || '').trim();
@@ -3133,6 +3151,8 @@ async function createTechnician(){
     const basicSalaryPerDayStr = (salaryPerDayInput?.value || '').trim();
     const contractType = (contractTypeInput?.value || '').trim();
     const receivesLaborCommission = receivesLaborCommissionInput?.checked !== false;
+    const isAppointmentTechnician = isAppointmentTechnicianInput?.checked === true;
+    const appointmentColor = (appointmentColorInput?.value || '#2563EB').trim() || '#2563EB';
     
     // Convertir valores numéricos
     const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
@@ -3187,7 +3207,9 @@ async function createTechnician(){
         workHoursPerMonth,
         basicSalaryPerDay,
         contractType,
-        receivesLaborCommission
+        receivesLaborCommission,
+        isAppointmentTechnician,
+        appointmentColor
       );
       
       // Limpiar campos
@@ -3198,6 +3220,8 @@ async function createTechnician(){
       if (salaryPerDayInput) salaryPerDayInput.value = '';
       if (contractTypeInput) contractTypeInput.value = '';
       if (receivesLaborCommissionInput) receivesLaborCommissionInput.checked = true;
+      if (isAppointmentTechnicianInput) isAppointmentTechnicianInput.checked = false;
+      if (appointmentColorInput) appointmentColorInput.value = '#2563EB';
       
       // Recargar lista de técnicos
       await loadTechnicians();
@@ -3231,7 +3255,7 @@ async function createTechnician(){
   }
 }
 
-function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) {
+function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') {
   const modal = document.getElementById('modal');
   const modalBody = document.getElementById('modalBody');
   const modalClose = document.getElementById('modalClose');
@@ -3343,6 +3367,29 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
           />
           Cobra porcentaje de mano de obra
         </label>
+
+        <label class="inline-flex items-center gap-2 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+          <input 
+            id="edit-tech-is-appointment-technician" 
+            type="checkbox" 
+            class="w-4 h-4"
+            ${isAppointmentTechnician ? 'checked' : ''}
+          />
+          Solo agenda citas
+        </label>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Color de agenda (fijo)
+          </label>
+          <input 
+            type="color" 
+            value="${htmlEscape(appointmentColor || '#2563EB')}"
+            disabled
+            class="w-16 h-10 p-1 rounded border border-slate-600/50 bg-slate-900/30 cursor-not-allowed"
+          />
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Este color solo se define al crear el técnico.</p>
+        </div>
       </div>
       
       <div class="flex gap-3 mt-6">
@@ -3389,6 +3436,7 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       const basicSalaryPerDayStr = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
       const contractType = document.getElementById('edit-tech-contract-type')?.value?.trim() || '';
       const receivesLaborCommission = document.getElementById('edit-tech-receives-labor-commission')?.checked !== false;
+      const isAppointmentTechnician = document.getElementById('edit-tech-is-appointment-technician')?.checked === true;
       
       // Convertir valores numéricos
       const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
@@ -3417,7 +3465,7 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
           throw new Error('API no disponible. Por favor recarga la página.');
         }
         
-        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission);
+        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission, isAppointmentTechnician, appointmentColor);
         await loadTechnicians();
         closeModal();
       } catch (err) {
@@ -3448,12 +3496,12 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
   document.addEventListener('keydown', escHandler);
 }
 
-async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true) {
+async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') {
   if (!name) {
     throw new Error('Nombre de técnico requerido');
   }
   
-  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission);
+  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission, isAppointmentTechnician, appointmentColor);
   await loadTechnicians();
 }
 

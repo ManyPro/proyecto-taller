@@ -16,6 +16,19 @@ function htmlEscape(text) {
 const formatDate = formatDateUtil;
 const formatDateTime = formatDateTimeForInput;
 
+async function fetchAppointmentTechnicians() {
+  const r = await API.get('/api/v1/company/technicians');
+  const techs = Array.isArray(r?.technicians) ? r.technicians : [];
+  return techs
+    .filter(t => t && typeof t === 'object' && t.isAppointmentTechnician === true && String(t.name || '').trim())
+    .map(t => ({
+      name: String(t.name || '').trim().toUpperCase(),
+      appointmentColor: /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(t.appointmentColor || '').trim())
+        ? String(t.appointmentColor).trim().toUpperCase()
+        : '#2563EB'
+    }));
+}
+
 function getEventsForDate(date) {
   const dateStr = formatDate(date);
   return events.filter(event => {
@@ -260,15 +273,11 @@ function openNewEventModal(date = null) {
         </div>
         
         <div class="mb-3">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Color</label>
-          <select id="event-color" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="#3b82f6">Azul</option>
-            <option value="#10b981">Verde</option>
-            <option value="#f59e0b">Amarillo</option>
-            <option value="#ef4444">Rojo</option>
-            <option value="#8b5cf6">Morado</option>
-            <option value="#ec4899">Rosa</option>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Quién agenda <span class="text-red-400">*</span></label>
+          <select id="event-scheduler" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Seleccione persona...</option>
           </select>
+          <div id="event-scheduler-color-preview" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
         </div>
         
         <div class="flex items-center gap-2">
@@ -305,7 +314,8 @@ function openNewEventModal(date = null) {
   const startDateEl = document.getElementById('event-start-date');
   const startTimeEl = document.getElementById('event-start-time');
   const endEl = document.getElementById('event-end');
-  const colorEl = document.getElementById('event-color');
+  const schedulerEl = document.getElementById('event-scheduler');
+  const schedulerColorPreviewEl = document.getElementById('event-scheduler-color-preview');
   const notificationEl = document.getElementById('event-notification');
   const notificationTimeEl = document.getElementById('event-notification-time');
   const notificationAtEl = document.getElementById('event-notification-at');
@@ -317,6 +327,32 @@ function openNewEventModal(date = null) {
   let selectedVehicle = null;
   let vehicleSearchTimeout = null;
   let quotesCache = [];
+  let appointmentTechs = [];
+
+  (async () => {
+    try {
+      appointmentTechs = await fetchAppointmentTechnicians();
+      schedulerEl.innerHTML = '<option value="">Seleccione persona...</option>' +
+        appointmentTechs.map(t => `<option value="${htmlEscape(t.name)}" data-color="${htmlEscape(t.appointmentColor)}">${htmlEscape(t.name)}</option>`).join('');
+      if (appointmentTechs.length === 0) {
+        schedulerColorPreviewEl.classList.remove('hidden');
+        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos de agenda. Créelos en Nómina.</span>';
+      }
+    } catch (err) {
+      console.error('Error loading appointment technicians:', err);
+    }
+  })();
+
+  schedulerEl.addEventListener('change', () => {
+    const selected = appointmentTechs.find(t => t.name === schedulerEl.value);
+    if (!selected) {
+      schedulerColorPreviewEl.classList.add('hidden');
+      schedulerColorPreviewEl.textContent = '';
+      return;
+    }
+    schedulerColorPreviewEl.classList.remove('hidden');
+    schedulerColorPreviewEl.innerHTML = `Color asignado: <span class="inline-block w-3 h-3 rounded-full align-middle ml-1 mr-1" style="background:${selected.appointmentColor}"></span>${selected.appointmentColor}`;
+  });
   
   // Autocompletar título con nombre del cliente
   customerNameEl.addEventListener('input', () => {
@@ -606,6 +642,9 @@ function openNewEventModal(date = null) {
       if (!startDate || !startTime) {
         return alert("La fecha y hora son obligatorias");
       }
+      if (!schedulerEl.value) {
+        return alert("Debes seleccionar quién agenda la cita");
+      }
       
       // Usar función helper para evitar problemas de zona horaria
       const startDateTimeISO = localDateTimeToISO(startDate, startTime);
@@ -617,7 +656,7 @@ function openNewEventModal(date = null) {
         description: descriptionEl.value.trim(),
         startDate: startDateTimeISO,
         endDate: endDateTimeISO || undefined,
-        color: colorEl.value,
+        scheduledByTechnician: schedulerEl.value,
         hasNotification: notificationEl.checked,
         notificationAt: notificationAtISO || undefined,
         plate,
@@ -658,6 +697,7 @@ function openEventModal(event) {
       <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">${htmlEscape(event.title)}</h3>
       
       ${event.description ? `<div class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-3">${htmlEscape(event.description)}</div>` : ''}
+      ${event.scheduledByTechnician ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Agendado por: <strong>${htmlEscape(event.scheduledByTechnician)}</strong></div>` : ''}
       
       ${hasCustomerData ? `
         <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pt-4">
@@ -976,15 +1016,11 @@ function openEditEventModal(event) {
         </div>
         
         <div class="mb-3">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Color</label>
-          <select id="event-edit-color" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="#3b82f6" ${event.color === '#3b82f6' ? 'selected' : ''}>Azul</option>
-            <option value="#10b981" ${event.color === '#10b981' ? 'selected' : ''}>Verde</option>
-            <option value="#f59e0b" ${event.color === '#f59e0b' ? 'selected' : ''}>Amarillo</option>
-            <option value="#ef4444" ${event.color === '#ef4444' ? 'selected' : ''}>Rojo</option>
-            <option value="#8b5cf6" ${event.color === '#8b5cf6' ? 'selected' : ''}>Morado</option>
-            <option value="#ec4899" ${event.color === '#ec4899' ? 'selected' : ''}>Rosa</option>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Quién agenda <span class="text-red-400">*</span></label>
+          <select id="event-edit-scheduler" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Seleccione persona...</option>
           </select>
+          <div id="event-edit-scheduler-color-preview" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
         </div>
         
         <div class="flex items-center gap-2">
@@ -1012,7 +1048,8 @@ function openEditEventModal(event) {
   const startDateEl = document.getElementById('event-edit-start-date');
   const startTimeEl = document.getElementById('event-edit-start-time');
   const endEl = document.getElementById('event-edit-end');
-  const colorEl = document.getElementById('event-edit-color');
+  const schedulerEl = document.getElementById('event-edit-scheduler');
+  const schedulerColorPreviewEl = document.getElementById('event-edit-scheduler-color-preview');
   const notificationEl = document.getElementById('event-edit-notification');
   const notificationTimeEl = document.getElementById('event-edit-notification-time');
   const notificationAtEl = document.getElementById('event-edit-notification-at');
@@ -1028,6 +1065,38 @@ function openEditEventModal(event) {
   
   let selectedVehicle = null;
   let vehicleSearchTimeout = null;
+  let appointmentTechs = [];
+
+  (async () => {
+    try {
+      appointmentTechs = await fetchAppointmentTechnicians();
+      schedulerEl.innerHTML = '<option value="">Seleccione persona...</option>' +
+        appointmentTechs.map(t => `<option value="${htmlEscape(t.name)}" data-color="${htmlEscape(t.appointmentColor)}" ${t.name === String(event.scheduledByTechnician || '').toUpperCase() ? 'selected' : ''}>${htmlEscape(t.name)}</option>`).join('');
+      if (appointmentTechs.length === 0) {
+        schedulerColorPreviewEl.classList.remove('hidden');
+        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos de agenda. Créelos en Nómina.</span>';
+        return;
+      }
+      const selected = appointmentTechs.find(t => t.name === schedulerEl.value);
+      if (selected) {
+        schedulerColorPreviewEl.classList.remove('hidden');
+        schedulerColorPreviewEl.innerHTML = `Color asignado: <span class="inline-block w-3 h-3 rounded-full align-middle ml-1 mr-1" style="background:${selected.appointmentColor}"></span>${selected.appointmentColor}`;
+      }
+    } catch (err) {
+      console.error('Error loading appointment technicians:', err);
+    }
+  })();
+
+  schedulerEl.addEventListener('change', () => {
+    const selected = appointmentTechs.find(t => t.name === schedulerEl.value);
+    if (!selected) {
+      schedulerColorPreviewEl.classList.add('hidden');
+      schedulerColorPreviewEl.textContent = '';
+      return;
+    }
+    schedulerColorPreviewEl.classList.remove('hidden');
+    schedulerColorPreviewEl.innerHTML = `Color asignado: <span class="inline-block w-3 h-3 rounded-full align-middle ml-1 mr-1" style="background:${selected.appointmentColor}"></span>${selected.appointmentColor}`;
+  });
   
   // Cargar vehículo si existe
   if (event.vehicleId) {
@@ -1175,6 +1244,9 @@ function openEditEventModal(event) {
       if (!titleEl.value.trim()) {
         return alert("El título es obligatorio");
       }
+      if (!schedulerEl.value) {
+        return alert("Debes seleccionar quién agenda la cita");
+      }
       
       // Obtener valores de los nuevos campos si existen
       const plateEl = document.getElementById('event-edit-plate');
@@ -1195,7 +1267,7 @@ function openEditEventModal(event) {
         description: descriptionEl.value.trim(),
         startDate: startDateTimeISO,
         endDate: endDateTimeISO,
-        color: colorEl.value,
+        scheduledByTechnician: schedulerEl.value,
         hasNotification: notificationEl.checked,
         notificationAt: notificationAtISO,
         plate: plateEl.value.trim().toUpperCase() || '',

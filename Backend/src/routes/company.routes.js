@@ -4,6 +4,8 @@ import TechnicianConfig from '../models/TechnicianConfig.js';
 import { authCompany } from '../middlewares/auth.js';
 
 const router = Router();
+const DEFAULT_APPOINTMENT_COLOR = '#2563EB';
+const isValidHexColor = (value) => /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(value || '').trim());
 
 // Middleware para cargar empresa
 router.use(authCompany);
@@ -79,6 +81,8 @@ router.get('/technicians', (req, res) => {
     let basicSalaryPerDay = null;
     let contractType = '';
     let receivesLaborCommission = true;
+    let isAppointmentTechnician = false;
+    let appointmentColor = DEFAULT_APPOINTMENT_COLOR;
     
     if (t && typeof t === 'object') {
       identification = String(t.identification || '').trim();
@@ -87,6 +91,8 @@ router.get('/technicians', (req, res) => {
       basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
       contractType = String(t.contractType || '').trim();
       receivesLaborCommission = t.receivesLaborCommission !== false;
+      isAppointmentTechnician = t.isAppointmentTechnician === true;
+      appointmentColor = isValidHexColor(t.appointmentColor) ? String(t.appointmentColor).toUpperCase() : DEFAULT_APPOINTMENT_COLOR;
     }
     
     // Retornar objeto normalizado con nombre SIEMPRE como string
@@ -97,7 +103,9 @@ router.get('/technicians', (req, res) => {
       workHoursPerMonth: workHoursPerMonth,
       basicSalaryPerDay: basicSalaryPerDay,
       contractType: contractType,
-      receivesLaborCommission
+      receivesLaborCommission,
+      isAppointmentTechnician,
+      appointmentColor
     };
   });
   
@@ -112,6 +120,10 @@ router.post('/technicians', async (req, res) => {
   const basicSalaryPerDay = (req.body?.basicSalaryPerDay !== null && req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== '') ? Number(req.body.basicSalaryPerDay) : null;
   const contractType = String(req.body?.contractType || '').trim();
   const receivesLaborCommission = req.body?.receivesLaborCommission !== false;
+  const isAppointmentTechnician = req.body?.isAppointmentTechnician === true;
+  const appointmentColor = isValidHexColor(req.body?.appointmentColor)
+    ? String(req.body.appointmentColor).trim().toUpperCase()
+    : DEFAULT_APPOINTMENT_COLOR;
   
   if (!name) return res.status(400).json({ error: 'nombre requerido' });
   
@@ -135,7 +147,9 @@ router.post('/technicians', async (req, res) => {
     workHoursPerMonth, 
     basicSalaryPerDay, 
     contractType,
-    receivesLaborCommission
+    receivesLaborCommission,
+    isAppointmentTechnician,
+    appointmentColor
   });
   technicians.sort((a, b) => {
     const aName = typeof a === 'string' ? a : String(a?.name || '');
@@ -176,6 +190,24 @@ router.put('/technicians/:name', async (req, res) => {
     const receivesLaborCommission = req.body?.receivesLaborCommission !== undefined
       ? req.body.receivesLaborCommission !== false
       : (typeof existingTech === 'object' ? existingTech.receivesLaborCommission !== false : true);
+    const isAppointmentTechnician = req.body?.isAppointmentTechnician !== undefined
+      ? req.body.isAppointmentTechnician === true
+      : (typeof existingTech === 'object' ? existingTech.isAppointmentTechnician === true : false);
+    const existingAppointmentColor = (typeof existingTech === 'object' && isValidHexColor(existingTech.appointmentColor))
+      ? String(existingTech.appointmentColor).trim().toUpperCase()
+      : DEFAULT_APPOINTMENT_COLOR;
+    const requestedAppointmentColor = req.body?.appointmentColor;
+    if (requestedAppointmentColor !== undefined) {
+      const normalizedRequested = isValidHexColor(requestedAppointmentColor)
+        ? String(requestedAppointmentColor).trim().toUpperCase()
+        : null;
+      if (!normalizedRequested) {
+        return res.status(400).json({ error: 'appointmentColor inválido' });
+      }
+      if (normalizedRequested !== existingAppointmentColor) {
+        return res.status(400).json({ error: 'El color de agenda no se puede editar después de crear el técnico' });
+      }
+    }
     
     // Si el nombre cambió, verificar que no exista otro
     if (newName !== name) {
@@ -196,7 +228,9 @@ router.put('/technicians/:name', async (req, res) => {
       workHoursPerMonth,
       basicSalaryPerDay,
       contractType,
-      receivesLaborCommission
+      receivesLaborCommission,
+      isAppointmentTechnician,
+      appointmentColor: existingAppointmentColor
     };
     
     // Si el nombre cambió, actualizar referencias
@@ -276,7 +310,9 @@ router.delete('/technicians/:name', async (req, res) => {
           normalizedName: normalizedName,
           original: t,
           identification: '',
-          receivesLaborCommission: true
+          receivesLaborCommission: true,
+          isAppointmentTechnician: false,
+          appointmentColor: DEFAULT_APPOINTMENT_COLOR
         };
       }
       return { 
@@ -289,7 +325,9 @@ router.delete('/technicians/:name', async (req, res) => {
         workHoursPerMonth: (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null,
         basicSalaryPerDay: (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null,
         contractType: String(t.contractType || '').trim(),
-        receivesLaborCommission: t.receivesLaborCommission !== false
+        receivesLaborCommission: t.receivesLaborCommission !== false,
+        isAppointmentTechnician: t.isAppointmentTechnician === true,
+        appointmentColor: isValidHexColor(t.appointmentColor) ? String(t.appointmentColor).toUpperCase() : DEFAULT_APPOINTMENT_COLOR
       };
     });
     
@@ -312,7 +350,7 @@ router.delete('/technicians/:name', async (req, res) => {
     req.companyDoc.technicians = updatedTechnicians.map(t => {
       const extractedName = extractTechName(t);
       if (typeof t === 'string') {
-        return { name: extractedName, identification: '', receivesLaborCommission: true };
+        return { name: extractedName, identification: '', receivesLaborCommission: true, isAppointmentTechnician: false, appointmentColor: DEFAULT_APPOINTMENT_COLOR };
       }
       return {
         name: extractedName,
@@ -321,7 +359,9 @@ router.delete('/technicians/:name', async (req, res) => {
         workHoursPerMonth: (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null,
         basicSalaryPerDay: (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null,
         contractType: String(t.contractType || '').trim(),
-        receivesLaborCommission: t.receivesLaborCommission !== false
+        receivesLaborCommission: t.receivesLaborCommission !== false,
+        isAppointmentTechnician: t.isAppointmentTechnician === true,
+        appointmentColor: isValidHexColor(t.appointmentColor) ? String(t.appointmentColor).toUpperCase() : DEFAULT_APPOINTMENT_COLOR
       };
     });
     
@@ -400,7 +440,7 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
       } else {
         // Normalizar técnico válido
         if (typeof tech === 'string') {
-          validTechnicians.push({ name: extractedName, identification: '', receivesLaborCommission: true });
+          validTechnicians.push({ name: extractedName, identification: '', receivesLaborCommission: true, isAppointmentTechnician: false, appointmentColor: DEFAULT_APPOINTMENT_COLOR });
         } else {
           validTechnicians.push({
             name: extractedName,
@@ -409,7 +449,9 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
             workHoursPerMonth: (tech.workHoursPerMonth !== undefined && tech.workHoursPerMonth !== null) ? Number(tech.workHoursPerMonth) : null,
             basicSalaryPerDay: (tech.basicSalaryPerDay !== undefined && tech.basicSalaryPerDay !== null) ? Number(tech.basicSalaryPerDay) : null,
             contractType: String(tech.contractType || '').trim(),
-            receivesLaborCommission: tech.receivesLaborCommission !== false
+            receivesLaborCommission: tech.receivesLaborCommission !== false,
+            isAppointmentTechnician: tech.isAppointmentTechnician === true,
+            appointmentColor: isValidHexColor(tech.appointmentColor) ? String(tech.appointmentColor).toUpperCase() : DEFAULT_APPOINTMENT_COLOR
           });
         }
       }

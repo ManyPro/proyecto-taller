@@ -72,7 +72,9 @@ const CompanySchema = new mongoose.Schema(
         workHoursPerMonth: { type: Number, default: null }, // Horas de trabajo por mes
         basicSalaryPerDay: { type: Number, default: null }, // Salario básico por día
         contractType: { type: String, default: '', trim: true }, // Tipo de contrato
-        receivesLaborCommission: { type: Boolean, default: true } // Si gana % de mano de obra
+        receivesLaborCommission: { type: Boolean, default: true }, // Si gana % de mano de obra
+        isAppointmentTechnician: { type: Boolean, default: false }, // Solo agenda citas
+        appointmentColor: { type: String, default: '#2563EB', trim: true } // Color fijo para agenda
       }],
       default: []
     },
