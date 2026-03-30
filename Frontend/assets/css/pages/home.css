@@ -1,16 +1,4 @@
-/* Inicio (index.html) — estilos propios; tema/modales globales en ui.css */
-
-html {
-  zoom: 0.85;
-  -moz-transform: scale(0.85);
-  -moz-transform-origin: 0 0;
-}
-
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
-  html {
-    zoom: 0.85;
-  }
-}
+/* Inicio (index.html) — estilos propios; tema/modales y zoom global en ui.css */
 
 /* Portal / login: sin scroll; fondo en body al mismo tono que el portal (evita franja sin duplicar altura con zoom 0.85) */
 body:has(#portalSection:not(.hidden)),

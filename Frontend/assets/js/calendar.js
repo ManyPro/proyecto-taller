@@ -82,11 +82,10 @@ function renderCalendar() {
 
 function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = []) {
   const dayEl = document.createElement('div');
-  // Responsive: altura mínima más pequeña en móvil
-  dayEl.className = `min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded ${
-    isOtherMonth ? 'bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-100/50' : 'bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-50'
+  dayEl.className = `notes-cal-day-cell min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 border border-slate-600/25 dark:border-slate-600/25 theme-light:border-slate-300/70 rounded-lg ${
+    isOtherMonth ? 'notes-cal-day--other bg-slate-950/25 dark:bg-slate-950/25 theme-light:bg-slate-200/40' : 'bg-slate-800/35 dark:bg-slate-800/35 theme-light:bg-white/70 backdrop-blur-sm'
   } ${
-    isToday ? 'ring-1 sm:ring-2 ring-blue-500' : ''
+    isToday ? 'ring-1 sm:ring-2 ring-blue-500 ring-offset-0 sm:ring-offset-1 ring-offset-slate-900/80 dark:ring-offset-slate-900/80 theme-light:ring-offset-sky-50' : ''
   }`;
   
   const dayNumber = document.createElement('div');

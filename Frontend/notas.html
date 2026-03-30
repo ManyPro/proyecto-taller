@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Notas</title>
   <link rel="stylesheet" href="./assets/ui.css?v=20260330" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260330" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
@@ -315,6 +316,37 @@
       .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; }
       .shadow-xl { box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important; }
     }
+
+    /* Calendario Notas — panel vidrio coherente con el shell */
+    #tab-notas .notes-calendar-panel {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.72) 0%, rgba(15, 23, 42, 0.55) 100%);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-color: rgba(148, 163, 184, 0.22);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+    }
+    body.theme-light #tab-notas .notes-calendar-panel {
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.94) 0%, rgba(224, 242, 254, 0.9) 100%);
+      border-color: rgba(125, 211, 252, 0.5);
+      box-shadow: 0 8px 28px rgba(14, 116, 144, 0.12);
+    }
+    #tab-notas .notes-calendar-panel #calendar-grid {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      padding-bottom: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+    body.theme-light #tab-notas .notes-calendar-panel #calendar-grid {
+      border-bottom-color: rgba(125, 211, 252, 0.35);
+    }
+    #tab-notas .notes-calendar-panel .notes-cal-day-cell {
+      transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
+      box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.45);
+    }
+    body.theme-light #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
+    }
   </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -324,85 +356,79 @@
   <script src="./assets/js/config.js"></script>
 </head>
 <body data-page="notas">
-  <main>
-    <!-- ========== APP HEADER ========== -->
-    <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-      <!-- Top Bar - Header Principal -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex items-center justify-between h-16 md:h-20">
-            <!-- Logo y Nombre de Empresa -->
-            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
-              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
-              <div class="hidden sm:flex flex-col">
-                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-              </div>
-              <div class="sm:hidden text-white font-semibold text-sm">
-                <span id="companyNameMobile">-</span>
-              </div>
+  <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
+    <div class="home-header-shell shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 md:h-20">
+          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
+            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+            <div class="hidden sm:flex flex-col">
+              <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+              <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
             </div>
-
-            <!-- Botones de Acción (Desktop) -->
-            <div class="hidden md:flex items-center gap-2">
-              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-          </div>
-
-          <!-- Menú Hamburguesa (Mobile) -->
-          <div class="md:hidden flex items-center gap-2">
-            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-              </button>
+            <div class="sm:hidden text-white font-semibold text-sm home-header-company">
+              <span id="companyNameMobile">-</span>
             </div>
           </div>
-        </div>
 
-        <!-- Navegación Principal (Desktop) -->
-        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-            </nav>
+          <div class="hidden md:flex items-center gap-2 home-header-actions">
+            <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+            <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+            <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
-      
-      <!-- Menú Móvil (Mobile Menu) -->
-      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
-        <div class="px-4 py-3 space-y-1">
-          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Notas</button>
-          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+
+      <div class="hidden md:block home-header-nav-row">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+          <nav class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+          </nav>
         </div>
       </div>
     </div>
 
+    <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
+      <div class="px-4 py-3 space-y-1">
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
     <section id="appSection" class="hidden">
       <!-- Modal global reutilizable -->
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
@@ -418,7 +444,7 @@
       <section id="tab-notas" class="tab active">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <!-- Calendario -->
-          <div class="mb-6 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-3 sm:p-6">
+          <div class="notes-calendar-panel mb-6 rounded-2xl border p-3 sm:p-6">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Calendario</h3>
               <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -663,12 +689,9 @@
         });
       }
       
-      // Manejar navegación activa
       const currentPage = document.body.getAttribute('data-page');
       document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
-        if (tab.getAttribute('data-tab') === currentPage) {
-          tab.classList.add('active');
-        }
+        tab.classList.toggle('active', tab.getAttribute('data-tab') === currentPage);
       });
 
       // Manejar clicks en botones de navegación
@@ -684,55 +707,59 @@
 
     // Botón del catálogo (consolidado, sin duplicación)
     function setupCatalogButton() {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
+      const buttons = document.querySelectorAll('.js-open-public-catalog');
+      if (!buttons.length) return;
       const API = window.API;
-      if(!API || !API.token || !API.token.get) {
+      if (!API || !API.token || !API.token.get) {
         setTimeout(setupCatalogButton, 100);
         return;
       }
       const token = API.token.get() || '';
-      if(!token){ 
-        btn.disabled=true; 
-        btn.title='Inicia sesión para usar el catálogo'; 
-        return; 
+      if (!token) {
+        buttons.forEach((btn) => {
+          btn.disabled = true;
+          btn.title = 'Inicia sesión para usar el catálogo';
+        });
+        return;
       }
+      const apply = (fn) => buttons.forEach(fn);
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
-        .then(body => {
+        .then((body) => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ 
-            btn.disabled=true; 
-            btn.title='No se pudo obtener companyId'; 
-            return; 
-          }
-          if(!enabled){ 
-            btn.disabled=true; 
-            btn.title='Catálogo público deshabilitado'; 
-            btn.dataset.state='disabled'; 
-            return; 
-          }
-          btn.dataset.state='ready';
-          btn.disabled = false;
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          apply((btn) => {
+            if (!companyId) {
+              btn.disabled = true;
+              btn.title = 'No se pudo obtener companyId';
+              return;
+            }
+            if (!enabled) {
+              btn.disabled = true;
+              btn.title = 'Catálogo público deshabilitado';
+              btn.dataset.state = 'disabled';
+              return;
+            }
+            btn.dataset.state = 'ready';
+            btn.disabled = false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+          });
         })
-        .catch(()=>{
+        .catch(() => {
           const storedId = API?.companyId?.get?.() || '';
-          if(storedId){
-            btn.dataset.state='ready'; 
-            btn.title=''; 
-            btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
-          } else {
-            btn.disabled=true; 
-            btn.title='Error consultando empresa'; 
-            btn.dataset.state='error';
-          }
+          apply((btn) => {
+            if (storedId) {
+              btn.dataset.state = 'ready';
+              btn.title = '';
+              btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            } else {
+              btn.disabled = true;
+              btn.title = 'Error consultando empresa';
+              btn.dataset.state = 'error';
+            }
+          });
         });
     }
     
