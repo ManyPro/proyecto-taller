@@ -339,7 +339,7 @@ function openNewEventModal(date = null) {
         appointmentTechs.map(t => `<option value="${htmlEscape(t.name)}" data-color="${htmlEscape(t.appointmentColor)}">${htmlEscape(t.name)}</option>`).join('');
       if (appointmentTechs.length === 0) {
         schedulerColorPreviewEl.classList.remove('hidden');
-        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos de agenda. Créelos en Nómina.</span>';
+        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos cargados en la empresa. Pide a un administrador que los dé de alta (Nómina o configuración de la empresa principal si comparten base).</span>';
       }
     } catch (err) {
       console.error('Error loading appointment technicians:', err);
@@ -1077,7 +1077,7 @@ function openEditEventModal(event) {
         appointmentTechs.map(t => `<option value="${htmlEscape(t.name)}" data-color="${htmlEscape(t.appointmentColor)}" ${t.name === String(event.scheduledByTechnician || '').toUpperCase() ? 'selected' : ''}>${htmlEscape(t.name)}</option>`).join('');
       if (appointmentTechs.length === 0) {
         schedulerColorPreviewEl.classList.remove('hidden');
-        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos de agenda. Créelos en Nómina.</span>';
+        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos cargados en la empresa. Pide a un administrador que los dé de alta (Nómina o configuración de la empresa principal si comparten base).</span>';
         return;
       }
       const selected = appointmentTechs.find(t => t.name === schedulerEl.value);

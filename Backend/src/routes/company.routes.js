@@ -7,6 +7,24 @@ const router = Router();
 const DEFAULT_APPOINTMENT_COLOR = '#2563EB';
 const isValidHexColor = (value) => /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(value || '').trim());
 
+/**
+ * Empresa donde viven los técnicos (documento Company.technicians).
+ * Con BD compartida, la sesión JWT puede ser una empresa secundaria pero los datos están en la principal (req.companyId).
+ */
+function techniciansOwnerKey(req) {
+  if (req.hasSharedDatabase && req.companyId) {
+    return String(req.companyId);
+  }
+  return req.company?.id ? String(req.company.id) : '';
+}
+
+async function getTechniciansOwnerDoc(req) {
+  const key = techniciansOwnerKey(req);
+  if (!key) return null;
+  if (String(req.companyDoc._id) === key) return req.companyDoc;
+  return Company.findById(key);
+}
+
 // Middleware para cargar empresa
 router.use(authCompany);
 router.use(async (req, res, next) => {
@@ -17,9 +35,18 @@ router.use(async (req, res, next) => {
 });
 
 // ========== Technicians CRUD ==========
-router.get('/technicians', (req, res) => {
-  // Convertir a JSON y parsear para obtener objetos planos (evita problemas con documentos Mongoose)
-  const rawTechnicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
+router.get('/technicians', async (req, res) => {
+  const key = techniciansOwnerKey(req);
+  let list;
+  if (key && String(req.companyDoc._id) === key) {
+    list = req.companyDoc.technicians || [];
+  } else if (key) {
+    const o = await Company.findById(key).select({ technicians: 1 }).lean();
+    list = o?.technicians || [];
+  } else {
+    list = [];
+  }
+  const rawTechnicians = JSON.parse(JSON.stringify(list));
   
   // Función auxiliar para extraer nombre como string
   const extractName = (obj) => {
@@ -113,6 +140,9 @@ router.get('/technicians', (req, res) => {
 });
 
 router.post('/technicians', async (req, res) => {
+  const ownerDoc = await getTechniciansOwnerDoc(req);
+  if (!ownerDoc) return res.status(404).json({ error: 'Empresa no encontrada' });
+
   const name = String(req.body?.name || '').trim().toUpperCase();
   const identification = String(req.body?.identification || '').trim();
   const basicSalary = (req.body?.basicSalary !== null && req.body?.basicSalary !== undefined && req.body?.basicSalary !== '') ? Number(req.body.basicSalary) : null;
@@ -127,7 +157,7 @@ router.post('/technicians', async (req, res) => {
   
   if (!name) return res.status(400).json({ error: 'nombre requerido' });
   
-  const technicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
+  const technicians = JSON.parse(JSON.stringify(ownerDoc.technicians || []));
   
   // Verificar si ya existe
   const existingIndex = technicians.findIndex(t => {
@@ -157,13 +187,16 @@ router.post('/technicians', async (req, res) => {
     return aName.localeCompare(bName);
   });
   
-  req.companyDoc.technicians = technicians;
-  await req.companyDoc.save();
-  res.status(201).json({ technicians: req.companyDoc.technicians });
+  ownerDoc.technicians = technicians;
+  await ownerDoc.save();
+  res.status(201).json({ technicians: ownerDoc.technicians });
 });
 
 router.put('/technicians/:name', async (req, res) => {
   try {
+    const ownerDoc = await getTechniciansOwnerDoc(req);
+    if (!ownerDoc) return res.status(404).json({ error: 'Empresa no encontrada' });
+
     const name = String(req.params.name || '').trim().toUpperCase();
     const newName = String(req.body?.name || '').trim().toUpperCase();
     const identification = String(req.body?.identification || '').trim();
@@ -175,7 +208,7 @@ router.put('/technicians/:name', async (req, res) => {
     if (!name) return res.status(400).json({ error: 'nombre requerido' });
     if (!newName) return res.status(400).json({ error: 'nuevo nombre requerido' });
     
-    const technicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
+    const technicians = JSON.parse(JSON.stringify(ownerDoc.technicians || []));
     
     // Buscar técnico
     const existingIndex = technicians.findIndex(t => {
@@ -237,7 +270,7 @@ router.put('/technicians/:name', async (req, res) => {
     if (newName !== name) {
       const TechnicianAssignment = (await import('../models/TechnicianAssignment.js')).default;
       await TechnicianAssignment.updateMany(
-        { companyId: req.companyDoc._id, technicianName: name },
+        { companyId: ownerDoc._id, technicianName: name },
         { $set: { technicianName: newName } }
       );
     }
@@ -248,10 +281,10 @@ router.put('/technicians/:name', async (req, res) => {
       return aName.localeCompare(bName);
     });
     
-    req.companyDoc.technicians = technicians;
-    await req.companyDoc.save();
+    ownerDoc.technicians = technicians;
+    await ownerDoc.save();
     
-    res.json({ technicians: req.companyDoc.technicians });
+    res.json({ technicians: ownerDoc.technicians });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar técnico', message: err.message });
   }
@@ -259,6 +292,9 @@ router.put('/technicians/:name', async (req, res) => {
 
 router.delete('/technicians/:name', async (req, res) => {
   try {
+    const ownerDoc = await getTechniciansOwnerDoc(req);
+    if (!ownerDoc) return res.status(404).json({ error: 'Empresa no encontrada' });
+
     const name = decodeURIComponent(String(req.params.name || '').trim());
     if (!name) return res.status(400).json({ error: 'nombre requerido' });
     
@@ -299,7 +335,7 @@ router.delete('/technicians/:name', async (req, res) => {
     };
     
     // Normalizar technicians: convertir strings a objetos si es necesario
-    const technicians = (req.companyDoc.technicians || []).map((t, index) => {
+    const technicians = (ownerDoc.technicians || []).map((t, index) => {
       const extractedName = extractTechName(t);
       const normalizedName = extractedName.toUpperCase().trim();
       
@@ -344,10 +380,10 @@ router.delete('/technicians/:name', async (req, res) => {
     }
     
     // Eliminar técnico de la lista usando el índice original
-    const updatedTechnicians = req.companyDoc.technicians.filter((t, index) => index !== techToDelete._index);
+    const updatedTechnicians = ownerDoc.technicians.filter((t, index) => index !== techToDelete._index);
     
     // Normalizar técnicos válidos restantes
-    req.companyDoc.technicians = updatedTechnicians.map(t => {
+    ownerDoc.technicians = updatedTechnicians.map(t => {
       const extractedName = extractTechName(t);
       if (typeof t === 'string') {
         return { name: extractedName, identification: '', receivesLaborCommission: true, isAppointmentTechnician: false, appointmentColor: DEFAULT_APPOINTMENT_COLOR };
@@ -365,12 +401,12 @@ router.delete('/technicians/:name', async (req, res) => {
       };
     });
     
-    await req.companyDoc.save();
+    await ownerDoc.save();
     
     // Eliminar todas las asignaciones de este técnico (por nombre normalizado y original)
     const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
     await TechnicianAssignment.deleteMany({ 
-      companyId: req.companyDoc._id, 
+      companyId: ownerDoc._id, 
       $or: [
         { technicianName: normalizedSearchName },
         { technicianName: techToDelete.name },
@@ -378,7 +414,7 @@ router.delete('/technicians/:name', async (req, res) => {
       ]
     });
     
-    res.json({ technicians: req.companyDoc.technicians });
+    res.json({ technicians: ownerDoc.technicians });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar técnico', message: err.message });
   }
@@ -387,6 +423,9 @@ router.delete('/technicians/:name', async (req, res) => {
 // Endpoint para limpiar técnicos corruptos
 router.delete('/technicians-cleanup/corrupt', async (req, res) => {
   try {
+    const ownerDoc = await getTechniciansOwnerDoc(req);
+    if (!ownerDoc) return res.status(404).json({ error: 'Empresa no encontrada' });
+
     // Función auxiliar para extraer nombre de técnico (maneja casos corruptos)
     const extractTechName = (t) => {
       if (typeof t === 'string') {
@@ -421,7 +460,7 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
       return '';
     };
     
-    const technicians = req.companyDoc.technicians || [];
+    const technicians = ownerDoc.technicians || [];
     const validTechnicians = [];
     const corruptNames = [];
     
@@ -461,18 +500,18 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
       return res.json({ 
         message: 'No se encontraron técnicos corruptos',
         cleaned: 0,
-        technicians: req.companyDoc.technicians 
+        technicians: ownerDoc.technicians 
       });
     }
     
     // Actualizar con solo técnicos válidos
-    req.companyDoc.technicians = validTechnicians;
-    await req.companyDoc.save();
+    ownerDoc.technicians = validTechnicians;
+    await ownerDoc.save();
     
     // Eliminar asignaciones de técnicos corruptos
     const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
     await TechnicianAssignment.deleteMany({ 
-      companyId: req.companyDoc._id, 
+      companyId: ownerDoc._id, 
       $or: [
         { technicianName: { $in: ['', 'SIN NOMBRE', 'Sin nombre'] } },
         { technicianName: { $exists: false } },
@@ -484,7 +523,7 @@ router.delete('/technicians-cleanup/corrupt', async (req, res) => {
       message: `Se eliminaron ${corruptNames.length} técnicos corruptos`,
       cleaned: corruptNames.length,
       corruptNames: corruptNames,
-      technicians: req.companyDoc.technicians 
+      technicians: ownerDoc.technicians 
     });
   } catch (err) {
     res.status(500).json({ error: 'Error al limpiar técnicos corruptos', message: err.message });
