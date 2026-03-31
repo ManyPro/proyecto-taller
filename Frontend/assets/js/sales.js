@@ -205,6 +205,34 @@ function describeVehicle(vehicle){
   return parts.join(' | ') || 'N/A';
 }
 
+function formatCustomerDetailHtml(customer){
+  const c = customer || {};
+  const rows = [];
+  if (c.name) rows.push(`<div><span class="font-semibold">Nombre:</span> ${htmlEscape(c.name)}</div>`);
+  if (c.idNumber) rows.push(`<div><span class="font-semibold">ID:</span> ${htmlEscape(c.idNumber)}</div>`);
+  if (c.phone) rows.push(`<div><span class="font-semibold">Teléfono:</span> ${htmlEscape(c.phone)}</div>`);
+  if (c.email) rows.push(`<div><span class="font-semibold">Email:</span> ${htmlEscape(c.email)}</div>`);
+  if (c.address) rows.push(`<div><span class="font-semibold">Dirección:</span> ${htmlEscape(c.address)}</div>`);
+  return rows.length
+    ? `<div class="space-y-1.5 text-sm text-white dark:text-white theme-light:text-slate-900">${rows.join('')}</div>`
+    : '<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin datos del cliente</div>';
+}
+
+function formatVehicleDetailHtml(vehicle){
+  const v = vehicle || {};
+  const mileage = (v.mileage != null && v.mileage !== '') ? `${Number(v.mileage || 0).toLocaleString('es-CO')} km` : '';
+  const rows = [];
+  if (v.plate) rows.push(`<div><span class="font-semibold">Placa:</span> ${htmlEscape(String(v.plate).toUpperCase())}</div>`);
+  if (v.brand) rows.push(`<div><span class="font-semibold">Marca:</span> ${htmlEscape(v.brand)}</div>`);
+  if (v.line) rows.push(`<div><span class="font-semibold">Línea:</span> ${htmlEscape(v.line)}</div>`);
+  if (v.engine || v.displacement) rows.push(`<div><span class="font-semibold">Motor:</span> ${htmlEscape(v.engine || v.displacement)}</div>`);
+  if (v.year) rows.push(`<div><span class="font-semibold">Año:</span> ${htmlEscape(String(v.year))}</div>`);
+  if (mileage) rows.push(`<div><span class="font-semibold">Kilometraje:</span> ${htmlEscape(mileage)}</div>`);
+  return rows.length
+    ? `<div class="space-y-1.5 text-sm text-white dark:text-white theme-light:text-slate-900">${rows.join('')}</div>`
+    : '<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin datos del vehículo</div>';
+}
+
 function printSaleTicket(sale, documentType = 'remission'){
   if(!sale) return;
   function fallback(){
@@ -9402,8 +9430,8 @@ async function openSaleHistoryDetail(id){
     node.querySelector('[data-number]').textContent = padSaleNumber(sale.number || sale._id || '');
     node.querySelector('[data-date]').textContent = sale.createdAt ? new Date(sale.createdAt).toLocaleString() : '';
     node.querySelector('[data-status]').textContent = sale.status || 'N/A';
-    node.querySelector('[data-customer]').textContent = describeCustomer(sale.customer);
-    node.querySelector('[data-vehicle]').textContent = describeVehicle(sale.vehicle);
+    node.querySelector('[data-customer]').innerHTML = formatCustomerDetailHtml(sale.customer);
+    node.querySelector('[data-vehicle]').innerHTML = formatVehicleDetailHtml(sale.vehicle);
     
     // Agrupar items por tipo (productos, servicios, combos)
     const itemsGrouped = node.querySelector('[data-items-grouped]');
