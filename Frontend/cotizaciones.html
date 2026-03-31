@@ -4,181 +4,209 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Cotizaciones</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260340" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
     
-    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #e0f2fe, #dbeafe, #e0f2fe) !important;
+    /* Cotizaciones: estilos específicos (evita overrides globales frágiles) */
+    body[data-page="cotizaciones"] #tab-cotizaciones {
+      color: #e2e8f0;
     }
-    body.theme-light [class*="bg-slate-800/50"],
-    body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(224, 242, 254, 0.9) !important;
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones {
+      color: #0f172a;
     }
-    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #e0f2fe !important;
+    body[data-page="cotizaciones"] #tab-cotizaciones :is(input, textarea, select, option) {
+      color: inherit;
     }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
-      color: #000000 !important;
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(input, textarea, select, option) {
+      color: #0f172a !important;
     }
-    body.theme-light .text-slate-300 {
-      color: #000000 !important;
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones input::placeholder,
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones textarea::placeholder {
+      color: #64748b !important;
     }
-    body.theme-light .text-slate-400 {
-      color: #000000 !important;
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones [id$="dropdown"],
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones [id*="dropdown"] {
+      background: #ffffff !important;
+      border-color: #bfdbfe !important;
+      color: #0f172a !important;
     }
-    body.theme-light .text-slate-500 {
-      color: #000000 !important;
+    body.theme-light[data-page="cotizaciones"] #modal > div {
+      background: #f8fafc !important;
+      border-color: rgba(148, 163, 184, 0.4) !important;
     }
-    body.theme-light .text-slate-600 {
-      color: #000000 !important;
+    body.theme-light[data-page="cotizaciones"] #modal #modalBody :is(h1, h2, h3, h4, p, span, label, div) {
+      color: #0f172a;
     }
-    body.theme-light .text-slate-700 {
-      color: #000000 !important;
+
+    .q-main-btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      background: linear-gradient(90deg, #2563eb, #1d4ed8);
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
     }
-    body.theme-light .text-slate-800 {
-      color: #000000 !important;
+    .q-main-btn::before {
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -65%;
+      width: 55%;
+      height: 340%;
+      transform: rotate(25deg);
+      background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.35) 48%, transparent 68%);
+      pointer-events: none;
+      transition: left 0.55s ease;
+      z-index: 1;
     }
-    /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
+    .q-main-btn:hover::before { left: 112%; }
+    .q-main-btn > * { position: relative; z-index: 2; }
+    .q-main-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .q-main-btn:disabled,
+    .q-main-btn[disabled] {
+      opacity: 0.75 !important;
+      filter: grayscale(0.25) !important;
+      transform: none !important;
+      cursor: not-allowed !important;
     }
-    body.theme-light #modal label,
-    body.theme-light #modal .text-slate-300,
-    body.theme-light #modal .text-slate-400,
-    body.theme-light #modal .text-slate-500,
-    body.theme-light #modal .text-slate-600,
-    body.theme-light #modal .text-slate-700,
-    body.theme-light #modal .text-slate-800,
-    body.theme-light #modal h1,
-    body.theme-light #modal h2,
-    body.theme-light #modal h3,
-    body.theme-light #modal h4,
-    body.theme-light #modal p,
-    body.theme-light #modal span,
-    body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
-      color: #000000 !important;
+
+    .q-btn-secondary {
+      background: rgba(51, 65, 85, 0.72) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55) !important;
+      border-radius: 0.65rem;
+      font-weight: 700;
+      transition: all 0.2s ease;
     }
-    /* Mejorar contraste en selects y dropdowns */
-    body.theme-light select,
-    body.theme-light select option,
-    body.theme-light select.text-slate-300,
-    body.theme-light select.text-slate-400,
-    body.theme-light select.text-slate-500,
-    body.theme-light select.text-slate-600,
-    body.theme-light select.text-slate-700,
-    body.theme-light select.text-slate-800 {
-      color: #000000 !important;
-      background-color: #ffffff !important;
+    .q-btn-secondary:hover {
+      background: rgba(71, 85, 105, 0.9) !important;
+      color: #ffffff !important;
+      border-color: rgba(148, 163, 184, 0.65) !important;
+      transform: translateY(-1px);
     }
-    body.theme-light select option {
-      color: #000000 !important;
-      background-color: #ffffff !important;
+    body.theme-light .q-btn-secondary {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
     }
-    /* Mejorar contraste en inputs dentro de modales */
-    body.theme-light #modal input,
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      color: #000000 !important;
-    }
-    body.theme-light #modal input::placeholder,
-    body.theme-light #modal textarea::placeholder {
-      color: #666666 !important;
-    }
-    /* Mejorar contraste en dropdowns de vehículos y otros */
-    body.theme-light [id*="dropdown"],
-    body.theme-light [id*="Dropdown"],
-    body.theme-light [class*="dropdown"],
-    body.theme-light [class*="Dropdown"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-    }
-    body.theme-light [id*="dropdown"] *,
-    body.theme-light [id*="Dropdown"] *,
-    body.theme-light [class*="dropdown"] *,
-    body.theme-light [class*="Dropdown"] * {
-      color: #000000 !important;
-    }
-    /* Cambiar fondos grises de formularios a blanco/celeste claro */
-    body.theme-light input[class*="bg-slate-900"],
-    body.theme-light textarea[class*="bg-slate-900"],
-    body.theme-light select[class*="bg-slate-900"],
-    body.theme-light input[class*="bg-slate-800"],
-    body.theme-light textarea[class*="bg-slate-800"],
-    body.theme-light select[class*="bg-slate-800"] {
-      background-color: #ffffff !important;
-    }
-    body.theme-light input[class*="bg-slate-900/50"],
-    body.theme-light textarea[class*="bg-slate-900/50"],
-    body.theme-light select[class*="bg-slate-900/50"],
-    body.theme-light input[class*="bg-slate-800/50"],
-    body.theme-light textarea[class*="bg-slate-800/50"],
-    body.theme-light select[class*="bg-slate-800/50"] {
-      background-color: #ffffff !important;
-    }
-    /* Cambiar fondo del modal a blanco */
-    body.theme-light #modal > div,
-    body.theme-light #modal .bg-slate-800:not([class*="hover"]),
-    body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light #modal [class*="bg-slate-800/50"],
-    body.theme-light #modal [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(255, 255, 255, 0.95) !important;
-    }
-    /* Cambiar todos los inputs, textareas y selects dentro de modales */
-    body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      background-color: #ffffff !important;
-      border-color: #7dd3fc !important;
-    }
-    /* Cambiar fondos de formularios en toda la página */
-    body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light [class*="border-slate-700/50"],
-    body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
-    body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(186, 230, 253, 0.7) !important;
-    }
-    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
-      color: #000000 !important;
-    }
-    /* Botones en modo claro - Celeste claro */
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #bae6fd !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #93c5fd !important;
-      color: #000000 !important;
+    body.theme-light .q-btn-secondary:hover {
+      background: #bfdbfe !important;
+      color: #1e40af !important;
       border-color: #60a5fa !important;
     }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
+
+    body[data-page="cotizaciones"] #q-add-unified,
+    body[data-page="cotizaciones"] #q-add-qr-btn-inline,
+    body[data-page="cotizaciones"] #qr-add-manual-quote,
+    body[data-page="cotizaciones"] #qh-apply,
+    body[data-page="cotizaciones"] #m-add-unified,
+    body[data-page="cotizaciones"] #m-add-qr-btn-inline,
+    body[data-page="cotizaciones"] #pcq-confirm,
+    body[data-page="cotizaciones"] #save-note,
+    body[data-page="cotizaciones"] #q-saveBackend,
+    body[data-page="cotizaciones"] #m-save {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border-color: rgba(59, 130, 246, 0.45) !important;
     }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:hover,
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:focus,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:hover,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:focus {
-      border-color: #60a5fa !important;
-      background-color: #ffffff !important;
+    body[data-page="cotizaciones"] #q-sendWhatsApp,
+    body[data-page="cotizaciones"] #m-wa {
+      background: linear-gradient(90deg, #16a34a, #15803d) !important;
+      color: #ffffff !important;
+      border-color: rgba(34, 197, 94, 0.45) !important;
+    }
+    body[data-page="cotizaciones"] #q-exportPdf,
+    body[data-page="cotizaciones"] #m-pdf,
+    body[data-page="cotizaciones"] #q-hide-total-wa {
+      background: linear-gradient(90deg, #7c3aed, #6d28d9) !important;
+      color: #ffffff !important;
+      border-color: rgba(168, 85, 247, 0.45) !important;
+    }
+    body[data-page="cotizaciones"] #q-clearAll,
+    body[data-page="cotizaciones"] #qh-clear,
+    body[data-page="cotizaciones"] #m-close,
+    body[data-page="cotizaciones"] #pcq-cancel,
+    body[data-page="cotizaciones"] #cancel-note,
+    body[data-page="cotizaciones"] #q-add-special-note,
+    body[data-page="cotizaciones"] #q-iva-toggle,
+    body[data-page="cotizaciones"] #m-addRow,
+    body[data-page="cotizaciones"] #m-add-manual-btn-inline {
+      background: rgba(51, 65, 85, 0.72) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55) !important;
+    }
+    body.theme-light[data-page="cotizaciones"] #q-clearAll,
+    body.theme-light[data-page="cotizaciones"] #qh-clear,
+    body.theme-light[data-page="cotizaciones"] #m-close,
+    body.theme-light[data-page="cotizaciones"] #pcq-cancel,
+    body.theme-light[data-page="cotizaciones"] #cancel-note,
+    body.theme-light[data-page="cotizaciones"] #q-add-special-note,
+    body.theme-light[data-page="cotizaciones"] #q-iva-toggle,
+    body.theme-light[data-page="cotizaciones"] #m-addRow,
+    body.theme-light[data-page="cotizaciones"] #m-add-manual-btn-inline {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body[data-page="cotizaciones"] :is(#q-saveBackend, #q-sendWhatsApp, #q-exportPdf, #q-add-unified, #qh-apply, #m-save, #m-wa, #m-pdf, #m-add-unified, #pcq-confirm, #save-note):disabled,
+    body[data-page="cotizaciones"] :is(#q-saveBackend, #q-sendWhatsApp, #q-exportPdf, #q-add-unified, #qh-apply, #m-save, #m-wa, #m-pdf, #m-add-unified, #pcq-confirm, #save-note)[aria-busy="true"] {
+      background: linear-gradient(90deg, #475569, #334155) !important;
+      color: #e2e8f0 !important;
+      border-color: rgba(148, 163, 184, 0.4) !important;
+      opacity: 0.78 !important;
+      cursor: not-allowed !important;
+      transform: none !important;
+      filter: none !important;
+      box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18) !important;
+    }
+    body[data-page="cotizaciones"] #q-history-list {
+      overflow-x: hidden !important;
+    }
+    body[data-page="cotizaciones"] #tab-cotizaciones > div {
+      width: 100%;
+      max-width: 1600px;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      box-sizing: border-box;
+    }
+    @media (min-width: 1024px) {
+      body[data-page="cotizaciones"] #q-history-list .md\:grid-cols-4 {
+        grid-template-columns: 1.1fr 1.35fr 0.8fr 0.9fr;
+      }
+    }
+    body[data-page="cotizaciones"] #q-finance-summary {
+      background: linear-gradient(165deg, rgba(15, 23, 42, 0.45), rgba(30, 41, 59, 0.35));
+    }
+    body.theme-light[data-page="cotizaciones"] #q-finance-summary {
+      background: linear-gradient(165deg, #f8fbff, #eef6ff) !important;
+      border-color: #bfdbfe !important;
+    }
+    body[data-page="cotizaciones"] #q-finance-summary #q-discount-section {
+      color: #fca5a5 !important;
+      font-weight: 700;
+    }
+    body[data-page="cotizaciones"] #q-finance-summary #q-iva-section {
+      color: #93c5fd !important;
+      font-weight: 700;
+    }
+    body[data-page="cotizaciones"] #q-finance-summary #q-total {
+      color: #34d399 !important;
+      font-size: 1.15rem;
+    }
+    body.theme-light[data-page="cotizaciones"] #q-finance-summary #q-discount-section {
+      color: #b91c1c !important;
+    }
+    body.theme-light[data-page="cotizaciones"] #q-finance-summary #q-iva-section {
+      color: #1d4ed8 !important;
+    }
+    body.theme-light[data-page="cotizaciones"] #q-finance-summary #q-total {
+      color: #047857 !important;
     }
     /* Estilos para el fondo de la página */
     body {
@@ -229,23 +257,6 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
-    /* Mejorar contrastes de barras de navegación en modo claro */
-    body.theme-light .nav-tab:not(.active),
-    body.theme-light .mobile-nav-tab:not(.active) {
-      color: #475569 !important;
-      background-color: transparent !important;
-    }
-    body.theme-light .nav-tab:not(.active):hover,
-    body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #0f172a !important;
-      background-color: rgba(203, 213, 225, 0.5) !important;
-    }
-    body.theme-light .nav-tab.active,
-    body.theme-light .mobile-nav-tab.active {
-      color: #ffffff !important;
-      background-color: #2563eb !important;
-    }
-    
     /* ========== ESTILOS RESPONSIVE PARA TABLETS DE 10" (768px - 1024px) ========== */
     @media (min-width: 768px) and (max-width: 1024px) {
       html { font-size: 14px !important; }
@@ -313,34 +324,30 @@
   <main>
     <!-- ========== APP HEADER ========== -->
     <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-      <!-- Top Bar - Header Principal -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+      <div class="home-header-shell shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16 md:h-20">
-            <!-- Logo y Nombre de Empresa -->
-            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
               <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
               <div class="hidden sm:flex flex-col">
-                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+                <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
               </div>
-              <div class="sm:hidden text-white font-semibold text-sm">
+              <div class="sm:hidden text-white font-semibold text-sm home-header-company">
                 <span id="companyNameMobile">-</span>
               </div>
             </div>
 
-            <!-- Botones de Acción (Desktop) -->
-            <div class="hidden md:flex items-center gap-2">
-              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-          </div>
+            <div class="hidden md:flex items-center gap-2 home-header-actions">
+              <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            </div>
 
-          <!-- Menú Hamburguesa (Mobile) -->
-          <div class="md:hidden flex items-center gap-2">
-            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+            <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
@@ -349,41 +356,42 @@
           </div>
         </div>
 
-        <!-- Navegación Principal (Desktop) -->
-        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+        <div class="hidden md:block home-header-nav-row">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+            <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+              <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Clientes</button>
             </nav>
           </div>
         </div>
       </div>
-      
-      <!-- Menú Móvil (Mobile Menu) -->
-      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+
+      <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
         <div class="px-4 py-3 space-y-1">
-          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Cotizaciones</button>
-          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+          <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Clientes</button>
           <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
         </div>
       </div>
@@ -407,7 +415,10 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Izquierda: Datos -->
             <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="q-data">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Nueva Cotización</h3>
+              <div class="mb-4 rounded-xl bg-gradient-to-r from-sky-600/20 via-blue-600/20 to-indigo-600/20 dark:from-sky-600/20 dark:via-blue-600/20 dark:to-indigo-600/20 theme-light:from-sky-100 theme-light:via-blue-100 theme-light:to-indigo-100 border border-sky-400/35 dark:border-sky-400/35 theme-light:border-sky-200 px-4 py-3">
+                <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">🧾</span><span>Nueva Cotización</span></h3>
+                <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Completa los datos del cliente y vehículo para generar una cotización clara y profesional.</p>
+              </div>
 
               <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
@@ -460,7 +471,9 @@
 
             <!-- Derecha: Resumen / Acciones -->
             <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="q-summary">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Resumen / Acciones</h3>
+              <div class="mb-4 rounded-xl bg-gradient-to-r from-violet-600/20 via-purple-600/20 to-fuchsia-600/20 dark:from-violet-600/20 dark:via-purple-600/20 dark:to-fuchsia-600/20 theme-light:from-violet-100 theme-light:via-fuchsia-100 theme-light:to-purple-100 border border-violet-400/35 dark:border-violet-400/35 theme-light:border-violet-200 px-4 py-3">
+                <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">📊</span><span>Resumen y Acciones</span></h3>
+              </div>
               <p class="mb-4 text-white dark:text-white theme-light:text-slate-900"><span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No. cotización: </span><strong id="q-number-big" class="text-lg">00001</strong></p>
               <div class="mb-4">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Validez (días, opcional)</label>
@@ -478,8 +491,8 @@
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Notas especiales</label>
                 <div id="q-special-notes-list" class="mb-2"></div>
                 <div class="flex gap-2 flex-wrap">
-                  <button id="q-add-special-note" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">+ Agregar nota especial</button>
-                  <button id="q-hide-total-wa" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2">
+                  <button id="q-add-special-note" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">+ Agregar nota especial</button>
+                  <button id="q-hide-total-wa" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200 flex items-center gap-2">
                     <span id="q-hide-total-icon">👁️</span>
                     <span id="q-hide-total-text">Ocultar totales</span>
                   </button>
@@ -487,14 +500,14 @@
               </div>
               
               <div class="mt-4">
-                <button id="q-clearAll" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Borrar todo</button>
+                <button id="q-clearAll" class="q-btn-secondary w-full px-4 py-2 font-semibold rounded-lg transition-all duration-200">Borrar todo</button>
               </div>
             </div>
           </div>
 
           <!-- Abajo: ítems (a todo el ancho) -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="q-items-card">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ítems</h3>
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">🧩</span><span>Ítems</span></h3>
 
             <!-- Contenedor de ítems en 2 columnas -->
             <div id="q-rows" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -533,7 +546,7 @@
             </div>
 
             <div class="mb-4" id="q-addbar">
-              <button id="q-add-unified" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
+              <button id="q-add-unified" class="q-main-btn px-6 py-2.5 font-semibold rounded-lg transition-all duration-200">➕ Agregar</button>
             </div>
             
             <!-- Panel integrado para agregar items -->
@@ -544,11 +557,11 @@
                   <button id="q-close-add-panel" class="w-8 h-8 flex items-center justify-center bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 rounded-lg transition-all duration-200 text-xl font-bold">×</button>
                 </div>
                 <div class="flex gap-2 mt-3">
-                  <button id="q-add-qr-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white shadow-lg hover:shadow-xl">
+                  <button id="q-add-qr-btn-inline" class="q-main-btn flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200">
                     <span class="text-3xl">📷</span>
                     <span>Agregar QR</span>
                   </button>
-                  <button id="q-add-manual-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white shadow-lg hover:shadow-xl theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+                  <button id="q-add-manual-btn-inline" class="q-btn-secondary flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
                     <span class="text-3xl">✏️</span>
                     <span>Agregar Manual</span>
                   </button>
@@ -559,7 +572,7 @@
               </div>
             </div>
 
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div id="q-finance-summary" class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
               <div class="space-y-2 text-sm">
                 <div class="flex justify-between text-white dark:text-white theme-light:text-slate-900">
                   <span>Subtotal Productos:</span>
@@ -589,25 +602,25 @@
               <button id="q-discount-percent" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-200">Descuento %</button>
               <button id="q-discount-fixed" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200">Descuento $</button>
               <button id="q-discount-clear" class="hidden px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200">Quitar descuento</button>
-              <button id="q-iva-toggle" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">IVA</button>
+              <button id="q-iva-toggle" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">IVA</button>
             </div>
 
             <div class="flex gap-3 flex-wrap">
-              <button id="q-saveBackend" class="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">GUARDAR</button>
-              <button id="q-sendWhatsApp" class="px-6 py-2.5 bg-gradient-to-r from-green-500 to-green-600 dark:from-green-500 dark:to-green-600 theme-light:from-green-400 theme-light:to-green-500 hover:from-green-600 hover:to-green-700 dark:hover:from-green-600 dark:hover:to-green-700 theme-light:hover:from-green-500 theme-light:hover:to-green-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Enviar por WhatsApp</button>
-              <button id="q-exportPdf" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">🖨️ Imprimir PDF</button>
+              <button id="q-saveBackend" class="q-main-btn px-6 py-2.5 font-semibold rounded-lg transition-all duration-200">💾 Guardar</button>
+              <button id="q-sendWhatsApp" class="q-main-btn px-6 py-2.5 font-semibold rounded-lg transition-all duration-200">💬 Enviar por WhatsApp</button>
+              <button id="q-exportPdf" class="q-main-btn px-6 py-2 font-semibold rounded-lg transition-all duration-200">🖨️ Imprimir PDF</button>
             </div>
           </div>
 
           <!-- Debajo de ítems: Historial (a todo el ancho) -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="q-history-card">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Historial de Cotizaciones</h3>
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">🗂️</span><span>Historial de Cotizaciones</span></h3>
             <div class="flex flex-wrap gap-3 mb-4" id="q-history-filters">
               <input id="qh-text" placeholder="Buscar por cliente o placa..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               <input id="qh-from" type="date" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               <input id="qh-to" type="date" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              <button id="qh-apply" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Buscar</button>
-              <button id="qh-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Limpiar</button>
+              <button id="qh-apply" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200">Buscar</button>
+              <button id="qh-clear" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">Limpiar</button>
             </div>
             <div id="q-history-list" class="space-y-3 custom-scrollbar" style="max-height:600px; overflow-y:auto; padding-right:8px;"></div>
           </div>
@@ -627,9 +640,9 @@
           <select id="qr-cam-quote" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></select>
         </div>
         <div class="flex gap-2 flex-wrap">
-          <button id="qr-single-mode-quote" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 whitespace-nowrap">📦 Agregar solo un item</button>
-          <button id="qr-multi-mode-quote" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 whitespace-nowrap">➕ Agregar múltiples items</button>
-          <button id="qr-finish-multi-quote" class="hidden px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 whitespace-nowrap">✓ Terminar de agregar</button>
+          <button id="qr-single-mode-quote" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">📦 Agregar solo un item</button>
+          <button id="qr-multi-mode-quote" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">➕ Agregar múltiples items</button>
+          <button id="qr-finish-multi-quote" class="hidden q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">✓ Terminar de agregar</button>
         </div>
       </div>
       <div class="relative mb-4 bg-slate-900/50 rounded-lg overflow-hidden">
@@ -639,7 +652,7 @@
       </div>
       <div class="flex gap-2 mb-4">
         <input id="qr-manual-quote" placeholder="Ingresar código manualmente (fallback)" class="flex-1 px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-        <button id="qr-add-manual-quote" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar</button>
+        <button id="qr-add-manual-quote" class="q-main-btn px-6 py-2 font-semibold rounded-lg transition-all duration-200">Agregar</button>
       </div>
       <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
       <ul id="qr-history-quote" class="space-y-2"></ul>
@@ -657,6 +670,8 @@
     document.addEventListener('DOMContentLoaded', () => {
       const mobileMenuToggle = document.getElementById('mobileMenuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
+      const themeToggle = document.getElementById('themeToggle');
+      const themeToggleMobile = document.getElementById('themeToggleMobile');
       const logoutBtn = document.getElementById('logoutBtn');
       const logoutBtnMobile = document.getElementById('logoutBtnMobile');
       const companyName = document.getElementById('companyName');
@@ -710,6 +725,10 @@
           });
         });
       }
+
+      if (themeToggle && themeToggleMobile) {
+        themeToggleMobile.addEventListener('click', () => themeToggle.click());
+      }
       
       // Manejar navegación activa
       const currentPage = document.body.getAttribute('data-page');
@@ -732,37 +751,56 @@
 
     // Botón del catálogo
     function setupCatalogButton() {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
+      const btns = Array.from(document.querySelectorAll('.js-open-public-catalog'));
+      if(!btns.length) return;
       const API = window.API;
       if(!API || !API.token || !API.token.get) {
         setTimeout(setupCatalogButton, 100);
         return;
       }
       const token = API.token.get() || '';
-      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      if(!token){
+        btns.forEach(btn => { btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; });
+        return;
+      }
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-          btn.dataset.state='ready';
-          btn.disabled = false;
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          if(!companyId){
+            btns.forEach(btn => { btn.disabled=true; btn.title='No se pudo obtener companyId'; });
+            return;
+          }
+          if(!enabled){
+            btns.forEach(btn => { btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; });
+            return;
+          }
+          btns.forEach(btn => {
+            btn.dataset.state='ready';
+            btn.disabled = false;
+            btn.onclick = () => {
+              const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+              window.open(url, '_blank');
+            };
+          });
         })
         .catch(()=>{
           const storedId = API?.companyId?.get?.() || '';
           if(storedId){
-            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            btns.forEach(btn => {
+              btn.dataset.state='ready';
+              btn.title='';
+              btn.disabled=false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            });
           } else {
-            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+            btns.forEach(btn => {
+              btn.disabled=true;
+              btn.title='Error consultando empresa';
+              btn.dataset.state='error';
+            });
           }
         });
     }

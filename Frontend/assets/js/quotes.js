@@ -472,8 +472,8 @@ export function initQuotes({ getCompanyEmail }) {
         </div>
       </div>` : ''}
       <div class="flex items-center justify-end gap-2">
-        <button id="pcq-cancel" class="px-4 py-2 rounded-lg border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-700/50 transition">Cancelar</button>
-        <button id="pcq-confirm" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">Confirmar</button>
+        <button id="pcq-cancel" class="q-btn-secondary px-4 py-2 rounded-lg font-semibold transition">Cancelar</button>
+        <button id="pcq-confirm" class="q-main-btn px-4 py-2 rounded-lg font-semibold transition">Confirmar</button>
       </div>
     `;
 
@@ -626,8 +626,8 @@ export function initQuotes({ getCompanyEmail }) {
           <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar Nota Especial</h3>
           <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." class="w-full h-24 p-3 mb-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
           <div class="flex justify-end gap-2">
-            <button id="cancel-note" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
-            <button id="save-note" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar Nota</button>
+            <button id="cancel-note" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
+            <button id="save-note" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200">Agregar Nota</button>
           </div>
         </div>
       </div>
@@ -2149,7 +2149,7 @@ export function initQuotes({ getCompanyEmail }) {
     qhList.className = 'space-y-3 custom-scrollbar';
     rows.forEach(d=>{
       const el=document.createElement('div');
-      el.className='bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 hover:shadow-xl transition-all duration-200';
+      el.className='bg-slate-800/55 dark:bg-slate-800/55 theme-light:bg-white rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 p-5 hover:shadow-xl transition-all duration-200';
       const date=d.createdAt?new Date(d.createdAt).toLocaleString():'';
       const vehicleInfo = [d.vehicle?.make,d.vehicle?.line,d.vehicle?.modelYear].filter(Boolean).join(' ')||'—';
       el.innerHTML=`
@@ -2175,15 +2175,21 @@ export function initQuotes({ getCompanyEmail }) {
             </div>
           </div>
           <div class="flex flex-wrap gap-2 md:flex-col md:items-end">
-            <button data-act="edit" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Ver/Editar</button>
-            <button data-act="wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">WhatsApp</button>
-            <button data-act="pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">🖨️ Imprimir</button>
-            <button data-act="del" class="px-4 py-2 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 text-sm whitespace-nowrap">Eliminar</button>
+            <button data-act="edit" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm whitespace-nowrap">Ver/Editar</button>
+            <button data-act="wa" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm whitespace-nowrap">WhatsApp</button>
+            <button data-act="pdf" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm whitespace-nowrap">🖨️ Imprimir</button>
+            <button data-act="del" class="px-4 py-2 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-300 dark:text-red-300 hover:text-red-200 dark:hover:text-red-200 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 text-sm whitespace-nowrap">Eliminar</button>
           </div>
         </div>`;
-      el.querySelector('[data-act="edit"]')?.addEventListener('click',()=>openQuoteModal(d));
-      el.querySelector('[data-act="wa"]')?.addEventListener('click',()=>openWAFromDoc(d));
-      el.querySelector('[data-act="pdf"]')?.addEventListener('click',()=>exportPDFFromDoc(d));
+      const editBtn = el.querySelector('[data-act="edit"]');
+      const waBtn = el.querySelector('[data-act="wa"]');
+      const pdfBtn = el.querySelector('[data-act="pdf"]');
+      if (editBtn) editBtn.style.background = 'linear-gradient(90deg, #2563eb, #1d4ed8)';
+      if (waBtn) waBtn.style.background = 'linear-gradient(90deg, #16a34a, #15803d)';
+      if (pdfBtn) pdfBtn.style.background = 'linear-gradient(90deg, #7c3aed, #6d28d9)';
+      editBtn?.addEventListener('click',()=>openQuoteModal(d));
+      waBtn?.addEventListener('click',()=>openWAFromDoc(d));
+      pdfBtn?.addEventListener('click',()=>exportPDFFromDoc(d));
       el.querySelector('[data-act="del"]')?.addEventListener('click',async ()=>{
         if(!confirm('¿Eliminar cotización?')) return;
         try{ await API.quoteDelete(d._id); loadHistory(); }catch(e){ alert(e?.message||'Error al eliminar'); }
@@ -2197,7 +2203,9 @@ export function initQuotes({ getCompanyEmail }) {
     const root = document.createElement('div');
     root.innerHTML = `
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-6 mb-6">
-        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ver/Editar cotización</h3>
+        <div class="mb-4 rounded-xl bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-violet-600/20 dark:from-blue-600/20 dark:via-indigo-600/20 dark:to-violet-600/20 theme-light:from-blue-100 theme-light:via-indigo-100 theme-light:to-violet-100 border border-blue-400/35 dark:border-blue-400/35 theme-light:border-blue-200 px-4 py-3">
+          <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">📝</span><span>Ver/Editar cotización</span></h3>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">N.º cotización</label>
@@ -2282,8 +2290,8 @@ export function initQuotes({ getCompanyEmail }) {
           </div>
         </div>
         <div class="flex flex-wrap gap-3 mb-4">
-          <button id="m-add-unified" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
-          <button id="m-addRow" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar línea manual</button>
+          <button id="m-add-unified" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200">➕ Agregar</button>
+          <button id="m-addRow" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-colors duration-200">+ Agregar línea manual</button>
         </div>
         
         <!-- Panel integrado para agregar items -->
@@ -2294,11 +2302,11 @@ export function initQuotes({ getCompanyEmail }) {
               <button id="m-close-add-panel" class="w-8 h-8 flex items-center justify-center bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 rounded-lg transition-all duration-200 text-xl font-bold">×</button>
             </div>
             <div class="flex gap-2 mt-3">
-              <button id="m-add-qr-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white shadow-lg hover:shadow-xl">
+              <button id="m-add-qr-btn-inline" class="q-main-btn flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
                 <span class="text-3xl">📷</span>
                 <span>Agregar QR</span>
               </button>
-              <button id="m-add-manual-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white shadow-lg hover:shadow-xl theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+              <button id="m-add-manual-btn-inline" class="q-btn-secondary flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
                 <span class="text-3xl">✏️</span>
                 <span>Agregar Manual</span>
               </button>
@@ -2334,10 +2342,10 @@ export function initQuotes({ getCompanyEmail }) {
           <button id="m-discount-clear" class="hidden px-3 py-1.5 text-xs bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200">Quitar descuento</button>
         </div>
         <div class="flex flex-wrap gap-3 mb-4">
-          <button id="m-save" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
-          <button id="m-wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">WhatsApp</button>
-          <button id="m-pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🖨️ Imprimir PDF</button>
-          <button id="m-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cerrar</button>
+          <button id="m-save" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200">Guardar cambios</button>
+          <button id="m-wa" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200">WhatsApp</button>
+          <button id="m-pdf" class="q-main-btn px-4 py-2 font-semibold rounded-lg transition-all duration-200">🖨️ Imprimir PDF</button>
+          <button id="m-close" class="q-btn-secondary px-4 py-2 font-semibold rounded-lg transition-colors duration-200">Cerrar</button>
         </div>
         <div class="mb-4">
           <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Vista previa WhatsApp</label>
