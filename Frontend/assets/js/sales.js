@@ -4058,36 +4058,35 @@ function setupInvestmentSection() {
 function showOilTypeModal() {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
-    overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+    overlay.className = 'fixed inset-0 bg-black/70 dark:bg-black/70 theme-light:bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4';
     overlay.style.zIndex = '10000';
     
     const modal = document.createElement('div');
-    modal.className = 'bg-slate-800 rounded-xl shadow-2xl border border-slate-700/50 w-full max-w-md transform transition-all';
+    modal.className = 'bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 w-full max-w-md transform transition-all';
     
     modal.innerHTML = `
       <div class="p-6">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="p-2 bg-yellow-600/20 rounded-lg">
-            <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
-            </svg>
-          </div>
-          <h3 class="text-xl font-bold text-white">Tipo de Aceite</h3>
+        <div class="rounded-xl p-4 mb-4 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:border-amber-200 bg-gradient-to-br from-yellow-950/35 via-slate-900/40 to-slate-900/20 theme-light:from-amber-50 theme-light:via-white theme-light:to-sky-50">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2">
+            <span class="text-2xl" aria-hidden="true">🛢️</span>
+            <span>Tipo de aceite</span>
+          </h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Registra el aceite utilizado para guardar el mantenimiento correctamente.</p>
         </div>
         
-        <p class="text-slate-300 mb-4">
+        <p class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-4">
           Ingresa el tipo de aceite utilizado en el cambio:
         </p>
         
         <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-400 mb-2">
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-700 mb-2">
             Aceite utilizado
           </label>
           <input
             type="text"
             id="oilTypeInput"
             placeholder="Ej: 5W-30, 10W-40, etc."
-            class="w-full px-4 py-3 bg-slate-900/70 border-2 border-slate-600 rounded-lg text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all"
+            class="w-full px-4 py-3 bg-slate-900/70 dark:bg-slate-900/70 theme-light:bg-white border-2 border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all"
             autofocus
           />
         </div>
@@ -4095,13 +4094,13 @@ function showOilTypeModal() {
         <div class="flex gap-3">
           <button
             id="cancelOilBtn"
-            class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+            class="flex-1 px-4 py-3 bg-slate-700/60 dark:bg-slate-700/60 theme-light:bg-slate-200 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-colors border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300"
           >
             Cancelar
           </button>
           <button
             id="confirmOilBtn"
-            class="flex-1 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+            class="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-600 dark:to-amber-600 theme-light:from-amber-500 theme-light:to-yellow-500 hover:from-yellow-700 hover:to-amber-700 dark:hover:from-yellow-700 dark:hover:to-amber-700 theme-light:hover:from-amber-600 theme-light:hover:to-yellow-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -12396,9 +12395,10 @@ async function openEditPriceModal(item) {
     // Construir HTML del modal
     modalBody.innerHTML = `
       <div class="space-y-6">
-        <div>
-          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
-            Editar precio unitario
+        <div class="rounded-xl p-4 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-gradient-to-br from-blue-950/45 via-slate-900/50 to-slate-900/25 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2">
+            <span aria-hidden="true">💲</span>
+            <span>Editar precio unitario</span>
           </h2>
           <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
             ${htmlEscape(itemName)}
@@ -12556,7 +12556,7 @@ async function openEditNameModal(item, tr) {
     // Construir HTML del modal
     modalBody.innerHTML = `
       <div class="space-y-6">
-        <div>
+        <div class="rounded-xl p-4 border border-emerald-600/30 dark:border-emerald-600/30 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/45 to-slate-900/25 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
           <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
             ✏️ Editar descripción
           </h2>
@@ -13216,15 +13216,22 @@ function buildEditCloseModalContent(sale, total) {
   const wrap = document.createElement('div');
   wrap.className = 'space-y-4';
   wrap.innerHTML = `
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Editar cierre de venta</h3>
+    <div class="rounded-xl p-4 mb-1 border border-slate-600/40 dark:border-slate-600/40 theme-light:border-sky-200
+      bg-gradient-to-br from-indigo-950/55 via-slate-900/70 to-blue-950/40
+      dark:from-indigo-950/55 dark:via-slate-900/70 dark:to-blue-950/40
+      theme-light:from-sky-100 theme-light:via-white theme-light:to-indigo-50 shadow-sm">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap">
+        <span class="text-2xl shrink-0 leading-none" aria-hidden="true">🧾</span>
+        <span>Editar cierre de venta</span>
+      </h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Total venta:
+        <strong class="text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 tabular-nums">${money(total)}</strong>
+      </p>
     </div>
-    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
-    </div>
-    <div id="ecv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="ecv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-blue-500 dark:border-l-blue-500 theme-light:border-l-blue-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">💳</span> Formas de pago</strong>
         <button id="ecv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
       <table class="w-full text-xs border-collapse" id="ecv-payments-table">
@@ -13241,10 +13248,10 @@ function buildEditCloseModalContent(sale, total) {
       <div id="ecv-payments-summary" class="mt-3 text-xs"></div>
       <div id="ecv-advance-info" class="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300"></div>
     </div>
-    <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-violet-500 dark:border-l-violet-500 theme-light:border-l-violet-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">🛠️</span> Desglose de mano de obra</label>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Edita las líneas de participación técnica.</p>
         </div>
         <button id="ecv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
@@ -13276,8 +13283,8 @@ function buildEditCloseModalContent(sale, total) {
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="md:col-span-2">
-        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+      <div class="md:col-span-2 rounded-lg border border-slate-600/40 dark:border-slate-600/40 theme-light:border-slate-200 border-l-4 border-l-slate-500 dark:border-l-slate-400 theme-light:border-l-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white/80 p-4">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">📎</span> Comprobante (opcional)</label>
         <div class="relative">
           <input id="ecv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
         </div>
