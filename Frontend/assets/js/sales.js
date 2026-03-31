@@ -2566,7 +2566,11 @@ async function openMaintenanceServicesModal() {
 }
 
 function buildCloseModalContent(){
-  const total = current?.total || 0;
+  const closeTotals = computeSaleDisplayTotals(current, {
+    forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+    forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+  });
+  const total = closeTotals.displayTotal || 0;
   const wrap = document.createElement('div');
   wrap.className = 'space-y-4';
   wrap.innerHTML = `
@@ -3244,7 +3248,10 @@ function fillCloseModal(){
       }
     });
     
-    const total = Math.round(Number(current?.total||0));
+    const total = computeSaleDisplayTotals(current, {
+      forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+      forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+    }).displayTotal;
     const diff = total - sum;
     let html = `Suma: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(sum)}</strong> / Total: <span class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</span>.`;
     if(Math.abs(diff) > 0.01){
@@ -3370,12 +3377,22 @@ function fillCloseModal(){
       // Cargar método de pago único (legacy)
       addPaymentRow({ 
         method: current.paymentMethod, 
-        amount: Number(current?.total||0), 
+        amount: computeSaleDisplayTotals(current, {
+          forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+          forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+        }).displayTotal, 
         accountId: null 
       });
     } else {
       // Prefill single row with full total (nueva venta)
-    addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
+    addPaymentRow({ 
+      method:'EFECTIVO', 
+      amount: computeSaleDisplayTotals(current, {
+        forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+        forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+      }).displayTotal, 
+      accountId: accountsCache[0]?._id||'' 
+    });
     }
     recalc();
     try { renderAdvanceInfoBoxForSale(current, 'cv-advance-info'); } catch {}
@@ -3642,7 +3659,10 @@ function fillCloseModal(){
       }
     });
     
-    const total = Math.round(Number(current?.total||0));
+    const total = computeSaleDisplayTotals(current, {
+      forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+      forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+    }).displayTotal;
     const hasZeroTotal = total === 0;
     console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length, hasZeroTotal });
     
@@ -3789,7 +3809,7 @@ function fillCloseModal(){
       
       console.log('Payload de cierre:', { 
         paymentMethods: paymentMethodsToSend, 
-        total: current?.total,
+        total,
         sum: paymentMethodsToSend.reduce((a, p) => a + p.amount, 0)
       });
       
@@ -3826,6 +3846,7 @@ function fillCloseModal(){
       const closeResult = await API.sales.close(current._id, payload);
       document.getElementById('modal')?.classList.add('hidden');
       const closedSale = closeResult?.sale || current;
+      setSaleCardFeeEnabled(current._id, false);
       setSaleQuoteLink(current._id, null);
       current = null;
       await refreshOpenSales();
@@ -4279,6 +4300,7 @@ function renderCapsules(){
       e.stopPropagation();
       if(!confirm('Cancelar esta venta?')) return;
       try{ await API.sales.cancel(sale._id); }catch(err){ alert(err?.message||'No se pudo cancelar'); }
+      setSaleCardFeeEnabled(sale._id, false);
       setSaleQuoteLink(sale._id, null);
       if(current && current._id===sale._id) current=null;
       await refreshOpenSales();
