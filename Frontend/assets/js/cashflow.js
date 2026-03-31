@@ -618,7 +618,10 @@ function openAddAccountModal(){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">➕ Nueva Cuenta</h3>
+    <div class="rounded-xl p-4 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-gradient-to-br from-blue-950/40 via-slate-900/45 to-indigo-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">➕ Nueva Cuenta</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Crea una cuenta de caja o banco para registrar movimientos.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Nombre de la cuenta</label>
       <input id='nacc-name' type='text' placeholder='Ej: Caja Principal, Banco BBVA...' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
@@ -651,7 +654,7 @@ function openAddAccountModal(){
       <textarea id='nacc-notes' placeholder='Notas adicionales sobre la cuenta...' rows="3" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"></textarea>
     </div>
     <div class="flex gap-2 mt-6">
-      <button id='nacc-save' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+      <button id='nacc-save' class="cf-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
       <button id='nacc-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='nacc-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -719,7 +722,10 @@ function openEditMovementModal(id, trRow){
   
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">✏️ Editar Movimiento</h3>
+    <div class="rounded-xl p-4 border border-cyan-600/30 dark:border-cyan-600/30 theme-light:border-cyan-200 bg-gradient-to-br from-cyan-950/35 via-slate-900/45 to-blue-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-cyan-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">✏️ Editar Movimiento</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Actualiza el valor o la descripción del movimiento.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
       <input id='edit-mov-amount' type='number' min='1' step='0.01' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
@@ -729,7 +735,7 @@ function openEditMovementModal(id, trRow){
       <input id='edit-mov-desc' type='text' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
     </div>
     <div class="flex gap-2 mt-6">
-      <button id='edit-mov-save' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+      <button id='edit-mov-save' class="cf-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
       <button id='edit-mov-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='edit-mov-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -796,7 +802,10 @@ function openNewEntryModal(defaultKind='IN'){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">${defaultKind==='OUT'?'Nueva salida de caja':'Nueva entrada manual'}</h3>
+    <div class="rounded-xl p-4 border border-${defaultKind==='OUT'?'red':'green'}-600/30 dark:border-${defaultKind==='OUT'?'red':'green'}-600/30 theme-light:border-${defaultKind==='OUT'?'red':'green'}-200 bg-gradient-to-br from-slate-900/45 via-slate-900/45 to-slate-800/30 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">${defaultKind==='OUT'?'➖ Nueva salida de caja':'➕ Nueva entrada manual'}</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Registra un movimiento manual asociado a una cuenta.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta</label>
       <select id='ncf-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
@@ -810,7 +819,7 @@ function openNewEntryModal(defaultKind='IN'){
       <input id='ncf-desc' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
     </div>
     <div class="flex gap-2 mt-4">
-      <button id='ncf-save' class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+      <button id='ncf-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
       <button id='ncf-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='ncf-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -841,7 +850,10 @@ function openSettleLoanModal(loanId, loan){
   const pending = loan.amount - (loan.paidAmount||0);
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💰 Liquidar Préstamo</h3>
+    <div class="rounded-xl p-4 border border-emerald-600/30 dark:border-emerald-600/30 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/30 via-slate-900/45 to-teal-950/30 theme-light:from-emerald-50 theme-light:via-white theme-light:to-teal-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">💰 Liquidar Préstamo</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Registra un pago total o parcial del préstamo del empleado.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Empleado</label>
       <input type="text" value="${escapeHtml(loan.technicianName)}" disabled class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-900"/>
@@ -868,7 +880,7 @@ function openSettleLoanModal(loanId, loan){
     </div>
     <div class="flex gap-2 justify-end">
       <button id='settle-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
-      <button id='settle-submit' class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Liquidar</button>
+      <button id='settle-submit' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-600 dark:to-emerald-700 theme-light:from-green-600 theme-light:to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Liquidar</button>
     </div>
   </div>`;
   body.innerHTML = '';
@@ -942,7 +954,10 @@ function openNewLoanModal(){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Nuevo Préstamo a Empleado</h3>
+    <div class="rounded-xl p-4 border border-violet-600/30 dark:border-violet-600/30 theme-light:border-violet-200 bg-gradient-to-br from-violet-950/30 via-slate-900/45 to-fuchsia-950/30 theme-light:from-violet-50 theme-light:via-white theme-light:to-fuchsia-50">
+      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">🤝 Nuevo Préstamo a Empleado</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Crea un préstamo y regístralo automáticamente en flujo de caja.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Técnico/Empleado</label>
       <select id='nloan-tech' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -968,7 +983,7 @@ function openNewLoanModal(){
       <textarea id='nloan-notes' placeholder='Notas adicionales' class="w-full min-h-[60px] p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
     </div>
     <div class="flex gap-2 mt-4">
-      <button id='nloan-save' class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+      <button id='nloan-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
       <button id='nloan-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='nloan-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
