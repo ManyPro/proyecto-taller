@@ -182,12 +182,12 @@
       transition: all 0.2s ease;
     }
     body[data-page="inventario"] #modal #modalBody button.secondary,
-    body[data-page="inventario"] #modal #modalBody :is(#lb-close, #qr-download, #qr-copy, #sku-new-cancel, #u0-cancel, #bpub-cancel, #stk-cancel, #summary-close, #bstk-apply-all, #bstk-cancel, #close-modal, #inv-prev, #inv-next, #stk-fill-stock, #stk-clear) {
+    body[data-page="inventario"] #modal #modalBody :is(#lb-close, #qr-download, #qr-copy, #sku-new-cancel, #u0-cancel, #bpub-cancel, #stk-cancel, #summary-close, #bstk-apply-all, #bstk-cancel, #close-modal, #inv-prev, #inv-next, #stk-fill-stock, #stk-clear, #e-it-cancel, #e-vi-cancel) {
       background: rgba(51, 65, 85, 0.72) !important;
       color: #e2e8f0 !important;
       border: 1px solid rgba(100, 116, 139, 0.55) !important;
     }
-    body[data-page="inventario"] #modal #modalBody :is(#sku-new-save, #bpub-run, #stk-generate, #stk-save, #bstk-save, #qrv-open-summary, #qrv-scan-again, #pdf-save, #edit-save) {
+    body[data-page="inventario"] #modal #modalBody :is(#sku-new-save, #bpub-run, #stk-generate, #stk-save, #bstk-save, #qrv-open-summary, #qrv-scan-again, #pdf-save, #edit-save, #e-it-save, #e-vi-save) {
       background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
       color: #ffffff !important;
       border: 1px solid rgba(59, 130, 246, 0.45) !important;
@@ -204,7 +204,17 @@
       border: 1px solid rgba(244, 63, 94, 0.45) !important;
     }
     body.theme-light[data-page="inventario"] #modal #modalBody button.secondary,
-    body.theme-light[data-page="inventario"] #modal #modalBody :is(#lb-close, #qr-download, #qr-copy, #sku-new-cancel, #u0-cancel, #bpub-cancel, #stk-cancel, #summary-close, #bstk-apply-all, #bstk-cancel, #close-modal, #inv-prev, #inv-next, #stk-fill-stock, #stk-clear) {
+    body.theme-light[data-page="inventario"] #modal #modalBody :is(#lb-close, #qr-download, #qr-copy, #sku-new-cancel, #u0-cancel, #bpub-cancel, #stk-cancel, #summary-close, #bstk-apply-all, #bstk-cancel, #close-modal, #inv-prev, #inv-next, #stk-fill-stock, #stk-clear, #e-it-cancel, #e-vi-cancel) {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body[data-page="inventario"] #modal #modalBody button:not(#modalClose):not(#inv-overlay-close):not([class*="bg-"]):not([class*="from-"]):not([class*="to-"]):not(.inv-main-btn):not(.inv-btn-secondary):not(.inv-btn-danger) {
+      background: rgba(51, 65, 85, 0.72) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55) !important;
+    }
+    body.theme-light[data-page="inventario"] #modal #modalBody button:not(#modalClose):not(#inv-overlay-close):not([class*="bg-"]):not([class*="from-"]):not([class*="to-"]):not(.inv-main-btn):not(.inv-btn-secondary):not(.inv-btn-danger) {
       background: #dbeafe !important;
       color: #1e3a8a !important;
       border-color: #93c5fd !important;
@@ -770,6 +780,53 @@
       .rounded-2xl { border-radius: 0.75rem !important; }
       .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; }
       .shadow-xl { box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important; }
+    }
+
+    /* Hotfix final: modales en claro + separación compras/inversores */
+    body[data-page="inventario"] #modal #modalBody > div {
+      background: linear-gradient(165deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.84)) !important;
+      border: 1px solid rgba(100, 116, 139, 0.45) !important;
+      border-radius: 0.85rem !important;
+      box-shadow: 0 20px 35px rgba(2, 6, 23, 0.4) !important;
+    }
+    body.theme-light[data-page="inventario"] #modal #modalBody > div {
+      background: linear-gradient(165deg, #f8fbff, #eef6ff) !important;
+      border: 1px solid #bfdbfe !important;
+      box-shadow: 0 12px 24px rgba(30, 64, 175, 0.14) !important;
+    }
+    body.theme-light[data-page="inventario"] #modal #modalBody :is(h1, h2, h3, h4, p, span, label, strong, small) {
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="inventario"] #modal #modalBody :is(input, textarea, select) {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.03);
+    }
+    body.theme-light[data-page="inventario"] #modal #modalBody :is(input:focus, textarea:focus, select:focus) {
+      border-color: #60a5fa !important;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+    }
+    body[data-page="inventario"] :is(#compras-content, #inv-investors-list) .group {
+      border-width: 1px !important;
+      border-style: solid !important;
+      border-color: rgba(148, 163, 184, 0.26) !important;
+      background: linear-gradient(170deg, rgba(51, 65, 85, 0.45), rgba(30, 41, 59, 0.55)) !important;
+    }
+    body.theme-light[data-page="inventario"] :is(#compras-content, #inv-investors-list) .group {
+      border-color: #cbd5e1 !important;
+      background: linear-gradient(170deg, #ffffff, #f8fafc) !important;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08) !important;
+    }
+    body[data-page="inventario"] :is(#compras-content, #inv-investors-list) .group .border-t {
+      border-color: rgba(148, 163, 184, 0.35) !important;
+    }
+    body.theme-light[data-page="inventario"] :is(#compras-content, #inv-investors-list) .group .border-t {
+      border-color: #dbeafe !important;
+    }
+    body[data-page="inventario"] :is(#compras-content, #inv-investors-list) .group + .group {
+      outline: 1px solid rgba(148, 163, 184, 0.16);
+      outline-offset: 0;
     }
   </style>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
