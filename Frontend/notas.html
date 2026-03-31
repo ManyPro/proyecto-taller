@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Notas</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260333" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260334" />
   <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
@@ -422,39 +422,12 @@
         "Helvetica Neue", Arial, "Noto Sans", "Source Sans 3", sans-serif;
     }
 
-    /* Desktop: todo debe caber en viewport; scroll interno por panel */
+    /* Desktop: centrar y acomodar el contenido de Notas sin recortar */
     @media (min-width: 1024px) {
-      body[data-page="notas"] #appSection {
-        height: calc(100vh - 7.5rem);
-        overflow: hidden;
-      }
-      body[data-page="notas"] #tab-notas {
-        height: 100%;
-      }
       body[data-page="notas"] #tab-notas > div {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-      body[data-page="notas"] #notes-body {
-        flex: 1;
-        min-height: 0;
-      }
-      body[data-page="notas"] #notes-new,
-      body[data-page="notas"] #notes-history {
-        height: 100%;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-      }
-      body[data-page="notas"] #notes-history {
-        display: flex;
-        flex-direction: column;
-      }
-      body[data-page="notas"] #notes-history #notesList {
-        flex: 1;
-        min-height: 0;
-        max-height: none !important;
+        width: min(1600px, 100%);
+        margin-left: auto !important;
+        margin-right: auto !important;
       }
     }
 
@@ -792,7 +765,7 @@
             <!-- Historial -->
             <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-history">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Historial</h3>
-              <div id="notesList" class="space-y-3 custom-scrollbar overflow-y-auto overscroll-y-contain"></div>
+              <div id="notesList" class="space-y-3 custom-scrollbar max-h-[min(44vh,30rem)] overflow-y-auto overscroll-y-contain"></div>
             </div>
           </div>
         </div>

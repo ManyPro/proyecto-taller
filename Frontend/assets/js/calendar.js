@@ -100,7 +100,7 @@ function renderCalendar() {
 
 function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = []) {
   const dayEl = document.createElement('div');
-  dayEl.className = `notes-cal-day-cell h-[3.25rem] sm:h-[4.75rem] md:h-[5.25rem] overflow-hidden p-0.5 sm:p-0.5 border border-slate-600/25 dark:border-slate-600/25 theme-light:border-slate-300/70 rounded-lg ${
+  dayEl.className = `notes-cal-day-cell min-h-[2.25rem] sm:min-h-[3rem] md:min-h-[3.25rem] p-0.5 sm:p-0.5 border border-slate-600/25 dark:border-slate-600/25 theme-light:border-slate-300/70 rounded-lg ${
     isOtherMonth ? 'notes-cal-day--other bg-slate-950/25 dark:bg-slate-950/25 theme-light:bg-slate-200/40' : 'bg-slate-800/35 dark:bg-slate-800/35 theme-light:bg-white/70 backdrop-blur-sm'
   } ${
     isToday ? 'ring-1 sm:ring-2 ring-blue-500 ring-offset-0 sm:ring-offset-1 ring-offset-slate-900/80 dark:ring-offset-slate-900/80 theme-light:ring-offset-sky-50' : ''
@@ -120,8 +120,8 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
     const eventsContainer = document.createElement('div');
     eventsContainer.className = 'space-y-0.5 sm:space-y-0.5';
     
-    // En móvil mostrar solo 1 evento, en desktop hasta 2 para mantener altura compacta
-    const maxEvents = window.innerWidth < 640 ? 1 : 2;
+    // En móvil mostrar solo 1 evento, en desktop hasta 3
+    const maxEvents = window.innerWidth < 640 ? 1 : 3;
     dayEvents.slice(0, maxEvents).forEach(event => {
       const eventEl = document.createElement('div');
       eventEl.className = `text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity`;
