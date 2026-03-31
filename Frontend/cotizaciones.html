@@ -14,6 +14,21 @@
     body[data-page="cotizaciones"] #tab-cotizaciones {
       color: #e2e8f0;
     }
+    body[data-page="cotizaciones"] #tab-cotizaciones,
+    body[data-page="cotizaciones"] #tab-cotizaciones *,
+    body[data-page="cotizaciones"] #tab-cotizaciones *::before,
+    body[data-page="cotizaciones"] #tab-cotizaciones *::after {
+      box-sizing: border-box;
+    }
+    body[data-page="cotizaciones"] #tab-cotizaciones :is(.grid, .flex, .q-row-card, #q-data, #q-summary, #q-items-card, #q-history-card) > * {
+      min-width: 0;
+    }
+    body[data-page="cotizaciones"] #tab-cotizaciones :is(input, textarea, select, pre) {
+      max-width: 100%;
+    }
+    body[data-page="cotizaciones"] #tab-cotizaciones :is(#q-data, #q-summary, #q-items-card, #q-history-card, #q-finance-summary) {
+      overflow: hidden;
+    }
     body.theme-light[data-page="cotizaciones"] #tab-cotizaciones {
       color: #0f172a;
     }
@@ -91,14 +106,15 @@
       transform: translateY(-1px);
     }
     body.theme-light .q-btn-secondary {
-      background: #dbeafe !important;
-      color: #1e3a8a !important;
-      border-color: #93c5fd !important;
+      background: linear-gradient(90deg, #0ea5e9, #2563eb) !important;
+      color: #ffffff !important;
+      border-color: rgba(37, 99, 235, 0.45) !important;
+      box-shadow: 0 8px 16px rgba(30, 64, 175, 0.2);
     }
     body.theme-light .q-btn-secondary:hover {
-      background: #bfdbfe !important;
-      color: #1e40af !important;
-      border-color: #60a5fa !important;
+      background: linear-gradient(90deg, #0284c7, #1d4ed8) !important;
+      color: #ffffff !important;
+      border-color: rgba(29, 78, 216, 0.55) !important;
     }
 
     body[data-page="cotizaciones"] #q-add-unified,
@@ -150,9 +166,9 @@
     body.theme-light[data-page="cotizaciones"] #q-iva-toggle,
     body.theme-light[data-page="cotizaciones"] #m-addRow,
     body.theme-light[data-page="cotizaciones"] #m-add-manual-btn-inline {
-      background: #dbeafe !important;
-      color: #1e3a8a !important;
-      border-color: #93c5fd !important;
+      background: linear-gradient(90deg, #334155, #1e293b) !important;
+      color: #ffffff !important;
+      border-color: rgba(71, 85, 105, 0.55) !important;
     }
     body[data-page="cotizaciones"] :is(#q-saveBackend, #q-sendWhatsApp, #q-exportPdf, #q-add-unified, #qh-apply, #m-save, #m-wa, #m-pdf, #m-add-unified, #pcq-confirm, #save-note):disabled,
     body[data-page="cotizaciones"] :is(#q-saveBackend, #q-sendWhatsApp, #q-exportPdf, #q-add-unified, #qh-apply, #m-save, #m-wa, #m-pdf, #m-add-unified, #pcq-confirm, #save-note)[aria-busy="true"] {
@@ -207,6 +223,33 @@
     }
     body.theme-light[data-page="cotizaciones"] #q-finance-summary #q-total {
       color: #047857 !important;
+    }
+    /* Light mode: mejorar contraste general de bloques y campos */
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(#q-data, #q-summary, #q-items-card, #q-history-card) {
+      background: #f8fbff !important;
+      border-color: #bfdbfe !important;
+      box-shadow: 0 8px 20px rgba(30, 64, 175, 0.08);
+    }
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(h2, h3, h4) {
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(label, .text-slate-400, .text-slate-500, .text-slate-600) {
+      color: #334155 !important;
+      font-weight: 600;
+    }
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(input, textarea, select) {
+      background: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.04);
+    }
+    body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(input:focus, textarea:focus, select:focus) {
+      border-color: #60a5fa !important;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+    }
+    body.theme-light[data-page="cotizaciones"] #q-whatsappPreview {
+      background: #eff6ff !important;
+      border-color: #bfdbfe !important;
+      color: #0f172a !important;
     }
     /* Estilos para el fondo de la página */
     body {
