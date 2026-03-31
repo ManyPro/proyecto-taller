@@ -151,7 +151,7 @@ async function loadAccounts(){
     const visibleTotal = balances.reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0);
     
     if(body){
-      body.innerHTML = balances.map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3 text-center"><button onclick="deleteAccount('${a.accountId || a._id || a.id}', '${escapeHtml(a.name)}')" class="px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded transition-colors" title="Eliminar cuenta y todos sus registros">🗑️</button></td></tr>`).join('');
+      body.innerHTML = balances.map((a, idx)=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-slate-800/15 dark:bg-slate-800/15 theme-light:bg-white/70' : ''}"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3 text-center"><button onclick="deleteAccount('${a.accountId || a._id || a.id}', '${escapeHtml(a.name)}')" class="px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded transition-colors" title="Eliminar cuenta y todos sus registros">🗑️</button></td></tr>`).join('');
       if(!balances.length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
     if(totalLbl) totalLbl.textContent = 'Total: '+money(visibleTotal);
@@ -222,7 +222,7 @@ async function loadMovements(reset=false){
         });
       };
       
-      rowsBody.innerHTML = items.map(x=>{
+      rowsBody.innerHTML = items.map((x, idx)=>{
         const inAmt = x.kind==='IN'? money(x.amount):'';
         const outAmt = x.kind==='OUT'? money(x.amount):'';
         const date = formatDate(x.date||x.createdAt);
@@ -238,7 +238,7 @@ async function loadMovements(reset=false){
             if (saleNumber) saleInfo.push(`Venta #${saleNumber}`);
             if (salePlate) saleInfo.push(`Placa: ${salePlate.toUpperCase()}`);
             if (saleInfo.length > 0) {
-              desc = `${desc} - ${saleInfo.join(' | ')}`;
+              desc = `${desc} · ${saleInfo.join(' · ')}`;
             }
           }
         }
@@ -246,7 +246,7 @@ async function loadMovements(reset=false){
         const canEdit = true;
         const rowId = escapeHtml(x._id);
         
-        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-slate-800/15 dark:bg-slate-800/15 theme-light:bg-white/70' : ''}">
           <td data-label="Fecha" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
           <td data-label="Cuenta" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
           <td data-label="Descripción" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>
@@ -282,7 +282,7 @@ async function loadMovements(reset=false){
     // Actualizar controles de paginación
     const IN = data.totals?.in||0; 
     const OUT = data.totals?.out||0;
-    if(summary) summary.textContent = `Entradas: ${money(IN)} | Salidas: ${money(OUT)} | Neto: ${money(IN-OUT)}`;
+    if(summary) summary.innerHTML = `<span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-emerald-600/20 theme-light:bg-emerald-100 text-emerald-300 theme-light:text-emerald-700 font-semibold">Entradas: ${money(IN)}</span><span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-rose-600/20 theme-light:bg-rose-100 text-rose-300 theme-light:text-rose-700 font-semibold">Salidas: ${money(OUT)}</span><span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-600/20 theme-light:bg-blue-100 text-blue-300 theme-light:text-blue-700 font-semibold">Neto: ${money(IN-OUT)}</span>`;
     cfState.page = data.page||1; 
     cfState.pages = Math.max(1, Math.ceil((data.total||0)/cfState.limit));
     if(pag) pag.textContent = `Página ${cfState.page} de ${cfState.pages}`;
@@ -1068,7 +1068,7 @@ async function loadLoans(reset=false){
     const loans = data.items || [];
     
     if(body){
-      body.innerHTML = loans.map(loan=>{
+      body.innerHTML = loans.map((loan, idx)=>{
         const date = new Date(loan.loanDate||loan.createdAt).toLocaleDateString('es-CO');
         const pending = loan.amount - (loan.paidAmount||0);
         const statusLabels = {
@@ -1078,7 +1078,7 @@ async function loadLoans(reset=false){
           cancelled: '<span style="color:#6b7280;">Cancelado</span>'
         };
         const canDelete = loan.status === 'pending' && (!loan.settlementIds || loan.settlementIds.length === 0);
-        return `<tr data-id='${loan._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+        return `<tr data-id='${loan._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-slate-800/15 dark:bg-slate-800/15 theme-light:bg-white/70' : ''}">
           <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
           <td data-label="Técnico" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${loan.technicianName}</td>
           <td data-label="Monto" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(loan.amount)}</td>
@@ -1124,7 +1124,7 @@ async function loadLoans(reset=false){
     const totalAmount = loans.reduce((sum, l) => sum + l.amount, 0);
     const totalPaid = loans.reduce((sum, l) => sum + (l.paidAmount||0), 0);
     
-    if(summary) summary.textContent = `Total préstamos: ${money(totalAmount)} | Pagado: ${money(totalPaid)} | Pendiente: ${money(totalPending)}`;
+    if(summary) summary.innerHTML = `<span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-violet-600/20 theme-light:bg-violet-100 text-violet-300 theme-light:text-violet-700 font-semibold">Total: ${money(totalAmount)}</span><span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-blue-600/20 theme-light:bg-blue-100 text-blue-300 theme-light:text-blue-700 font-semibold">Pagado: ${money(totalPaid)}</span><span class="inline-flex items-center px-2 py-1 rounded-md bg-amber-600/20 theme-light:bg-amber-100 text-amber-300 theme-light:text-amber-700 font-semibold">Pendiente: ${money(totalPending)}</span>`;
     
     const techSel = document.getElementById('cf-loan-filter-tech');
     if(techSel && loans.length > 0){

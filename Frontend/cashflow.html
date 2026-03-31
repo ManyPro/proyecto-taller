@@ -8,6 +8,27 @@
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
+    .cf-main-btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .cf-main-btn::before {
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -35%;
+      width: 45%;
+      height: 340%;
+      transform: rotate(25deg);
+      background: linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.26) 45%, rgba(255,255,255,0) 100%);
+      transition: left 420ms ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .cf-main-btn:hover::before { left: 115%; }
+    .cf-main-btn > * { position: relative; z-index: 2; }
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
@@ -470,13 +491,18 @@
       <!-- ========== FLUJO DE CAJA ========== -->
   <section id="tab-cashflow" class="tab active">
         <div class="w-full px-2 sm:px-4 lg:px-6 py-6">
+          <div class="rounded-2xl p-5 mb-6 border border-sky-600/30 dark:border-sky-600/30 theme-light:border-sky-200 bg-gradient-to-br from-sky-950/45 via-slate-900/45 to-indigo-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+            <h2 class="text-2xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span aria-hidden="true">💹</span> Flujo de Caja</h2>
+            <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Controla cuentas, movimientos y préstamos con una vista clara y consistente.</p>
+          </div>
+
           <!-- Cuentas -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas</h3>
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">🏦</span> Cuentas</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
               <button id="cf-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
-              <button id="cf-add-account" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Cuenta</button>
-              <button id="cf-bill-counter" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-600 dark:to-emerald-700 theme-light:from-emerald-500 theme-light:to-emerald-600 hover:from-emerald-700 hover:to-emerald-800 dark:hover:from-emerald-700 dark:hover:to-emerald-800 theme-light:hover:from-emerald-600 theme-light:hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Contador de Billetes</button>
+              <button id="cf-add-account" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Cuenta</button>
+              <button id="cf-bill-counter" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-600 theme-light:to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Contador de Billetes</button>
             </div>
             <div id="cf-accounts" class="max-h-[200px] overflow-auto custom-scrollbar mb-2">
                 <table class="w-full text-sm border-collapse">
@@ -496,7 +522,7 @@
 
           <!-- Movimientos -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Movimientos</h3>
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">📈</span> Movimientos</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
               <select id="cf-filter-account" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Cuenta --</option>
@@ -514,9 +540,9 @@
                 <option value="MANUAL">Manual</option>
               </select>
               <button id="cf-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar</button>
-              <button id="cf-new-entry" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
-              <button id="cf-new-expense" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
-              <button id="cf-new-loan" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
+              <button id="cf-new-entry" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-600 dark:to-emerald-700 theme-light:from-green-600 theme-light:to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
+              <button id="cf-new-expense" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-red-600 to-rose-700 dark:from-red-600 dark:to-rose-700 theme-light:from-red-600 theme-light:to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
+              <button id="cf-new-loan" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-purple-600 to-fuchsia-700 dark:from-purple-600 dark:to-fuchsia-700 theme-light:from-purple-600 theme-light:to-fuchsia-700 hover:from-purple-700 hover:to-fuchsia-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
         </div>
             <div id="cf-mov-summary" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">—</div>
             <div class="max-h-[360px] overflow-auto custom-scrollbar mb-4">
@@ -548,7 +574,7 @@
         
         <!-- Sección de Préstamos a Empleados -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Préstamos a Empleados</h3>
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">🤝</span> Préstamos a Empleados</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
               <select id="cf-loan-filter-tech" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Todos los empleados --</option>
