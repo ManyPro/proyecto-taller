@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Notas</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260334" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260335" />
   <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
@@ -425,7 +425,9 @@
     /* Desktop: centrar y acomodar el contenido de Notas sin recortar */
     @media (min-width: 1024px) {
       body[data-page="notas"] #tab-notas > div {
-        width: min(1600px, 100%);
+        width: 100%;
+        max-width: 1600px;
+        box-sizing: border-box;
         margin-left: auto !important;
         margin-right: auto !important;
       }

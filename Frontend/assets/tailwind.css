@@ -291,6 +291,7 @@ html {
 #appHeader .max-w-7xl.mx-auto {
   max-width: none !important;
   width: 100%;
+  box-sizing: border-box;
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
@@ -298,6 +299,7 @@ html {
 #appSection .max-w-7xl.mx-auto {
   max-width: none !important;
   width: 100%;
+  box-sizing: border-box;
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
