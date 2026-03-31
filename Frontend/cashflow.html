@@ -29,6 +29,35 @@
     }
     .cf-main-btn:hover::before { left: 115%; }
     .cf-main-btn > * { position: relative; z-index: 2; }
+    .cf-main-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      filter: saturate(0.85);
+    }
+    body:not(.theme-light) #appHeader .home-header-nav-row nav {
+      justify-content: center;
+      flex-wrap: wrap;
+      overflow-x: visible;
+      row-gap: 0.375rem;
+    }
+    body:not(.theme-light) .nav-tab:not(.active),
+    body:not(.theme-light) .mobile-nav-tab:not(.active) {
+      background: transparent !important;
+      color: #cbd5e1 !important;
+      border: 1px solid transparent !important;
+    }
+    body:not(.theme-light) .nav-tab:not(.active):hover,
+    body:not(.theme-light) .mobile-nav-tab:not(.active):hover {
+      background: rgba(51, 65, 85, 0.55) !important;
+      color: #ffffff !important;
+      border-color: rgba(100, 116, 139, 0.5) !important;
+    }
+    body:not(.theme-light) .nav-tab.active,
+    body:not(.theme-light) .mobile-nav-tab.active {
+      color: #ffffff !important;
+      border-color: rgba(59, 130, 246, 0.45) !important;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28) !important;
+    }
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
