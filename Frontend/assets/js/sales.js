@@ -4267,7 +4267,8 @@ function renderCapsules(){
     node.querySelector('.sc-plate').textContent = (sale.vehicle?.plate||'—');
   const vehParts = [sale.vehicle?.brand, sale.vehicle?.line, sale.vehicle?.engine].filter(Boolean).map(v=>String(v).toUpperCase());
   node.querySelector('[data-veh]').textContent = vehParts.join(' ') || '—';
-    node.querySelector('[data-total]').textContent = money(sale.total||0);
+    const { displayTotal } = computeSaleDisplayTotals(sale);
+    node.querySelector('[data-total]').textContent = money(displayTotal);
     node.querySelector('[data-tech]').textContent = sale.technician || '—';
     if(current && sale._id===current._id) node.classList.add('active');
     node.addEventListener('click', (e)=>{
@@ -4794,15 +4795,10 @@ async function renderSale(){
   const cardFeeRow = document.getElementById('sales-card-fee-row');
   const cardFeeAmount = document.getElementById('sales-card-fee-amount');
 
-  const saleSubtotal = Math.round(Number(current?.subtotal || 0));
-  const discountAmount = computeSaleDiscountAmount(current);
-  const advanceTotal = computeSaleAdvanceTotal(current);
-  const baseAfterDiscount = Math.max(0, saleSubtotal - discountAmount);
-
-  const ivaValue = ivaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
-  const cardBase = Math.max(0, baseAfterDiscount + ivaValue);
-  const cardFeeValue = cardFeeEnabled && cardBase > 0 ? Math.round(cardBase * 0.06) : 0;
-  const displayTotal = Math.max(0, baseAfterDiscount + ivaValue + cardFeeValue - advanceTotal);
+  const { ivaValue, cardFeeValue, displayTotal } = computeSaleDisplayTotals(current, {
+    forceIvaEnabled: ivaEnabled,
+    forceCardFeeEnabled: cardFeeEnabled
+  });
 
   if (ivaValue > 0) {
     if (ivaRow) {
@@ -4878,6 +4874,36 @@ function computeSaleAdvanceTotal(sale){
   return list.reduce((sum, p) => sum + Math.round(Number(p?.amount || 0)), 0);
 }
 
+function computeSaleDisplayTotals(sale, options = {}){
+  const {
+    forceIvaEnabled = null,
+    forceCardFeeEnabled = null
+  } = options;
+  const subtotal = Math.round(Number(sale?.subtotal || 0));
+  const discountAmount = computeSaleDiscountAmount(sale);
+  const advancesTotal = computeSaleAdvanceTotal(sale);
+  const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const resolvedIvaEnabled = typeof forceIvaEnabled === 'boolean'
+    ? forceIvaEnabled
+    : (typeof sale?.ivaEnabled === 'boolean' ? sale.ivaEnabled : false);
+  const ivaValue = resolvedIvaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
+  const cardBase = Math.max(0, baseAfterDiscount + ivaValue);
+  const resolvedCardFeeEnabled = typeof forceCardFeeEnabled === 'boolean'
+    ? forceCardFeeEnabled
+    : !!(sale?._id && getSaleCardFeeEnabled(sale._id));
+  const cardFeeValue = resolvedCardFeeEnabled && cardBase > 0 ? Math.round(cardBase * 0.06) : 0;
+  const displayTotal = Math.max(0, baseAfterDiscount + ivaValue + cardFeeValue - advancesTotal);
+  return {
+    subtotal,
+    discountAmount,
+    advancesTotal,
+    baseAfterDiscount,
+    ivaValue,
+    cardFeeValue,
+    displayTotal
+  };
+}
+
 function setupSaleFinanceActions(){
   const btnAdvance = document.getElementById('sales-btn-add-advance');
   const btnDiscount = document.getElementById('sales-btn-set-discount');
@@ -4936,15 +4962,17 @@ function renderSaleFinanceSummary(){
   }
 
   const isDraft = String(current.status || 'draft') === 'draft';
-  const subtotal = Math.round(Number(current.subtotal || 0));
-  const discountAmount = computeSaleDiscountAmount(current);
   const advances = Array.isArray(current.advancePayments) ? current.advancePayments : [];
-  const advancesTotal = computeSaleAdvanceTotal(current);
-  const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
-  const ivaValue = ivaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
-  const cardBase = Math.max(0, baseAfterDiscount + ivaValue);
-  const cardFeeValue = cardFeeEnabled && cardBase > 0 ? Math.round(cardBase * 0.06) : 0;
-  const balance = Math.max(0, Math.round(baseAfterDiscount + ivaValue + cardFeeValue - advancesTotal));
+  const {
+    subtotal,
+    discountAmount,
+    advancesTotal,
+    cardFeeValue,
+    displayTotal: balance
+  } = computeSaleDisplayTotals(current, {
+    forceIvaEnabled: ivaEnabled,
+    forceCardFeeEnabled: cardFeeEnabled
+  });
   const financeGridColsClass = cardFeeValue > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3';
 
   const discountLabel = current?.discount?.type === 'percent'
