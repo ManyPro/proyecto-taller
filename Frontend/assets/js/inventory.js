@@ -5331,25 +5331,25 @@ async function openInvestorDetailView(investorId) {
           
           <!-- Resumen financiero -->
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-              <p class="text-xs text-purple-100 mb-1">Total Inversión</p>
-              <p class="text-xl font-bold text-white">${money(summary.totalInvestment || 0)}</p>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 theme-light:bg-white theme-light:border-purple-200">
+              <p class="text-xs text-purple-100 theme-light:text-purple-700 mb-1">Total Inversión</p>
+              <p class="text-xl font-bold text-white theme-light:text-slate-900">${money(summary.totalInvestment || 0)}</p>
             </div>
-            <div class="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-400/30">
-              <p class="text-xs text-green-100 mb-1">✅ Disponible</p>
-              <p class="text-xl font-bold text-green-300">${money(summary.availableValue || 0)}</p>
+            <div class="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-400/30 theme-light:bg-green-100 theme-light:border-green-300">
+              <p class="text-xs text-green-100 theme-light:text-green-800 mb-1">✅ Disponible</p>
+              <p class="text-xl font-bold text-green-300 theme-light:text-green-700">${money(summary.availableValue || 0)}</p>
             </div>
-            <div class="bg-yellow-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/30">
-              <p class="text-xs text-yellow-100 mb-1">🛒 Vendido</p>
-              <p class="text-xl font-bold text-yellow-300">${money(summary.soldValue || 0)}</p>
+            <div class="bg-yellow-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/30 theme-light:bg-amber-100 theme-light:border-amber-300">
+              <p class="text-xs text-yellow-100 theme-light:text-amber-800 mb-1">🛒 Vendido</p>
+              <p class="text-xl font-bold text-yellow-300 theme-light:text-amber-700">${money(summary.soldValue || 0)}</p>
             </div>
-            <div class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-400/30">
-              <p class="text-xs text-blue-100 mb-1">💵 Pagado</p>
-              <p class="text-xl font-bold text-blue-300">${money(summary.paidValue || 0)}</p>
+            <div class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-400/30 theme-light:bg-blue-100 theme-light:border-blue-300">
+              <p class="text-xs text-blue-100 theme-light:text-blue-800 mb-1">💵 Pagado</p>
+              <p class="text-xl font-bold text-blue-300 theme-light:text-blue-700">${money(summary.paidValue || 0)}</p>
             </div>
-            <div class="bg-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-orange-400/30">
-              <p class="text-xs text-orange-100 mb-1">⏳ Pendiente</p>
-              <p class="text-xl font-bold text-orange-300">${money(Math.max(0, summary.pendingPayment || 0))}</p>
+            <div class="bg-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-orange-400/30 theme-light:bg-orange-100 theme-light:border-orange-300">
+              <p class="text-xs text-orange-100 theme-light:text-orange-800 mb-1">⏳ Pendiente</p>
+              <p class="text-xl font-bold text-orange-300 theme-light:text-orange-700">${money(Math.max(0, summary.pendingPayment || 0))}</p>
             </div>
           </div>
         </div>
