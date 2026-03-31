@@ -35,6 +35,60 @@
       cursor: not-allowed;
       filter: saturate(0.85);
     }
+    .cf-btn-secondary {
+      background: rgba(51, 65, 85, 0.72);
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55);
+      border-radius: 0.65rem;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    .cf-btn-secondary:hover {
+      background: rgba(71, 85, 105, 0.9);
+      color: #ffffff !important;
+      border-color: rgba(148, 163, 184, 0.65);
+      transform: translateY(-1px);
+    }
+    .cf-mini-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35rem 0.7rem;
+      border-radius: 0.6rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #ffffff !important;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.2);
+    }
+    .cf-mini-btn:hover { transform: translateY(-1px); }
+    .cf-mini-btn-blue { background: linear-gradient(90deg, #2563eb, #1d4ed8); }
+    .cf-mini-btn-red { background: linear-gradient(90deg, #dc2626, #be123c); }
+    .cf-mini-btn-green { background: linear-gradient(90deg, #16a34a, #15803d); }
+    body[data-page="cashflow"] #tab-cashflow .cf-main-btn,
+    body[data-page="cashflow"] #tab-cashflow .cf-main-btn * {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    body[data-page="cashflow"] #tab-cashflow .cf-main-btn:disabled {
+      opacity: 0.65 !important;
+      background: linear-gradient(90deg, #334155, #1e293b) !important;
+      border-color: rgba(148, 163, 184, 0.35) !important;
+      color: #cbd5e1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
+    body.theme-light .cf-btn-secondary {
+      background: #dbeafe;
+      color: #1e3a8a !important;
+      border-color: #93c5fd;
+    }
+    body.theme-light .cf-btn-secondary:hover {
+      background: #bfdbfe;
+      color: #1e40af !important;
+      border-color: #60a5fa;
+    }
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
@@ -502,7 +556,7 @@
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">🏦</span> Cuentas</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
-              <button id="cf-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              <button id="cf-refresh" class="px-4 py-2 cf-btn-secondary">Actualizar</button>
               <button id="cf-add-account" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Cuenta</button>
               <button id="cf-bill-counter" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-600 theme-light:to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Contador de Billetes</button>
             </div>
@@ -541,7 +595,7 @@
                 <option value="SALE">Venta</option>
                 <option value="MANUAL">Manual</option>
               </select>
-              <button id="cf-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar</button>
+              <button id="cf-apply" class="px-4 py-2 cf-btn-secondary">Aplicar</button>
               <button id="cf-new-entry" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-600 dark:to-emerald-700 theme-light:from-green-600 theme-light:to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
               <button id="cf-new-expense" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-red-600 to-rose-700 dark:from-red-600 dark:to-rose-700 theme-light:from-red-600 theme-light:to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
               <button id="cf-new-loan" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-purple-600 to-fuchsia-700 dark:from-purple-600 dark:to-fuchsia-700 theme-light:from-purple-600 theme-light:to-fuchsia-700 hover:from-purple-700 hover:to-fuchsia-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
@@ -568,8 +622,8 @@
             <div class="flex justify-between items-center text-xs">
               <div id="cf-pag" class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Página 1</div>
               <div class="flex gap-2">
-                <button id="cf-prev" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">←</button>
-                <button id="cf-next" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">→</button>
+                <button id="cf-prev" disabled class="px-3 py-1.5 cf-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">←</button>
+                <button id="cf-next" disabled class="px-3 py-1.5 cf-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">→</button>
             </div>
           </div>
         </div>
@@ -587,7 +641,7 @@
               <option value="partially_paid">Parcialmente pagados</option>
               <option value="paid">Pagados</option>
             </select>
-              <button id="cf-refresh-loans" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              <button id="cf-refresh-loans" class="px-4 py-2 cf-btn-secondary">Actualizar</button>
           </div>
             <div class="max-h-[300px] overflow-auto custom-scrollbar mb-2">
               <div class="overflow-x-auto">
