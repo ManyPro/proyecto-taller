@@ -4902,8 +4902,8 @@ function renderSaleFinanceSummary(){
         </div>
         ${isDraft ? `
           <div class="flex items-center gap-2">
-            <button data-action="edit-discount" class="px-2 py-1 text-xs rounded-md bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-200">Editar</button>
-            ${discountAmount > 0 ? `<button data-action="remove-discount" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">Quitar</button>` : ''}
+            <button data-action="edit-discount" class="px-2 py-1 text-xs rounded-md bg-gradient-to-r from-violet-600/75 to-fuchsia-700/75 dark:from-violet-600/75 dark:to-fuchsia-700/75 theme-light:from-violet-500 theme-light:to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-800 dark:hover:from-violet-700 dark:hover:to-fuchsia-800 text-white border border-violet-500/45 dark:border-violet-500/45 shadow-sm">✏️ Editar</button>
+            ${discountAmount > 0 ? `<button data-action="remove-discount" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">🗑️ Quitar</button>` : ''}
           </div>
         ` : ''}
       </div>
@@ -4924,7 +4924,7 @@ function renderSaleFinanceSummary(){
               </div>
               <div class="flex items-center gap-2">
                 <div class="text-sm font-bold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 whitespace-nowrap">${money(a.amount || 0)}</div>
-                ${isDraft ? `<button data-action="remove-advance" data-id="${a._id}" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">Quitar</button>` : ''}
+                ${isDraft ? `<button data-action="remove-advance" data-id="${a._id}" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">🗑️ Quitar</button>` : ''}
               </div>
             </div>
           `).join('')}
