@@ -5047,21 +5047,21 @@ async function loadInversoresContent() {
           </div>
           
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-            <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 rounded-lg p-3 border border-green-500/30">
-              <p class="text-xs text-green-400 theme-light:text-green-600 mb-1">✅ Disponible</p>
-              <p class="text-sm font-semibold text-green-300 theme-light:text-green-700">${availableVal}</p>
+            <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-100 rounded-lg p-3 border border-green-500/30 theme-light:border-green-300">
+              <p class="text-xs text-green-400 theme-light:text-green-800 font-bold mb-1">✅ Disponible</p>
+              <p class="text-sm font-bold text-green-300 theme-light:text-green-800">${availableVal}</p>
             </div>
-            <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 rounded-lg p-3 border border-yellow-500/30">
-              <p class="text-xs text-yellow-400 theme-light:text-yellow-600 mb-1">🛒 Vendido</p>
-              <p class="text-sm font-semibold text-yellow-300 theme-light:text-yellow-700">${soldVal}</p>
+            <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-amber-100 rounded-lg p-3 border border-yellow-500/30 theme-light:border-amber-300">
+              <p class="text-xs text-yellow-400 theme-light:text-amber-800 font-bold mb-1">🛒 Vendido</p>
+              <p class="text-sm font-bold text-yellow-300 theme-light:text-amber-800">${soldVal}</p>
             </div>
-            <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-3 border border-blue-500/30">
-              <p class="text-xs text-blue-400 theme-light:text-blue-600 mb-1">💵 Pagado</p>
-              <p class="text-sm font-semibold text-blue-300 theme-light:text-blue-700">${paidVal}</p>
+            <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-100 rounded-lg p-3 border border-blue-500/30 theme-light:border-blue-300">
+              <p class="text-xs text-blue-400 theme-light:text-blue-800 font-bold mb-1">💵 Pagado</p>
+              <p class="text-sm font-bold text-blue-300 theme-light:text-blue-800">${paidVal}</p>
             </div>
-            <div class="bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-50 rounded-lg p-3 border border-orange-500/30">
-              <p class="text-xs text-orange-400 theme-light:text-orange-600 mb-1">⏳ Pendiente</p>
-              <p class="text-sm font-semibold text-orange-300 theme-light:text-orange-700">${pendingVal}</p>
+            <div class="bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-100 rounded-lg p-3 border border-orange-500/30 theme-light:border-orange-300">
+              <p class="text-xs text-orange-400 theme-light:text-orange-800 font-bold mb-1">⏳ Pendiente</p>
+              <p class="text-sm font-bold text-orange-300 theme-light:text-orange-800">${pendingVal}</p>
             </div>
           </div>
         </div>
@@ -5176,21 +5176,21 @@ async function openInvestorDetailView(investorId) {
                 </div>
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-2 border border-blue-500/30">
-                  <p class="text-xs text-blue-400 theme-light:text-blue-600 mb-1">📦 Stock Total</p>
-                  <p class="text-sm font-semibold text-blue-300 theme-light:text-blue-700">${item.itemStock}</p>
+                <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-100 rounded-lg p-2 border border-blue-500/30 theme-light:border-blue-300">
+                  <p class="text-xs text-blue-400 theme-light:text-blue-800 font-bold mb-1">📦 Stock Total</p>
+                  <p class="text-sm font-bold text-blue-300 theme-light:text-blue-800">${item.itemStock}</p>
                 </div>
-                <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 rounded-lg p-2 border border-green-500/30">
-                  <p class="text-xs text-green-400 theme-light:text-green-600 mb-1">✅ Del Inversor</p>
-                  <p class="text-sm font-semibold text-green-300 theme-light:text-green-700">${item.totalQty}</p>
+                <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-100 rounded-lg p-2 border border-green-500/30 theme-light:border-green-300">
+                  <p class="text-xs text-green-400 theme-light:text-green-800 font-bold mb-1">✅ Del Inversor</p>
+                  <p class="text-sm font-bold text-green-300 theme-light:text-green-800">${item.totalQty}</p>
                 </div>
-                <div class="bg-purple-500/20 dark:bg-purple-500/20 theme-light:bg-purple-50 rounded-lg p-2 border border-purple-500/30">
-                  <p class="text-xs text-purple-400 theme-light:text-purple-600 mb-1">💰 Precio Promedio</p>
-                  <p class="text-sm font-semibold text-purple-300 theme-light:text-purple-700">${money(item.weightedPrice)}</p>
+                <div class="bg-purple-500/20 dark:bg-purple-500/20 theme-light:bg-purple-100 rounded-lg p-2 border border-purple-500/30 theme-light:border-purple-300">
+                  <p class="text-xs text-purple-400 theme-light:text-purple-800 font-bold mb-1">💰 Precio Promedio</p>
+                  <p class="text-sm font-bold text-purple-300 theme-light:text-purple-800">${money(item.weightedPrice)}</p>
                 </div>
-                <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 rounded-lg p-2 border border-yellow-500/30">
-                  <p class="text-xs text-yellow-400 theme-light:text-yellow-600 mb-1">💵 Valor Total</p>
-                  <p class="text-sm font-semibold text-yellow-300 theme-light:text-yellow-700">${money(item.totalValue)}</p>
+                <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-amber-100 rounded-lg p-2 border border-yellow-500/30 theme-light:border-amber-300">
+                  <p class="text-xs text-yellow-400 theme-light:text-amber-800 font-bold mb-1">💵 Valor Total</p>
+                  <p class="text-sm font-bold text-yellow-300 theme-light:text-amber-800">${money(item.totalValue)}</p>
                 </div>
               </div>
             </div>
