@@ -1281,6 +1281,7 @@ function printWorkOrder(){
 let es = null;
 let current = null;
 let ivaEnabled = false;
+let cardFeeEnabled = false;
 let openSales = [];
 let companyTechnicians = [];
 let technicianSelectInitialized = false;
@@ -1288,7 +1289,9 @@ let starting = false;
 let salesRefreshTimer = null;
 let lastQuoteLoaded = null;
 const QUOTE_LINK_KEY = 'sales:quoteBySale';
+const CARD_FEE_KEY = 'sales:cardFeeBySale';
 let saleQuoteLinks = loadSaleQuoteLinks();
+let saleCardFeeBySale = loadSaleCardFeeBySale();
 const saleQuoteCache = new Map();
 let saleQuoteRequestToken = 0;
 // Estado para servicios de mantenimiento seleccionados
@@ -1305,6 +1308,48 @@ function updateIvaButton() {
     btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
     btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
   }
+}
+
+function updateCardFeeButton() {
+  const btnCardToggle = document.getElementById('sales-card-toggle');
+  if (!btnCardToggle) return;
+  if (cardFeeEnabled) {
+    btnCardToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
+    btnCardToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+  } else {
+    btnCardToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+    btnCardToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+  }
+}
+
+function loadSaleCardFeeBySale(){
+  if (typeof localStorage === 'undefined') return {};
+  try{
+    const raw = localStorage.getItem(CARD_FEE_KEY);
+    if(!raw) return {};
+    const parsed = JSON.parse(raw);
+    if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  }catch{}
+  return {};
+}
+
+function persistSaleCardFeeBySale(){
+  if (typeof localStorage === 'undefined') return;
+  try{ localStorage.setItem(CARD_FEE_KEY, JSON.stringify(saleCardFeeBySale)); }catch{}
+}
+
+function setSaleCardFeeEnabled(saleId, enabled){
+  if(!saleId) return;
+  if(enabled){
+    saleCardFeeBySale[saleId] = true;
+  } else {
+    delete saleCardFeeBySale[saleId];
+  }
+  persistSaleCardFeeBySale();
+}
+
+function getSaleCardFeeEnabled(saleId){
+  return !!saleCardFeeBySale?.[saleId];
 }
 
 function loadSaleQuoteLinks(){
@@ -1574,7 +1619,9 @@ async function renderAll(options = {}) {
     if (current && typeof current.ivaEnabled === 'boolean') {
       ivaEnabled = !!current.ivaEnabled;
     }
+    cardFeeEnabled = current?._id ? getSaleCardFeeEnabled(current._id) : false;
     updateIvaButton();
+    updateCardFeeButton();
     renderTabs();
     renderSale();
     await renderWO();
@@ -4741,28 +4788,38 @@ async function renderSale(){
     if (btnDel) actions.appendChild(btnDel);
   }
 
-  // Total (considera descuento + abonos) y opcionalmente IVA (solo visual)
+  // Total (considera descuento + abonos) y opcionalmente IVA/recargo tarjeta (solo visual)
   const ivaRow = document.getElementById('sales-iva-row');
   const ivaAmount = document.getElementById('sales-iva-amount');
+  const cardFeeRow = document.getElementById('sales-card-fee-row');
+  const cardFeeAmount = document.getElementById('sales-card-fee-amount');
 
   const saleSubtotal = Math.round(Number(current?.subtotal || 0));
   const discountAmount = computeSaleDiscountAmount(current);
   const advanceTotal = computeSaleAdvanceTotal(current);
   const baseAfterDiscount = Math.max(0, saleSubtotal - discountAmount);
 
-  // Saldo sin IVA (lo que el backend valida al cerrar: current.total)
-  let displayTotal = Math.max(0, baseAfterDiscount - advanceTotal);
+  const ivaValue = ivaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
+  const cardBase = Math.max(0, baseAfterDiscount + ivaValue);
+  const cardFeeValue = cardFeeEnabled && cardBase > 0 ? Math.round(cardBase * 0.06) : 0;
+  const displayTotal = Math.max(0, baseAfterDiscount + ivaValue + cardFeeValue - advanceTotal);
 
-  if (ivaEnabled && baseAfterDiscount > 0) {
-    const ivaValue = Math.round(baseAfterDiscount * 0.19);
-    displayTotal = Math.max(0, baseAfterDiscount + ivaValue - advanceTotal);
-
+  if (ivaValue > 0) {
     if (ivaRow) {
       ivaRow.classList.remove('hidden');
       if (ivaAmount) ivaAmount.textContent = money(ivaValue);
     }
-  } else {
-    if (ivaRow) ivaRow.classList.add('hidden');
+  } else if (ivaRow) {
+    ivaRow.classList.add('hidden');
+  }
+
+  if (cardFeeValue > 0) {
+    if (cardFeeRow) {
+      cardFeeRow.classList.remove('hidden');
+      if (cardFeeAmount) cardFeeAmount.textContent = money(cardFeeValue);
+    }
+  } else if (cardFeeRow) {
+    cardFeeRow.classList.add('hidden');
   }
 
   if (total) total.textContent = money(displayTotal);
@@ -4885,7 +4942,10 @@ function renderSaleFinanceSummary(){
   const advancesTotal = computeSaleAdvanceTotal(current);
   const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
   const ivaValue = ivaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
-  const balance = Math.max(0, Math.round(baseAfterDiscount + ivaValue - advancesTotal));
+  const cardBase = Math.max(0, baseAfterDiscount + ivaValue);
+  const cardFeeValue = cardFeeEnabled && cardBase > 0 ? Math.round(cardBase * 0.06) : 0;
+  const balance = Math.max(0, Math.round(baseAfterDiscount + ivaValue + cardFeeValue - advancesTotal));
+  const financeGridColsClass = cardFeeValue > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3';
 
   const discountLabel = current?.discount?.type === 'percent'
     ? `${Number(current.discount.value || 0)}%`
@@ -4896,7 +4956,7 @@ function renderSaleFinanceSummary(){
     <div class="flex items-start justify-between gap-3">
       <div class="flex-1 min-w-0">
         <div class="text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">Resumen</div>
-        <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+        <div class="mt-2 grid grid-cols-1 ${financeGridColsClass} gap-2 text-sm">
           <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
             <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Subtotal</div>
             <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${money(subtotal)}</div>
@@ -4909,6 +4969,12 @@ function renderSaleFinanceSummary(){
             <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Abonos</div>
             <div class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">-${money(advancesTotal)}</div>
           </div>
+          ${cardFeeValue > 0 ? `
+            <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Tarjeta (6%)</div>
+              <div class="font-semibold text-sky-300 dark:text-sky-300 theme-light:text-sky-700">+${money(cardFeeValue)}</div>
+            </div>
+          ` : ''}
         </div>
       </div>
       <div class="text-right">
@@ -11709,6 +11775,19 @@ export function initSales(){
       await renderAll({ skipQuote: true });
     });
     updateIvaButton();
+  }
+
+  // Event listener para el botón de recargo por tarjeta (6%)
+  const btnCardToggle = document.getElementById('sales-card-toggle');
+  if (btnCardToggle) {
+    btnCardToggle.addEventListener('click', async () => {
+      const next = !cardFeeEnabled;
+      cardFeeEnabled = next;
+      if (current?._id) setSaleCardFeeEnabled(current._id, next);
+      updateCardFeeButton();
+      await renderAll({ skipQuote: true });
+    });
+    updateCardFeeButton();
   }
 
   document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{
