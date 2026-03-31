@@ -12256,13 +12256,13 @@ async function createHistorialSaleCard(sale) {
       
       <!-- Botones hamburguesa a la derecha -->
       <div class="flex-shrink-0 flex flex-col gap-2">
-        <button class="btn-historial-print px-3 py-2 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-sale-id="${sale._id}" title="Imprimir remisión">
+        <button class="btn-historial-print sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-indigo-600/85 to-indigo-700/85 dark:from-indigo-600/85 dark:to-indigo-700/85 hover:from-indigo-700 hover:to-indigo-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-indigo-500/50 dark:border-indigo-500/50 theme-light:border-indigo-300" data-sale-id="${sale._id}" title="Imprimir remisión">
           🖨️
         </button>
-        <button class="btn-historial-view px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver resumen">
+        <button class="btn-historial-view sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-blue-600/85 to-cyan-700/85 dark:from-blue-600/85 dark:to-cyan-700/85 hover:from-blue-700 hover:to-cyan-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver resumen">
           👁️
         </button>
-        <button class="btn-historial-edit px-3 py-2 text-xs bg-purple-600/50 dark:bg-purple-600/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}" title="Editar cierre">
+        <button class="btn-historial-edit sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-purple-600/85 to-fuchsia-700/85 dark:from-purple-600/85 dark:to-fuchsia-700/85 hover:from-purple-700 hover:to-fuchsia-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}" title="Editar cierre">
           ✏️
         </button>
       </div>
@@ -14840,10 +14840,10 @@ async function createTechnicianReportSaleCard(sale, originalIndex, container) {
         </div>
       </div>
       <div class="flex-shrink-0 flex gap-2">
-        <button class="btn-tech-toggle-visibility px-3 py-2 text-xs bg-slate-600/50 dark:bg-slate-600/50 hover:bg-slate-600 dark:hover:bg-slate-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-500/50 dark:border-slate-500/50" data-sale-id="${sale._id}" title="Ocultar/Mostrar">
+        <button class="btn-tech-toggle-visibility sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-slate-600/80 to-slate-700/80 dark:from-slate-600/80 dark:to-slate-700/80 hover:from-slate-700 hover:to-slate-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-500/50 dark:border-slate-500/50" data-sale-id="${sale._id}" title="Ocultar/Mostrar">
           👁️
         </button>
-        <button class="btn-tech-view-detail px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
+        <button class="btn-tech-view-detail sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-blue-600/85 to-cyan-700/85 dark:from-blue-600/85 dark:to-cyan-700/85 hover:from-blue-700 hover:to-cyan-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
           👁️ Ver Detalle
         </button>
       </div>
