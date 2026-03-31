@@ -89,6 +89,54 @@
       color: #1e40af !important;
       border-color: #60a5fa;
     }
+    /* Fuerza de color para botones principales de Cashflow (evita blancos planos) */
+    body[data-page="cashflow"] #cf-add-account {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border-color: rgba(59, 130, 246, 0.45) !important;
+    }
+    body[data-page="cashflow"] #cf-bill-counter {
+      background: linear-gradient(90deg, #059669, #0f766e) !important;
+      color: #ffffff !important;
+      border-color: rgba(16, 185, 129, 0.45) !important;
+    }
+    body[data-page="cashflow"] #cf-new-entry {
+      background: linear-gradient(90deg, #16a34a, #15803d) !important;
+      color: #ffffff !important;
+      border-color: rgba(34, 197, 94, 0.45) !important;
+    }
+    body[data-page="cashflow"] #cf-new-expense {
+      background: linear-gradient(90deg, #dc2626, #be123c) !important;
+      color: #ffffff !important;
+      border-color: rgba(244, 63, 94, 0.45) !important;
+    }
+    body[data-page="cashflow"] #cf-new-loan {
+      background: linear-gradient(90deg, #7c3aed, #a21caf) !important;
+      color: #ffffff !important;
+      border-color: rgba(168, 85, 247, 0.45) !important;
+    }
+    body[data-page="cashflow"] #cf-add-account,
+    body[data-page="cashflow"] #cf-bill-counter,
+    body[data-page="cashflow"] #cf-new-entry,
+    body[data-page="cashflow"] #cf-new-expense,
+    body[data-page="cashflow"] #cf-new-loan {
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+      font-weight: 700 !important;
+    }
+    body[data-page="cashflow"] #cf-add-account:disabled,
+    body[data-page="cashflow"] #cf-bill-counter:disabled,
+    body[data-page="cashflow"] #cf-new-entry:disabled,
+    body[data-page="cashflow"] #cf-new-expense:disabled,
+    body[data-page="cashflow"] #cf-new-loan:disabled {
+      background: linear-gradient(90deg, #475569, #334155) !important;
+      color: #e2e8f0 !important;
+      border-color: rgba(148, 163, 184, 0.4) !important;
+      opacity: 0.75 !important;
+      filter: none !important;
+      cursor: not-allowed !important;
+      transform: none !important;
+      box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18) !important;
+    }
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
