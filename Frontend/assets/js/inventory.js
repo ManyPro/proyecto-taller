@@ -196,6 +196,7 @@ function invOpenModal(innerHTML) {
 
   // Enhanced modal setup
   setTimeout(() => {
+    applyInventoryModalButtonTheme();
     // Check if this is an image modal and force it
     const img = document.getElementById('modal-img');
     if (img) {
@@ -223,6 +224,16 @@ function invOpenModal(innerHTML) {
     if (e.key === "Escape") closeAll();
   }
   document.addEventListener("keydown", escListener, { once: true });
+}
+
+function applyInventoryModalButtonTheme() {
+  const body = document.getElementById("modalBody");
+  if (!body) return;
+  body.querySelectorAll("button").forEach((btn) => {
+    if (!btn.id && !btn.classList.contains("secondary")) return;
+    if (btn.id === "modalClose" || btn.id === "inv-overlay-close") return;
+    btn.classList.add("transition-all", "duration-200");
+  });
 }
 
 function invCloseModal() {

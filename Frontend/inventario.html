@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Inventario</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260340" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
@@ -59,6 +60,189 @@
     }
     .inventory-nav-btn:not(.active):hover {
       background: rgba(51, 65, 85, 0.7) !important;
+    }
+    /* Sistema visual Inventario */
+    .inv-main-btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(59, 130, 246, 0.45) !important;
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+    }
+    .inv-main-btn::before {
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -65%;
+      width: 55%;
+      height: 340%;
+      transform: rotate(25deg);
+      background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.35) 48%, transparent 68%);
+      pointer-events: none;
+      transition: left 0.55s ease;
+      z-index: 1;
+    }
+    .inv-main-btn:hover::before { left: 112%; }
+    .inv-main-btn > * { position: relative; z-index: 2; }
+    .inv-main-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .inv-main-btn:disabled,
+    .inv-main-btn[disabled] {
+      opacity: 0.75 !important;
+      filter: grayscale(0.25) !important;
+      transform: none !important;
+      cursor: not-allowed !important;
+    }
+    .inv-btn-secondary {
+      background: rgba(51, 65, 85, 0.72) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55) !important;
+      border-radius: 0.65rem;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    .inv-btn-secondary:hover {
+      background: rgba(71, 85, 105, 0.9) !important;
+      color: #ffffff !important;
+      border-color: rgba(148, 163, 184, 0.65) !important;
+      transform: translateY(-1px);
+    }
+    .inv-btn-danger {
+      background: linear-gradient(90deg, #dc2626, #be123c) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(244, 63, 94, 0.45) !important;
+      font-weight: 700;
+      border-radius: 0.65rem;
+      transition: all 0.2s ease;
+    }
+    .inv-btn-danger:hover {
+      background: linear-gradient(90deg, #b91c1c, #9f1239) !important;
+      transform: translateY(-1px);
+    }
+    body.theme-light .inv-btn-secondary {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body.theme-light .inv-btn-secondary:hover {
+      background: #bfdbfe !important;
+      color: #1e40af !important;
+      border-color: #60a5fa !important;
+    }
+    /* Layout principal */
+    body[data-page="inventario"] #tab-inventario,
+    body[data-page="inventario"] #tab-inventario *,
+    body[data-page="inventario"] #tab-inventario *::before,
+    body[data-page="inventario"] #tab-inventario *::after {
+      box-sizing: border-box;
+    }
+    body[data-page="inventario"] #tab-inventario :is(.grid, .flex, #inventory-list, #item-form, #import-excel-card) > * {
+      min-width: 0;
+    }
+    body[data-page="inventario"] #tab-inventario :is(input, textarea, select, pre, table) {
+      max-width: 100%;
+    }
+    body[data-page="inventario"] #tab-inventario > div {
+      width: 100%;
+      max-width: 1600px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      box-sizing: border-box;
+    }
+    /* Botones principales de la vista */
+    body[data-page="inventario"] :is(#q-apply, #it-save, #btn-import-excel, #btn-read-qr, #sel-page, #inv-page-jump) {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border-color: rgba(59, 130, 246, 0.45) !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    body[data-page="inventario"] #inventory-nav-inventario {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border-color: rgba(59, 130, 246, 0.45) !important;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+    }
+    body[data-page="inventario"] :is(#q-clear, #pub-bulk-global, #btn-unpublish-zero, #btn-download-template, #btn-export-inventory, #sel-clear, #sel-stickers-qr, #sel-stock-in-bulk, #sel-publish-bulk, #inventory-nav-compras, #inventory-nav-inversores) {
+      background: rgba(51, 65, 85, 0.72) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55) !important;
+    }
+    body.theme-light[data-page="inventario"] :is(#q-clear, #pub-bulk-global, #btn-unpublish-zero, #btn-download-template, #btn-export-inventory, #sel-clear, #sel-stickers-qr, #sel-stock-in-bulk, #sel-publish-bulk, #inventory-nav-compras, #inventory-nav-inversores) {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    /* Modal: normalización de botones y contraste */
+    body[data-page="inventario"] #modal #modalBody button:not(#modalClose):not(#inv-overlay-close) {
+      border-radius: 0.65rem;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    body[data-page="inventario"] #modal #modalBody button.secondary,
+    body[data-page="inventario"] #modal #modalBody :is(#lb-close, #qr-download, #qr-copy, #sku-new-cancel, #u0-cancel, #bpub-cancel, #stk-cancel, #summary-close, #bstk-apply-all, #bstk-cancel, #close-modal, #inv-prev, #inv-next, #stk-fill-stock, #stk-clear) {
+      background: rgba(51, 65, 85, 0.72) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(100, 116, 139, 0.55) !important;
+    }
+    body[data-page="inventario"] #modal #modalBody :is(#sku-new-save, #bpub-run, #stk-generate, #stk-save, #bstk-save, #qrv-open-summary, #qrv-scan-again, #pdf-save, #edit-save) {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(59, 130, 246, 0.45) !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    body[data-page="inventario"] #modal #modalBody :is(#stk-generate-stickers) {
+      background: linear-gradient(90deg, #16a34a, #15803d) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(34, 197, 94, 0.45) !important;
+    }
+    body[data-page="inventario"] #modal #modalBody :is(#u0-apply, #delete-confirm, #delete-item, #remove-item) {
+      background: linear-gradient(90deg, #dc2626, #be123c) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(244, 63, 94, 0.45) !important;
+    }
+    body.theme-light[data-page="inventario"] #modal #modalBody button.secondary,
+    body.theme-light[data-page="inventario"] #modal #modalBody :is(#lb-close, #qr-download, #qr-copy, #sku-new-cancel, #u0-cancel, #bpub-cancel, #stk-cancel, #summary-close, #bstk-apply-all, #bstk-cancel, #close-modal, #inv-prev, #inv-next, #stk-fill-stock, #stk-clear) {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body[data-page="inventario"] #modal #modalBody :is(button:disabled, button[disabled], button[aria-busy="true"]) {
+      background: linear-gradient(90deg, #475569, #334155) !important;
+      color: #e2e8f0 !important;
+      border-color: rgba(148, 163, 184, 0.4) !important;
+      opacity: 0.78 !important;
+      cursor: not-allowed !important;
+      transform: none !important;
+      filter: none !important;
+      box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18) !important;
+    }
+    body.theme-light[data-page="inventario"] #tab-inventario :is(#inventory-list, #item-form, #import-excel-card, .inventory-view > div) {
+      border-color: #bfdbfe !important;
+      box-shadow: 0 8px 20px rgba(30, 64, 175, 0.08);
+    }
+    body[data-page="inventario"] #modal > div {
+      width: min(1200px, 96vw);
+    }
+    body[data-page="inventario"] #modal #modalBody {
+      overflow-x: hidden;
+    }
+    body[data-page="inventario"] #modal #modalBody :is(table, .overflow-x-auto, .custom-scrollbar) {
+      max-width: 100%;
+    }
+    @media (max-width: 1024px) {
+      body[data-page="inventario"] #tab-inventario > div {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+      body[data-page="inventario"] #items-filters {
+        gap: 0.55rem !important;
+      }
+      body[data-page="inventario"] #itemsList {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
     }
     /* Asegurar que el contenido de inventario ocupe máximo espacio */
     body[data-page="inventario"] main,
@@ -609,34 +793,28 @@
   <main>
     <!-- ========== APP HEADER ========== -->
     <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-      <!-- Top Bar - Header Principal -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+      <div class="home-header-shell shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16 md:h-20">
-            <!-- Logo y Nombre de Empresa -->
-            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
               <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
               <div class="hidden sm:flex flex-col">
-                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+                <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
               </div>
-              <div class="sm:hidden text-white font-semibold text-sm">
+              <div class="sm:hidden text-white font-semibold text-sm home-header-company">
                 <span id="companyNameMobile">-</span>
               </div>
             </div>
-
-            <!-- Botones de Acción (Desktop) -->
-            <div class="hidden md:flex items-center gap-2">
-              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            <div class="hidden md:flex items-center gap-2 home-header-actions">
+              <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
             </div>
-
-            <!-- Menú Hamburguesa (Mobile) -->
-            <div class="md:hidden flex items-center gap-2">
-              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+            <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
@@ -644,46 +822,45 @@
             </div>
           </div>
         </div>
-
-        <!-- Navegación Principal (Desktop) -->
-        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+        <div class="hidden md:block home-header-nav-row">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+            <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+              <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Clientes</button>
             </nav>
           </div>
         </div>
       </div>
-      
-      <!-- Menú Móvil (Mobile Menu) -->
-      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+      <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
         <div class="px-4 py-3 space-y-1">
-          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Inventario</button>
-          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+          <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Clientes</button>
           <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
         </div>
-              </div>
-            </div>
+      </div>
+    </div>
 
     <section id="appSection" class="hidden">
       <!-- Modal global reutilizable -->
@@ -896,6 +1073,8 @@
     document.addEventListener('DOMContentLoaded', () => {
       const mobileMenuToggle = document.getElementById('mobileMenuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
+      const themeToggle = document.getElementById('themeToggle');
+      const themeToggleMobile = document.getElementById('themeToggleMobile');
       const logoutBtn = document.getElementById('logoutBtn');
       const logoutBtnMobile = document.getElementById('logoutBtnMobile');
       const companyName = document.getElementById('companyName');
@@ -949,6 +1128,9 @@
           });
         });
       }
+      if (themeToggle && themeToggleMobile) {
+        themeToggleMobile.addEventListener('click', () => themeToggle.click());
+      }
       
       // Manejar navegación activa
       const currentPage = document.body.getAttribute('data-page');
@@ -971,11 +1153,14 @@
     
     
     document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
+      const btns = Array.from(document.querySelectorAll('.js-open-public-catalog'));
+      if(!btns.length) return;
       const API = window.API || {};
       const token = API?.token?.get?.() || '';
-      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      if(!token){
+        btns.forEach(btn => { btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; });
+        return;
+      }
       // Intento principal: usar API.companyMe() (actualiza companyId store)
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {
@@ -983,22 +1168,39 @@
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true; // si no viene, asumir true
-          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-          btn.dataset.state='ready';
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          if(!companyId){
+            btns.forEach(btn => { btn.disabled=true; btn.title='No se pudo obtener companyId'; });
+            return;
+          }
+          if(!enabled){
+            btns.forEach(btn => { btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; });
+            return;
+          }
+          btns.forEach(btn => {
+            btn.dataset.state='ready';
+            btn.disabled = false;
+            btn.onclick = () => {
+              const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+              window.open(url, '_blank');
+            };
+          });
         })
         .catch(()=>{
           // Fallback: abrir con companyId guardado si existe
           const storedId = API?.companyId?.get?.() || '';
           if(storedId){
-            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            btns.forEach(btn => {
+              btn.dataset.state='ready';
+              btn.title='';
+              btn.disabled=false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            });
           } else {
-            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+            btns.forEach(btn => {
+              btn.disabled=true;
+              btn.title='Error consultando empresa';
+              btn.dataset.state='error';
+            });
           }
         });
     });
