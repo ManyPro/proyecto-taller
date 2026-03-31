@@ -8114,15 +8114,15 @@ function renderQuoteMini(q){
     const type = it.type || (it.source === 'service' || String(sku || '').toUpperCase().startsWith('SRV-') ? 'SERVICIO' : 'PRODUCTO');
     const typeLabel = type === 'SERVICIO' ? 'Servicio' : 'Producto';
     const tr = document.createElement('tr');
-    tr.className = 'bg-white dark:bg-white theme-light:bg-white border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-50 theme-light:hover:bg-slate-50 transition-colors';
+    tr.className = 'bg-slate-900/10 dark:bg-slate-900/10 theme-light:bg-white border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-800/35 dark:hover:bg-slate-800/35 theme-light:hover:bg-slate-50 transition-colors';
     tr.innerHTML = `
-      <td class="py-1 px-0.5 text-xs text-slate-900 dark:text-slate-900 theme-light:text-slate-900 align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${typeLabel}</td>
-      <td class="py-1 px-0.5 text-xs text-slate-900 dark:text-slate-900 theme-light:text-slate-900 break-words align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${htmlEscape(name || 'Item')}</td>
-      <td class="py-1 px-0.5 text-center text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${qty}</td>
-      <td class="py-1 px-0.5 text-right text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${money(unit)}</td>
-      <td class="py-1 px-0.5 text-right text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${money(total)}</td>
-      <td class="py-1 px-0.5 text-center align-top border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">
-        <button class="add w-5 h-5 flex items-center justify-center text-[10px] bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-bold rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
+      <td class="py-1 px-0.5 text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${typeLabel}</td>
+      <td class="py-1 px-0.5 text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-900 break-words align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${htmlEscape(name || 'Item')}</td>
+      <td class="py-1 px-0.5 text-center text-[10px] text-slate-200 dark:text-slate-200 theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${qty}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-slate-100 dark:text-slate-100 theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${money(unit)}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-slate-100 dark:text-slate-100 theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${money(total)}</td>
+      <td class="py-1 px-0.5 text-center align-top border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <button class="add w-7 h-7 flex items-center justify-center text-sm bg-blue-600/30 dark:bg-blue-600/30 hover:bg-blue-600/55 dark:hover:bg-blue-600/55 text-blue-100 dark:text-blue-100 hover:text-white dark:hover:text-white font-extrabold rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50 theme-light:bg-blue-50 theme-light:text-blue-700 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
       </td>
     `;
     const btn = tr.querySelector('button.add');
@@ -8148,7 +8148,7 @@ function renderQuoteMini(q){
           tr.classList.add('added');
           btn.disabled = true;
           btn.textContent = 'V';
-          btn.className = 'add px-2 py-1 text-xs bg-green-600/20 dark:bg-green-600/20 text-green-400 dark:text-green-400 font-medium rounded transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 opacity-50 cursor-not-allowed';
+          btn.className = 'add px-2 py-1 text-xs bg-green-600/30 dark:bg-green-600/30 text-green-100 dark:text-green-100 font-bold rounded-lg transition-all duration-200 border border-green-500/50 dark:border-green-500/50 theme-light:bg-green-50 theme-light:text-green-700 opacity-50 cursor-not-allowed';
         } catch (err) {
           alert(err?.message || 'No se pudo agregar el item');
         }
@@ -8159,7 +8159,7 @@ function renderQuoteMini(q){
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'V';
-        btn.className = 'add px-2 py-1 text-xs bg-green-600/20 dark:bg-green-600/20 text-green-400 dark:text-green-400 font-medium rounded transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 opacity-50 cursor-not-allowed';
+        btn.className = 'add px-2 py-1 text-xs bg-green-600/30 dark:bg-green-600/30 text-green-100 dark:text-green-100 font-bold rounded-lg transition-all duration-200 border border-green-500/50 dark:border-green-500/50 theme-light:bg-green-50 theme-light:text-green-700 opacity-50 cursor-not-allowed';
       }
     }
     body.appendChild(tr);
@@ -8198,7 +8198,7 @@ function renderQuoteMini(q){
         if (button) {
           button.disabled = true;
           button.textContent = 'V';
-          button.className = 'add px-2 py-1 text-xs bg-green-600/20 dark:bg-green-600/20 text-green-400 dark:text-green-400 font-medium rounded transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 opacity-50 cursor-not-allowed';
+          button.className = 'add px-2 py-1 text-xs bg-green-600/30 dark:bg-green-600/30 text-green-100 dark:text-green-100 font-bold rounded-lg transition-all duration-200 border border-green-500/50 dark:border-green-500/50 theme-light:bg-green-50 theme-light:text-green-700 opacity-50 cursor-not-allowed';
         }
       });
     };
