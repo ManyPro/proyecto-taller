@@ -9185,6 +9185,7 @@ function openEditCV(){
       // Crear modal de selección
       const selectModal = document.createElement('div');
       selectModal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
+      selectModal.style.zIndex = '12050';
       selectModal.innerHTML = `
         <div class="bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-sky-50 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
           <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Seleccionar Empresa</h3>

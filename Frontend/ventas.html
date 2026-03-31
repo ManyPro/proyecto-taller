@@ -27,6 +27,38 @@
     .sales-nav-btn:not(.active):hover {
       background: rgba(51, 65, 85, 0.7) !important;
     }
+    /* Botones principales con brillo tipo espejo */
+    .sales-main-btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .sales-main-btn::before {
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -35%;
+      width: 42%;
+      height: 300%;
+      transform: rotate(22deg);
+      background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.38) 45%,
+        rgba(255, 255, 255, 0.08) 100%
+      );
+      pointer-events: none;
+      transition: left 0.5s ease;
+      z-index: 1;
+    }
+    .sales-main-btn:hover::before {
+      left: 110%;
+    }
+    .sales-main-btn > * {
+      position: relative;
+      z-index: 2;
+    }
     /* Estilos para cards de historial */
     .historial-sale-card {
       transition: all 0.2s ease;
@@ -713,8 +745,8 @@
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div id="sales-capsules" class="flex flex-wrap gap-2 flex-1"></div>
           <div class="flex flex-wrap gap-2">
-            <button id="sales-start" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Nueva venta</button>
-            <button id="sales-start-qr" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📷 Nueva venta con placa</button>
+            <button id="sales-start" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Nueva venta</button>
+            <button id="sales-start-qr" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📷 Nueva venta con placa</button>
           </div>
         </div>
       </div>
@@ -722,13 +754,13 @@
       <!-- Barra de acciones -->
       <div id="sales-actions-bar" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-3 sm:p-4 mb-6">
         <div class="flex flex-col sm:flex-row flex-wrap gap-2">
-          <button id="sales-add-unified" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
-          <button id="sales-print" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-600 dark:to-indigo-700 theme-light:from-indigo-500 theme-light:to-indigo-600 hover:from-indigo-700 hover:to-indigo-800 dark:hover:from-indigo-700 dark:hover:to-indigo-800 theme-light:hover:from-indigo-600 theme-light:hover:to-indigo-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🖨️ Imprimir</button>
-          <button id="sales-iva-toggle" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-orange-600 dark:from-amber-500 dark:to-orange-600 theme-light:from-amber-500 theme-light:to-orange-500 hover:from-amber-600 hover:to-orange-700 dark:hover:from-amber-600 dark:hover:to-orange-700 theme-light:hover:from-amber-600 theme-light:hover:to-orange-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💸 IVA</button>
-          <button id="sales-maintenance-services" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🔧 Servicios de mantenimiento</button>
-          <button id="sales-special-notes" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-cyan-600 to-cyan-700 dark:from-cyan-600 dark:to-cyan-700 theme-light:from-cyan-500 theme-light:to-cyan-600 hover:from-cyan-700 hover:to-cyan-800 dark:hover:from-cyan-700 dark:hover:to-cyan-800 theme-light:hover:from-cyan-600 theme-light:hover:to-cyan-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📝 Notas especiales</button>
-          <button id="sales-close" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Cerrar</button>
-          <button id="sales-configure-post-service" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-fuchsia-600 to-violet-700 dark:from-fuchsia-600 dark:to-violet-700 theme-light:from-fuchsia-500 theme-light:to-violet-600 hover:from-fuchsia-700 hover:to-violet-800 dark:hover:from-fuchsia-700 dark:hover:to-violet-800 theme-light:hover:from-fuchsia-600 theme-light:hover:to-violet-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">⚙️ Configurar mensaje post-servicio</button>
+          <button id="sales-add-unified" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
+          <button id="sales-print" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-600 dark:to-indigo-700 theme-light:from-indigo-500 theme-light:to-indigo-600 hover:from-indigo-700 hover:to-indigo-800 dark:hover:from-indigo-700 dark:hover:to-indigo-800 theme-light:hover:from-indigo-600 theme-light:hover:to-indigo-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🖨️ Imprimir</button>
+          <button id="sales-iva-toggle" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-orange-600 dark:from-amber-500 dark:to-orange-600 theme-light:from-amber-500 theme-light:to-orange-500 hover:from-amber-600 hover:to-orange-700 dark:hover:from-amber-600 dark:hover:to-orange-700 theme-light:hover:from-amber-600 theme-light:hover:to-orange-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💸 IVA</button>
+          <button id="sales-maintenance-services" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🔧 Servicios de mantenimiento</button>
+          <button id="sales-special-notes" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-cyan-600 to-cyan-700 dark:from-cyan-600 dark:to-cyan-700 theme-light:from-cyan-500 theme-light:to-cyan-600 hover:from-cyan-700 hover:to-cyan-800 dark:hover:from-cyan-700 dark:hover:to-cyan-800 theme-light:hover:from-cyan-600 theme-light:hover:to-cyan-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📝 Notas especiales</button>
+          <button id="sales-close" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Cerrar</button>
+          <button id="sales-configure-post-service" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-fuchsia-600 to-violet-700 dark:from-fuchsia-600 dark:to-violet-700 theme-light:from-fuchsia-500 theme-light:to-violet-600 hover:from-fuchsia-700 hover:to-violet-800 dark:hover:from-fuchsia-700 dark:hover:to-violet-800 theme-light:hover:from-fuchsia-600 theme-light:hover:to-violet-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">⚙️ Configurar mensaje post-servicio</button>
         </div>
       </div>
 
@@ -811,7 +843,7 @@
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <select id="sales-technician" class="hidden px-3 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 min-w-[170px]" title="Técnico"></select>
-                <button id="sv-edit-cv" class="px-4 py-2 text-sm bg-gradient-to-r from-teal-600 to-cyan-700 dark:from-teal-600 dark:to-cyan-700 theme-light:from-teal-500 theme-light:to-cyan-600 hover:from-teal-700 hover:to-cyan-800 dark:hover:from-teal-700 dark:hover:to-cyan-800 theme-light:hover:from-teal-600 theme-light:hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">✏️ Editar datos…</button>
+                <button id="sv-edit-cv" class="sales-main-btn px-4 py-2 text-sm bg-gradient-to-r from-teal-600 to-cyan-700 dark:from-teal-600 dark:to-cyan-700 theme-light:from-teal-500 theme-light:to-cyan-600 hover:from-teal-700 hover:to-cyan-800 dark:hover:from-teal-700 dark:hover:to-cyan-800 theme-light:hover:from-teal-600 theme-light:hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">✏️ Editar datos…</button>
               </div>
             </div>
           </div>
@@ -826,10 +858,10 @@
                   <div id="sales-finance-summary" class="rounded-xl bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 p-4"></div>
                 </div>
                 <div class="flex flex-col sm:flex-row lg:flex-col gap-2">
-                  <button id="sales-btn-add-advance" class="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-600 dark:to-emerald-700 theme-light:from-emerald-500 theme-light:to-emerald-600 hover:from-emerald-700 hover:to-emerald-800 dark:hover:from-emerald-700 dark:hover:to-emerald-800 theme-light:hover:from-emerald-600 theme-light:hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                  <button id="sales-btn-add-advance" class="sales-main-btn w-full px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-600 dark:to-emerald-700 theme-light:from-emerald-500 theme-light:to-emerald-600 hover:from-emerald-700 hover:to-emerald-800 dark:hover:from-emerald-700 dark:hover:to-emerald-800 theme-light:hover:from-emerald-600 theme-light:hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
                     ➕ Agregar abono
                   </button>
-                  <button id="sales-btn-set-discount" class="w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-600 dark:to-violet-700 theme-light:from-violet-500 theme-light:to-violet-600 hover:from-violet-700 hover:to-violet-800 dark:hover:from-violet-700 dark:hover:to-violet-800 theme-light:hover:from-violet-600 theme-light:hover:to-violet-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                  <button id="sales-btn-set-discount" class="sales-main-btn w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-600 dark:to-violet-700 theme-light:from-violet-500 theme-light:to-violet-600 hover:from-violet-700 hover:to-violet-800 dark:hover:from-violet-700 dark:hover:to-violet-800 theme-light:hover:from-violet-600 theme-light:hover:to-violet-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
                     🏷️ Descuento
                   </button>
                 </div>
