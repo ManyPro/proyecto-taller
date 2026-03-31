@@ -1842,8 +1842,8 @@ async function openMaintenanceServicesModal() {
                 <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-slate-700/50 rounded-xl p-4 transition-all duration-200 peer-checked:border-blue-500 peer-checked:bg-blue-900/20 peer-checked:shadow-lg peer-checked:shadow-blue-500/20 hover:border-slate-600 hover:shadow-md h-full">
                   <div class="flex items-start gap-3">
                     <div class="flex-shrink-0 mt-0.5">
-                      <div class="w-6 h-6 rounded-md border-2 border-slate-600 bg-slate-700/50 flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400">
-                        <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div class="w-6 h-6 rounded-md border-2 border-slate-500/60 dark:border-slate-600 bg-white/10 dark:bg-white/10 theme-light:bg-white flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400 theme-light:border-slate-300">
+                        <svg class="w-4 h-4 text-white dark:text-white theme-light:text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                         </svg>
                       </div>
@@ -1949,8 +1949,8 @@ async function openMaintenanceServicesModal() {
               <div class="flex items-start gap-3">
                 <!-- Checkbox personalizado -->
                 <div class="flex-shrink-0 mt-0.5">
-                  <div class="w-6 h-6 rounded-md border-2 border-slate-600 bg-slate-700/50 flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400">
-                    <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="w-6 h-6 rounded-md border-2 border-slate-500/60 dark:border-slate-600 bg-white/10 dark:bg-white/10 theme-light:bg-white flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400 theme-light:border-slate-300">
+                    <svg class="w-4 h-4 text-white dark:text-white theme-light:text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                     </svg>
                   </div>
@@ -6443,22 +6443,37 @@ async function openAddUnified(){
   console.log('Creando modal de agregar...');
   // Modal inicial: elegir entre QR y Manual
   const node = document.createElement('div');
-  node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
-  node.style.cssText = 'max-width:600px;margin:0 auto;';
+  node.className = 'rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/60 bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-white overflow-hidden';
+  node.style.cssText = 'max-width:720px;margin:0 auto;';
   node.innerHTML = `
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6 text-center">Agregar items</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-      <button id="add-qr-btn" class="px-6 py-8 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
-        <span class="text-5xl">📷</span>
-        <span class="text-base">Agregar QR</span>
-      </button>
-      <button id="add-manual-btn" class="px-6 py-8 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
-        <span class="text-5xl">✏️</span>
-        <span class="text-base">Agregar manual</span>
-      </button>
+    <div class="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 theme-light:from-sky-50 theme-light:via-white theme-light:to-sky-50 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0">➕ Agregar ítems</h3>
+          <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-0">Elige cómo vas a agregar productos/servicios a la venta.</p>
+        </div>
+        <span class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 dark:bg-white/10 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-sky-700 border border-white/10 theme-light:border-sky-200">🧾</span>
+      </div>
     </div>
-    <div class="text-center">
-      <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
+
+    <div class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button id="add-qr-btn" class="sales-main-btn w-full px-6 py-8 bg-gradient-to-r from-violet-600 to-indigo-700 dark:from-violet-600 dark:to-indigo-700 theme-light:from-violet-600 theme-light:to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-violet-300/50 hover:-translate-y-0.5">
+          <span class="text-5xl">📷</span>
+          <span class="text-base">Agregar con QR</span>
+          <span class="text-xs text-white/85">Escanea y agrega rápido</span>
+        </button>
+
+        <button id="add-manual-btn" class="sales-main-btn w-full px-6 py-8 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-600 theme-light:to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300/50 hover:-translate-y-0.5">
+          <span class="text-5xl">✍️</span>
+          <span class="text-base">Agregar manual</span>
+          <span class="text-xs text-white/85">Lista de precios o inventario</span>
+        </button>
+      </div>
+
+      <div class="mt-5 flex items-center justify-end">
+        <button id="add-cancel-btn" class="px-5 py-2 rounded-xl font-semibold bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 border border-slate-600/40 theme-light:border-slate-200 transition-all duration-200">Cancelar</button>
+      </div>
     </div>
   `;
   
@@ -6505,7 +6520,6 @@ async function openAddUnified(){
   
   console.log('Modal de agregar abierto');
   
-  // Estilos hover para los botones
   const qrBtn = node.querySelector('#add-qr-btn');
   const manualBtn = node.querySelector('#add-manual-btn');
   const cancelBtn = node.querySelector('#add-cancel-btn');
@@ -6514,24 +6528,6 @@ async function openAddUnified(){
     console.error('Botones no encontrados en el modal:', { qrBtn: !!qrBtn, manualBtn: !!manualBtn, cancelBtn: !!cancelBtn });
     return;
   }
-  
-  qrBtn.addEventListener('mouseenter', () => {
-    qrBtn.style.transform = 'scale(1.05)';
-    qrBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-  });
-  qrBtn.addEventListener('mouseleave', () => {
-    qrBtn.style.transform = 'scale(1)';
-    qrBtn.style.boxShadow = '';
-  });
-  
-  manualBtn.addEventListener('mouseenter', () => {
-    manualBtn.style.transform = 'scale(1.05)';
-    manualBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-  });
-  manualBtn.addEventListener('mouseleave', () => {
-    manualBtn.style.transform = 'scale(1)';
-    manualBtn.style.boxShadow = '';
-  });
   
   // Si selecciona QR, abrir el modal de QR
   qrBtn.addEventListener('click', (e) => {
@@ -6793,34 +6789,34 @@ async function renderPricesView(container, vehicleId) {
       }
     
     if (prices.length === 0) {
-        pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</div>';
+        pricesList.innerHTML = '<div class="text-center py-8 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay precios que coincidan con los filtros.</div>';
         return;
       }
       
       pricesList.innerHTML = '';
       prices.forEach(pe => {
         const card = document.createElement('div');
-        card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;';
+        card.className = 'p-3 rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/25 dark:bg-slate-900/25 theme-light:bg-sky-50 flex items-center justify-between gap-3';
         
         const isGeneral = !pe.vehicleId;
         let typeBadge = '';
         if (pe.type === 'combo') {
-          typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">COMBO</span>';
+          typeBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-violet-600 text-white mr-2">COMBO</span>';
         } else if (pe.type === 'product') {
-          typeBadge = '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">PRODUCTO</span>';
+          typeBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-blue-600 text-white mr-2">PRODUCTO</span>';
         } else {
-          typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">SERVICIO</span>';
+          typeBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-600 text-white mr-2">SERVICIO</span>';
         }
         
-        const generalBadge = isGeneral ? '<span style="background:#06b6d4;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">🌐 GENERAL</span>' : '';
+        const generalBadge = isGeneral ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-cyan-600 text-white mr-2">🌐 GENERAL</span>' : '';
         
         card.innerHTML = `
-          <div style="flex:1;">
+          <div class="min-w-0 flex-1">
             ${typeBadge}${generalBadge}
-            <span style="font-weight:600;">${pe.name || 'Sin nombre'}</span>
+            <span class="font-semibold text-slate-100 dark:text-slate-100 theme-light:text-slate-900 break-words">${pe.name || 'Sin nombre'}</span>
           </div>
-          <div style="margin:0 16px;font-weight:600;color:var(--primary);">${money(pe.total || pe.price || 0)}</div>
-          <button class="add-price-btn primary" data-price-id="${pe._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Agregar</button>
+          <div class="shrink-0 font-extrabold text-blue-300 dark:text-blue-300 theme-light:text-blue-700">${money(pe.total || pe.price || 0)}</div>
+          <button class="add-price-btn primary sales-main-btn shrink-0 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold transition-all duration-200 border border-white/10" data-price-id="${pe._id}">Agregar</button>
         `;
         
         const addBtn = card.querySelector('.add-price-btn');
@@ -6916,51 +6912,45 @@ async function renderPricesView(container, vehicleId) {
     
     container.innerHTML = `
       ${vehicle ? `
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
-        <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
-        <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
+      <div class="mb-4 p-3 rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/25 dark:bg-slate-900/25 theme-light:bg-sky-50">
+        <div class="font-extrabold text-slate-100 dark:text-slate-100 theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` · Modelo: ${vehicle.modelYear}` : ''}</div>
       </div>
       ` : `
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border-left:4px solid #06b6d4;">
-        <div style="font-weight:600;margin-bottom:4px;">🌐 Precios Generales</div>
-        <div style="font-size:12px;color:var(--muted);">Precios disponibles para todos los vehículos</div>
+      <div class="mb-4 p-3 rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 border-l-4 border-l-cyan-500 theme-light:border-l-cyan-600">
+        <div class="font-extrabold text-slate-100 dark:text-slate-100 theme-light:text-slate-900">🌐 Precios Generales</div>
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Precios disponibles para todos los vehículos</div>
       </div>
       `}
-      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+
+      <div class="mb-3 flex flex-wrap gap-2">
         ${vehicleId ? `
-        <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
-          ➕ Crear servicio
-        </button>
-        <button id="create-product-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
-          ➕ Crear producto
-        </button>
-        <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
-          🎁 Crear combo
-        </button>
+        <button id="create-service-btn" class="secondary sales-main-btn flex-1 min-w-[10rem] px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold border border-white/10 transition-all">➕ Crear servicio</button>
+        <button id="create-product-btn" class="secondary sales-main-btn flex-1 min-w-[10rem] px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all">➕ Crear producto</button>
+        <button id="create-combo-btn" class="secondary sales-main-btn flex-1 min-w-[10rem] px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-700 hover:from-violet-700 hover:to-fuchsia-800 text-white font-extrabold border border-white/10 transition-all">🎁 Crear combo</button>
         ` : `
-        <p style="text-align:center;color:var(--muted);font-size:13px;padding:8px;">Los precios generales se crean desde la sección de Lista de precios</p>
+        <div class="w-full text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 py-2">Los precios generales se crean desde la sección de Lista de precios</div>
         `}
       </div>
-      <div style="margin-bottom:12px;">
-        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-          <select id="filter-type-prices" style="flex:1;min-width:120px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+
+      <div class="mb-2">
+        <div class="flex flex-wrap gap-2 mb-2">
+          <select id="filter-type-prices" class="flex-1 min-w-[10rem] px-3 py-2 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
             <option value="">Todos los tipos</option>
             <option value="service">Servicios</option>
             <option value="product">Productos</option>
             <option value="combo">Combos</option>
           </select>
-          <input type="text" id="filter-name-prices" placeholder="Buscar por nombre..." style="flex:2;min-width:150px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);" />
-          <button id="btn-apply-filters-prices" class="primary" style="padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Buscar</button>
+          <input type="text" id="filter-name-prices" placeholder="Buscar por nombre..." class="flex-[2] min-w-[12rem] px-3 py-2 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          <button id="btn-apply-filters-prices" class="primary sales-main-btn px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold border border-white/10 transition-all">Buscar</button>
         </div>
-        <h4 style="margin-bottom:8px;">Precios disponibles</h4>
-        <div id="prices-list" style="display:grid;gap:8px;"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-          <div style="font-size:12px;color:var(--muted);">
-            Mostrando <span id="page-info">0-0</span>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button id="btn-prev-prices" class="secondary" style="padding:6px 12px;border-radius:6px;border:none;cursor:pointer;" disabled>← Anterior</button>
-            <button id="btn-next-prices" class="secondary" style="padding:6px 12px;border-radius:6px;border:none;cursor:pointer;">Siguiente →</button>
+        <h4 class="mb-2 text-sm font-extrabold text-slate-100 dark:text-slate-100 theme-light:text-slate-900">Precios disponibles</h4>
+        <div id="prices-list" class="grid gap-2"></div>
+        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Mostrando <span id="page-info">0-0</span></div>
+          <div class="flex gap-2">
+            <button id="btn-prev-prices" class="secondary px-3 py-1.5 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold border border-slate-600/30 theme-light:border-slate-200 transition-all" disabled>← Anterior</button>
+            <button id="btn-next-prices" class="secondary px-3 py-1.5 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold border border-slate-600/30 theme-light:border-slate-200 transition-all">Siguiente →</button>
           </div>
         </div>
       </div>
@@ -7201,88 +7191,99 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
   // Importar la función de prices.js o recrearla aquí
   // Por ahora, abrir un modal simple para crear el precio
   const node = document.createElement('div');
-  node.className = 'card';
-  node.style.cssText = 'max-width:600px;margin:0 auto;';
+  node.className = 'w-full max-w-3xl mx-auto rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-white overflow-hidden';
+  node.style.cssText = 'margin:0 auto;';
   
   const isCombo = type === 'combo';
   const isProduct = type === 'product';
   const isService = type === 'service';
   
   node.innerHTML = `
-    <h3 style="margin-top:0;margin-bottom:16px;">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
-    <p class="muted" style="margin-bottom:16px;font-size:13px;">
-      Vehículo: <strong>${vehicle?.make || ''} ${vehicle?.line || ''}</strong>
-    </p>
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
-      <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-    </div>
-    ${isProduct ? `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vincular con item del inventario (opcional)</label>
-      <div class="row" style="gap:8px;margin-bottom:8px;">
-        <input id="price-item-search" placeholder="Buscar por SKU o nombre..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        <button id="price-item-qr" class="secondary" style="padding:8px 16px;">📷 QR</button>
+    <div class="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 theme-light:from-sky-50 theme-light:via-white theme-light:to-sky-50 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2">
+            <span class="text-2xl" aria-hidden="true">${type === 'combo' ? '🎁' : (type === 'service' ? '🛠️' : '📦')}</span>
+            <span>Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</span>
+          </h3>
+          <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-0">Vehículo: <span class="font-semibold">${vehicle?.make || ''} ${vehicle?.line || ''}</span></p>
+        </div>
+        <span class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 dark:bg-white/10 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-sky-700 border border-white/10 theme-light:border-sky-200">${type === 'combo' ? '🧾' : '✍️'}</span>
       </div>
-      <div id="price-item-selected" style="margin-top:8px;padding:8px;background:var(--card-alt);border-radius:6px;font-size:12px;display:none;"></div>
-      <input type="hidden" id="price-item-id" />
     </div>
+
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Nombre</label>
+        <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+      </div>
+    ${isProduct ? `
+      <div class="rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 p-4">
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">🔗 Vincular con inventario (opcional)</label>
+        <div class="flex gap-2 flex-wrap">
+          <input id="price-item-search" placeholder="Buscar por SKU o nombre..." class="flex-1 min-w-[14rem] px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          <button id="price-item-qr" class="sales-main-btn px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all whitespace-nowrap">📷 QR</button>
+        </div>
+        <div id="price-item-selected" class="mt-3 p-3 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/25 dark:bg-slate-900/25 theme-light:bg-white text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-900 hidden"></div>
+        <input type="hidden" id="price-item-id" />
+      </div>
     ` : ''}
     ${isCombo ? `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
-      <div id="price-combo-products" style="margin-bottom:8px;"></div>
-      <button id="price-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
-    </div>
+      <div class="rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 p-4">
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">📦 Productos del combo</label>
+        <div id="price-combo-products" class="space-y-2 mb-3"></div>
+        <button id="price-add-combo-product" class="sales-main-btn w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold border border-white/10 transition-all">➕ Agregar producto</button>
+      </div>
     ` : ''}
     ${!isCombo ? `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
-      <input id="price-total" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-    </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio</label>
+        <input id="price-total" type="number" step="0.01" placeholder="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+      </div>
     ` : `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio total del combo</label>
-      <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-      <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
-    </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio total del combo</label>
+        <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+        <p class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Se calcula desde los productos, o puedes establecerlo manualmente.</p>
+      </div>
     `}
-    <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Rango de años (opcional)</label>
-      <p class="muted" style="margin-bottom:8px;font-size:11px;">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
-      <div class="row" style="gap:8px;">
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Desde</label>
-          <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        </div>
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Hasta</label>
-          <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <div class="rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 p-4">
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">📅 Rango de años (opcional)</label>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Aplica este precio solo si el año del vehículo está dentro del rango.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Desde</label>
+            <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Hasta</label>
+            <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          </div>
         </div>
       </div>
-    </div>
     ${isCombo || isProduct || isService ? `
-    <div style="margin-bottom:16px;padding:12px;background:rgba(59, 130, 246, 0.1);border-radius:8px;border:1px solid rgba(59, 130, 246, 0.3);">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Mano de obra (opcional)</label>
-      <p class="muted" style="margin-bottom:8px;font-size:11px;">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
-      <div class="row" style="gap:8px;">
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Valor de mano de obra</label>
-          <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        </div>
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Tipo de mano de obra</label>
-          <select id="price-labor-kind" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-            <option value="">-- Seleccione tipo --</option>
-          </select>
+      <div class="rounded-2xl border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-blue-950/25 dark:bg-blue-950/25 theme-light:bg-indigo-50 p-4">
+        <label class="block text-xs font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 mb-2">🧑‍🔧 Mano de obra (opcional)</label>
+        <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-3">Se usa al cerrar la venta para participación técnica.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-1">Valor</label>
+            <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-1">Tipo</label>
+            <select id="price-labor-kind" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+              <option value="">-- Seleccione tipo --</option>
+            </select>
+          </div>
         </div>
       </div>
-    </div>
     ` : ''}
-    <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
-    <div class="row" style="gap:8px;">
-      <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
-      <button id="price-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      <div id="price-msg" class="text-sm"></div>
+      <div class="flex gap-2">
+        <button id="price-cancel" class="flex-1 px-4 py-3 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-extrabold border border-slate-600/30 theme-light:border-slate-200 transition-all">Cancelar</button>
+        <button id="price-save" class="sales-main-btn flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all">💾 Guardar</button>
+      </div>
     </div>
   `;
   

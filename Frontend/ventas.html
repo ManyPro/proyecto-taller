@@ -153,7 +153,7 @@
     body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
       background-color: #e0f2fe !important;
     }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
+    body.theme-light .text-white:not(.sales-main-btn):not([class*="bg-gradient"]):not([class*="from-"]):not([class*="via-"]):not([class*="to-"]):not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
       color: #000000 !important;
     }
     body.theme-light .text-slate-300 {
@@ -175,8 +175,10 @@
       color: #000000 !important;
     }
     /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
+    body.theme-light #modal {
+      color: #000000 !important;
+    }
+    body.theme-light #modal *:not(button):not(button *):not(a):not(a *):not([role="button"]):not([role="button"] *):not(.sales-main-btn):not(.sales-main-btn *):not([class*="bg-gradient"]):not([class*="from-"]):not([class*="via-"]):not([class*="to-"]):not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
       color: #000000 !important;
     }
     /* Asegurar fondos claros en modal para evitar negro sobre negro */
@@ -805,17 +807,17 @@
                   <col style="width: 16%;">
                   <col style="width: 9%;">
                 </colgroup>
-                <thead class="sticky top-0 bg-white dark:bg-white theme-light:bg-white z-10">
-                  <tr class="border-b-2 border-slate-300 dark:border-slate-300 theme-light:border-slate-300">
-                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300">Tipo</th>
-                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300">Descripción</th>
-                    <th class="text-center py-1 px-0.5 text-[10px] font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300">Cant.</th>
-                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 whitespace-nowrap">Unit</th>
-                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 whitespace-nowrap">Total</th>
+                <thead class="sticky top-0 bg-slate-900/80 dark:bg-slate-900/80 theme-light:bg-white z-10 backdrop-blur">
+                  <tr class="border-b-2 border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">
+                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">Tipo</th>
+                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">Descripción</th>
+                    <th class="text-center py-1 px-0.5 text-[10px] font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">Cant.</th>
+                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 whitespace-nowrap">Unit</th>
+                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 whitespace-nowrap">Total</th>
                     <th class="text-center py-1 px-0.5"></th>
                   </tr>
                 </thead>
-                <tbody id="sv-q-body" class="bg-white dark:bg-white theme-light:bg-white text-slate-900 dark:text-slate-900 theme-light:text-slate-900"></tbody>
+                <tbody id="sv-q-body" class="bg-slate-900/35 dark:bg-slate-900/35 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900"></tbody>
               </table>
             </div>
           </div>
@@ -1343,27 +1345,36 @@
 
       <!-- Lector QR (Ventas) -->
       <template id="tpl-qr-scanner">
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
-          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span class="text-2xl shrink-0" aria-hidden="true">📷</span><span>Lector de QR</span></h3>
+        <div class="rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-white overflow-hidden">
+          <div class="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 theme-light:from-sky-50 theme-light:via-white theme-light:to-sky-50 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span class="text-2xl shrink-0" aria-hidden="true">📷</span><span>Lector de QR</span></h3>
+                <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-0">Escanea y agrega ítems. Puedes alternar modo simple o múltiple.</p>
+              </div>
+              <span class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 dark:bg-white/10 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-sky-700 border border-white/10 theme-light:border-sky-200">🔎</span>
+            </div>
+          </div>
+          <div class="p-6">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div class="flex items-center gap-3">
               <label class="text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cámara</label>
               <select id="qr-cam" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
             </div>
             <div class="flex flex-wrap gap-2">
-              <button id="qr-single-mode" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">📦 Agregar solo un item</button>
-              <button id="qr-multi-mode" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">➕ Agregar múltiples items</button>
-              <button id="qr-finish-multi" class="hidden px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">✓ Terminar de agregar</button>
+              <button id="qr-single-mode" class="px-3 py-2 bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 whitespace-nowrap text-sm border border-slate-600/30 theme-light:border-slate-200">📦 Modo simple</button>
+              <button id="qr-multi-mode" class="px-3 py-2 bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 whitespace-nowrap text-sm border border-slate-600/30 theme-light:border-slate-200">➕ Modo múltiple</button>
+              <button id="qr-finish-multi" class="hidden px-3 py-2 sales-main-btn bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-xl transition-all duration-200 whitespace-nowrap text-sm border border-white/10">✓ Terminar</button>
             </div>
           </div>
-          <div class="relative w-full max-w-md mx-auto bg-slate-900 rounded-lg overflow-hidden shadow-xl" style="max-height: 60vh; display: flex; align-items: center; justify-content: center;">
+          <div class="relative w-full max-w-md mx-auto bg-slate-950/70 dark:bg-slate-950/70 theme-light:bg-slate-100 rounded-2xl overflow-hidden shadow-xl border border-slate-700/40 theme-light:border-slate-200" style="max-height: 60vh; display: flex; align-items: center; justify-content: center;">
             <video id="qr-video" playsinline muted class="w-full h-full" style="object-fit: contain; max-height: 100%;"></video>
             <canvas id="qr-canvas" class="hidden"></canvas>
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div class="qr-hud border-4 border-blue-500 w-3/4 h-3/4 rounded-lg"></div>
             </div>
             <!-- Botón de captura manual para placas -->
-            <button id="qr-capture-plate" class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 z-20 hidden text-sm sm:text-base" title="Capturar placa cuando esté bien enmarcada">📸 Capturar Placa</button>
+            <button id="qr-capture-plate" class="sales-main-btn absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-2xl shadow-lg transition-all duration-200 z-20 hidden text-sm sm:text-base border border-white/10" title="Capturar placa cuando esté bien enmarcada">📸 Capturar placa</button>
           </div>
           <!-- Panel de confirmación de placa -->
           <div id="qr-plate-confirm" class="hidden mt-4 p-4 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl border-2 border-blue-500">
@@ -1376,16 +1387,17 @@
               </div>
             </div>
             <div class="flex gap-2">
-              <button id="qr-confirm-plate" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200">✓ Confirmar</button>
-              <button id="qr-cancel-plate" class="flex-1 px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">✗ Cancelar</button>
+              <button id="qr-confirm-plate" class="sales-main-btn flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 border border-white/10">✓ Confirmar</button>
+              <button id="qr-cancel-plate" class="flex-1 px-4 py-2 bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 border border-slate-600/30 theme-light:border-slate-200">✗ Cancelar</button>
             </div>
           </div>
           <div class="flex gap-2 mt-4">
             <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)" class="flex-1 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-            <button id="qr-add-manual" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200">Agregar</button>
+            <button id="qr-add-manual" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 border border-white/10">Agregar</button>
           </div>
           <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-3 text-center" id="qr-msg">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
           <ul id="qr-history" class="qr-history mt-4 space-y-2"></ul>
+          </div>
         </div>
       </template>
 
