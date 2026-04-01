@@ -115,6 +115,11 @@
       color: #ffffff !important;
       border-color: rgba(168, 85, 247, 0.45) !important;
     }
+    body[data-page="cashflow"] #cf-new-transfer {
+      background: linear-gradient(90deg, #0ea5e9, #2563eb) !important;
+      color: #ffffff !important;
+      border-color: rgba(56, 189, 248, 0.45) !important;
+    }
     body[data-page="cashflow"] #cf-add-account,
     body[data-page="cashflow"] #cf-bill-counter,
     body[data-page="cashflow"] #cf-new-entry,
@@ -702,10 +707,14 @@
                 <option value="">Fuente</option>
                 <option value="SALE">Venta</option>
                 <option value="MANUAL">Manual</option>
+                <option value="INVESTMENT">Inversión</option>
+                <option value="RECEIVABLE">Cartera</option>
+                <option value="TRANSFER">Transferencia</option>
               </select>
               <button id="cf-apply" class="px-4 py-2 cf-btn-secondary">Aplicar</button>
               <button id="cf-new-entry" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-600 dark:to-emerald-700 theme-light:from-green-600 theme-light:to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
               <button id="cf-new-expense" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-red-600 to-rose-700 dark:from-red-600 dark:to-rose-700 theme-light:from-red-600 theme-light:to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
+              <button id="cf-new-transfer" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-700 dark:from-sky-600 dark:to-blue-700 theme-light:from-sky-600 theme-light:to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">↔ Transferir</button>
               <button id="cf-new-loan" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-purple-600 to-fuchsia-700 dark:from-purple-600 dark:to-fuchsia-700 theme-light:from-purple-600 theme-light:to-fuchsia-700 hover:from-purple-700 hover:to-fuchsia-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
         </div>
             <div id="cf-mov-summary" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">—</div>

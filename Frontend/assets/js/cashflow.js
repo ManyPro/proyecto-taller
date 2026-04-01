@@ -116,6 +116,7 @@ function bind(){
   document.getElementById('cf-next')?.addEventListener('click', ()=>{ if(cfState.page<cfState.pages){ cfState.page++; loadMovements(); } });
   document.getElementById('cf-new-entry')?.addEventListener('click', openNewEntryModal);
   document.getElementById('cf-new-expense')?.addEventListener('click', ()=> openNewEntryModal('OUT'));
+  document.getElementById('cf-new-transfer')?.addEventListener('click', openTransferModal);
   document.getElementById('cf-new-loan')?.addEventListener('click', openNewLoanModal);
   document.getElementById('cf-refresh-loans')?.addEventListener('click', ()=> loadLoans(true));
   document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
@@ -818,6 +819,15 @@ function openNewEntryModal(defaultKind='IN'){
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción</label>
       <input id='ncf-desc' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
     </div>
+    ${defaultKind === 'OUT' ? `
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Tipo de salida</label>
+      <select id='ncf-source' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="MANUAL">Manual</option>
+        <option value="INVESTMENT">Inversión</option>
+      </select>
+    </div>
+    ` : ''}
     <div class="flex gap-2 mt-4">
       <button id='ncf-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
       <button id='ncf-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
@@ -836,10 +846,86 @@ function openNewEntryModal(defaultKind='IN'){
       const accountId = sel.value;
       const description = div.querySelector('#ncf-desc').value||'';
       const kindSel = (defaultKind==='OUT') ? 'OUT' : 'IN';
-      await API.cashflow.create({ accountId, kind: kindSel, amount, description });
+      const sourceSel = div.querySelector('#ncf-source');
+      const source = kindSel === 'OUT' ? (sourceSel?.value || 'MANUAL') : 'MANUAL';
+      const meta = source === 'INVESTMENT' ? { paymentMode: 'manual', category: 'INVESTMENT' } : { category: 'MANUAL' };
+      await API.cashflow.create({ accountId, kind: kindSel, amount, description, source, meta });
       msg.textContent='OK';
       setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },400);
     }catch(e){ msg.textContent=e?.message||'Error'; }
+  };
+}
+
+function openTransferModal(){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-4">
+    <div class="rounded-xl p-4 border border-sky-600/30 dark:border-sky-600/30 theme-light:border-sky-200 bg-gradient-to-br from-sky-950/30 via-slate-900/45 to-blue-950/30 theme-light:from-sky-50 theme-light:via-white theme-light:to-blue-50">
+      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">↔ Transferir entre cuentas</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Crea dos movimientos vinculados automáticamente: salida en origen y entrada en destino.</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta origen</label>
+      <select id='tr-from-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta destino</label>
+      <select id='tr-to-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
+      <input id='tr-amount' type='number' min='1' step='1' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción (opcional)</label>
+      <input id='tr-desc' placeholder='Ej: Traspaso operativo' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id='tr-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-700 dark:from-sky-600 dark:to-blue-700 theme-light:from-sky-600 theme-light:to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Transferir</button>
+      <button id='tr-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='tr-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
+  body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
+
+  const fromSel = div.querySelector('#tr-from-account');
+  const toSel = div.querySelector('#tr-to-account');
+  const msg = div.querySelector('#tr-msg');
+
+  API.accounts.list().then(list=>{
+    const opts = list.map(a=>`<option value='${a._id}'>${escapeHtml(a.name)}</option>`).join('');
+    fromSel.innerHTML = `<option value=''>-- Seleccionar --</option>${opts}`;
+    toSel.innerHTML = `<option value=''>-- Seleccionar --</option>${opts}`;
+  }).catch(()=>{ msg.textContent = 'Error cargando cuentas'; });
+
+  div.querySelector('#tr-cancel').onclick=()=> modal.classList.add('hidden');
+  div.querySelector('#tr-save').onclick=async()=>{
+    msg.textContent='Guardando transferencia...';
+    try{
+      const fromAccountId = fromSel.value;
+      const toAccountId = toSel.value;
+      const amount = Number(div.querySelector('#tr-amount').value||0)||0;
+      const description = div.querySelector('#tr-desc').value||'';
+      if(!fromAccountId || !toAccountId){
+        msg.textContent='⚠️ Selecciona cuenta origen y destino';
+        return;
+      }
+      if(fromAccountId === toAccountId){
+        msg.textContent='⚠️ Las cuentas deben ser diferentes';
+        return;
+      }
+      if(amount <= 0){
+        msg.textContent='⚠️ El monto debe ser mayor a 0';
+        return;
+      }
+      await API.cashflow.transfer({ fromAccountId, toAccountId, amount, description });
+      msg.textContent='✅ Transferencia creada';
+      setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },500);
+    }catch(e){
+      msg.textContent = '❌ ' + (e?.message || 'Error al transferir');
+    }
   };
 }
 

@@ -12,6 +12,8 @@ import InvestmentItem from '../models/InvestmentItem.js';
 import Investor from '../models/Investor.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
+import CalendarEvent from '../models/CalendarEvent.js';
+import VehicleIntake from '../models/VehicleIntake.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
 import { createDateRange } from '../lib/dateTime.js';
@@ -4386,6 +4388,268 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
+};
+
+// GET /api/v1/sales/special-report
+export const specialSalesReport = async (req, res) => {
+  try {
+    const { from, to } = req.query || {};
+    const companyObjectId = new mongoose.Types.ObjectId(req.companyId);
+    const dateRange = createDateRange(from, to);
+    const fromDate = dateRange.from || null;
+    const toDate = dateRange.to || null;
+
+    const salesDateConditions = [];
+    if (fromDate && toDate) {
+      salesDateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      salesDateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    } else if (fromDate) {
+      salesDateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] }
+        ]
+      });
+      salesDateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] }
+        ]
+      });
+    } else if (toDate) {
+      salesDateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      salesDateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    }
+
+    const salesPipeline = [
+      { $match: { companyId: req.companyId, status: 'closed' } },
+      ...(salesDateConditions.length ? [{ $match: { $expr: { $or: salesDateConditions } } }] : []),
+      {
+        $project: {
+          total: { $ifNull: ['$total', 0] },
+          plate: {
+            $toUpper: {
+              $trim: { input: { $ifNull: ['$vehicle.plate', ''] } }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalVentas: { $sum: 1 },
+          totalFacturado: { $sum: '$total' },
+          placas: { $addToSet: '$plate' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalVentas: 1,
+          totalFacturado: 1,
+          carrosCerrados: {
+            $size: {
+              $filter: {
+                input: '$placas',
+                as: 'p',
+                cond: { $ne: ['$$p', ''] }
+              }
+            }
+          }
+        }
+      }
+    ];
+
+    const cashQuery = { companyId: companyObjectId };
+    if (fromDate || toDate) {
+      cashQuery.date = {};
+      if (fromDate) cashQuery.date.$gte = fromDate;
+      if (toDate) cashQuery.date.$lte = toDate;
+    }
+
+    const [salesAggRows, cashTotalsRows, incomeByAccountRows, calendarRows, intakeRows] = await Promise.all([
+      Sale.aggregate(salesPipeline),
+      CashFlowEntry.aggregate([
+        { $match: cashQuery },
+        {
+          $group: {
+            _id: null,
+            dineroEntrado: { $sum: { $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0] } },
+            salidasTotales: { $sum: { $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0] } },
+            salidasTransferencias: {
+              $sum: {
+                $cond: [{
+                  $and: [
+                    { $eq: ['$kind', 'OUT'] },
+                    {
+                      $or: [
+                        { $eq: ['$source', 'TRANSFER'] },
+                        { $ne: [{ $ifNull: ['$meta.transferId', null] }, null] }
+                      ]
+                    }
+                  ]
+                }, '$amount', 0]
+              }
+            },
+            salidasInversion: {
+              $sum: {
+                $cond: [{
+                  $and: [
+                    { $eq: ['$kind', 'OUT'] },
+                    {
+                      $or: [
+                        { $eq: ['$source', 'INVESTMENT'] },
+                        { $eq: ['$meta.category', 'INVESTMENT'] }
+                      ]
+                    }
+                  ]
+                }, '$amount', 0]
+              }
+            }
+          }
+        }
+      ]),
+      CashFlowEntry.aggregate([
+        { $match: { ...cashQuery, kind: 'IN' } },
+        { $group: { _id: '$accountId', amount: { $sum: '$amount' } } },
+        {
+          $lookup: {
+            from: 'accounts',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'account'
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            accountId: '$_id',
+            accountName: { $ifNull: [{ $arrayElemAt: ['$account.name', 0] }, 'Sin cuenta'] },
+            amount: 1
+          }
+        },
+        { $sort: { amount: -1 } }
+      ]),
+      CalendarEvent.aggregate([
+        {
+          $match: {
+            companyId: companyObjectId,
+            eventType: 'event',
+            ...(fromDate || toDate ? {
+              startDate: {
+                ...(fromDate ? { $gte: fromDate } : {}),
+                ...(toDate ? { $lte: toDate } : {})
+              }
+            } : {})
+          }
+        },
+        {
+          $project: {
+            plate: { $toUpper: { $trim: { input: { $ifNull: ['$plate', ''] } } } }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalCitas: { $sum: 1 },
+            plates: { $addToSet: '$plate' }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            totalCitas: 1,
+            carrosIngresadosAgenda: {
+              $size: {
+                $filter: {
+                  input: '$plates',
+                  as: 'p',
+                  cond: { $ne: ['$$p', ''] }
+                }
+              }
+            }
+          }
+        }
+      ]),
+      VehicleIntake.aggregate([
+        {
+          $match: {
+            companyId: companyObjectId,
+            intakeKind: 'vehicle',
+            ...(fromDate || toDate ? {
+              intakeDate: {
+                ...(fromDate ? { $gte: fromDate } : {}),
+                ...(toDate ? { $lte: toDate } : {})
+              }
+            } : {})
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            ingresosTaller: { $sum: 1 }
+          }
+        },
+        { $project: { _id: 0, ingresosTaller: 1 } }
+      ])
+    ]);
+
+    const salesAgg = salesAggRows[0] || { totalVentas: 0, totalFacturado: 0, carrosCerrados: 0 };
+    const cashAgg = cashTotalsRows[0] || { dineroEntrado: 0, salidasTotales: 0, salidasTransferencias: 0, salidasInversion: 0 };
+    const calendarAgg = calendarRows[0] || { totalCitas: 0, carrosIngresadosAgenda: 0 };
+    const intakeAgg = intakeRows[0] || { ingresosTaller: 0 };
+    const salidasOperativas = Math.max(0, (cashAgg.salidasTotales || 0) - (cashAgg.salidasTransferencias || 0));
+    const promedioPorVehiculo = salesAgg.carrosCerrados > 0
+      ? Math.round((salesAgg.totalFacturado || 0) / salesAgg.carrosCerrados)
+      : 0;
+
+    return res.json({
+      period: {
+        from: from || null,
+        to: to || null
+      },
+      kpis: {
+        carrosCerrados: salesAgg.carrosCerrados || 0,
+        carrosIngresadosAgenda: calendarAgg.carrosIngresadosAgenda || 0,
+        carrosIngresadosTaller: intakeAgg.ingresosTaller || 0,
+        dineroEntrado: cashAgg.dineroEntrado || 0,
+        totalFacturado: salesAgg.totalFacturado || 0,
+        promedioPorVehiculo
+      },
+      salidas: {
+        total: cashAgg.salidasTotales || 0,
+        operativas: salidasOperativas,
+        inversion: cashAgg.salidasInversion || 0,
+        transferencias: cashAgg.salidasTransferencias || 0
+      },
+      cuentasDestino: incomeByAccountRows || []
+    });
+  } catch (err) {
+    logger.error('specialSalesReport error', { error: err?.message, stack: err?.stack });
+    return res.status(500).json({ error: 'Error generando reporte especial' });
+  }
 };
 
 // ===== Reporte tÃ©cnico (laborShare) =====

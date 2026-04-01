@@ -401,6 +401,7 @@ const API = {
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
+    specialReport: (params = {}) => http.get(`/api/v1/sales/special-report${toQuery(params)}`),
     techReport: (params = {}) => http.get(`/api/v1/sales/technicians/report${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
     // Buscar perfil por placa
@@ -463,6 +464,7 @@ const API = {
   cashflow: {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
+    transfer: (payload) => http.post('/api/v1/cashflow/transfers', payload),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
     // Préstamos a empleados

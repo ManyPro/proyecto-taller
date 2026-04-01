@@ -14035,9 +14035,9 @@ function openReportModal() {
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
     <div class="rounded-xl p-4 border border-emerald-600/35 dark:border-emerald-600/35 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/50 to-slate-900/25 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">📊</span> Reporte de ventas</h3>
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">📊</span> Reporte especial</h3>
       <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
-        Elige el rango de fechas: incluye ventas, caja, cartera, inventario y mano de obra.
+        Elige el rango para ver solo cifras importantes de ventas y caja.
       </p>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -14051,7 +14051,7 @@ function openReportModal() {
       </div>
     </div>
     <div class="flex gap-2 mt-6">
-      <button id='report-generar' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📊 Generar Reporte</button>
+      <button id='report-generar' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📊 Generar Reporte Especial</button>
       <button id='report-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='report-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -14125,45 +14125,94 @@ async function generateReport(fechaDesde, fechaHasta) {
   document.body.appendChild(loadingDiv);
   
   try {
-    // Recopilar todos los datos en paralelo
-    const [salesData, cashflowData, receivablesData, inventoryData, calendarData, techniciansData, accountsBalances] = await Promise.all([
-      // Ventas
-      API.sales.list({ status: 'closed', from: fechaDesde, to: fechaHasta, limit: 10000 }),
-      // Flujo de caja
-      API.cashflow.list({ from: fechaDesde, to: fechaHasta, limit: 10000 }),
-      // Cartera
-      API.receivables.list({ from: fechaDesde, to: fechaHasta, limit: 10000 }),
-      // Inventario
-      API.inventory.itemsList({ limit: 10000 }),
-      // Calendario/Agendas
-      API.calendar.list({ from: fechaDesde, to: fechaHasta }),
-      // Técnicos
-      API.company.getTechnicians(),
-      // Valores de caja actuales (balances de todas las cuentas)
-      API.accounts.balances()
-    ]);
-    
-    const sales = Array.isArray(salesData?.items) ? salesData.items : [];
-    const cashflowEntries = Array.isArray(cashflowData?.items) ? cashflowData.items : [];
-    const receivables = Array.isArray(receivablesData) ? receivablesData : [];
-    const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
-    const appointments = Array.isArray(calendarData) ? calendarData : [];
-    const technicians = Array.isArray(techniciansData) ? techniciansData : [];
-    const currentCashBalances = Array.isArray(accountsBalances?.balances) ? accountsBalances.balances : [];
-    const currentCashTotal = accountsBalances?.total || 0;
-    
-    // Procesar datos
-    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashBalances, currentCashTotal);
-    
-    // Mostrar reporte
-    showReport(reportData, fechaDesde, fechaHasta);
-    
+    const reportData = await API.sales.specialReport({ from: fechaDesde, to: fechaHasta });
+    showSpecialReport(reportData, fechaDesde, fechaHasta);
   } catch(err) {
     console.error('Error generando reporte:', err);
     alert('Error al generar reporte: ' + (err?.message || 'Error desconocido'));
   } finally {
     loadingDiv.remove();
   }
+}
+
+function showSpecialReport(reportData, fechaDesde, fechaHasta) {
+  const viewHistorial = document.getElementById('sales-view-historial');
+  if (!viewHistorial) return;
+
+  const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const kpis = reportData?.kpis || {};
+  const salidas = reportData?.salidas || {};
+  const cuentas = Array.isArray(reportData?.cuentasDestino) ? reportData.cuentasDestino : [];
+
+  const reportContainer = document.createElement('div');
+  reportContainer.id = 'report-container';
+  reportContainer.className = 'space-y-6';
+  reportContainer.innerHTML = `
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 rounded-xl shadow-lg border border-blue-500/50 p-6 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-white mb-2">📊 Reporte Especial de Ventas</h2>
+          <p class="text-blue-100 text-sm">Período: ${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}</p>
+        </div>
+      </div>
+      <p class="text-blue-100 text-xs mt-3 mb-0">Solo cifras clave: lectura rápida, preparado para alto volumen de datos.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Carros cerrados</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosCerrados || 0)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Carros ingresados (agenda)</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosIngresadosAgenda || 0)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Carros ingresados (taller)</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosIngresadosTaller || 0)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Dinero entrado</div>
+        <div class="text-3xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-700">${money(kpis.dineroEntrado)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Promedio por vehículo</div>
+        <div class="text-3xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-700">${money(kpis.promedioPorVehiculo)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total facturado</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${money(kpis.totalFacturado)}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💸 Salidas</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total salidas</span><span class="font-semibold text-red-400 dark:text-red-400 theme-light:text-red-700">${money(salidas.total)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Operativas</span><span class="font-semibold text-orange-400 dark:text-orange-400 theme-light:text-orange-700">${money(salidas.operativas)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Inversión</span><span class="font-semibold text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-700">${money(salidas.inversion)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Transferencias</span><span class="font-semibold text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700">${money(salidas.transferencias)}</span></div>
+        </div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">🏦 Dinero entrado por cuenta</h3>
+        <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+          ${cuentas.map(c => `
+            <div class="flex justify-between p-2 rounded-lg bg-slate-700/25 dark:bg-slate-700/25 theme-light:bg-white">
+              <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtmlReport(c.accountName || 'Sin cuenta')}</span>
+              <span class="font-semibold text-green-400 dark:text-green-400 theme-light:text-green-700">${money(c.amount || 0)}</span>
+            </div>
+          `).join('')}
+          ${!cuentas.length ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay ingresos registrados para este período.</p>' : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const existing = document.getElementById('report-container');
+  if (existing) existing.remove();
+  viewHistorial.prepend(reportContainer);
 }
 
 function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashBalances = [], currentCashTotal = 0) {

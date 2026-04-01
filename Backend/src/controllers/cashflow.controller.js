@@ -14,15 +14,18 @@ export async function ensureDefaultCashAccount(companyId) {
   return acc;
 }
 
-export async function computeBalance(accountId, companyId) {
+export async function computeBalance(accountId, companyId, options = {}) {
+  const { session } = options;
   // Obtener balance inicial de la cuenta
-  const acc = await Account.findOne({ _id: accountId, companyId });
+  let accQuery = Account.findOne({ _id: accountId, companyId });
+  if (session) accQuery = accQuery.session(session);
+  const acc = await accQuery;
   const initialBalance = acc ? (acc.initialBalance || 0) : 0;
   
   // Calcular balance usando agregación MongoDB (más eficiente que cargar todas las entradas)
   // Esto asegura que las entradas con fecha futura no afecten el balance actual
   const currentDate = now();
-  const result = await CashFlowEntry.aggregate([
+  let balanceAggQuery = CashFlowEntry.aggregate([
     {
       $match: {
         companyId: new mongoose.Types.ObjectId(companyId),
@@ -46,6 +49,8 @@ export async function computeBalance(accountId, companyId) {
       }
     }
   ]);
+  if (session) balanceAggQuery = balanceAggQuery.session(session);
+  const result = await balanceAggQuery;
   
   const totals = result[0] || { totalIn: 0, totalOut: 0 };
   const balance = initialBalance + (totals.totalIn || 0) - (totals.totalOut || 0);
@@ -180,23 +185,36 @@ export async function listEntries(req, res) {
 }
 
 export async function createEntry(req, res) {
-  const { accountId, kind = 'IN', amount, description = '', date } = req.body || {};
+  const { accountId, kind = 'IN', amount, description = '', date, source = 'MANUAL', meta = {} } = req.body || {};
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   if (!amount || amount <= 0) return res.status(400).json({ error: 'positive amount required' });
+  const normalizedKind = kind === 'OUT' ? 'OUT' : 'IN';
+  const allowedSources = new Set(['MANUAL', 'INVESTMENT']);
+  const normalizedSource = String(source || 'MANUAL').toUpperCase();
+  if (!allowedSources.has(normalizedSource)) {
+    return res.status(400).json({ error: 'source inválido para creación manual' });
+  }
+  if (normalizedSource === 'INVESTMENT' && normalizedKind !== 'OUT') {
+    return res.status(400).json({ error: 'La inversión manual debe ser una salida (OUT)' });
+  }
   const acc = await Account.findOne({ _id: accountId, companyId: req.companyId });
   if (!acc) return res.status(404).json({ error: 'account not found' });
   const amt = Math.round(Number(amount));
   const prevBal = await computeBalance(acc._id, req.companyId);
-  const newBal = kind === 'IN' ? prevBal + amt : prevBal - amt;
+  const newBal = normalizedKind === 'IN' ? prevBal + amt : prevBal - amt;
   const entry = await CashFlowEntry.create({
     companyId: req.companyId,
     accountId: acc._id,
-    kind,
+    kind: normalizedKind,
     amount: amt,
     description,
-    source: 'MANUAL',
+    source: normalizedSource,
     date: date ? localToUTC(date) : new Date(),
-    balanceAfter: newBal
+    balanceAfter: newBal,
+    meta: {
+      ...(meta && typeof meta === 'object' ? meta : {}),
+      category: normalizedSource === 'INVESTMENT' ? 'INVESTMENT' : (meta?.category || 'MANUAL')
+    }
   });
   
   // Publicar evento de actualización en vivo
@@ -207,6 +225,113 @@ export async function createEntry(req, res) {
   }
   
   res.json(entry);
+}
+
+// POST /cashflow/transfers
+export async function createTransfer(req, res) {
+  const { fromAccountId, toAccountId, amount, description = '', date } = req.body || {};
+  if (!fromAccountId || !toAccountId) return res.status(400).json({ error: 'fromAccountId y toAccountId son requeridos' });
+  if (String(fromAccountId) === String(toAccountId)) return res.status(400).json({ error: 'Las cuentas deben ser diferentes' });
+  const amt = Math.round(Number(amount || 0));
+  if (!amt || amt <= 0) return res.status(400).json({ error: 'Monto inválido' });
+
+  const session = await mongoose.startSession();
+  let outEntry = null;
+  let inEntry = null;
+  try {
+    await session.withTransaction(async () => {
+      const [fromAcc, toAcc] = await Promise.all([
+        Account.findOne({ _id: fromAccountId, companyId: req.companyId }).session(session),
+        Account.findOne({ _id: toAccountId, companyId: req.companyId }).session(session)
+      ]);
+
+      if (!fromAcc || !toAcc) {
+        throw new Error('Cuenta origen o destino no encontrada');
+      }
+
+      const [fromBalance, toBalance] = await Promise.all([
+        computeBalance(fromAcc._id, req.companyId, { session }),
+        computeBalance(toAcc._id, req.companyId, { session })
+      ]);
+
+      if (fromBalance < amt) {
+        throw new Error(`Saldo insuficiente en cuenta origen (${fromAcc.name})`);
+      }
+
+      const transferId = new mongoose.Types.ObjectId().toString();
+      const transferDate = date ? localToUTC(date) : new Date();
+
+      const created = await CashFlowEntry.create([{
+        companyId: req.companyId,
+        accountId: fromAcc._id,
+        kind: 'OUT',
+        source: 'TRANSFER',
+        description: description || `Transferencia a ${toAcc.name}`,
+        amount: amt,
+        date: transferDate,
+        balanceAfter: fromBalance - amt,
+        meta: {
+          category: 'TRANSFER',
+          transferId,
+          fromAccountId: fromAcc._id,
+          toAccountId: toAcc._id,
+          transferDirection: 'OUTGOING'
+        }
+      }, {
+        companyId: req.companyId,
+        accountId: toAcc._id,
+        kind: 'IN',
+        source: 'TRANSFER',
+        description: description || `Transferencia desde ${fromAcc.name}`,
+        amount: amt,
+        date: transferDate,
+        balanceAfter: toBalance + amt,
+        meta: {
+          category: 'TRANSFER',
+          transferId,
+          fromAccountId: fromAcc._id,
+          toAccountId: toAcc._id,
+          transferDirection: 'INCOMING'
+        }
+      }], { session });
+
+      outEntry = created[0];
+      inEntry = created[1];
+
+      // Vincular ambos movimientos entre sí
+      await CashFlowEntry.updateOne(
+        { _id: outEntry._id, companyId: req.companyId },
+        { $set: { 'meta.pairedEntryId': inEntry._id } },
+        { session }
+      );
+      await CashFlowEntry.updateOne(
+        { _id: inEntry._id, companyId: req.companyId },
+        { $set: { 'meta.pairedEntryId': outEntry._id } },
+        { session }
+      );
+    });
+
+    await recomputeAccountBalances(req.companyId, outEntry.accountId);
+    await recomputeAccountBalances(req.companyId, inEntry.accountId);
+
+    try {
+      await publish(req.companyId, 'cashflow:created', { id: outEntry._id, accountId: outEntry.accountId });
+      await publish(req.companyId, 'cashflow:created', { id: inEntry._id, accountId: inEntry.accountId });
+    } catch (e) {
+      // No fallar si no se puede publicar
+    }
+
+    return res.json({
+      ok: true,
+      transferId: outEntry?.meta?.transferId,
+      fromEntry: outEntry,
+      toEntry: inEntry
+    });
+  } catch (e) {
+    return res.status(400).json({ error: e.message || 'No se pudo crear la transferencia' });
+  } finally {
+    session.endSession();
+  }
 }
 
 // --- Recalcular balances secuenciales de una cuenta ---
@@ -247,6 +372,9 @@ export async function updateEntry(req, res){
   const { amount, description, date, kind } = req.body || {};
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
+  if (entry.source === 'TRANSFER') {
+    return res.status(400).json({ error: 'Los movimientos de transferencia no se editan manualmente' });
+  }
   
   // Opcional: restringir edición de movimientos generados por venta a sólo descripción
   // Permitimos edición completa para correcciones manuales.
@@ -296,6 +424,9 @@ export async function deleteEntry(req, res){
   const { id } = req.params;
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
+  if (entry.source === 'TRANSFER') {
+    return res.status(400).json({ error: 'Los movimientos de transferencia no se eliminan manualmente' });
+  }
   const accId = entry.accountId;
   await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
   await recomputeAccountBalances(req.companyId, accId);

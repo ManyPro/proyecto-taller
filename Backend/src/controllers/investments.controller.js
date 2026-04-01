@@ -252,50 +252,62 @@ export const payInvestment = async (req, res) => {
     const totalAmount = investmentItems.reduce((sum, inv) => {
       return sum + (inv.purchasePrice * inv.qty);
     }, 0);
-    
+
     // Validar balance de cuenta
     const currentBalance = await computeBalance(accountId, req.companyId);
     if (currentBalance < totalAmount) {
-      return res.status(400).json({ 
-        error: 'Saldo insuficiente', 
-        message: `La cuenta "${account.name}" no tiene saldo suficiente. Saldo disponible: ${currentBalance}, Monto requerido: ${totalAmount}` 
+      return res.status(400).json({
+        error: 'Saldo insuficiente',
+        message: `La cuenta "${account.name}" no tiene saldo suficiente. Saldo disponible: ${currentBalance}, Monto requerido: ${totalAmount}`
       });
     }
-    
-    // Calcular nuevo balance
-    const newBalance = currentBalance - totalAmount;
-    
-    // Crear entrada en flujo de caja
+
     const paymentDate = date ? new Date(date) : new Date();
-    const cashFlowEntry = await CashFlowEntry.create({
-      companyId: req.companyId,
-      accountId: accountId,
-      kind: 'OUT',
-      source: 'INVESTMENT',
-      sourceRef: investorId,
-      description: `Pago de inversión: ${investmentItems.length} item(s)`,
-      amount: totalAmount,
-      balanceAfter: newBalance,
-      date: paymentDate,
-      notes: (notes || '').trim(),
-      meta: {
-        investorId: investorId,
-        investmentItemIds: investmentItemIds,
-        itemCount: investmentItems.length
-      }
-    });
-    
-    // Actualizar InvestmentItems a estado 'paid'
-    await InvestmentItem.updateMany(
-      { _id: { $in: investmentItemIds } },
-      {
-        $set: {
-          status: 'paid',
-          paidAt: paymentDate,
-          cashflowEntryId: cashFlowEntry._id
-        }
-      }
-    );
+    const trimmedNotes = String(notes || '').trim();
+    const newBalance = currentBalance - totalAmount;
+
+    const session = await mongoose.startSession();
+    let cashFlowEntry;
+    try {
+      await session.withTransaction(async () => {
+        const created = await CashFlowEntry.create([{
+          companyId: req.companyId,
+          accountId: accountId,
+          kind: 'OUT',
+          source: 'INVESTMENT',
+          sourceRef: investorId,
+          description: trimmedNotes
+            ? `Pago de inversión: ${investmentItems.length} item(s) - ${trimmedNotes}`
+            : `Pago de inversión: ${investmentItems.length} item(s)`,
+          amount: totalAmount,
+          balanceAfter: newBalance,
+          date: paymentDate,
+          meta: {
+            category: 'INVESTMENT',
+            paymentMode: 'automatic',
+            notes: trimmedNotes,
+            investorId: investorId,
+            investmentItemIds: investmentItemIds,
+            itemCount: investmentItems.length
+          }
+        }], { session });
+        cashFlowEntry = created[0];
+
+        await InvestmentItem.updateMany(
+          { _id: { $in: investmentItemIds } },
+          {
+            $set: {
+              status: 'paid',
+              paidAt: paymentDate,
+              cashflowEntryId: cashFlowEntry._id
+            }
+          },
+          { session }
+        );
+      });
+    } finally {
+      session.endSession();
+    }
     
     // Publicar evento de actualización en vivo
     try {

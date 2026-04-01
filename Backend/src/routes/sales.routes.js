@@ -3,7 +3,7 @@ import {
   startSale, getSale, addItem, updateItem, removeItem, removeItemGroup,
   setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk, updateSale, registerSaleCashflow,
   addAdvancePayment, removeAdvancePayment, setDiscount, removeDiscount,
-  backfillLaborCommissionItemNames
+  backfillLaborCommissionItemNames, specialSalesReport
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -14,6 +14,7 @@ router.get('/stream', sseHandler);
 
 // List and summaries first to avoid shadowing
 router.get('/summary', summarySales);
+router.get('/special-report', specialSalesReport);
 router.get('/technicians/report', technicianReport);
 router.get('/by-plate/:plate', getSalesByPlate); // Historial completo por placa
 router.get('/profile/by-plate/:plate', getProfileByPlate);
