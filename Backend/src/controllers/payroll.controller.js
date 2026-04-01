@@ -11,9 +11,9 @@ import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
 import { htmlToPdfBuffer } from '../lib/htmlToPdf.js';
-import { computeBalance } from './cashflow.controller.js';
+import { computeBalance, recomputeAccountBalances } from './cashflow.controller.js';
 import mongoose from 'mongoose';
-import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC } from '../lib/dateTime.js';
+import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC, now as utcNow } from '../lib/dateTime.js';
 import { publish } from '../lib/live.js';
 
 export const listConcepts = async (req, res) => {
@@ -1724,7 +1724,10 @@ export const paySettlement = async (req, res) => {
     
     // Procesar cada pago
     const createdEntries = [];
-    const paymentDate = date ? localToUTC(date) : new Date();
+    const paymentDateRaw = date ? localToUTC(date) : new Date();
+    const currentNow = utcNow();
+    // Evita desbalances por fechas futuras accidentales (timezone/UI)
+    const paymentDate = (paymentDateRaw && paymentDateRaw > currentNow) ? currentNow : paymentDateRaw;
     // Rastrear balances por cuenta para pagos múltiples a la misma cuenta
     const accountBalances = new Map();
     
@@ -1778,24 +1781,27 @@ export const paySettlement = async (req, res) => {
       accountBalances.set(payAccountId, newBalance);
       
       // Crear entrada de CashFlow para este pago parcial
+      const entryDateRaw = payDate ? localToUTC(payDate) : paymentDate;
+      const entryDate = (entryDateRaw && entryDateRaw > currentNow) ? currentNow : entryDateRaw;
     const entry = await CashFlowEntry.create({
       companyId: req.companyId,
         accountId: payAccountId,
-        date: payDate ? localToUTC(payDate) : paymentDate,
+        date: entryDate,
       kind: 'OUT',
       source: 'MANUAL',
       sourceRef: settlementId,
         description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}${paymentsToProcess.length > 1 ? ` (Pago parcial ${createdEntries.length + 1}/${paymentsToProcess.length})` : ''}`,
         amount: paymentAmount,
         balanceAfter: newBalance,
-        notes: payNotes || notes || '',
       meta: { 
         type: 'PAYROLL', 
+        category: 'PAYROLL',
         technicianId: st.technicianId, 
         technicianName: st.technicianName,
           settlementId,
           paymentIndex: createdEntries.length + 1,
-          totalPayments: paymentsToProcess.length
+          totalPayments: paymentsToProcess.length,
+          notes: payNotes || notes || ''
         }
       });
       
@@ -1821,6 +1827,16 @@ export const paySettlement = async (req, res) => {
     }
     
     await st.save();
+
+    // Recalcular balances secuenciales por cuenta afectada para mantener consistencia del libro
+    const affectedAccountIds = [...new Set(createdEntries.map(e => String(e.accountId || '')).filter(Boolean))];
+    for (const accId of affectedAccountIds) {
+      try {
+        await recomputeAccountBalances(req.companyId, accId);
+      } catch (errRecompute) {
+        console.error('[paySettlement] Error recalculando balance de cuenta', { accountId: accId, error: errRecompute?.message });
+      }
+    }
 
     // Publicar eventos de actualización en vivo para cada cuenta afectada
     // Agrupar por accountId para evitar múltiples eventos innecesarios

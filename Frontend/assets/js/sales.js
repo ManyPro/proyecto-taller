@@ -14148,6 +14148,7 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
   const dineroEntradoPeriodo = Number(kpis.dineroEntrado || 0);
   const salidasPeriodo = Number(salidas.total || 0);
   const movimientoPeriodo = dineroEntradoPeriodo + salidasPeriodo;
+  const netoPeriodo = Number(kpis.netoPeriodo || 0);
 
   const reportContainer = document.createElement('div');
   reportContainer.id = 'report-container';
@@ -14166,11 +14167,16 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
       </p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div class="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-900/35 to-slate-900/40 theme-light:from-emerald-50 theme-light:to-white p-6 shadow-lg">
         <div class="text-sm text-emerald-200 dark:text-emerald-200 theme-light:text-emerald-700 font-semibold mb-2">Movimiento de la empresa (período)</div>
         <div class="text-5xl md:text-6xl font-extrabold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 leading-none tracking-tight">${money(movimientoPeriodo)}</div>
         <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Entradas reales + salidas totales del período</div>
+      </div>
+      <div class="rounded-xl border ${netoPeriodo >= 0 ? 'border-lime-500/40 bg-gradient-to-br from-lime-900/30 to-slate-900/40 theme-light:from-lime-50 theme-light:to-white' : 'border-rose-500/40 bg-gradient-to-br from-rose-900/30 to-slate-900/40 theme-light:from-rose-50 theme-light:to-white'} p-6 shadow-lg">
+        <div class="text-sm ${netoPeriodo >= 0 ? 'text-lime-200 dark:text-lime-200 theme-light:text-lime-700' : 'text-rose-200 dark:text-rose-200 theme-light:text-rose-700'} font-semibold mb-2">Neto del período</div>
+        <div class="text-5xl md:text-6xl font-extrabold ${netoPeriodo >= 0 ? 'text-lime-300 dark:text-lime-300 theme-light:text-lime-700' : 'text-rose-300 dark:text-rose-300 theme-light:text-rose-700'} leading-none tracking-tight">${money(netoPeriodo)}</div>
+        <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Entradas reales - salidas reales (operativas + inversión)</div>
       </div>
       <div class="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-cyan-900/30 to-slate-900/40 theme-light:from-cyan-50 theme-light:to-white p-6 shadow-lg">
         <div class="text-sm text-cyan-200 dark:text-cyan-200 theme-light:text-cyan-700 font-semibold mb-2">Valor actual en caja (al momento)</div>

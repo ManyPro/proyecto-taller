@@ -109,6 +109,7 @@ function connectLive() {
 
 function bind(){
   document.getElementById('cf-refresh')?.addEventListener('click', ()=>{ loadAccounts(); });
+  document.getElementById('cf-recompute')?.addEventListener('click', recomputeBalancesAndReload);
   document.getElementById('cf-add-account')?.addEventListener('click', openAddAccountModal);
   document.getElementById('cf-bill-counter')?.addEventListener('click', openBillCounterModal);
   document.getElementById('cf-apply')?.addEventListener('click', ()=> loadMovements(true));
@@ -122,6 +123,28 @@ function bind(){
   document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
   document.getElementById('cf-loan-filter-status')?.addEventListener('change', ()=> loadLoans());
   loadLoans();
+}
+
+async function recomputeBalancesAndReload() {
+  const btn = document.getElementById('cf-recompute');
+  const prev = btn?.textContent || 'Recalcular saldos';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Recalculando...';
+  }
+  try {
+    const result = await API.cashflow.recomputeBalances();
+    showSuccess(`Saldos recalculados (${result?.recomputedAccounts || 0} cuentas)`);
+    await loadAccounts();
+    await loadMovements(true);
+  } catch (e) {
+    showError(e?.message || 'Error recalculando saldos');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  }
 }
 
 async function loadAccounts(){

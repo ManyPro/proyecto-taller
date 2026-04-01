@@ -465,6 +465,7 @@ const API = {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
     transfer: (payload) => http.post('/api/v1/cashflow/transfers', payload),
+    recomputeBalances: () => http.post('/api/v1/cashflow/recompute-balances', {}),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
     // Préstamos a empleados

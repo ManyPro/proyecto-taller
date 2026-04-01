@@ -119,6 +119,21 @@ export async function getBalances(req, res) {
   res.json({ balances, total });
 }
 
+// POST /cashflow/recompute-balances
+export async function recomputeAllBalances(req, res) {
+  const companyId = req.companyId;
+  const accounts = await Account.find({ companyId }).select('_id');
+  for (const acc of accounts) {
+    await recomputeAccountBalances(companyId, acc._id);
+  }
+  const refreshed = [];
+  for (const acc of accounts) {
+    const bal = await computeBalance(acc._id, companyId);
+    refreshed.push({ accountId: acc._id, balance: bal });
+  }
+  return res.json({ ok: true, recomputedAccounts: accounts.length, balances: refreshed });
+}
+
 export async function listEntries(req, res) {
   const { accountId, from, to, kind, source, page = 1, limit = 50 } = req.query || {};
   const pg = Math.max(1, parseInt(page));

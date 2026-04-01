@@ -4674,6 +4674,8 @@ export const specialSalesReport = async (req, res) => {
       0,
       (cashAgg.salidasTotales || 0) - (cashAgg.salidasTransferencias || 0) - (cashAgg.salidasInversion || 0)
     );
+    const salidasReales = Math.max(0, salidasOperativas + (cashAgg.salidasInversion || 0));
+    const netoPeriodo = Math.round((cashAgg.dineroEntrado || 0) - salidasReales);
     const promedioPorVehiculo = salesAgg.carrosCerrados > 0
       ? Math.round((salesAgg.totalFacturado || 0) / salesAgg.carrosCerrados)
       : 0;
@@ -4705,13 +4707,15 @@ export const specialSalesReport = async (req, res) => {
         carrosIngresadosTaller: intakeAgg.ingresosTaller || 0,
         dineroEntrado: cashAgg.dineroEntrado || 0,
         totalFacturado: salesAgg.totalFacturado || 0,
-        promedioPorVehiculo
+        promedioPorVehiculo,
+        netoPeriodo
       },
       salidas: {
         total: cashAgg.salidasTotales || 0,
         operativas: salidasOperativas,
         inversion: cashAgg.salidasInversion || 0,
-        transferencias: cashAgg.salidasTransferencias || 0
+        transferencias: cashAgg.salidasTransferencias || 0,
+        reales: salidasReales
       },
       cuentasDestino: incomeByAccountRows || [],
       cajaActual: {

@@ -2100,9 +2100,9 @@ async function pay(){
     
     // La fecha se autocompleta automáticamente, usar la fecha actual si no está definida
     let date = null;
-    if (dateInput && dateInput.value) {
+    if (dateInput) {
       // Convertir datetime-local a ISO string en UTC
-      date = datetimeLocalToISO(dateInput.value);
+      date = datetimeLocalToISO(dateInput);
       if (!date) {
         // Si la fecha es inválida, usar la fecha actual
         date = new Date().toISOString();
