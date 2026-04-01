@@ -12,6 +12,7 @@ import InvestmentItem from '../models/InvestmentItem.js';
 import Investor from '../models/Investor.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
+import Account from '../models/Account.js';
 import CalendarEvent from '../models/CalendarEvent.js';
 import VehicleIntake from '../models/VehicleIntake.js';
 import { upsertProfileFromSource } from './profile.helper.js';
@@ -4394,7 +4395,31 @@ export const summarySales = async (req, res) => {
 export const specialSalesReport = async (req, res) => {
   try {
     const { from, to } = req.query || {};
-    const companyObjectId = new mongoose.Types.ObjectId(req.companyId);
+    const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+    const companyIdsToSearch = await getAllSharedCompanyIdsHelper(originalCompanyId);
+    const companyObjectIds = (companyIdsToSearch || [])
+      .map((id) => {
+        try { return new mongoose.Types.ObjectId(String(id)); }
+        catch { return null; }
+      })
+      .filter(Boolean);
+    if (!companyObjectIds.length) {
+      return res.json({
+        period: { from: from || null, to: to || null },
+        kpis: {
+          carrosCerrados: 0,
+          carrosIngresadosAgenda: 0,
+          carrosIngresadosTaller: 0,
+          dineroEntrado: 0,
+          totalFacturado: 0,
+          promedioPorVehiculo: 0
+        },
+        salidas: { total: 0, operativas: 0, inversion: 0, transferencias: 0 },
+        cuentasDestino: [],
+        cajaActual: { total: 0, cuentas: [] }
+      });
+    }
+    const companyMatcher = companyObjectIds.length === 1 ? companyObjectIds[0] : { $in: companyObjectIds };
     const dateRange = createDateRange(from, to);
     const fromDate = dateRange.from || null;
     const toDate = dateRange.to || null;
@@ -4444,7 +4469,7 @@ export const specialSalesReport = async (req, res) => {
     }
 
     const salesPipeline = [
-      { $match: { companyId: req.companyId, status: 'closed' } },
+      { $match: { companyId: companyMatcher, status: 'closed' } },
       ...(salesDateConditions.length ? [{ $match: { $expr: { $or: salesDateConditions } } }] : []),
       {
         $project: {
@@ -4482,21 +4507,35 @@ export const specialSalesReport = async (req, res) => {
       }
     ];
 
-    const cashQuery = { companyId: companyObjectId };
+    const cashQuery = { companyId: companyMatcher };
     if (fromDate || toDate) {
       cashQuery.date = {};
       if (fromDate) cashQuery.date.$gte = fromDate;
       if (toDate) cashQuery.date.$lte = toDate;
     }
 
-    const [salesAggRows, cashTotalsRows, incomeByAccountRows, calendarRows, intakeRows] = await Promise.all([
+    const nonTransferInExpr = {
+      $and: [
+        { $eq: ['$kind', 'IN'] },
+        {
+          $not: {
+            $or: [
+              { $eq: ['$source', 'TRANSFER'] },
+              { $ne: [{ $ifNull: ['$meta.transferId', null] }, null] }
+            ]
+          }
+        }
+      ]
+    };
+
+    const [salesAggRows, cashTotalsRows, incomeByAccountRows, calendarRows, intakeRows, accounts] = await Promise.all([
       Sale.aggregate(salesPipeline),
       CashFlowEntry.aggregate([
         { $match: cashQuery },
         {
           $group: {
             _id: null,
-            dineroEntrado: { $sum: { $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0] } },
+            dineroEntrado: { $sum: { $cond: [nonTransferInExpr, '$amount', 0] } },
             salidasTotales: { $sum: { $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0] } },
             salidasTransferencias: {
               $sum: {
@@ -4532,7 +4571,17 @@ export const specialSalesReport = async (req, res) => {
         }
       ]),
       CashFlowEntry.aggregate([
-        { $match: { ...cashQuery, kind: 'IN' } },
+        {
+          $match: {
+            ...cashQuery,
+            kind: 'IN',
+            $or: [
+              { source: { $ne: 'TRANSFER' } },
+              { source: { $exists: false } }
+            ]
+          }
+        },
+        { $match: { 'meta.transferId': { $exists: false } } },
         { $group: { _id: '$accountId', amount: { $sum: '$amount' } } },
         {
           $lookup: {
@@ -4555,7 +4604,7 @@ export const specialSalesReport = async (req, res) => {
       CalendarEvent.aggregate([
         {
           $match: {
-            companyId: companyObjectId,
+            companyId: companyMatcher,
             eventType: 'event',
             ...(fromDate || toDate ? {
               startDate: {
@@ -4596,7 +4645,7 @@ export const specialSalesReport = async (req, res) => {
       VehicleIntake.aggregate([
         {
           $match: {
-            companyId: companyObjectId,
+            companyId: companyMatcher,
             intakeKind: 'vehicle',
             ...(fromDate || toDate ? {
               intakeDate: {
@@ -4613,22 +4662,42 @@ export const specialSalesReport = async (req, res) => {
           }
         },
         { $project: { _id: 0, ingresosTaller: 1 } }
-      ])
+      ]),
+      Account.find({ companyId: companyMatcher, active: { $ne: false } }).select('_id companyId name type').lean()
     ]);
 
     const salesAgg = salesAggRows[0] || { totalVentas: 0, totalFacturado: 0, carrosCerrados: 0 };
     const cashAgg = cashTotalsRows[0] || { dineroEntrado: 0, salidasTotales: 0, salidasTransferencias: 0, salidasInversion: 0 };
     const calendarAgg = calendarRows[0] || { totalCitas: 0, carrosIngresadosAgenda: 0 };
     const intakeAgg = intakeRows[0] || { ingresosTaller: 0 };
-    const salidasOperativas = Math.max(0, (cashAgg.salidasTotales || 0) - (cashAgg.salidasTransferencias || 0));
+    const salidasOperativas = Math.max(
+      0,
+      (cashAgg.salidasTotales || 0) - (cashAgg.salidasTransferencias || 0) - (cashAgg.salidasInversion || 0)
+    );
     const promedioPorVehiculo = salesAgg.carrosCerrados > 0
       ? Math.round((salesAgg.totalFacturado || 0) / salesAgg.carrosCerrados)
       : 0;
+    const cajaActualCuentas = await Promise.all(
+      (accounts || []).map(async (acc) => {
+        const bal = await computeBalance(acc._id, acc.companyId);
+        return {
+          accountId: acc._id,
+          accountName: acc.name || 'Sin cuenta',
+          accountType: acc.type || 'CASH',
+          balance: Number(bal || 0)
+        };
+      })
+    );
+    const cajaActualTotal = cajaActualCuentas.reduce((sum, c) => sum + (Number(c.balance) || 0), 0);
 
     return res.json({
       period: {
         from: from || null,
         to: to || null
+      },
+      periodApplied: {
+        from: fromDate ? fromDate.toISOString() : null,
+        to: toDate ? toDate.toISOString() : null
       },
       kpis: {
         carrosCerrados: salesAgg.carrosCerrados || 0,
@@ -4644,7 +4713,11 @@ export const specialSalesReport = async (req, res) => {
         inversion: cashAgg.salidasInversion || 0,
         transferencias: cashAgg.salidasTransferencias || 0
       },
-      cuentasDestino: incomeByAccountRows || []
+      cuentasDestino: incomeByAccountRows || [],
+      cajaActual: {
+        total: cajaActualTotal,
+        cuentas: cajaActualCuentas
+      }
     });
   } catch (err) {
     logger.error('specialSalesReport error', { error: err?.message, stack: err?.stack });

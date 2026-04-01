@@ -14143,6 +14143,11 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
   const kpis = reportData?.kpis || {};
   const salidas = reportData?.salidas || {};
   const cuentas = Array.isArray(reportData?.cuentasDestino) ? reportData.cuentasDestino : [];
+  const cajaActual = reportData?.cajaActual || {};
+  const periodApplied = reportData?.periodApplied || {};
+  const dineroEntradoPeriodo = Number(kpis.dineroEntrado || 0);
+  const salidasPeriodo = Number(salidas.total || 0);
+  const movimientoPeriodo = dineroEntradoPeriodo + salidasPeriodo;
 
   const reportContainer = document.createElement('div');
   reportContainer.id = 'report-container';
@@ -14156,6 +14161,22 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
         </div>
       </div>
       <p class="text-blue-100 text-xs mt-3 mb-0">Solo cifras clave: lectura rápida, preparado para alto volumen de datos.</p>
+      <p class="text-blue-100/90 text-xs mt-2 mb-0">
+        Fechas aplicadas en servidor (UTC): ${periodApplied.from || 'sin límite'} → ${periodApplied.to || 'sin límite'}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-900/35 to-slate-900/40 theme-light:from-emerald-50 theme-light:to-white p-6 shadow-lg">
+        <div class="text-sm text-emerald-200 dark:text-emerald-200 theme-light:text-emerald-700 font-semibold mb-2">Movimiento de la empresa (período)</div>
+        <div class="text-5xl md:text-6xl font-extrabold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 leading-none tracking-tight">${money(movimientoPeriodo)}</div>
+        <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Entradas reales + salidas totales del período</div>
+      </div>
+      <div class="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-cyan-900/30 to-slate-900/40 theme-light:from-cyan-50 theme-light:to-white p-6 shadow-lg">
+        <div class="text-sm text-cyan-200 dark:text-cyan-200 theme-light:text-cyan-700 font-semibold mb-2">Valor actual en caja (al momento)</div>
+        <div class="text-5xl md:text-6xl font-extrabold text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700 leading-none tracking-tight">${money(cajaActual.total || 0)}</div>
+        <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Suma de saldos actuales de todas las cuentas</div>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -14172,7 +14193,7 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
         <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosIngresadosTaller || 0)}</div>
       </div>
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Dinero entrado</div>
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Dinero entrado (sin transferencias)</div>
         <div class="text-3xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-700">${money(kpis.dineroEntrado)}</div>
       </div>
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
@@ -14182,6 +14203,10 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total facturado</div>
         <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${money(kpis.totalFacturado)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total salidas (período)</div>
+        <div class="text-3xl font-bold text-red-400 dark:text-red-400 theme-light:text-red-700">${money(salidas.total || 0)}</div>
       </div>
     </div>
 
@@ -14206,6 +14231,18 @@ function showSpecialReport(reportData, fechaDesde, fechaHasta) {
           `).join('')}
           ${!cuentas.length ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay ingresos registrados para este período.</p>' : ''}
         </div>
+      </div>
+    </div>
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Caja actual por cuenta</h3>
+      <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+        ${(Array.isArray(cajaActual.cuentas) ? cajaActual.cuentas : []).map(c => `
+          <div class="flex justify-between p-2 rounded-lg bg-slate-700/25 dark:bg-slate-700/25 theme-light:bg-white">
+            <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtmlReport(c.accountName || 'Sin cuenta')}</span>
+            <span class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(c.balance || 0)}</span>
+          </div>
+        `).join('')}
+        ${(!Array.isArray(cajaActual.cuentas) || !cajaActual.cuentas.length) ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay cuentas para mostrar.</p>' : ''}
       </div>
     </div>
   `;
