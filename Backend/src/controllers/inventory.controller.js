@@ -1391,6 +1391,156 @@ export const getItemStockEntries = async (req, res) => {
   res.json({ item: itemObj, stockEntries: enriched });
 };
 
+/**
+ * Elimina una entrada de stock (StockEntry) y revierte su efecto: Item.stock, Purchase,
+ * InvestmentItem (solo disponibles), movimiento OUT de auditoría, y ajuste de pendingStickers en SKU.
+ * No permite borrar si hay InvestmentItem vendido/pagado ligado a la entrada.
+ */
+export const deleteItemStockEntry = async (req, res) => {
+  const { id: itemId, entryId } = req.params;
+  const purgeInMoves = String(req.query?.purgeInMoves || '') === '1' || String(req.body?.purgeInMoves) === 'true';
+
+  if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(entryId)) {
+    return res.status(400).json({ error: 'itemId o entryId inválido' });
+  }
+
+  const item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+  if (!item) return res.status(404).json({ error: 'Item no encontrado' });
+
+  const entry = await StockEntry.findOne({
+    _id: entryId,
+    companyId: req.companyId,
+    itemId: item._id
+  });
+  if (!entry) return res.status(404).json({ error: 'Entrada de stock no encontrada' });
+
+  const q = Number(entry.qty) || 0;
+  if (q <= 0) return res.status(400).json({ error: 'La entrada ya no tiene cantidad (>0) para revertir' });
+
+  if ((item.stock || 0) < q) {
+    return res.status(409).json({
+      error: `El stock del ítem (${item.stock}) es menor que la entrada (${q}). Revisa datos antes de eliminar.`
+    });
+  }
+
+  const blockedInv = await InvestmentItem.findOne({
+    companyId: req.companyId,
+    stockEntryId: entry._id,
+    status: { $nin: ['available'] }
+  }).lean();
+  if (blockedInv) {
+    return res.status(409).json({
+      error: 'No se puede eliminar: hay unidades de inversión vendidas o pagadas asociadas a esta entrada. Revisa contabilidad de inversores.'
+    });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    await InvestmentItem.deleteMany({
+      companyId: req.companyId,
+      stockEntryId: entry._id,
+      status: 'available'
+    }).session(session);
+
+    if (entry.purchaseId && mongoose.Types.ObjectId.isValid(String(entry.purchaseId))) {
+      const purchase = await Purchase.findOne({
+        _id: entry.purchaseId,
+        companyId: req.companyId
+      }).session(session);
+      if (purchase) {
+        const itemIdStr = String(item._id);
+        const filtered = (purchase.items || []).filter(
+          (pi) => !(String(pi.itemId) === itemIdStr && Number(pi.qty) === q)
+        );
+        if (!filtered.length) {
+          await Purchase.deleteOne({ _id: purchase._id }).session(session);
+        } else {
+          purchase.items = filtered;
+          purchase.totalAmount = filtered.reduce((s, it) => s + (it.qty || 0) * (it.unitPrice || 0), 0);
+          await purchase.save({ session });
+        }
+      }
+    }
+
+    await Item.findOneAndUpdate(
+      { _id: item._id, companyId: req.companyId },
+      { $inc: { stock: -q } },
+      { session }
+    );
+
+    await StockMove.create(
+      [
+        {
+          companyId: req.companyId,
+          itemId: item._id,
+          qty: -q,
+          reason: 'OUT',
+          meta: {
+            note: `Eliminación entrada StockEntry ${entry._id} (corrección)`,
+            removedStockEntryId: String(entry._id),
+            removedPurchaseId: entry.purchaseId ? String(entry.purchaseId) : null
+          }
+        }
+      ],
+      { session }
+    );
+
+    if (purgeInMoves) {
+      const t0 = entry.createdAt ? new Date(entry.createdAt) : new Date();
+      const winStart = new Date(t0.getTime() - 120000);
+      const winEnd = new Date(t0.getTime() + 300000);
+      await StockMove.deleteMany({
+        companyId: req.companyId,
+        itemId: item._id,
+        reason: 'IN',
+        qty: q,
+        createdAt: { $gte: winStart, $lte: winEnd }
+      }).session(session);
+    }
+
+    await StockEntry.deleteOne({ _id: entry._id }).session(session);
+
+    const code = String(item.sku || '').toUpperCase();
+    if (code) {
+      const skuDoc = await SKU.findOne({ companyId: req.companyId, code }).session(session);
+      if (skuDoc && (skuDoc.pendingStickers || 0) > 0) {
+        skuDoc.pendingStickers = Math.max(0, (skuDoc.pendingStickers || 0) - q);
+        await skuDoc.save({ session });
+      }
+    }
+
+    await session.commitTransaction();
+
+    logger.info('[inventory.deleteItemStockEntry] Entrada eliminada', {
+      companyId: String(req.companyId),
+      itemId: String(item._id),
+      entryId: String(entryId),
+      qty: q,
+      purgeInMoves
+    });
+
+    const updated = await Item.findById(item._id).lean();
+    try {
+      await checkLowStockAndNotify(req.companyId, item._id);
+    } catch (e) {
+      logger.warn('[inventory.deleteItemStockEntry] checkLowStockAndNotify', { error: e?.message });
+    }
+
+    return res.json({
+      ok: true,
+      removedQty: q,
+      item: updated
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    logger.error('[inventory.deleteItemStockEntry]', { error: err?.message, stack: err?.stack });
+    return res.status(500).json({ error: err.message || 'Error eliminando entrada' });
+  } finally {
+    session.endSession();
+  }
+};
+
 // ===== Sincronizar Stock Entries =====
 // Asigna StockEntry automáticamente a items que tienen stock pero no tienen entrada asociada
 export const syncStockEntries = async (req, res) => {

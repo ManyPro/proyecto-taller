@@ -145,6 +145,10 @@ const invAPI = {
     const r = await request(`/api/v1/inventory/items/${id}/stock-entries`);
     return r;
   },
+  deleteItemStockEntry: (itemId, entryId, opts = {}) => {
+    const q = opts.purgeInMoves ? '?purgeInMoves=1' : '';
+    return request(`/api/v1/inventory/items/${itemId}/stock-entries/${entryId}${q}`, { method: 'DELETE' });
+  },
 
   mediaUpload: (files) => API.mediaUpload(files),
   // Import template and upload
@@ -1908,18 +1912,20 @@ if (__ON_INV_PAGE__) {
             // Información adicional
             const purchaseDate = se.purchaseId?.purchaseDate ? new Date(se.purchaseId.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
             
+            const eid = se._id != null ? String(se._id) : '';
             return `
               <div class="border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg p-4 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50">
-                <div class="flex justify-between items-start mb-2">
-                  <div class="flex-1">
+                <div class="flex justify-between items-start mb-2 gap-3">
+                  <div class="flex-1 min-w-0">
                     <div class="text-sm font-semibold text-white theme-light:text-slate-900 mb-1">${escapeHtml(intakeLabel)}</div>
                     <div class="text-xs text-slate-400 theme-light:text-slate-600">Fecha de entrada: ${entryDate}</div>
                     ${purchaseDate ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Compra: ${purchaseDate}</div>` : ''}
                     ${se.purchaseId?.notes ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 italic mt-1">${escapeHtml(se.purchaseId.notes)}</div>` : ''}
                   </div>
-                  <div class="text-right">
+                  <div class="text-right shrink-0">
                     <div class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${qty} unidades</div>
                     ${entryPrice !== '-' ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Precio: $${entryPrice}</div>` : ''}
+                    ${eid ? `<button type="button" class="inv-del-stock-entry mt-2 px-2 py-1 text-xs rounded-md bg-red-900/40 hover:bg-red-800/50 text-red-200 border border-red-700/50 theme-light:bg-red-50 theme-light:text-red-800 theme-light:border-red-200 theme-light:hover:bg-red-100" data-entry-id="${escapeHtml(eid)}" data-qty="${qty}">Eliminar entrada</button>` : ''}
                   </div>
                 </div>
                 ${se.meta?.note ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 mt-2 italic">Nota: ${escapeHtml(se.meta.note)}</div>` : ''}
@@ -1991,6 +1997,31 @@ if (__ON_INV_PAGE__) {
       `);
       
       document.getElementById('summary-close').onclick = invCloseModal;
+
+      const itemKey = String(item._id || it._id || '');
+      document.querySelectorAll('.inv-del-stock-entry').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const entryId = btn.getAttribute('data-entry-id');
+          const q = btn.getAttribute('data-qty') || '?';
+          if (!entryId || !itemKey) return;
+          const ok = confirm(
+            `¿Eliminar esta entrada de ${q} unidades?\n\nSe revertirá el stock del ítem, se ajustarán compra / inversión si aplica, y se registrará un movimiento de salida. También se intentará eliminar el movimiento de entrada (IN) duplicado del mismo período si existe.`
+          );
+          if (!ok) return;
+          try {
+            showBusy('Eliminando entrada...');
+            await invAPI.deleteItemStockEntry(itemKey, entryId, { purgeInMoves: true });
+            const fresh = await invAPI.getItem(itemKey);
+            if (fresh) state.itemCache.set(itemKey, fresh);
+            hideBusy();
+            invCloseModal();
+            openItemSummaryModal(fresh || { ...item, _id: itemKey });
+          } catch (e) {
+            hideBusy();
+            alert((e && e.message) || 'No se pudo eliminar la entrada');
+          }
+        });
+      });
     } catch (e) {
       hideBusy();
       alert('Error al cargar el resumen: ' + e.message);
