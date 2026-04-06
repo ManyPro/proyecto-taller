@@ -4,188 +4,398 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Nómina</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260340" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
-    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
-    }
-    body.theme-light [class*="bg-slate-800/50"],
-    body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(224, 242, 254, 0.9) !important;
-    }
-    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #e0f2fe !important;
-    }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-300 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-400 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-500 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-600 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-700 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-800 {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
-    }
-    body.theme-light #modal label,
-    body.theme-light #modal .text-slate-300,
-    body.theme-light #modal .text-slate-400,
-    body.theme-light #modal .text-slate-500,
-    body.theme-light #modal .text-slate-600,
-    body.theme-light #modal .text-slate-700,
-    body.theme-light #modal .text-slate-800,
-    body.theme-light #modal h1,
-    body.theme-light #modal h2,
-    body.theme-light #modal h3,
-    body.theme-light #modal h4,
-    body.theme-light #modal p,
-    body.theme-light #modal span,
-    body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste en selects y dropdowns */
-    body.theme-light select,
-    body.theme-light select option,
-    body.theme-light select.text-slate-300,
-    body.theme-light select.text-slate-400,
-    body.theme-light select.text-slate-500,
-    body.theme-light select.text-slate-600,
-    body.theme-light select.text-slate-700,
-    body.theme-light select.text-slate-800 {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    body.theme-light select option {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    /* Mejorar contraste en inputs dentro de modales */
-    body.theme-light #modal input,
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      color: #000000 !important;
-    }
-    body.theme-light #modal input::placeholder,
-    body.theme-light #modal textarea::placeholder {
-      color: #666666 !important;
-    }
-    /* Mejorar contraste en dropdowns de vehículos y otros */
-    body.theme-light [id*="dropdown"],
-    body.theme-light [id*="Dropdown"],
-    body.theme-light [class*="dropdown"],
-    body.theme-light [class*="Dropdown"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-    }
-    body.theme-light [id*="dropdown"] *,
-    body.theme-light [id*="Dropdown"] *,
-    body.theme-light [class*="dropdown"] *,
-    body.theme-light [class*="Dropdown"] * {
-      color: #000000 !important;
-    }
-    /* Cambiar fondos grises de formularios a blanco/celeste claro */
-    body.theme-light input[class*="bg-slate-900"],
-    body.theme-light textarea[class*="bg-slate-900"],
-    body.theme-light select[class*="bg-slate-900"],
-    body.theme-light input[class*="bg-slate-800"],
-    body.theme-light textarea[class*="bg-slate-800"],
-    body.theme-light select[class*="bg-slate-800"] {
-      background-color: #ffffff !important;
-    }
-    body.theme-light input[class*="bg-slate-900/50"],
-    body.theme-light textarea[class*="bg-slate-900/50"],
-    body.theme-light select[class*="bg-slate-900/50"],
-    body.theme-light input[class*="bg-slate-800/50"],
-    body.theme-light textarea[class*="bg-slate-800/50"],
-    body.theme-light select[class*="bg-slate-800/50"] {
-      background-color: #ffffff !important;
-    }
-    /* Cambiar fondo del modal a blanco */
-    body.theme-light #modal > div,
-    body.theme-light #modal .bg-slate-800:not([class*="hover"]),
-    body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light #modal [class*="bg-slate-800/50"] {
-      background-color: rgba(255, 255, 255, 0.95) !important;
-    }
-    /* Cambiar todos los inputs, textareas y selects dentro de modales */
-    body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      background-color: #ffffff !important;
-      border-color: #7dd3fc !important;
-    }
-    /* Cambiar fondos de formularios en toda la página */
-    body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light [class*="border-slate-700/50"],
-    body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
-    body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste de botones grises en modo claro */
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #bae6fd !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #7dd3fc !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:hover,
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:focus,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:hover,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:focus {
-      border-color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    /* Estilos para el fondo de la página */
-    body {
-      background-color: #000000;
+    /* Nómina: tema scoped (misma línea que Cartera / Precios) */
+    body[data-page="nomina"] {
+      background-color: #020617;
       min-height: 100vh;
     }
-    body.theme-light {
-      background-color: #e0f2fe;
+    body.theme-light[data-page="nomina"] {
+      background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 100%);
     }
+    body[data-page="nomina"] #appSection,
+    body[data-page="nomina"] #appSection * {
+      box-sizing: border-box;
+    }
+
+    body[data-page="nomina"] .payroll-tabs button[data-subtab] {
+      border: 1px solid rgba(148, 163, 184, 0.35) !important;
+      background: rgba(51, 65, 85, 0.45);
+      color: #e2e8f0;
+    }
+    body[data-page="nomina"] .payroll-tabs button[data-subtab]:hover:not(.active) {
+      background: rgba(71, 85, 105, 0.55);
+      color: #f8fafc;
+    }
+    body[data-page="nomina"] .payroll-tabs button[data-subtab].active {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border-color: rgba(37, 99, 235, 0.5) !important;
+      box-shadow: 0 6px 14px rgba(30, 64, 175, 0.28);
+    }
+    body.theme-light[data-page="nomina"] .payroll-tabs button[data-subtab]:not(.active) {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border: 1px solid #93c5fd !important;
+    }
+    body.theme-light[data-page="nomina"] .payroll-tabs button[data-subtab]:not(.active):hover {
+      background: #bfdbfe !important;
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="nomina"] .payroll-tabs button[data-subtab].active {
+      color: #ffffff !important;
+    }
+
+    body[data-page="nomina"] .py-text { color: #f1f5f9; }
+    body.theme-light[data-page="nomina"] .py-text { color: #0f172a !important; }
+    body[data-page="nomina"] .py-muted { color: #94a3b8; }
+    body.theme-light[data-page="nomina"] .py-muted { color: #64748b !important; }
+    body[data-page="nomina"] .py-label { color: #94a3b8; }
+    body.theme-light[data-page="nomina"] .py-label { color: #475569 !important; }
+
+    body[data-page="nomina"] .py-field-input {
+      background: rgba(15, 23, 42, 0.55);
+      color: #f1f5f9 !important;
+      border: 1px solid rgba(71, 85, 105, 0.55);
+    }
+    body.theme-light[data-page="nomina"] .py-field-input {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light[data-page="nomina"] .py-field-input::placeholder {
+      color: #64748b !important;
+    }
+
+    body[data-page="nomina"] .py-panel {
+      background: rgba(15, 23, 42, 0.3);
+      border: 1px solid rgba(51, 65, 85, 0.35);
+    }
+    body.theme-light[data-page="nomina"] .py-panel {
+      background: #f0f9ff !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    body[data-page="nomina"] .py-section-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    body.theme-light[data-page="nomina"] .py-section-card {
+      background: rgba(224, 242, 254, 0.9) !important;
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+
+    body.theme-light[data-page="nomina"] .concept-card {
+      background: #ffffff !important;
+    }
+    body.theme-light[data-page="nomina"] .concept-card.loan-card,
+    body.theme-light[data-page="nomina"] .concept-card.labor-card {
+      border-color: #60a5fa !important;
+    }
+
+    body[data-page="nomina"] .py-tabs-bar {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    body.theme-light[data-page="nomina"] .py-tabs-bar {
+      background: rgba(224, 242, 254, 0.9) !important;
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+
+    body[data-page="nomina"] .py-card-row {
+      border: 1px solid rgba(51, 65, 85, 0.45);
+      background: rgba(30, 41, 59, 0.35);
+    }
+    body.theme-light[data-page="nomina"] .py-card-row {
+      border-color: #cbd5e1 !important;
+      background: #ffffff !important;
+    }
+    body[data-page="nomina"] .py-card-row:hover {
+      background: rgba(51, 65, 85, 0.4);
+    }
+    body.theme-light[data-page="nomina"] .py-card-row:hover {
+      background: #f8fafc !important;
+    }
+
+    body[data-page="nomina"] .py-btn-secondary {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(148, 163, 184, 0.35) !important;
+    }
+    body[data-page="nomina"] .py-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14) !important;
+    }
+    body.theme-light[data-page="nomina"] .py-btn-secondary {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body.theme-light[data-page="nomina"] .py-btn-secondary:hover {
+      background: #bfdbfe !important;
+      color: #0f172a !important;
+    }
+
+    body[data-page="nomina"] .py-btn-primary {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(59, 130, 246, 0.45) !important;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+    }
+    body[data-page="nomina"] .py-btn-green {
+      background: linear-gradient(135deg, #16a34a, #15803d) !important;
+      color: #ffffff !important;
+      border: none !important;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
+    }
+
+    body[data-page="nomina"] .py-link { color: #60a5fa; }
+    body.theme-light[data-page="nomina"] .py-link { color: #2563eb !important; }
+
+    body[data-page="nomina"] .py-money-pos { color: #4ade80; font-weight: 700; }
+    body.theme-light[data-page="nomina"] .py-money-pos { color: #15803d !important; }
+    body[data-page="nomina"] .py-money-neg { color: #f87171; font-weight: 700; }
+    body.theme-light[data-page="nomina"] .py-money-neg { color: #b91c1c !important; }
+
+    body[data-page="nomina"] .py-badge-auto {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+    body.theme-light[data-page="nomina"] .py-badge-auto {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    body[data-page="nomina"] .py-btn-danger-soft {
+      background: rgba(220, 38, 38, 0.18) !important;
+      color: #fca5a5 !important;
+      border: 1px solid rgba(220, 38, 38, 0.35) !important;
+    }
+    body[data-page="nomina"] .py-btn-danger-soft:hover {
+      background: rgba(220, 38, 38, 0.3) !important;
+    }
+    body.theme-light[data-page="nomina"] .py-btn-danger-soft {
+      background: #fef2f2 !important;
+      color: #b91c1c !important;
+      border-color: #fecaca !important;
+    }
+    body.theme-light[data-page="nomina"] .py-btn-danger-soft:hover {
+      background: #fee2e2 !important;
+    }
+
+    body[data-page="nomina"] .py-btn-blue-soft {
+      background: rgba(37, 99, 235, 0.15) !important;
+      color: #93c5fd !important;
+      border: 1px solid rgba(59, 130, 246, 0.35) !important;
+    }
+    body[data-page="nomina"] .py-btn-blue-soft:hover {
+      background: rgba(37, 99, 235, 0.25) !important;
+    }
+    body.theme-light[data-page="nomina"] .py-btn-blue-soft {
+      background: #eff6ff !important;
+      color: #2563eb !important;
+      border-color: #bfdbfe !important;
+    }
+    body.theme-light[data-page="nomina"] .py-btn-blue-soft:hover {
+      background: #dbeafe !important;
+    }
+
+    body[data-page="nomina"] .py-alert-error {
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.35);
+      color: #fca5a5;
+    }
+    body.theme-light[data-page="nomina"] .py-alert-error {
+      background: #fef2f2 !important;
+      border-color: #fecaca !important;
+      color: #b91c1c !important;
+    }
+
+    body[data-page="nomina"] .py-alert-warn {
+      background: rgba(234, 179, 8, 0.12);
+      border: 1px solid rgba(234, 179, 8, 0.35);
+      color: #fde047;
+    }
+    body.theme-light[data-page="nomina"] .py-alert-warn {
+      background: #fefce8 !important;
+      border-color: #fde047 !important;
+      color: #854d0e !important;
+    }
+
+    body[data-page="nomina"] .py-technician-chip {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #f1f5f9;
+    }
+    body.theme-light[data-page="nomina"] .py-technician-chip {
+      background: #eff6ff !important;
+      border-color: #bfdbfe !important;
+      color: #0f172a !important;
+    }
+
+    body[data-page="nomina"] .py-code-inline {
+      background: rgba(15, 23, 42, 0.55);
+      color: #f1f5f9 !important;
+    }
+    body.theme-light[data-page="nomina"] .py-code-inline {
+      background: #f1f5f9 !important;
+      color: #0f172a !important;
+    }
+
+    body[data-page="nomina"] .py-pill-mo {
+      background: rgba(22, 163, 74, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    body.theme-light[data-page="nomina"] .py-pill-mo {
+      background: #dcfce7 !important;
+      color: #166534 !important;
+      border-color: #bbf7d0 !important;
+    }
+    body[data-page="nomina"] .py-pill-sin {
+      background: rgba(71, 85, 105, 0.25);
+      color: #cbd5e1;
+      border: 1px solid rgba(71, 85, 105, 0.4);
+    }
+    body.theme-light[data-page="nomina"] .py-pill-sin {
+      background: #f1f5f9 !important;
+      color: #334155 !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    body[data-page="nomina"] .py-btn-warn {
+      background: rgba(234, 179, 8, 0.22) !important;
+      color: #fde047 !important;
+      border: 1px solid rgba(234, 179, 8, 0.4) !important;
+    }
+    body[data-page="nomina"] .py-btn-warn:hover {
+      filter: brightness(1.08);
+    }
+    body.theme-light[data-page="nomina"] .py-btn-warn {
+      background: #fef9c3 !important;
+      color: #854d0e !important;
+      border-color: #facc15 !important;
+    }
+
+    body[data-page="nomina"] .py-net-highlight {
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.18), rgba(34, 197, 94, 0.15));
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+    body.theme-light[data-page="nomina"] .py-net-highlight {
+      background: linear-gradient(90deg, #dbeafe, #dcfce7) !important;
+      border-color: #93c5fd !important;
+    }
+
+    body[data-page="nomina"] .py-amount-warn { color: #facc15; font-weight: 700; }
+    body.theme-light[data-page="nomina"] .py-amount-warn { color: #a16207 !important; }
+
+    body[data-page="nomina"] .py-hint-strip { margin-top: 0.5rem; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; }
+    body[data-page="nomina"] .py-hint-strip--error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+    body.theme-light[data-page="nomina"] .py-hint-strip--error {
+      background: #fef2f2 !important;
+      border-color: #fecaca !important;
+      color: #b91c1c !important;
+    }
+    body[data-page="nomina"] .py-hint-strip--ok {
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+    }
+    body.theme-light[data-page="nomina"] .py-hint-strip--ok {
+      background: #f0fdf4 !important;
+      border-color: #bbf7d0 !important;
+      color: #166534 !important;
+    }
+    body[data-page="nomina"] .py-hint-strip--info {
+      background: rgba(234, 179, 8, 0.12);
+      border: 1px solid rgba(234, 179, 8, 0.35);
+      color: #fde047;
+    }
+    body.theme-light[data-page="nomina"] .py-hint-strip--info {
+      background: #fefce8 !important;
+      border-color: #fde047 !important;
+      color: #854d0e !important;
+    }
+
+    body[data-page="nomina"] .py-commission-box {
+      border: 2px solid rgba(99, 102, 241, 0.45);
+      background: rgba(99, 102, 241, 0.12);
+    }
+    body.theme-light[data-page="nomina"] .py-commission-box {
+      border-color: #a5b4fc !important;
+      background: #eef2ff !important;
+    }
+    body[data-page="nomina"] .py-commission-title {
+      color: #c7d2fe;
+    }
+    body.theme-light[data-page="nomina"] .py-commission-title {
+      color: #312e81 !important;
+    }
+
+    body[data-page="nomina"] .py-hint-box {
+      background: rgba(59, 130, 246, 0.08);
+      color: #94a3b8;
+    }
+    body.theme-light[data-page="nomina"] .py-hint-box {
+      background: #eff6ff !important;
+      color: #475569 !important;
+    }
+
+    body[data-page="nomina"] .py-dashed {
+      border-color: rgba(51, 65, 85, 0.45);
+    }
+    body.theme-light[data-page="nomina"] .py-dashed {
+      border-color: #cbd5e1 !important;
+    }
+
+    body[data-page="nomina"] .py-sep-border {
+      border-color: rgba(51, 65, 85, 0.35);
+    }
+    body.theme-light[data-page="nomina"] .py-sep-border {
+      border-color: #cbd5e1 !important;
+    }
+
+    body.theme-light[data-page="nomina"] #modal > div.relative {
+      background: #f8fafc !important;
+    }
+    body.theme-light[data-page="nomina"] #modalBody {
+      color: #0f172a;
+    }
+    body.theme-light[data-page="nomina"] #modalBody h1,
+    body.theme-light[data-page="nomina"] #modalBody h2,
+    body.theme-light[data-page="nomina"] #modalBody h3 {
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="nomina"] #modalBody label,
+    body.theme-light[data-page="nomina"] #modalBody .py-label {
+      color: #334155 !important;
+    }
+    body.theme-light[data-page="nomina"] #modalBody input,
+    body.theme-light[data-page="nomina"] #modalBody textarea,
+    body.theme-light[data-page="nomina"] #modalBody select {
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+    }
+    body.theme-light[data-page="nomina"] #modalBody input::placeholder,
+    body.theme-light[data-page="nomina"] #modalBody textarea::placeholder {
+      color: #64748b !important;
+    }
+
+    body.theme-light[data-page="nomina"] section.tab select,
+    body.theme-light[data-page="nomina"] section.tab input:not([type="checkbox"]):not([type="radio"]):not([type="color"]) {
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+    }
+
     /* Estilos para el modal global */
     #modal.hidden {
       display: none !important;
@@ -193,8 +403,13 @@
     #modal:not(.hidden) {
       display: flex !important;
     }
+    @media (min-width: 640px) {
+      #modal {
+        align-items: center;
+      }
+    }
     #modal {
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
     }
     /* Estilos personalizados para barras de scroll */
@@ -218,32 +433,16 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(148, 163, 184, 0.7);
     }
-    body.theme-light .custom-scrollbar {
+    body.theme-light[data-page="nomina"] .custom-scrollbar {
       scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
     }
-    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+    body.theme-light[data-page="nomina"] .custom-scrollbar::-webkit-scrollbar-thumb {
       background: rgba(100, 116, 139, 0.4);
     }
-    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    body.theme-light[data-page="nomina"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
-    /* Mejorar contrastes de barras de navegación en modo claro */
-    body.theme-light .nav-tab:not(.active),
-    body.theme-light .mobile-nav-tab:not(.active) {
-      color: #000000 !important;
-      background-color: transparent !important;
-    }
-    body.theme-light .nav-tab:not(.active):hover,
-    body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #000000 !important;
-      background-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light .nav-tab.active,
-    body.theme-light .mobile-nav-tab.active {
-      color: #ffffff !important;
-      background-color: #2563eb !important;
-    }
-    
+
     /* ========== ESTILOS RESPONSIVE PARA TABLETS DE 10" (768px - 1024px) ========== */
     @media (min-width: 768px) and (max-width: 1024px) {
       html { font-size: 14px !important; }
@@ -306,119 +505,114 @@
 <body data-page="nomina">
   <main>
     <!-- ========== APP HEADER ========== -->
-  <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-      <!-- Top Bar - Header Principal -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+    <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
+      <div class="home-header-shell shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16 md:h-20">
-            <!-- Logo y Nombre de Empresa -->
-            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
               <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
               <div class="hidden sm:flex flex-col">
-                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+                <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
               </div>
-              <div class="sm:hidden text-white font-semibold text-sm">
+              <div class="sm:hidden text-white font-semibold text-sm home-header-company">
                 <span id="companyNameMobile">-</span>
               </div>
             </div>
 
-            <!-- Botones de Acción (Desktop) -->
-            <div class="hidden md:flex items-center gap-2">
-              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            <div class="hidden md:flex items-center gap-2 home-header-actions">
+              <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
             </div>
 
-            <!-- Menú Hamburguesa (Mobile) -->
-            <div class="md:hidden flex items-center gap-2">
-              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+            <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
               </button>
-          </div>
+            </div>
           </div>
         </div>
 
-        <!-- Navegación Principal (Desktop) -->
-        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-          </nav>
-        </div>
+        <div class="hidden md:block home-header-nav-row">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+            <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab active px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
+          </div>
         </div>
       </div>
-      
-      <!-- Menú Móvil (Mobile Menu) -->
-      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+
+      <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
         <div class="px-4 py-3 space-y-1">
-          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Nómina</button>
-          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
         </div>
       </div>
     </div>
 
     <section id="appSection" class="hidden">
       <!-- Modal global reutilizable -->
-      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
-          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
-          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+      <div id="modal" class="fixed inset-0 z-[1001] hidden flex items-start sm:items-center justify-center p-2 sm:p-4 pt-16 sm:pt-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm overflow-y-auto">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-xl sm:rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] my-auto sm:my-0 mt-4 sm:mt-0 overflow-hidden">
+          <button id="modalClose" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1002] w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-lg sm:text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-4rem)] sm:max-h-[90vh] custom-scrollbar">
             <!-- Content will be injected here -->
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
     <section class="tab active">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <!-- Tabs internas -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+          <div class="py-tabs-bar rounded-xl shadow-lg p-4 mb-6">
             <div class="payroll-tabs flex flex-wrap gap-2 items-center">
-          <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-blue-600 text-white" data-subtab="settlements">Liquidaciones</button>
-          <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-subtab="pay">Pagar</button>
-          <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-subtab="periods">Períodos</button>
-          <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-subtab="concepts">Conceptos</button>
-          <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-subtab="assign">Asignaciones</button>
+          <button type="button" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 active" data-subtab="settlements">Liquidaciones</button>
+          <button type="button" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200" data-subtab="pay">Pagar</button>
+          <button type="button" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200" data-subtab="periods">Períodos</button>
+          <button type="button" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200" data-subtab="concepts">Conceptos</button>
+          <button type="button" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200" data-subtab="assign">Asignaciones</button>
         </div>
       </div>
 
           <!-- Sección Conceptos -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="concepts">
+          <div class="py-section-card rounded-xl shadow-lg p-6 mb-6 hidden" data-subsection="concepts">
             <div class="mb-4">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Conceptos por empresa</h3>
-              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
+              <h3 class="text-xl font-bold py-text mb-1">Conceptos por empresa</h3>
+              <p class="text-sm py-muted">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
         </div>
         
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[140px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
-                  <select id="pc-type" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Tipo</label>
+                  <select id="pc-type" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="earning">💰 Ingreso</option>
                 <option value="deduction">➖ Descuento</option>
                 <option value="surcharge">➕ Recargo</option>
@@ -426,50 +620,50 @@
               </select>
             </div>
                 <div class="flex-1 min-w-[140px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo de monto</label>
-                  <select id="pc-amountType" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Tipo de monto</label>
+                  <select id="pc-amountType" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="fixed">Fijo (COP)</option>
                 <option value="percent">Porcentaje (%)</option>
               </select>
             </div>
                 <div class="min-w-[100px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Código</label>
-                  <input id="pc-code" placeholder="Ej: SAL" maxlength="10" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Código</label>
+                  <input id="pc-code" placeholder="Ej: SAL" maxlength="10" class="w-full px-3 py-2 py-field-input rounded-lg text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div class="flex-[2] min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
-                  <input id="pc-name" placeholder="Ej: Salario base" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Nombre</label>
+                  <input id="pc-name" placeholder="Ej: Salario base" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div id="pc-value-container" class="min-w-[140px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5" id="pc-value-label">Valor</label>
-                  <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                  <p class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600" id="pc-value-hint">Para porcentajes, ingresa el % (ej: 10 para 10%)</p>
+                  <label class="block text-xs font-medium py-label mb-1.5" id="pc-value-label">Valor</label>
+                  <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <p class="mt-1 text-xs py-muted" id="pc-value-hint">Para porcentajes, ingresa el % (ej: 10 para 10%)</p>
             </div>
                 <div id="pc-percent-base-container" class="hidden flex-1 min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Base del porcentaje</label>
-                  <select id="pc-percentBaseType" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Base del porcentaje</label>
+                  <select id="pc-percentBaseType" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="total_gross">Total bruto (todos los ingresos)</option>
                 <option value="specific_concept">Concepto específico</option>
                 <option value="fixed_value">Valor fijo</option>
               </select>
             </div>
                 <div id="pc-percent-base-concept-container" class="hidden flex-1 min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Concepto base</label>
-                  <select id="pc-percentBaseConceptId" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Concepto base</label>
+                  <select id="pc-percentBaseConceptId" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">Seleccione concepto...</option>
               </select>
             </div>
                 <div id="pc-percent-base-value-container" class="hidden min-w-[140px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Valor fijo base (COP)</label>
-                  <input id="pc-percentBaseFixedValue" type="number" step="1" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Valor fijo base (COP)</label>
+                  <input id="pc-percentBaseFixedValue" type="number" step="1" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div id="pc-variable-amount-container" class="hidden flex-1 min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Monto fijo a completar (COP)</label>
-                  <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Monto fijo a completar (COP)</label>
+                  <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div class="min-w-[120px]">
                   <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
-                  <button id="pc-add" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                  <button type="button" id="pc-add" class="py-btn-secondary w-full px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
                 ➕ Agregar concepto
               </button>
             </div>
@@ -479,25 +673,25 @@
             <div id="pc-list"></div>
         
         <!-- Gestión de tipos de mano de obra -->
-            <div class="mt-6 pt-6 border-t-2 border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+            <div class="mt-6 pt-6 border-t-2 border py-sep-border">
               <div class="mb-4">
-                <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Tipos de mano de obra</h3>
-                <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Configura los tipos de participación técnica (ej: MOTOR, SUSPENSIÓN) con su porcentaje predeterminado. Al cerrar una venta, al seleccionar técnico y tipo, el porcentaje se completará automáticamente.</p>
+                <h3 class="text-xl font-bold py-text mb-1">Tipos de mano de obra</h3>
+                <p class="text-sm py-muted">Configura los tipos de participación técnica (ej: MOTOR, SUSPENSIÓN) con su porcentaje predeterminado. Al cerrar una venta, al seleccionar técnico y tipo, el porcentaje se completará automáticamente.</p>
           </div>
           
-              <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="py-panel border rounded-lg p-4 mb-4">
                 <div class="flex flex-wrap gap-3 items-end">
                   <div class="flex-[2] min-w-[200px]">
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre del tipo</label>
-                    <input id="lk-name" placeholder="Ej: MOTOR" maxlength="50" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Nombre del tipo</label>
+                    <input id="lk-name" placeholder="Ej: MOTOR" maxlength="50" class="w-full px-3 py-2 py-field-input rounded-lg text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
               </div>
                   <div class="min-w-[140px]">
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">% Predeterminado</label>
-                    <input id="lk-percent" type="number" step="1" min="0" max="100" placeholder="0" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">% Predeterminado</label>
+                    <input id="lk-percent" type="number" step="1" min="0" max="100" placeholder="0" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
               </div>
                   <div class="min-w-[120px]">
                     <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
-                    <button id="lk-add" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                    <button type="button" id="lk-add" class="py-btn-secondary w-full px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
                   ➕ Agregar tipo
                 </button>
               </div>
@@ -509,61 +703,61 @@
       </div>
 
           <!-- Sección Asignaciones -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="assign">
+          <div class="py-section-card rounded-xl shadow-lg p-6 mb-6 hidden" data-subsection="assign">
             <div class="mb-4">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Asignaciones por técnico</h3>
-              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
+              <h3 class="text-xl font-bold py-text mb-1">Asignaciones por técnico</h3>
+              <p class="text-sm py-muted">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
         </div>
 
         <!-- Gestión de técnicos -->
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Técnicos de la empresa</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Crea y gestiona los técnicos que aparecerán en Ventas y estarán disponibles para liquidaciones.</p>
+                <h4 class="text-sm font-semibold py-text mb-2">Técnicos de la empresa</h4>
+                <p class="text-xs py-muted">Crea y gestiona los técnicos que aparecerán en Ventas y estarán disponibles para liquidaciones.</p>
           </div>
               <div class="space-y-3 mb-3">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div>
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre del técnico *</label>
-                    <input id="tk-add-name" placeholder="Ej: Juan Pérez" maxlength="100" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Nombre del técnico *</label>
+                    <input id="tk-add-name" placeholder="Ej: Juan Pérez" maxlength="100" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Número de identificación</label>
-                    <input id="tk-add-identification" placeholder="Ej: 1234567890" maxlength="20" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Número de identificación</label>
+                    <input id="tk-add-identification" placeholder="Ej: 1234567890" maxlength="20" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Salario Básico ($/MES)</label>
-                    <input id="tk-add-basic-salary" type="number" step="0.01" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Salario Básico ($/MES)</label>
+                    <input id="tk-add-basic-salary" type="number" step="0.01" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Horas Trabajo MES</label>
-                    <input id="tk-add-work-hours" type="number" step="1" min="0" placeholder="Ej: 240" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Horas Trabajo MES</label>
+                    <input id="tk-add-work-hours" type="number" step="1" min="0" placeholder="Ej: 240" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Salario Básico (DÍA)</label>
-                    <input id="tk-add-salary-per-day" type="number" step="0.01" min="0" placeholder="Ej: 33333.33" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Salario Básico (DÍA)</label>
+                    <input id="tk-add-salary-per-day" type="number" step="0.01" min="0" placeholder="Ej: 33333.33" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo Contrato</label>
-                    <input id="tk-add-contract-type" placeholder="Ej: Término Indefinido" maxlength="50" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <label class="block text-xs font-medium py-label mb-1.5">Tipo Contrato</label>
+                    <input id="tk-add-contract-type" placeholder="Ej: Término Indefinido" maxlength="50" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                 </div>
-                <label class="inline-flex items-center gap-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+                <label class="inline-flex items-center gap-2 text-xs py-muted">
                   <input id="tk-add-receives-labor-commission" type="checkbox" class="w-4 h-4" checked />
                   Cobra porcentaje de mano de obra
                 </label>
                 <div class="flex flex-wrap items-center gap-4">
-                  <label class="inline-flex items-center gap-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+                  <label class="inline-flex items-center gap-2 text-xs py-muted">
                     <input id="tk-add-is-appointment-technician" type="checkbox" class="w-4 h-4" />
                     Solo agenda citas
                   </label>
-                  <label class="inline-flex items-center gap-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+                  <label class="inline-flex items-center gap-2 text-xs py-muted">
                     Color agenda (fijo):
-                    <input id="tk-add-appointment-color" type="color" value="#2563EB" class="w-10 h-8 p-0.5 rounded border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 bg-transparent" />
+                    <input id="tk-add-appointment-color" type="color" value="#2563EB" class="w-10 h-8 p-0.5 rounded border border-slate-600/50 dark:border-slate-600/50 bg-transparent" />
                   </label>
                 </div>
                 <div class="flex justify-end">
-                  <button id="tk-add-btn" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                  <button type="button" id="tk-add-btn" class="py-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
                     ➕ Agregar técnico
                   </button>
                 </div>
@@ -572,32 +766,32 @@
         </div>
 
         <!-- Asignaciones personalizadas -->
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Asignar valor personalizado</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sobrescribe el valor por defecto de un concepto para un técnico específico.</p>
+                <h4 class="text-sm font-semibold py-text mb-2">Asignar valor personalizado</h4>
+                <p class="text-xs py-muted">Sobrescribe el valor por defecto de un concepto para un técnico específico.</p>
           </div>
               <div class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Técnico</label>
-                  <select id="pa-technicianSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Técnico</label>
+                  <select id="pa-technicianSel" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">Seleccione técnico…</option>
               </select>
             </div>
                 <div class="flex-1 min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Concepto</label>
-                  <select id="pa-conceptSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Concepto</label>
+                  <select id="pa-conceptSel" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">Seleccione concepto…</option>
               </select>
             </div>
                 <div class="min-w-[140px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Valor personalizado</label>
-                  <input id="pa-value" type="number" step="0.01" min="0" placeholder="0.00" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                  <p class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Deja vacío para usar valor por defecto</p>
+                  <label class="block text-xs font-medium py-label mb-1.5">Valor personalizado</label>
+                  <input id="pa-value" type="number" step="0.01" min="0" placeholder="0.00" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <p class="mt-1 text-xs py-muted">Deja vacío para usar valor por defecto</p>
             </div>
                 <div class="min-w-[120px]">
                   <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
-                  <button id="pa-save" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                  <button type="button" id="pa-save" class="py-btn-secondary w-full px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
                 💾 Guardar
               </button>
             </div>
@@ -606,36 +800,36 @@
 
         <!-- Listado de asignaciones -->
             <div id="pa-list-container">
-              <div id="pa-list" class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              <div id="pa-list" class="p-4 text-center border border-dashed py-dashed rounded-lg text-sm py-muted">
             Selecciona un técnico para ver sus asignaciones personalizadas.
           </div>
         </div>
       </div>
 
           <!-- Sección Liquidaciones -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" data-subsection="settlements">
+          <div class="py-section-card rounded-xl shadow-lg p-6 mb-6" data-subsection="settlements">
             <div class="mb-4">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Liquidación de nómina</h3>
-              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
+              <h3 class="text-xl font-bold py-text mb-1">Liquidación de nómina</h3>
+              <p class="text-sm py-muted">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
         </div>
 
         <!-- Formulario de liquidación -->
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Crear nueva liquidación</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona período, técnico y los conceptos asignados a ese técnico que deseas aplicar. Las comisiones se calcularán automáticamente.</p>
+                <h4 class="text-sm font-semibold py-text mb-2">Crear nueva liquidación</h4>
+                <p class="text-xs py-muted">Selecciona período, técnico y los conceptos asignados a ese técnico que deseas aplicar. Las comisiones se calcularán automáticamente.</p>
           </div>
               <div class="flex flex-wrap gap-4 items-end">
                 <div class="flex flex-wrap gap-3 flex-1 min-w-[300px]">
                   <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Período</label>
-                    <select id="pl-periodSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <label class="block text-xs font-medium py-label mb-1.5">Período</label>
+                    <select id="pl-periodSel" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                   <option value="">Seleccione período…</option>
                 </select>
               </div>
                   <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Técnico</label>
-                    <select id="pl-technicianSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <label class="block text-xs font-medium py-label mb-1.5">Técnico</label>
+                    <select id="pl-technicianSel" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                   <option value="">Seleccione técnico…</option>
                 </select>
               </div>
@@ -643,10 +837,10 @@
             
             <!-- Botones de acción -->
                 <div class="flex gap-2">
-                  <button id="pl-preview" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                  <button type="button" id="pl-preview" class="py-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
                 👁️ Previsualizar
               </button>
-                  <button id="pl-approve" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                  <button type="button" id="pl-approve" class="py-btn-green px-4 py-2 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
                 ✓ Aprobar
               </button>
             </div>
@@ -654,15 +848,15 @@
           
           <!-- Conceptos asignados con tarjetas bonitas -->
               <div class="mt-4">
-                <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Conceptos asignados (selecciona cuáles aplicar)</label>
+                <label class="block text-xs font-semibold py-label mb-2">Conceptos asignados (selecciona cuáles aplicar)</label>
                 <div id="pl-concepts-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[60px]">
-                  <div class="col-span-full text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 p-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg">
+                  <div class="col-span-full text-center text-xs py-muted p-4 border border-dashed py-dashed rounded-lg">
                     Selecciona período y técnico primero
                   </div>
             </div>
           </div>
-              <div class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 p-2 bg-blue-500/5 dark:bg-blue-500/5 theme-light:bg-blue-50 rounded">
-                💡 <strong>Nota:</strong> Solo se mostrarán los conceptos que están asignados al técnico seleccionado. Las comisiones se calculan automáticamente desde las ventas cerradas del período. Puedes configurar el formato del comprobante en <a href="template-selector.html" class="text-blue-400 dark:text-blue-400 theme-light:text-blue-600 underline">Formatos</a> (tipo: Nómina).
+              <div class="mt-2 text-xs py-hint-box p-2 rounded">
+                💡 <strong class="py-text">Nota:</strong> Solo se mostrarán los conceptos que están asignados al técnico seleccionado. Las comisiones se calculan automáticamente desde las ventas cerradas del período. Puedes configurar el formato del comprobante en <a href="template-selector.html" class="py-link underline">Formatos</a> (tipo: Nómina).
           </div>
         </div>
 
@@ -671,30 +865,30 @@
       </div>
 
           <!-- Sección Períodos -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="periods">
+          <div class="py-section-card rounded-xl shadow-lg p-6 mb-6 hidden" data-subsection="periods">
             <div class="mb-4">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Períodos de liquidación</h3>
-              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Define períodos de tiempo (mensual, quincenal, semanal) para calcular comisiones por ventas y generar liquidaciones.</p>
+              <h3 class="text-xl font-bold py-text mb-1">Períodos de liquidación</h3>
+              <p class="text-sm py-muted">Define períodos de tiempo (mensual, quincenal, semanal) para calcular comisiones por ventas y generar liquidaciones.</p>
         </div>
 
         <!-- Crear nuevo período -->
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Crear nuevo período</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Puedes crear períodos que se solapen para manejar diferentes frecuencias de pago (quincenal, semanal, etc.).</p>
+                <h4 class="text-sm font-semibold py-text mb-2">Crear nuevo período</h4>
+                <p class="text-xs py-muted">Puedes crear períodos que se solapen para manejar diferentes frecuencias de pago (quincenal, semanal, etc.).</p>
           </div>
               <div class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[160px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha inicio</label>
-                  <input id="ppd-start" type="date" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Fecha inicio</label>
+                  <input id="ppd-start" type="date" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div class="flex-1 min-w-[160px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha fin</label>
-                  <input id="ppd-end" type="date" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Fecha fin</label>
+                  <input id="ppd-end" type="date" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div class="min-w-[160px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
-                  <select id="ppd-type" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Tipo</label>
+                  <select id="ppd-type" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="monthly">📅 Mensual</option>
                 <option value="biweekly">📆 Quincenal</option>
                 <option value="weekly">🗓️ Semanal</option>
@@ -702,7 +896,7 @@
             </div>
                 <div class="min-w-[140px]">
                   <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
-                  <button id="ppd-create" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                  <button type="button" id="ppd-create" class="py-btn-secondary w-full px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
                 ➕ Crear período
               </button>
             </div>
@@ -713,68 +907,68 @@
         <!-- Listado de períodos -->
         <div>
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Períodos creados</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Gestiona períodos abiertos y cerrados.</p>
+                <h4 class="text-sm font-semibold py-text">Períodos creados</h4>
+                <p class="text-xs py-muted mt-1">Gestiona períodos abiertos y cerrados.</p>
           </div>
               <div id="ppd-list"></div>
         </div>
       </div>
 
           <!-- Sección Pagar -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="pay">
+          <div class="py-section-card rounded-xl shadow-lg p-6 mb-6 hidden" data-subsection="pay">
             <div class="mb-4">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Pagar liquidaciones</h3>
-              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Registra el pago de liquidaciones aprobadas en el Flujo de Caja. El pago se reflejará como salida de la cuenta seleccionada.</p>
+              <h3 class="text-xl font-bold py-text mb-1">Pagar liquidaciones</h3>
+              <p class="text-sm py-muted">Registra el pago de liquidaciones aprobadas en el Flujo de Caja. El pago se reflejará como salida de la cuenta seleccionada.</p>
         </div>
 
         <!-- Listado de liquidaciones pendientes -->
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Liquidaciones pendientes de pago</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona una liquidación aprobada para procesar el pago.</p>
+                <h4 class="text-sm font-semibold py-text mb-2">Liquidaciones pendientes de pago</h4>
+                <p class="text-xs py-muted">Selecciona una liquidación aprobada para procesar el pago.</p>
           </div>
               <div id="pp-pending-list"></div>
         </div>
 
         <!-- Formulario de pago -->
-            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+            <div class="py-panel border rounded-lg p-4 mb-4">
               <div class="mb-3">
-                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Registrar pago</h4>
-                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona la liquidación y la cuenta de donde saldrá el dinero.</p>
+                <h4 class="text-sm font-semibold py-text mb-2">Registrar pago</h4>
+                <p class="text-xs py-muted">Selecciona la liquidación y la cuenta de donde saldrá el dinero.</p>
           </div>
               <div class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[200px]">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Liquidación</label>
-                  <select id="pp-settlementSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <label class="block text-xs font-medium py-label mb-1.5">Liquidación</label>
+                  <select id="pp-settlementSel" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">Seleccione liquidación…</option>
               </select>
             </div>
                 <div class="min-w-[160px] hidden">
-                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha de pago</label>
-                  <input id="pp-date" type="datetime-local" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <label class="block text-xs font-medium py-label mb-1.5">Fecha de pago</label>
+                  <input id="pp-date" type="datetime-local" class="w-full px-3 py-2 py-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
                 <div class="min-w-[120px]">
                   <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
-                  <button id="pp-pay" class="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                  <button type="button" id="pp-pay" class="py-btn-green w-full px-4 py-2 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
                 💰 Pagar
               </button>
             </div>
           </div>
-              <div id="pp-settlement-info" class="hidden mt-3 p-3 bg-blue-500/5 dark:bg-blue-500/5 theme-light:bg-blue-50 rounded text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              <div id="pp-settlement-info" class="hidden mt-3 p-3 py-hint-box rounded text-sm py-muted">
             <!-- Información de la liquidación seleccionada -->
           </div>
               <div id="pp-payments-container" class="hidden mt-4">
                 <div class="mb-3">
                   <div class="flex justify-between items-center mb-2">
-                    <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Pagos parciales</label>
-                    <button id="pp-add-payment" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+                    <label class="block text-xs font-semibold py-label">Pagos parciales</label>
+                    <button type="button" id="pp-add-payment" class="py-btn-secondary px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200">
                   + Agregar pago
                 </button>
               </div>
                   <div id="pp-payments-list" class="flex flex-col gap-2">
                 <!-- Los pagos se agregarán aquí dinámicamente -->
               </div>
-                  <div id="pp-payments-summary" class="hidden mt-3 p-3 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded">
+                  <div id="pp-payments-summary" class="hidden mt-3 p-3 py-panel border rounded">
                 <!-- Resumen de pagos -->
               </div>
             </div>
@@ -872,39 +1066,53 @@
       });
     });
     
-    // Botón del catálogo
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
-      const API = window.API || {};
-      const token = API?.token?.get?.() || '';
-      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
-      // Intento principal: usar API.companyMe() (actualiza companyId store)
+    function setupCatalogButton() {
+      const btns = document.querySelectorAll('.js-open-public-catalog');
+      if (!btns.length) return;
+      const API = window.API;
+      if (!API || !API.token || !API.token.get) {
+        setTimeout(setupCatalogButton, 100);
+        return;
+      }
+      const applyReady = (companyId, enabled) => {
+        btns.forEach(btn => {
+          if (!companyId) { btn.disabled = true; btn.title = 'No se pudo obtener companyId'; return; }
+          if (!enabled) { btn.disabled = true; btn.title = 'Catálogo público deshabilitado'; btn.dataset.state = 'disabled'; return; }
+          btn.dataset.state = 'ready';
+          btn.disabled = false;
+          btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+        });
+      };
+      const applyNoAuth = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Inicia sesión para usar el catálogo'; });
+      };
+      const applyError = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Error consultando empresa'; btn.dataset.state = 'error'; });
+      };
+      const token = API.token.get() || '';
+      if (!token) { applyNoAuth(); return; }
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-          btn.dataset.state='ready';
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          applyReady(companyId, enabled);
         })
-        .catch(()=>{
-          // Fallback: abrir con companyId guardado si existe
+        .catch(() => {
           const storedId = API?.companyId?.get?.() || '';
-          if(storedId){
-            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          if (storedId) {
+            btns.forEach(btn => {
+              btn.dataset.state = 'ready'; btn.title = ''; btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            });
           } else {
-            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+            applyError();
           }
         });
-    });
+    }
+    document.addEventListener('DOMContentLoaded', setupCatalogButton);
+    if (document.readyState !== 'loading') setupCatalogButton();
   </script>
 </body>
 </html>
