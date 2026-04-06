@@ -4,250 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>M&M - Seleccionar Formato</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260340" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
+  <link rel="stylesheet" href="assets/css/pages/template-selector.css?v=20260406" />
   <style>
-    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
-    }
-    body.theme-light [class*="bg-slate-800/50"],
-    body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(224, 242, 254, 0.9) !important;
-    }
-    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #e0f2fe !important;
-    }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-300 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-400 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-500 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-600 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-700 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-800 {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
-    }
-    body.theme-light #modal label,
-    body.theme-light #modal .text-slate-300,
-    body.theme-light #modal .text-slate-400,
-    body.theme-light #modal .text-slate-500,
-    body.theme-light #modal .text-slate-600,
-    body.theme-light #modal .text-slate-700,
-    body.theme-light #modal .text-slate-800,
-    body.theme-light #modal h1,
-    body.theme-light #modal h2,
-    body.theme-light #modal h3,
-    body.theme-light #modal h4,
-    body.theme-light #modal p,
-    body.theme-light #modal span,
-    body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste en selects y dropdowns */
-    body.theme-light select,
-    body.theme-light select option,
-    body.theme-light select.text-slate-300,
-    body.theme-light select.text-slate-400,
-    body.theme-light select.text-slate-500,
-    body.theme-light select.text-slate-600,
-    body.theme-light select.text-slate-700,
-    body.theme-light select.text-slate-800 {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    body.theme-light select option {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    /* Mejorar contraste en inputs dentro de modales */
-    body.theme-light #modal input,
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      color: #000000 !important;
-    }
-    body.theme-light #modal input::placeholder,
-    body.theme-light #modal textarea::placeholder {
-      color: #666666 !important;
-    }
-    /* Mejorar contraste en dropdowns de vehículos y otros */
-    body.theme-light [id*="dropdown"],
-    body.theme-light [id*="Dropdown"],
-    body.theme-light [class*="dropdown"],
-    body.theme-light [class*="Dropdown"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-    }
-    body.theme-light [id*="dropdown"] *,
-    body.theme-light [id*="Dropdown"] *,
-    body.theme-light [class*="dropdown"] *,
-    body.theme-light [class*="Dropdown"] * {
-      color: #000000 !important;
-    }
-    /* Cambiar fondos grises de formularios a blanco/celeste claro */
-    body.theme-light input[class*="bg-slate-900"],
-    body.theme-light textarea[class*="bg-slate-900"],
-    body.theme-light select[class*="bg-slate-900"],
-    body.theme-light input[class*="bg-slate-800"],
-    body.theme-light textarea[class*="bg-slate-800"],
-    body.theme-light select[class*="bg-slate-800"] {
-      background-color: #ffffff !important;
-    }
-    body.theme-light input[class*="bg-slate-900/50"],
-    body.theme-light textarea[class*="bg-slate-900/50"],
-    body.theme-light select[class*="bg-slate-900/50"],
-    body.theme-light input[class*="bg-slate-800/50"],
-    body.theme-light textarea[class*="bg-slate-800/50"],
-    body.theme-light select[class*="bg-slate-800/50"] {
-      background-color: #ffffff !important;
-    }
-    /* Cambiar fondo del modal a blanco */
-    body.theme-light #modal > div,
-    body.theme-light #modal .bg-slate-800:not([class*="hover"]),
-    body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light #modal [class*="bg-slate-800/50"] {
-      background-color: rgba(255, 255, 255, 0.95) !important;
-    }
-    /* Cambiar todos los inputs, textareas y selects dentro de modales */
-    body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      background-color: #ffffff !important;
-      border-color: #7dd3fc !important;
-    }
-    /* Cambiar fondos de formularios en toda la página */
-    body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light [class*="border-slate-700/50"],
-    body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
-    body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste de botones grises en modo claro */
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #bae6fd !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #7dd3fc !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    /* Estilos para el fondo de la página */
-    body {
-      background-color: #000000;
-      min-height: 100vh;
-    }
-    body.theme-light {
-      background-color: #e0f2fe;
-    }
-    /* Estilos para el modal global */
-    #modal.hidden {
-      display: none !important;
-    }
-    #modal:not(.hidden) {
-      display: flex !important;
-    }
-    #modal {
-      align-items: center;
-      justify-content: center;
-    }
-    /* Estilos personalizados para barras de scroll */
-    .custom-scrollbar {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: transparent;
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.5);
-      border-radius: 4px;
-      transition: background 0.2s ease;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.7);
-    }
-    body.theme-light .custom-scrollbar {
-      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
-    }
-    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.4);
-    }
-    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(100, 116, 139, 0.6);
-    }
-    /* Mejorar contrastes de barras de navegación en modo claro */
-    body.theme-light .nav-tab:not(.active),
-    body.theme-light .mobile-nav-tab:not(.active) {
-      color: #000000 !important;
-      background-color: transparent !important;
-    }
-    body.theme-light .nav-tab:not(.active):hover,
-    body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #000000 !important;
-      background-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light .nav-tab.active,
-    body.theme-light .mobile-nav-tab.active {
-      color: #ffffff !important;
-      background-color: #2563eb !important;
-    }
-    /* Estilos del selector de plantillas - mantener compatibilidad */
-    body[data-page="formatos"]{
-      background: #000000 !important;
-      padding: 0 !important;
-    }
-    body.theme-light[data-page="formatos"] {
-      background: #e0f2fe !important;
-    }
-    body[data-page="formatos"] main {
-      background: #000000;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    body.theme-light[data-page="formatos"] main {
-      background: #e0f2fe;
-    }
+    #format-name-modal { align-items: flex-start; justify-content: center; }
+    @media (min-width: 640px) { #format-name-modal { align-items: center; } }
   </style>
-  <link rel="stylesheet" href="assets/css/pages/template-selector.css?v=20251010-2">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -256,35 +21,32 @@
   <script src="./assets/js/config.js"></script>
 </head>
 <body data-page="formatos">
+  <main>
   <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-    <!-- Top Bar - Header Principal -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+    <div class="home-header-shell shadow-lg">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16 md:h-20">
-          <!-- Logo y Nombre de Empresa -->
-          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
             <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
             <div class="hidden sm:flex flex-col">
-              <span class="text-xs text-slate-400 font-medium">Empresa</span>
-              <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-          </div>
-            <div class="sm:hidden text-white font-semibold text-sm">
+              <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+              <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
+            </div>
+            <div class="sm:hidden text-white font-semibold text-sm home-header-company">
               <span id="companyNameMobile">-</span>
-          </div>
-        </div>
-
-          <!-- Botones de Acción (Desktop) -->
-          <div class="hidden md:flex items-center gap-2">
-            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-            <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            </div>
           </div>
 
-          <!-- Menú Hamburguesa (Mobile) -->
-          <div class="md:hidden flex items-center gap-2">
-            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-            <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+          <div class="hidden md:flex items-center gap-2 home-header-actions">
+            <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+            <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+            <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
               </svg>
@@ -293,60 +55,57 @@
         </div>
       </div>
 
-      <!-- Navegación Principal (Desktop) -->
-      <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+      <div class="hidden md:block home-header-nav-row">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+          <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab active px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
           </nav>
         </div>
       </div>
     </div>
-    
-    <!-- Menú Móvil (Mobile Menu) -->
-    <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+
+    <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
       <div class="px-4 py-3 space-y-1">
-        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Formatos</button>
-        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
       </div>
     </div>
   </div>
 
-  <main>
   <section id="appSection" class="hidden">
 
-      <!-- MODAL GLOBAL -->
-      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
-          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
-          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+      <div id="modal" class="fixed inset-0 z-[1001] hidden flex items-start sm:items-center justify-center p-2 sm:p-4 pt-16 sm:pt-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+        <div class="relative bg-slate-800 rounded-xl sm:rounded-2xl shadow-2xl border border-slate-700/50 max-w-4xl w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] my-auto sm:my-0 mt-4 sm:mt-0 overflow-hidden">
+          <button id="modalClose" type="button" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1002] w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-lg sm:text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-4rem)] sm:max-h-[90vh] custom-scrollbar">
             <div id="modal-img-wrap" class="flex flex-col items-center justify-center gap-4">
-              <img id="modal-img" src="" alt="Vista previa" class="max-w-full max-h-[70vh] object-contain rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300" />
+              <img id="modal-img" src="" alt="Vista previa" class="max-w-full max-h-[70vh] object-contain rounded-lg fmt-img-border" />
               <div class="zoom-controls flex gap-2">
-                <button id="zoom-in" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">+</button>
-                <button id="zoom-out" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">-</button>
-                <button id="zoom-reset" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Reset</button>
+                <button type="button" id="zoom-in" class="px-4 py-2 fmt-btn-primary rounded-lg transition-colors duration-200">+</button>
+                <button type="button" id="zoom-out" class="px-4 py-2 fmt-btn-primary rounded-lg transition-colors duration-200">-</button>
+                <button type="button" id="zoom-reset" class="px-4 py-2 fmt-btn-secondary rounded-lg transition-colors duration-200">Reset</button>
               </div>
             </div>
           </div>
@@ -355,8 +114,8 @@
 
       <div class="container">
     <div class="header">
-      <h1 class="text-2xl md:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">🎨 Seleccionar Formato de Plantilla</h1>
-      <p class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Elige el tipo de documento y el formato que deseas crear o editar</p>
+      <h1 class="text-2xl md:text-3xl font-bold fmt-text">🎨 Seleccionar Formato de Plantilla</h1>
+      <p class="fmt-muted">Elige el tipo de documento y el formato que deseas crear o editar</p>
     </div>
 
     <div class="content">
@@ -419,8 +178,8 @@
       <!-- Formats Section -->
       <div class="formats-section" id="formats-section">
         <div class="formats-header">
-          <h2 id="formats-title" class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900">Formatos de Remisión</h2>
-          <button class="new-format-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2" id="new-format-btn">
+          <h2 id="formats-title" class="text-xl font-semibold fmt-text m-0">Formatos de Remisión</h2>
+          <button type="button" class="new-format-btn px-4 py-2 fmt-btn-primary font-semibold rounded-lg transition-all duration-200 flex items-center gap-2" id="new-format-btn">
             <span>➕</span>
             <span>Crear Nuevo Formato</span>
           </button>
@@ -432,9 +191,9 @@
 
         <div class="empty-state" id="empty-state" style="display: none;">
           <div class="icon text-6xl mb-4">📄</div>
-          <h3 class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">No hay formatos guardados</h3>
-          <p class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-4">Crea tu primer formato personalizado haciendo clic en "Crear Nuevo Formato"</p>
-          <p class="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 theme-light:bg-blue-50 rounded-lg text-sm text-blue-800 dark:text-blue-200 theme-light:text-blue-900">
+          <h3 class="text-xl font-semibold fmt-text mb-2">No hay formatos guardados</h3>
+          <p class="fmt-muted mb-4">Crea tu primer formato personalizado haciendo clic en "Crear Nuevo Formato"</p>
+          <p class="mt-4 p-3 rounded-lg text-sm fmt-tip-box">
             💡 <strong>Tip:</strong> Al crear un nuevo formato, se abrirá automáticamente el editor con la plantilla correspondiente al tipo de documento seleccionado.
           </p>
         </div>
@@ -443,93 +202,93 @@
       <!-- Loading State -->
       <div class="loading" id="loading">
         <div class="spinner"></div>
-        <p class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Cargando formatos...</p>
+        <p class="fmt-muted">Cargando formatos...</p>
       </div>
 
       <!-- Format Configuration Section -->
-      <div class="formats-config-section" style="margin-top: 40px; border-top: 1px solid rgba(148, 163, 184, 0.3); padding-top: 30px;">
+      <div class="formats-config-section fmt-section-divider">
         <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-5">
-          <h2 class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">⚙️ Configuración de Formatos Activos</h2>
-          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 m-0">Selecciona qué formato se usará para imprimir desde el sistema</p>
+          <h2 class="text-xl font-semibold fmt-text m-0">⚙️ Configuración de Formatos Activos</h2>
+          <p class="text-sm fmt-muted m-0">Selecciona qué formato se usará para imprimir desde el sistema</p>
         </div>
 
         <div class="active-formats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+          <div class="fmt-config-card format-config-card" data-type="invoice">
+            <h4 class="m-0 mb-4 fmt-text flex items-center gap-2">
               <span>🧾</span>
               <span>Formato de Remisión Activo</span>
             </h4>
-            <select id="active-invoice-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-invoice-format" class="w-full p-3 rounded-lg text-sm fmt-field-input focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir remisiones desde ventas</p>
+            <p class="mt-2 mb-0 text-xs fmt-muted">Este formato se usará al imprimir remisiones desde ventas</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="quote">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+          <div class="fmt-config-card format-config-card" data-type="quote">
+            <h4 class="m-0 mb-4 fmt-text flex items-center gap-2">
               <span>💰</span>
               <span>Formato de Cotización Activo</span>
             </h4>
-            <select id="active-quote-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-quote-format" class="w-full p-3 rounded-lg text-sm fmt-field-input focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir cotizaciones</p>
+            <p class="mt-2 mb-0 text-xs fmt-muted">Este formato se usará al imprimir cotizaciones</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-qr" style="opacity: 0.6;">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+          <div class="fmt-config-card format-config-card" data-type="sticker-qr" style="opacity: 0.6;">
+            <h4 class="m-0 mb-4 fmt-text flex items-center gap-2">
               <span>🏷️</span>
               <span>Formato de Sticker - Casa Renault (Fijo)</span>
             </h4>
-            <div class="p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-slate-900">
-              <p class="m-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">
+            <div class="p-3 rounded-lg text-sm fmt-config-note">
+              <p class="m-0 text-xs fmt-muted">
                 Los stickers usan un formato fijo de Casa Renault con logo, SKU, nombre y QR code.<br>
                 El formato se genera automáticamente al imprimir stickers desde el inventario y no se puede editar.
               </p>
             </div>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice-factura">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+          <div class="fmt-config-card format-config-card" data-type="invoice-factura">
+            <h4 class="m-0 mb-4 fmt-text flex items-center gap-2">
               <span>📄</span>
               <span>Formato de Factura Activo</span>
             </h4>
-            <select id="active-invoicefactura-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-invoicefactura-format" class="w-full p-3 rounded-lg text-sm fmt-field-input focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir facturas (usa la misma plantilla de remisión por ahora)</p>
+            <p class="mt-2 mb-0 text-xs fmt-muted">Este formato se usará para imprimir facturas (usa la misma plantilla de remisión por ahora)</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="payroll">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+          <div class="fmt-config-card format-config-card" data-type="payroll">
+            <h4 class="m-0 mb-4 fmt-text flex items-center gap-2">
               <span>💰</span>
               <span>Formato de Nómina Activo</span>
             </h4>
-            <select id="active-payroll-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-payroll-format" class="w-full p-3 rounded-lg text-sm fmt-field-input focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir comprobantes de nómina</p>
+            <p class="mt-2 mb-0 text-xs fmt-muted">Este formato se usará para imprimir comprobantes de nómina</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="workOrder">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+          <div class="fmt-config-card format-config-card" data-type="workOrder">
+            <h4 class="m-0 mb-4 fmt-text flex items-center gap-2">
               <span>🔧</span>
               <span>Formato de Orden de Trabajo Activo</span>
             </h4>
-            <select id="active-workorder-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-workorder-format" class="w-full p-3 rounded-lg text-sm fmt-field-input focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir órdenes de trabajo</p>
+            <p class="mt-2 mb-0 text-xs fmt-muted">Este formato se usará para imprimir órdenes de trabajo</p>
           </div>
         </div>
       </div>
 
       <div class="navigation flex justify-between items-center gap-4 mt-6">
-        <button class="back-btn px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2" onclick="history.back()">
+        <button type="button" class="back-btn px-4 py-3 fmt-btn-secondary font-semibold rounded-lg transition-all duration-200 flex items-center gap-2" onclick="history.back()">
           <span>⬅️</span>
           <span>Volver</span>
         </button>
-        <button class="continue-btn px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" id="continue-btn">
+        <button type="button" class="continue-btn px-4 py-3 fmt-btn-primary font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" id="continue-btn">
           <span>Continuar</span>
           <span>➡️</span>
         </button>
@@ -538,31 +297,31 @@
   </div>
 
   <!-- Modal para nombre de formato -->
-  <div id="format-name-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-    <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 w-full max-w-lg overflow-hidden">
-      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 px-6 py-4 flex justify-between items-center border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
-        <h3 id="modal-title" class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">🎨 Crear Nuevo Formato</h3>
-        <button class="modal-close bg-transparent border-0 text-white dark:text-white theme-light:text-slate-900 text-2xl cursor-pointer hover:opacity-70 transition-opacity duration-200" onclick="closeFormatNameModal()">&times;</button>
+  <div id="format-name-modal" class="fixed inset-0 z-[1002] hidden flex p-4 bg-black/60 backdrop-blur-sm">
+    <div class="relative fmt-modal-shell rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden m-auto">
+      <div class="fmt-modal-head px-6 py-4 flex justify-between items-center">
+        <h3 id="modal-title" class="text-lg font-semibold fmt-text m-0">🎨 Crear Nuevo Formato</h3>
+        <button type="button" class="modal-close bg-transparent border-0 fmt-text text-2xl cursor-pointer hover:opacity-70 transition-opacity duration-200" onclick="closeFormatNameModal()">&times;</button>
       </div>
       <div class="modal-body p-6">
         <div class="input-group mb-4">
-          <label for="format-name-input" class="block text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-2">Nombre del formato:</label>
-          <input type="text" id="format-name-input" placeholder="Ej: Mi Factura Premium" maxlength="50" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <label for="format-name-input" class="block text-xs fmt-label mb-2">Nombre del formato:</label>
+          <input type="text" id="format-name-input" placeholder="Ej: Mi Factura Premium" maxlength="50" class="w-full p-3 rounded-lg fmt-field-input focus:outline-none focus:ring-2 focus:ring-blue-500">
           <div class="input-help flex justify-end mt-2">
-            <span id="char-counter" class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">0/50</span>
+            <span id="char-counter" class="text-xs fmt-muted">0/50</span>
           </div>
         </div>
         <div class="format-preview flex gap-3 items-center mt-4">
-          <div class="preview-icon w-10 h-10 flex items-center justify-center bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-2xl" id="modal-icon">📄</div>
+          <div class="preview-icon w-10 h-10 flex items-center justify-center fmt-preview-icon rounded-lg text-2xl" id="modal-icon">📄</div>
           <div class="preview-text">
-            <strong id="preview-type" class="block text-white dark:text-white theme-light:text-slate-900">Remisión</strong>
-            <p class="m-0 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se creará con la plantilla correspondiente</p>
+            <strong id="preview-type" class="block fmt-text">Remisión</strong>
+            <p class="m-0 text-sm fmt-muted">Se creará con la plantilla correspondiente</p>
           </div>
         </div>
       </div>
-      <div class="modal-footer px-6 py-4 flex gap-2 justify-end border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
-        <button class="btn-cancel px-4 py-2 bg-transparent border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200 transition-colors duration-200" onclick="closeFormatNameModal()">Cancelar</button>
-        <button class="btn-create px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" id="modal-create-btn" onclick="confirmFormatCreation()">Crear Formato</button>
+      <div class="modal-footer fmt-modal-footer px-6 py-4 flex gap-2 justify-end">
+        <button type="button" class="btn-cancel px-4 py-2 fmt-btn-secondary rounded-lg transition-colors duration-200" onclick="closeFormatNameModal()">Cancelar</button>
+        <button type="button" class="btn-create px-4 py-2 fmt-btn-primary rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" id="modal-create-btn" onclick="confirmFormatCreation()">Crear Formato</button>
       </div>
     </div>
   </div>
@@ -754,21 +513,21 @@
         grid.innerHTML = availableFormats.map(format => `
           <div class="format-card ${format.isActive ? 'active-format' : ''}" data-format-id="${format.id || format._id}">
             <div class="format-card-header">
-              <h4 class="text-white dark:text-white theme-light:text-slate-900">
+              <h4>
                 ${format.isActive ? '⭐ ' : ''}${format.name}
-                ${format.isActive ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 text-green-400 dark:text-green-400 theme-light:text-green-700 border border-green-500/30 dark:border-green-500/30 theme-light:border-green-200 ml-2">ACTIVO</span>' : ''}
+                ${format.isActive ? '<span class="px-2 py-0.5 rounded text-xs font-semibold fmt-badge-active ml-2">ACTIVO</span>' : ''}
               </h4>
               <div class="actions flex gap-1">
-                <button class="action-btn px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors duration-200" title="Editar" onclick="editFormat('${format.id || format._id}', '${format.type || selectedDocumentType}', '${(format.name||'').replace(/'/g, "\'")}')">✏️</button>
-                <button class="action-btn px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:text-slate-700 rounded transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:hover:bg-slate-300" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
-                ${!format.isActive ? `<button class="action-btn px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors duration-200" title="Activar" onclick="activateFormat('${format.id || format._id}')">⭐</button>` : ''}
-                <button class="action-btn px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors duration-200" title="Eliminar" onclick="deleteFormat('${format.id || format._id}')">🗑️</button>
+                <button type="button" class="action-btn px-2 py-1 fmt-btn-icon-blue rounded transition-colors duration-200" title="Editar" onclick="editFormat('${format.id || format._id}', '${format.type || selectedDocumentType}', '${(format.name||'').replace(/'/g, "\'")}')">✏️</button>
+                <button type="button" class="action-btn px-2 py-1 fmt-btn-secondary rounded transition-colors duration-200 text-sm" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
+                ${!format.isActive ? `<button type="button" class="action-btn px-2 py-1 fmt-btn-icon-yellow rounded transition-colors duration-200" title="Activar" onclick="activateFormat('${format.id || format._id}')">⭐</button>` : ''}
+                <button type="button" class="action-btn px-2 py-1 fmt-btn-icon-red rounded transition-colors duration-200" title="Eliminar" onclick="deleteFormat('${format.id || format._id}')">🗑️</button>
               </div>
             </div>
             <div class="meta">
               Creado: ${new Date(format.createdAt).toLocaleDateString('es-ES')} | 
               Modificado: ${new Date(format.updatedAt).toLocaleDateString('es-ES')}
-              ${format.isActive ? ' | <strong class="text-white dark:text-white theme-light:text-slate-900">🖨️ Usado para imprimir</strong>' : ''}
+              ${format.isActive ? ' | <strong class="fmt-text">🖨️ Usado para imprimir</strong>' : ''}
             </div>
             <div class="preview">
               ${format.description || 'Sin descripción disponible'}
@@ -1309,37 +1068,53 @@
       });
     });
     
-    // Botón del catálogo
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
-      const API = window.API || {};
-      const token = API?.token?.get?.() || '';
-      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+    function setupCatalogButton() {
+      const btns = document.querySelectorAll('.js-open-public-catalog');
+      if (!btns.length) return;
+      const API = window.API;
+      if (!API || !API.token || !API.token.get) {
+        setTimeout(setupCatalogButton, 100);
+        return;
+      }
+      const applyReady = (companyId, enabled) => {
+        btns.forEach(btn => {
+          if (!companyId) { btn.disabled = true; btn.title = 'No se pudo obtener companyId'; return; }
+          if (!enabled) { btn.disabled = true; btn.title = 'Catálogo público deshabilitado'; btn.dataset.state = 'disabled'; return; }
+          btn.dataset.state = 'ready';
+          btn.disabled = false;
+          btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+        });
+      };
+      const applyNoAuth = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Inicia sesión para usar el catálogo'; });
+      };
+      const applyError = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Error consultando empresa'; btn.dataset.state = 'error'; });
+      };
+      const token = API.token.get() || '';
+      if (!token) { applyNoAuth(); return; }
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-          btn.dataset.state='ready';
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          applyReady(companyId, enabled);
         })
-        .catch(()=>{
+        .catch(() => {
           const storedId = API?.companyId?.get?.() || '';
-          if(storedId){
-            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          if (storedId) {
+            btns.forEach(btn => {
+              btn.dataset.state = 'ready'; btn.title = ''; btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            });
           } else {
-            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+            applyError();
           }
         });
-    });
+    }
+    document.addEventListener('DOMContentLoaded', setupCatalogButton);
+    if (document.readyState !== 'loading') setupCatalogButton();
   </script>
 </body>
 </html>

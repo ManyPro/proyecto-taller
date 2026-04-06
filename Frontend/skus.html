@@ -1,338 +1,300 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-        <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M&M - SKUs</title>
-    <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
-    <script src="./assets/js/theme-engine.js"></script>
-    <script src="./assets/js/modal-system.js"></script>
-    <style>
-        /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-        body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-        body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-            background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
-        }
-        body.theme-light [class*="bg-slate-800/50"],
-        body.theme-light [class*="bg-slate-800"][class*="/50"] {
-            background-color: rgba(224, 242, 254, 0.9) !important;
-        }
-        body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-            background-color: #e0f2fe !important;
-        }
-        body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-            color: #000000 !important;
-        }
-        body.theme-light .text-slate-300 {
-            color: #000000 !important;
-        }
-    body.theme-light .text-slate-400 {
-      color: #000000 !important;
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M&M - SKUs</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260340" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <style>
+    /* SKUs: tema scoped (misma línea que Cartera / Nómina) */
+    body[data-page="skus"] {
+      background-color: #020617;
+      min-height: 100vh;
     }
-    body.theme-light .text-slate-500 {
-      color: #000000 !important;
+    body.theme-light[data-page="skus"] {
+      background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 100%);
     }
-    body.theme-light .text-slate-600 {
-      color: #000000 !important;
+    body[data-page="skus"] #appSection,
+    body[data-page="skus"] #appSection * {
+      box-sizing: border-box;
     }
-    body.theme-light .text-slate-700 {
-      color: #000000 !important;
+
+    body[data-page="skus"] .sk-text { color: #f1f5f9; }
+    body.theme-light[data-page="skus"] .sk-text { color: #0f172a !important; }
+    body[data-page="skus"] .sk-muted { color: #94a3b8; }
+    body.theme-light[data-page="skus"] .sk-muted { color: #64748b !important; }
+    body[data-page="skus"] .sk-label { color: #94a3b8; }
+    body.theme-light[data-page="skus"] .sk-label { color: #475569 !important; }
+
+    body[data-page="skus"] .sk-field-input {
+      background: rgba(15, 23, 42, 0.55);
+      color: #f1f5f9 !important;
+      border: 1px solid rgba(71, 85, 105, 0.55);
     }
-    body.theme-light .text-slate-800 {
-      color: #000000 !important;
+    body.theme-light[data-page="skus"] .sk-field-input {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
     }
-    /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
+    body.theme-light[data-page="skus"] .sk-field-input::placeholder {
+      color: #64748b !important;
     }
-    body.theme-light #modal label,
-    body.theme-light #modal .text-slate-300,
-    body.theme-light #modal .text-slate-400,
-    body.theme-light #modal .text-slate-500,
-    body.theme-light #modal .text-slate-600,
-    body.theme-light #modal .text-slate-700,
-    body.theme-light #modal .text-slate-800,
-    body.theme-light #modal h1,
-    body.theme-light #modal h2,
-    body.theme-light #modal h3,
-    body.theme-light #modal h4,
-    body.theme-light #modal p,
-    body.theme-light #modal span,
-    body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
-      color: #000000 !important;
+
+    body[data-page="skus"] .sk-section-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
     }
-    /* Mejorar contraste en selects y dropdowns */
-    body.theme-light select,
-    body.theme-light select option,
-    body.theme-light select.text-slate-300,
-    body.theme-light select.text-slate-400,
-    body.theme-light select.text-slate-500,
-    body.theme-light select.text-slate-600,
-    body.theme-light select.text-slate-700,
-    body.theme-light select.text-slate-800 {
-      color: #000000 !important;
+    body.theme-light[data-page="skus"] .sk-section-card {
+      background: rgba(224, 242, 254, 0.9) !important;
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+
+    body[data-page="skus"] .sk-list-shell {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    body.theme-light[data-page="skus"] .sk-list-shell {
+      background: rgba(224, 242, 254, 0.9) !important;
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+
+    body[data-page="skus"] .sk-list-row {
+      border-bottom: 1px solid rgba(51, 65, 85, 0.35);
+    }
+    body.theme-light[data-page="skus"] .sk-list-row {
+      border-bottom-color: #cbd5e1 !important;
+    }
+    body[data-page="skus"] .sk-list-row:hover {
+      background: rgba(51, 65, 85, 0.2);
+    }
+    body.theme-light[data-page="skus"] .sk-list-row:hover {
+      background: #f1f5f9 !important;
+    }
+
+    body[data-page="skus"] .sk-toolbar-divider {
+      border-color: rgba(51, 65, 85, 0.3);
+    }
+    body.theme-light[data-page="skus"] .sk-toolbar-divider {
+      border-color: #cbd5e1 !important;
+    }
+
+    body[data-page="skus"] .sk-notes-box {
+      background: rgba(15, 23, 42, 0.3);
+      border: 1px solid rgba(51, 65, 85, 0.3);
+      color: #94a3b8;
+    }
+    body.theme-light[data-page="skus"] .sk-notes-box {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #475569 !important;
+    }
+
+    body[data-page="skus"] .sk-btn-secondary {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(148, 163, 184, 0.35) !important;
+    }
+    body[data-page="skus"] .sk-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14) !important;
+    }
+    body.theme-light[data-page="skus"] .sk-btn-secondary {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body.theme-light[data-page="skus"] .sk-btn-secondary:hover {
+      background: #bfdbfe !important;
+      color: #0f172a !important;
+    }
+
+    body[data-page="skus"] .sk-btn-primary {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(59, 130, 246, 0.45) !important;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+    }
+    body[data-page="skus"] .sk-btn-green {
+      background: linear-gradient(135deg, #16a34a, #15803d) !important;
+      color: #ffffff !important;
+      border: none !important;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
+    }
+
+    body[data-page="skus"] .sk-badge-amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+    body.theme-light[data-page="skus"] .sk-badge-amber {
+      background: #fffbeb !important;
+      color: #b45309 !important;
+      border-color: #fde68a !important;
+    }
+
+    body.theme-light[data-page="skus"] #modal > div.relative {
+      background: #f8fafc !important;
+    }
+    body.theme-light[data-page="skus"] #modalBody {
+      color: #0f172a;
+    }
+    body.theme-light[data-page="skus"] #modalBody h1,
+    body.theme-light[data-page="skus"] #modalBody h2,
+    body.theme-light[data-page="skus"] #modalBody h3 {
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="skus"] #modalBody .sk-label {
+      color: #334155 !important;
+    }
+    body.theme-light[data-page="skus"] #modalBody input,
+    body.theme-light[data-page="skus"] #modalBody textarea,
+    body.theme-light[data-page="skus"] #modalBody select {
+      color: #0f172a !important;
       background-color: #ffffff !important;
     }
-    body.theme-light select option {
-      color: #000000 !important;
-      background-color: #ffffff !important;
+    body.theme-light[data-page="skus"] #modalBody input::placeholder,
+    body.theme-light[data-page="skus"] #modalBody textarea::placeholder {
+      color: #64748b !important;
     }
-    /* Mejorar contraste en inputs dentro de modales */
-    body.theme-light #modal input,
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      color: #000000 !important;
+
+    #modal.hidden {
+      display: none !important;
     }
-    body.theme-light #modal input::placeholder,
-    body.theme-light #modal textarea::placeholder {
-      color: #666666 !important;
+    #modal:not(.hidden) {
+      display: flex !important;
     }
-    /* Mejorar contraste en dropdowns de vehículos y otros */
-    body.theme-light [id*="dropdown"],
-    body.theme-light [id*="Dropdown"],
-    body.theme-light [class*="dropdown"],
-    body.theme-light [class*="Dropdown"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
+    @media (min-width: 640px) {
+      #modal {
+        align-items: center;
+      }
     }
-    body.theme-light [id*="dropdown"] *,
-    body.theme-light [id*="Dropdown"] *,
-    body.theme-light [class*="dropdown"] *,
-    body.theme-light [class*="Dropdown"] * {
-      color: #000000 !important;
+    #modal {
+      align-items: flex-start;
+      justify-content: center;
     }
-    /* Cambiar fondos grises de formularios a blanco/celeste claro */
-    body.theme-light input[class*="bg-slate-900"],
-    body.theme-light textarea[class*="bg-slate-900"],
-    body.theme-light select[class*="bg-slate-900"],
-    body.theme-light input[class*="bg-slate-800"],
-    body.theme-light textarea[class*="bg-slate-800"],
-    body.theme-light select[class*="bg-slate-800"] {
-      background-color: #ffffff !important;
+
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
     }
-    body.theme-light input[class*="bg-slate-900/50"],
-    body.theme-light textarea[class*="bg-slate-900/50"],
-    body.theme-light select[class*="bg-slate-900/50"],
-    body.theme-light input[class*="bg-slate-800/50"],
-    body.theme-light textarea[class*="bg-slate-800/50"],
-    body.theme-light select[class*="bg-slate-800/50"] {
-      background-color: #ffffff !important;
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
     }
-    /* Cambiar fondo del modal a blanco */
-    body.theme-light #modal > div,
-    body.theme-light #modal .bg-slate-800:not([class*="hover"]),
-    body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
-      background-color: #ffffff !important;
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
     }
-    body.theme-light #modal .bg-slate-800\/50,
-    body.theme-light #modal [class*="bg-slate-800\/50"] {
-      background-color: rgba(255, 255, 255, 0.95) !important;
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
     }
-    /* Cambiar todos los inputs, textareas y selects dentro de modales */
-    body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      background-color: #ffffff !important;
-      border-color: #7dd3fc !important;
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
     }
-    /* Cambiar fondos de formularios en toda la página */
-    body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
-      background-color: #ffffff !important;
+    body.theme-light[data-page="skus"] .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
     }
-    body.theme-light [class*="border-slate-700/50"],
-        body.theme-light [class*="border-slate-700"][class*="/50"] {
-            border-color: rgba(125, 211, 252, 0.5) !important;
-        }
-        body.theme-light [class*="hover:bg-slate-700/50"]:hover,
-        body.theme-light button:hover[class*="hover:bg-slate-700"] {
-            background-color: rgba(125, 211, 252, 0.5) !important;
-        }
-        body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-            color: #000000 !important;
-        }
-        /* Mejorar contraste de botones grises en modo claro */
-        body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
-        body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-            background-color: #bae6fd !important;
-            color: #000000 !important;
-            border-color: #7dd3fc !important;
-        }
-        body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
-        body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-            background-color: #7dd3fc !important;
-            color: #000000 !important;
-            border-color: #7dd3fc !important;
-        }
-        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
-        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            border-color: #7dd3fc !important;
-        }
-        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:hover,
-        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:focus,
-        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:hover,
-        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:focus {
-            border-color: #000000 !important;
-            background-color: #ffffff !important;
-        }
-        /* Estilos para el fondo de la página */
-        body {
-            background-color: #000000;
-            min-height: 100vh;
-        }
-        body.theme-light {
-            background-color: #e0f2fe;
-        }
-        /* Estilos para el modal global */
-        #modal.hidden {
-            display: none !important;
-        }
-        #modal:not(.hidden) {
-            display: flex !important;
-        }
-        #modal {
-            align-items: center;
-            justify-content: center;
-        }
-        /* Estilos personalizados para barras de scroll */
-        .custom-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-            border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.5);
-            border-radius: 4px;
-            transition: background 0.2s ease;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 0.7);
-        }
-        body.theme-light .custom-scrollbar {
-            scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
-        }
-        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(100, 116, 139, 0.4);
-        }
-        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(100, 116, 139, 0.6);
-        }
-        /* Mejorar contrastes de barras de navegación en modo claro */
-        body.theme-light .nav-tab:not(.active),
-        body.theme-light .mobile-nav-tab:not(.active) {
-            color: #000000 !important;
-            background-color: transparent !important;
-        }
-        body.theme-light .nav-tab:not(.active):hover,
-        body.theme-light .mobile-nav-tab:not(.active):hover {
-            color: #000000 !important;
-            background-color: rgba(125, 211, 252, 0.5) !important;
-        }
-        body.theme-light .nav-tab.active,
-        body.theme-light .mobile-nav-tab.active {
-            color: #ffffff !important;
-            background-color: #2563eb !important;
-        }
-        /* Estilos específicos para SKUs */
-        .sku-select {
-            appearance: none;
-            -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            border: 1.5px solid rgba(148, 163, 184, 0.3);
-            border-radius: 4px;
-            background: rgb(30 41 59 / 0.5);
-            display: inline-block;
-            position: relative;
-            cursor: pointer;
-            transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
-            margin-right: 6px;
-        }
-        body.theme-light .sku-select {
-            background: #ffffff;
-            border-color: rgba(125, 211, 252, 0.5);
-        }
-        .sku-select:hover {
-            box-shadow: 0 0 0 3px rgba(2,132,199,.15);
-        }
-        .sku-select:checked {
-            background: rgb(37 99 235);
-            border-color: rgb(37 99 235);
-        }
-        body.theme-light .sku-select:checked {
-            background: rgb(37 99 235);
-            border-color: rgb(37 99 235);
-        }
-        .sku-select:checked::after {
-            content: '✓';
-            color: white;
-            font-size: 12px;
-            line-height: 1;
-            position: absolute;
-            left: 2px;
-            top: -1px;
-        }
-        .status-pending {
-            background: rgba(245,158,11,.12);
-            color: #f59e0b;
-        }
-        .status-printed {
-            background: rgba(37,99,235,.12);
-            color: rgb(37 99 235);
-        }
-        .status-applied {
-            background: rgba(22,163,74,.12);
-            color: #16a34a;
-        }
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            z-index: 1001;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        }
-        .notification.show {
-            transform: translateX(0);
-        }
-        .notification.success {
-            background: #16a34a;
-        }
-        .notification.error {
-            background: #ef4444;
-        }
-        .notification.warning {
-            background: #f59e0b;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .spinner {
-            border: 3px solid rgba(148, 163, 184, 0.3);
-            border-top: 3px solid rgb(37 99 235);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-    
+    body.theme-light[data-page="skus"] .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light[data-page="skus"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+
+    body[data-page="skus"] .sku-select {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid rgba(148, 163, 184, 0.3);
+      border-radius: 4px;
+      background: rgb(30 41 59 / 0.5);
+      display: inline-block;
+      position: relative;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+      margin-right: 6px;
+    }
+    body.theme-light[data-page="skus"] .sku-select {
+      background: #ffffff;
+      border-color: rgba(125, 211, 252, 0.5);
+    }
+    body[data-page="skus"] .sku-select:hover {
+      box-shadow: 0 0 0 3px rgba(2,132,199,.15);
+    }
+    body[data-page="skus"] .sku-select:checked {
+      background: rgb(37 99 235);
+      border-color: rgb(37 99 235);
+    }
+    body.theme-light[data-page="skus"] .sku-select:checked {
+      background: rgb(37 99 235);
+      border-color: rgb(37 99 235);
+    }
+    body[data-page="skus"] .sku-select:checked::after {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      line-height: 1;
+      position: absolute;
+      left: 2px;
+      top: -1px;
+    }
+
+    body[data-page="skus"] .status-pending {
+      background: rgba(245,158,11,.12);
+      color: #f59e0b;
+    }
+    body[data-page="skus"] .status-printed {
+      background: rgba(37,99,235,.12);
+      color: rgb(37 99 235);
+    }
+    body[data-page="skus"] .status-applied {
+      background: rgba(22,163,74,.12);
+      color: #16a34a;
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      z-index: 1001;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    .notification.show {
+      transform: translateX(0);
+    }
+    .notification.success {
+      background: #16a34a;
+    }
+    .notification.error {
+      background: #ef4444;
+    }
+    .notification.warning {
+      background: #f59e0b;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      border: 3px solid rgba(148, 163, 184, 0.3);
+      border-top: 3px solid rgb(37 99 235);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
     /* ========== ESTILOS RESPONSIVE PARA TABLETS DE 10" (768px - 1024px) ========== */
     @media (min-width: 768px) and (max-width: 1024px) {
       html { font-size: 14px !important; }
@@ -384,570 +346,554 @@
       .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; }
       .shadow-xl { box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important; }
     }
-    </style>
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <script src="./assets/js/cache-buster.js"></script>
-    <script src="./assets/js/config.js"></script>
-    <script src="assets/js/api.js"></script>
+  </style>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script src="./assets/js/cache-buster.js"></script>
+  <script src="./assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
 </head>
 <body data-page="skus">
-    <main>
-        <!-- ========== APP HEADER ========== -->
+  <main>
     <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-            <!-- Top Bar - Header Principal -->
-            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="flex items-center justify-between h-16 md:h-20">
-                        <!-- Logo y Nombre de Empresa -->
-                        <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
-                            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
-                            <div class="hidden sm:flex flex-col">
-                                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-                                    </div>
-                            <div class="sm:hidden text-white font-semibold text-sm">
-                                <span id="companyNameMobile">-</span>
-                        </div>
-                    </div>
-
-                        <!-- Botones de Acción (Desktop) -->
-                        <div class="hidden md:flex items-center gap-2">
-                            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-                            <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-                            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-                    </div>
-
-                        <!-- Menú Hamburguesa (Mobile) -->
-                        <div class="md:hidden flex items-center gap-2">
-                            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-                            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-                            <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                                </svg>
-                            </button>
-                </div>
+      <div class="home-header-shell shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
+              </div>
+              <div class="sm:hidden text-white font-semibold text-sm home-header-company">
+                <span id="companyNameMobile">-</span>
+              </div>
             </div>
+
+            <div class="hidden md:flex items-center gap-2 home-header-actions">
+              <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            </div>
+
+            <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
 
-                <!-- Navegación Principal (Desktop) -->
-                <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-                            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-                            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-                            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-                            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-                            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-                            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-                            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-                            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-                            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-                            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-                            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Menú Móvil (Mobile Menu) -->
-            <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
-                <div class="px-4 py-3 space-y-1">
-                    <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-                    <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-                    <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-                    <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-                    <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-                    <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-                    <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-                    <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-                    <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-                    <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-                    <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">SKUs</button>
-                    <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
-                            </div>
-                        </div>
+        <div class="hidden md:block home-header-nav-row">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+            <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab active px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
+          </div>
         </div>
+      </div>
 
-        <section id="appSection" class="hidden">
-            <!-- Modal global reutilizable -->
-            <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-                <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-2xl w-full max-h-[90vh] my-auto overflow-hidden">
-                    <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
-                    <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
-                        <!-- Content will be injected here -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <!-- Header -->
-                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                            <h1 class="text-2xl md:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">📦 Gestión de SKUs</h1>
-                            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 opacity-90">Control y seguimiento de códigos de repuestos</p>
-            </div>
-                        <div class="flex gap-3">
-                            <button id="btn-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2">
-                    <span>🔄</span>
-                    <span>Actualizar</span>
-                </button>
-                        </div>
-            </div>
+      <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
         </div>
-
-        <!-- Stats -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-6" id="stats-grid">
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
-                        <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="total-skus">0</div>
-                        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Total SKUs</div>
-            </div>
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-amber-500">
-                        <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="pending-skus">0</div>
-                        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Pendientes</div>
-            </div>
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
-                        <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="printed-skus">0</div>
-                        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Impresos</div>
-            </div>
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-green-600">
-                        <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="applied-skus">0</div>
-                        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Aplicados</div>
-            </div>
-        </div>
-
-                <!-- Filters + Pagination -->
-                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-                    <div class="flex flex-wrap gap-3 items-end mb-4">
-                        <div class="flex-1 min-w-[260px]">
-                            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar (código, descripción, notas)</label>
-                            <input id="sku-search" placeholder="Ej: FLINY, BOMBA, filtro" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Categoría</label>
-                            <select id="sku-category" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-                                <option value="all">Todas</option>
-                                <option value="MOTOR">Motor</option>
-                                <option value="TRANSMISION">Transmisión</option>
-                                <option value="FRENOS">Frenos</option>
-                                <option value="SUSPENSION">Suspensión</option>
-                                <option value="ELECTRICO">Eléctrico</option>
-                                <option value="CARROCERIA">Carrocería</option>
-                                <option value="INTERIOR">Interior</option>
-                                <option value="FILTROS">Filtros</option>
-                                <option value="ACEITES">Aceites</option>
-                                <option value="NEUMATICOS">Neumáticos</option>
-                                <option value="OTROS">Otros</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Estado</label>
-                            <select id="sku-status" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-                                <option value="all">Todos</option>
-                                <option value="pending">Pendiente</option>
-                                <option value="printed">Impreso</option>
-                                <option value="applied">Aplicado</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
-                            <div class="flex gap-2">
-                                <button id="sku-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Buscar</button>
-                                <button id="sku-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Limpiar</button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Selection toolbar -->
-                    <div class="flex flex-wrap gap-2 items-center pt-4 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
-                        <button id="sku-sel-page" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Seleccionar todos los SKUs de la página">Seleccionar página</button>
-                        <button id="sku-sel-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Limpiar selección">Limpiar selección</button>
-                        <button id="sku-bulk-printed" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm" title="Marcar seleccionados como impresos">Marcar impresos (<span id="sku-sel-count">0</span>)</button>
-                        <button id="sku-bulk-applied" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Marcar seleccionados como aplicados">Marcar aplicados</button>
-                    </div>
-                </div>
-
-                <!-- Loading -->
-                <div id="loading" class="hidden text-center py-10">
-                        <div class="spinner"></div>
-                    <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-4">Cargando SKUs...</p>
-                </div>
-
-                <!-- List (paginated) -->
-                <div id="sku-list" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 overflow-hidden"></div>
-                <div id="sku-pager" class="hidden flex justify-end items-center gap-2 mt-4">
-                    <button id="pg-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">◀ Anterior</button>
-                    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 min-w-[120px] text-center" id="pg-info">Página 1/1</div>
-                    <button id="pg-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">Siguiente ▶</button>
-                </div>
+      </div>
     </div>
-        </section>
-    </main>
 
-    <script>
-                // --- State ---
-                const ui = {};
-                const state = { page: 1, limit: 25, search: '', category: 'all', status: 'all', totalPages: 1 };
-                const selected = new Set(); // ids seleccionados en la página
+    <section id="appSection" class="hidden">
+      <div id="modal" class="fixed inset-0 z-[1001] hidden flex items-start sm:items-center justify-center p-2 sm:p-4 pt-16 sm:pt-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+        <div class="relative bg-slate-800 rounded-xl sm:rounded-2xl shadow-2xl border border-slate-700/50 max-w-2xl w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] my-auto sm:my-0 mt-4 sm:mt-0 overflow-hidden">
+          <button id="modalClose" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1002] w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-lg sm:text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-4rem)] sm:max-h-[90vh] custom-scrollbar">
+          </div>
+        </div>
+      </div>
 
-                document.addEventListener('DOMContentLoaded', function() {
-                    ui.loading = document.getElementById('loading');
-                    ui.list = document.getElementById('sku-list');
-                    ui.pager = document.getElementById('sku-pager');
-                    ui.pgPrev = document.getElementById('pg-prev');
-                    ui.pgNext = document.getElementById('pg-next');
-                    ui.pgInfo = document.getElementById('pg-info');
-            ui.btnRefresh = document.getElementById('btn-refresh');
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="sk-section-card rounded-xl shadow-lg p-6 mb-6">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 class="text-2xl md:text-3xl font-bold sk-text mb-1">📦 Gestión de SKUs</h1>
+              <p class="text-sm sk-muted opacity-90">Control y seguimiento de códigos de repuestos</p>
+            </div>
+            <div class="flex gap-3">
+              <button type="button" id="btn-refresh" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 flex items-center gap-2">
+                <span>🔄</span>
+                <span>Actualizar</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
-                    ui.qSearch = document.getElementById('sku-search');
-                    ui.qCategory = document.getElementById('sku-category');
-                    ui.qStatus = document.getElementById('sku-status');
-                    ui.btnApply = document.getElementById('sku-apply');
-                    ui.btnClear = document.getElementById('sku-clear');
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-6" id="stats-grid">
+          <div class="sk-section-card rounded-xl shadow-lg p-5 border-l-4 border-l-blue-600">
+            <div class="text-3xl md:text-4xl font-bold sk-text" id="total-skus">0</div>
+            <div class="text-sm sk-muted mt-1">Total SKUs</div>
+          </div>
+          <div class="sk-section-card rounded-xl shadow-lg p-5 border-l-4 border-l-amber-500">
+            <div class="text-3xl md:text-4xl font-bold sk-text" id="pending-skus">0</div>
+            <div class="text-sm sk-muted mt-1">Pendientes</div>
+          </div>
+          <div class="sk-section-card rounded-xl shadow-lg p-5 border-l-4 border-l-blue-600">
+            <div class="text-3xl md:text-4xl font-bold sk-text" id="printed-skus">0</div>
+            <div class="text-sm sk-muted mt-1">Impresos</div>
+          </div>
+          <div class="sk-section-card rounded-xl shadow-lg p-5 border-l-4 border-l-green-600">
+            <div class="text-3xl md:text-4xl font-bold sk-text" id="applied-skus">0</div>
+            <div class="text-sm sk-muted mt-1">Aplicados</div>
+          </div>
+        </div>
 
-                    ui.btnSelPage = document.getElementById('sku-sel-page');
-                    ui.btnSelClear = document.getElementById('sku-sel-clear');
-                    ui.btnBulkPrinted = document.getElementById('sku-bulk-printed');
-                    ui.btnBulkApplied = document.getElementById('sku-bulk-applied');
-                    ui.selCount = document.getElementById('sku-sel-count');
+        <div class="sk-section-card rounded-xl shadow-lg p-6 mb-6">
+          <div class="flex flex-wrap gap-3 items-end mb-4">
+            <div class="flex-1 min-w-[260px]">
+              <label class="block text-xs font-medium sk-label mb-1.5">Buscar (código, descripción, notas)</label>
+              <input id="sku-search" placeholder="Ej: FLINY, BOMBA, filtro" class="w-full px-4 py-2 sk-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium sk-label mb-1.5">Categoría</label>
+              <select id="sku-category" class="px-4 py-2 sk-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <option value="all">Todas</option>
+                <option value="MOTOR">Motor</option>
+                <option value="TRANSMISION">Transmisión</option>
+                <option value="FRENOS">Frenos</option>
+                <option value="SUSPENSION">Suspensión</option>
+                <option value="ELECTRICO">Eléctrico</option>
+                <option value="CARROCERIA">Carrocería</option>
+                <option value="INTERIOR">Interior</option>
+                <option value="FILTROS">Filtros</option>
+                <option value="ACEITES">Aceites</option>
+                <option value="NEUMATICOS">Neumáticos</option>
+                <option value="OTROS">Otros</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium sk-label mb-1.5">Estado</label>
+              <select id="sku-status" class="px-4 py-2 sk-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <option value="all">Todos</option>
+                <option value="pending">Pendiente</option>
+                <option value="printed">Impreso</option>
+                <option value="applied">Aplicado</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+              <div class="flex gap-2">
+                <button type="button" id="sku-apply" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">Buscar</button>
+                <button type="button" id="sku-clear" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">Limpiar</button>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center pt-4 border-t sk-toolbar-divider">
+            <button type="button" id="sku-sel-page" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm" title="Seleccionar todos los SKUs de la página">Seleccionar página</button>
+            <button type="button" id="sku-sel-clear" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm" title="Limpiar selección">Limpiar selección</button>
+            <button type="button" id="sku-bulk-printed" class="sk-btn-primary px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm" title="Marcar seleccionados como impresos">Marcar impresos (<span id="sku-sel-count">0</span>)</button>
+            <button type="button" id="sku-bulk-applied" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm" title="Marcar seleccionados como aplicados">Marcar aplicados</button>
+          </div>
+        </div>
 
-                    ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
-                    ui.btnClear.onclick = () => { ui.qSearch.value=''; ui.qCategory.value='all'; ui.qStatus.value='all'; state.page=1; applyFilters(); };
-                    ui.pgPrev.onclick = () => { if (state.page>1){ state.page--; loadPage(); } };
-                    ui.pgNext.onclick = () => { if (state.page<state.totalPages){ state.page++; loadPage(); } };
+        <div id="loading" class="hidden text-center py-10">
+          <div class="spinner"></div>
+          <p class="sk-muted mt-4">Cargando SKUs...</p>
+        </div>
 
-                    // Refresh stats & list
-                    if (ui.btnRefresh) ui.btnRefresh.onclick = () => { loadStats(); loadPage(); };
+        <div id="sku-list" class="sk-list-shell rounded-xl shadow-lg overflow-hidden"></div>
+        <div id="sku-pager" class="hidden flex justify-end items-center gap-2 mt-4">
+          <button type="button" id="pg-prev" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">◀ Anterior</button>
+          <div class="text-sm sk-muted min-w-[120px] text-center" id="pg-info">Página 1/1</div>
+          <button type="button" id="pg-next" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">Siguiente ▶</button>
+        </div>
+      </div>
+    </section>
+  </main>
 
-                    // Selection actions
-                    if (ui.btnSelPage) ui.btnSelPage.onclick = () => selectCurrentPage();
-                    if (ui.btnSelClear) ui.btnSelClear.onclick = () => clearSelection();
-                    if (ui.btnBulkPrinted) ui.btnBulkPrinted.onclick = () => bulkMarkPrinted();
-                    if (ui.btnBulkApplied) ui.btnBulkApplied.onclick = () => bulkMarkApplied();
+  <script>
+    const ui = {};
+    const state = { page: 1, limit: 25, search: '', category: 'all', status: 'all', totalPages: 1 };
+    const selected = new Set();
 
-                    loadStats();
-                    loadPage();
-                });
+    document.addEventListener('DOMContentLoaded', function() {
+      ui.loading = document.getElementById('loading');
+      ui.list = document.getElementById('sku-list');
+      ui.pager = document.getElementById('sku-pager');
+      ui.pgPrev = document.getElementById('pg-prev');
+      ui.pgNext = document.getElementById('pg-next');
+      ui.pgInfo = document.getElementById('pg-info');
+      ui.btnRefresh = document.getElementById('btn-refresh');
 
-                async function loadStats(){
-                    try{
-                        const r = await API.skus.stats();
-                        updateStats(r.total||{});
-                    }catch(e){ console.warn('stats error', e.message); }
-                }
+      ui.qSearch = document.getElementById('sku-search');
+      ui.qCategory = document.getElementById('sku-category');
+      ui.qStatus = document.getElementById('sku-status');
+      ui.btnApply = document.getElementById('sku-apply');
+      ui.btnClear = document.getElementById('sku-clear');
 
-                function paramsToQuery(){
-                    // Mostrar primero pendientes: sort por printStatus asc (pending<printed<applied) y luego por createdAt desc
-                    const q = { page: state.page, limit: state.limit, sortBy: 'printStatus,createdAt', sortOrder: 'asc,desc' };
-                    if (state.search && state.search.trim()) q.search = state.search.trim();
-                    if (state.category && state.category!=='all') q.category = state.category;
-                    if (state.status && state.status!=='all') q.printStatus = state.status;
-                    return q;
-                }
+      ui.btnSelPage = document.getElementById('sku-sel-page');
+      ui.btnSelClear = document.getElementById('sku-sel-clear');
+      ui.btnBulkPrinted = document.getElementById('sku-bulk-printed');
+      ui.btnBulkApplied = document.getElementById('sku-bulk-applied');
+      ui.selCount = document.getElementById('sku-sel-count');
 
-                function applyFilters(){
-                    state.search = (ui.qSearch.value||'').trim();
-                    state.category = ui.qCategory.value;
-                    state.status = ui.qStatus.value;
-                    loadPage();
-                }
+      ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
+      ui.btnClear.onclick = () => { ui.qSearch.value=''; ui.qCategory.value='all'; ui.qStatus.value='all'; state.page=1; applyFilters(); };
+      ui.pgPrev.onclick = () => { if (state.page>1){ state.page--; loadPage(); } };
+      ui.pgNext.onclick = () => { if (state.page<state.totalPages){ state.page++; loadPage(); } };
 
-                function skuStatusPill(status, pendingStickers){
-                    const map = { pending: ['status-pending','⏳ Pendiente'], printed: ['status-printed','🖨️ Impreso'], applied: ['status-applied','✅ Aplicado'] };
-                    const m = map[status] || ['status-pending','Pendiente'];
-                    const pending = Number(pendingStickers||0);
-            const badge = (status==='pending' && pending>0) ? `<span class="ml-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full px-2 py-0.5 text-xs">🖨 ${pending} pendientes</span>` : '';
-            return `<span class="sku-status ${m[0]} px-2 py-1 rounded-full text-xs font-semibold" title="${m[1]}">${m[1]}</span>${badge}`;
-                }
+      if (ui.btnRefresh) ui.btnRefresh.onclick = () => { loadStats(); loadPage(); };
 
-                function rowActions(sku){
-                    const btns = [];
-            if (sku.printStatus === 'pending') btns.push(`<button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 text-sm font-semibold" data-print="${sku._id}" title="Marcar como impreso">🖨️</button>`);
-            if (sku.printStatus === 'printed') btns.push(`<button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-200 text-sm font-semibold" data-apply="${sku._id}" title="Marcar como aplicado">✅</button>`);
-            btns.push(`<button class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white rounded-lg transition-all duration-200 text-sm font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-notes="${sku._id}" title="Editar notas">✏️</button>`);
-                    return btns.join(' ');
-                }
+      if (ui.btnSelPage) ui.btnSelPage.onclick = () => selectCurrentPage();
+      if (ui.btnSelClear) ui.btnSelClear.onclick = () => clearSelection();
+      if (ui.btnBulkPrinted) ui.btnBulkPrinted.onclick = () => bulkMarkPrinted();
+      if (ui.btnBulkApplied) ui.btnBulkApplied.onclick = () => bulkMarkApplied();
 
-                async function loadPage(){
-            ui.loading.classList.remove('hidden');
-                    ui.list.innerHTML = '';
-            ui.pager.classList.add('hidden');
-                    try{
-                        const q = paramsToQuery();
-                        const data = await API.skus.list(q);
-                        const skus = Array.isArray(data?.skus) ? data.skus : (Array.isArray(data?.skus?.skus) ? data.skus.skus : (data?.skus || []));
-                        const pg = data?.pagination || data?.pg || { current: 1, pages: 1, total: skus.length, limit: state.limit };
-                        state.totalPages = Math.max(1, parseInt(pg.pages||1));
-                        state.page = Math.max(1, Math.min(state.totalPages, parseInt(pg.current||1)));
+      loadStats();
+      loadPage();
+    });
 
-                        ui.list.innerHTML = skus.map(sku => `
-                    <div class="px-5 py-4 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 flex flex-col md:flex-row gap-3 md:gap-4 items-start md:items-center hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100 transition-colors duration-200">
-                                <input type="checkbox" class="sku-select" data-id="${sku._id}" ${selected.has(String(sku._id)) ? 'checked' : ''} />
-                        <div class="flex-1 min-w-0">
-                            <div class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg mb-1">${sku.code}</div>
-                            <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${sku.description || ''}</div>
-                            <div class="flex flex-wrap gap-3 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
-                                        <span>📅 ${sku.createdAt ? new Date(sku.createdAt).toLocaleDateString('es-ES') : ''}</span>
-                                        ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
-                                        ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
-                                    </div>
-                            <div class="mt-2 p-2 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
-                                </div>
-                        <div class="flex items-center gap-2">
-                                ${skuStatusPill(sku.printStatus, sku.pendingStickers)}
-                            <div class="flex gap-2">${rowActions(sku)}</div>
-                        </div>
-                            </div>
-                        `).join('');
+    async function loadStats(){
+      try{
+        const r = await API.skus.stats();
+        updateStats(r.total||{});
+      }catch(e){ console.warn('stats error', e.message); }
+    }
 
-                        // Wire actions
-                        // Selection toggle
-                        ui.list.querySelectorAll('.sku-select').forEach(cb => cb.addEventListener('change', (e) => {
-                            const id = e.currentTarget.getAttribute('data-id');
-                            if (e.currentTarget.checked) selected.add(String(id)); else selected.delete(String(id));
-                            updateSelectionCount();
-                        }));
-                        ui.list.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', async (e) => {
-                            const id = e.currentTarget.getAttribute('data-print');
-                            await API.skus.markAsPrinted(id); loadStats(); loadPage();
-                        }));
-                        ui.list.querySelectorAll('[data-apply]').forEach(b => b.addEventListener('click', async (e) => {
-                            const id = e.currentTarget.getAttribute('data-apply');
-                            await API.skus.markAsApplied(id); loadStats(); loadPage();
-                        }));
-                        ui.list.querySelectorAll('[data-notes]').forEach(b => b.addEventListener('click', (e) => {
-                            const id = e.currentTarget.getAttribute('data-notes');
-                            openNotesModal(id);
-                        }));
+    function paramsToQuery(){
+      const q = { page: state.page, limit: state.limit, sortBy: 'printStatus,createdAt', sortOrder: 'asc,desc' };
+      if (state.search && state.search.trim()) q.search = state.search.trim();
+      if (state.category && state.category!=='all') q.category = state.category;
+      if (state.status && state.status!=='all') q.printStatus = state.status;
+      return q;
+    }
 
-                        // Pager
-                        ui.pgInfo.textContent = `Página ${state.page} / ${state.totalPages}`;
-                        ui.pgPrev.disabled = state.page <= 1;
-                        ui.pgNext.disabled = state.page >= state.totalPages;
-                ui.pager.classList.toggle('hidden', state.totalPages <= 1);
-                    }catch(err){
-                        showNotification('Error cargando SKUs: '+err.message, 'error');
-                    }finally{
-                ui.loading.classList.add('hidden');
-                    }
-                }
+    function applyFilters(){
+      state.search = (ui.qSearch.value||'').trim();
+      state.category = ui.qCategory.value;
+      state.status = ui.qStatus.value;
+      loadPage();
+    }
 
-                function updateSelectionCount(){ if (ui.selCount) ui.selCount.textContent = String(selected.size); }
-                function clearSelection(){ selected.clear(); updateSelectionCount(); if (ui.list){ ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = false; }); } }
-                function selectCurrentPage(){ if(!ui.list) return; ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = true; const id = cb.getAttribute('data-id'); selected.add(String(id)); }); updateSelectionCount(); }
+    function skuStatusPill(status, pendingStickers){
+      const map = { pending: ['status-pending','⏳ Pendiente'], printed: ['status-printed','🖨️ Impreso'], applied: ['status-applied','✅ Aplicado'] };
+      const m = map[status] || ['status-pending','Pendiente'];
+      const pending = Number(pendingStickers||0);
+      const badge = (status==='pending' && pending>0) ? `<span class="ml-1.5 sk-badge-amber rounded-full px-2 py-0.5 text-xs">🖨 ${pending} pendientes</span>` : '';
+      return `<span class="sku-status ${m[0]} px-2 py-1 rounded-full text-xs font-semibold" title="${m[1]}">${m[1]}</span>${badge}`;
+    }
 
-                async function bulkMarkPrinted(){
-                    if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
-                    const ids = Array.from(selected);
-                    ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = true);
-                    try{
-                        // Nuevo endpoint bulk (optimizado)
-                        const base = window.API?.base || '';
-                        const token = window.API?.token?.get?.();
-                        const res = await fetch(`${base}/api/v1/skus/bulk/print`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
-                        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
-                        if(!res.ok) throw new Error(data?.error || res.statusText);
-                        const { matched=0, modified=0 } = data || {};
-                        showNotification(`Marcados como impresos: ${modified}/${matched}.`, 'success');
-                        clearSelection();
-                        await loadStats();
-                        await loadPage();
-                    }finally{
-                        ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = false);
-                    }
-                }
+    function rowActions(sku){
+      const btns = [];
+      if (sku.printStatus === 'pending') btns.push(`<button type="button" class="px-3 py-1.5 sk-btn-primary rounded-lg transition-all duration-200 text-sm font-semibold" data-print="${sku._id}" title="Marcar como impreso">🖨️</button>`);
+      if (sku.printStatus === 'printed') btns.push(`<button type="button" class="px-3 py-1.5 sk-btn-green rounded-lg transition-all duration-200 text-sm font-semibold" data-apply="${sku._id}" title="Marcar como aplicado">✅</button>`);
+      btns.push(`<button type="button" class="px-3 py-1.5 sk-btn-secondary rounded-lg transition-all duration-200 text-sm font-semibold" data-notes="${sku._id}" title="Editar notas">✏️</button>`);
+      return btns.join(' ');
+    }
 
-                async function bulkMarkApplied(){
-                    if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
-                    const ids = Array.from(selected);
-                    ui.btnBulkApplied && (ui.btnBulkApplied.disabled = true);
-                    try{
-                        const base = window.API?.base || '';
-                        const token = window.API?.token?.get?.();
-                        const res = await fetch(`${base}/api/v1/skus/bulk/apply`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
-                        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
-                        if(!res.ok) throw new Error(data?.error || res.statusText);
-                        const { matched=0, modified=0 } = data || {};
-                        showNotification(`Marcados como aplicados: ${modified}/${matched}.`, 'success');
-                        clearSelection();
-                        await loadStats();
-                        await loadPage();
-                    }finally{
-                        ui.btnBulkApplied && (ui.btnBulkApplied.disabled = false);
-                    }
-                }
+    async function loadPage(){
+      ui.loading.classList.remove('hidden');
+      ui.list.innerHTML = '';
+      ui.pager.classList.add('hidden');
+      try{
+        const q = paramsToQuery();
+        const data = await API.skus.list(q);
+        const skus = Array.isArray(data?.skus) ? data.skus : (Array.isArray(data?.skus?.skus) ? data.skus.skus : (data?.skus || []));
+        const pg = data?.pagination || data?.pg || { current: 1, pages: 1, total: skus.length, limit: state.limit };
+        state.totalPages = Math.max(1, parseInt(pg.pages||1));
+        state.page = Math.max(1, Math.min(state.totalPages, parseInt(pg.current||1)));
 
-        // Actualizar estadísticas
-        function updateStats(stats) {
-            document.getElementById('total-skus').textContent = stats.total || 0;
-            document.getElementById('pending-skus').textContent = stats.pending || 0;
-            document.getElementById('printed-skus').textContent = stats.printed || 0;
-            document.getElementById('applied-skus').textContent = stats.applied || 0;
-        }
-                // Modal Notas
-                function openNotesModal(id){
-                    const span = document.getElementById('n-'+id);
-                    const current = span ? span.textContent : '';
-                    const modal = document.getElementById('modal');
-                    const body = document.getElementById('modalBody');
-                    const close = document.getElementById('modalClose');
-                    if(!modal||!body||!close){ return alert('Modal no disponible'); }
-                    body.innerHTML = `
-                <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Notas del SKU</h3>
-                <textarea id="sku-notes-text" rows="6" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y">${current.replace(/</g,'&lt;')}</textarea>
-                <div class="flex justify-end gap-2 mt-4">
-                    <button id="notes-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
-                    <button id="notes-save" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
-                        </div>`;
-                    modal.classList.remove('hidden');
-                    document.body.classList.add('modal-open');
-                    const closeAll = () => { modal.classList.add('hidden'); body.innerHTML=''; document.body.classList.remove('modal-open'); };
-                    close.onclick = closeAll;
-                    document.getElementById('notes-cancel').onclick = closeAll;
-                    document.getElementById('notes-save').onclick = async () => {
-                        try{
-                            const value = document.getElementById('sku-notes-text').value || '';
-                            await API.skus.updateNotes(id, value);
-                            if (span) span.textContent = value;
-                            showNotification('Notas actualizadas', 'success');
-                            closeAll();
-                        }catch(e){ showNotification('No se pudieron actualizar las notas: '+e.message, 'error'); }
-                    };
-                }
+        ui.list.innerHTML = skus.map(sku => `
+          <div class="sk-list-row px-5 py-4 flex flex-col md:flex-row gap-3 md:gap-4 items-start md:items-center transition-colors duration-200">
+            <input type="checkbox" class="sku-select" data-id="${sku._id}" ${selected.has(String(sku._id)) ? 'checked' : ''} />
+            <div class="flex-1 min-w-0">
+              <div class="font-bold sk-text text-lg mb-1">${sku.code}</div>
+              <div class="text-sm sk-muted mb-2">${sku.description || ''}</div>
+              <div class="flex flex-wrap gap-3 text-xs sk-muted mb-2">
+                <span>📅 ${sku.createdAt ? new Date(sku.createdAt).toLocaleDateString('es-ES') : ''}</span>
+                ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
+                ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
+              </div>
+              <div class="mt-2 p-2 sk-notes-box rounded text-sm">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
+            </div>
+            <div class="flex items-center gap-2">
+              ${skuStatusPill(sku.printStatus, sku.pendingStickers)}
+              <div class="flex gap-2">${rowActions(sku)}</div>
+            </div>
+          </div>
+        `).join('');
 
-        // Mostrar notificación
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            document.body.appendChild(notification);
+        ui.list.querySelectorAll('.sku-select').forEach(cb => cb.addEventListener('change', (e) => {
+          const id = e.currentTarget.getAttribute('data-id');
+          if (e.currentTarget.checked) selected.add(String(id)); else selected.delete(String(id));
+          updateSelectionCount();
+        }));
+        ui.list.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', async (e) => {
+          const id = e.currentTarget.getAttribute('data-print');
+          await API.skus.markAsPrinted(id); loadStats(); loadPage();
+        }));
+        ui.list.querySelectorAll('[data-apply]').forEach(b => b.addEventListener('click', async (e) => {
+          const id = e.currentTarget.getAttribute('data-apply');
+          await API.skus.markAsApplied(id); loadStats(); loadPage();
+        }));
+        ui.list.querySelectorAll('[data-notes]').forEach(b => b.addEventListener('click', (e) => {
+          const id = e.currentTarget.getAttribute('data-notes');
+          openNotesModal(id);
+        }));
 
-            setTimeout(() => notification.classList.add('show'), 100);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
+        ui.pgInfo.textContent = `Página ${state.page} / ${state.totalPages}`;
+        ui.pgPrev.disabled = state.page <= 1;
+        ui.pgNext.disabled = state.page >= state.totalPages;
+        ui.pager.classList.toggle('hidden', state.totalPages <= 1);
+      }catch(err){
+        showNotification('Error cargando SKUs: '+err.message, 'error');
+      }finally{
+        ui.loading.classList.add('hidden');
+      }
+    }
 
-        // Impresión movida a Inventario
-        async function printStickers() { showNotification('Imprimir stickers: usa las acciones en Inventario.', 'info'); }
-    </script>
-    <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
-    <script src="./assets/js/admin-context.js"></script>
-    <script src="./assets/js/input-fix.js"></script>
-    <script>
-        // Menú móvil y navegación
-        document.addEventListener('DOMContentLoaded', () => {
-            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-            const mobileMenu = document.getElementById('mobileMenu');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const logoutBtnMobile = document.getElementById('logoutBtnMobile');
-            const companyName = document.getElementById('companyName');
-            const companyNameMobile = document.getElementById('companyNameMobile');
+    function updateSelectionCount(){ if (ui.selCount) ui.selCount.textContent = String(selected.size); }
+    function clearSelection(){ selected.clear(); updateSelectionCount(); if (ui.list){ ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = false; }); } }
+    function selectCurrentPage(){ if(!ui.list) return; ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = true; const id = cb.getAttribute('data-id'); selected.add(String(id)); }); updateSelectionCount(); }
 
-            // Sincronizar nombre de empresa en móvil
-            if (companyName && companyNameMobile) {
-                const observer = new MutationObserver(() => {
-                    companyNameMobile.textContent = companyName.textContent;
-                });
-                observer.observe(companyName, { childList: true, characterData: true, subtree: true });
-                companyNameMobile.textContent = companyName.textContent;
-            }
+    async function bulkMarkPrinted(){
+      if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
+      const ids = Array.from(selected);
+      ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = true);
+      try{
+        const base = window.API?.base || '';
+        const token = window.API?.token?.get?.();
+        const res = await fetch(`${base}/api/v1/skus/bulk/print`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
+        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+        if(!res.ok) throw new Error(data?.error || res.statusText);
+        const { matched=0, modified=0 } = data || {};
+        showNotification(`Marcados como impresos: ${modified}/${matched}.`, 'success');
+        clearSelection();
+        await loadStats();
+        await loadPage();
+      }finally{
+        ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = false);
+      }
+    }
 
-            // Sincronizar botón de logout
-            if (logoutBtn && logoutBtnMobile) {
-                logoutBtnMobile.addEventListener('click', () => {
-                    if (logoutBtn.onclick) logoutBtn.onclick();
-                    else logoutBtn.click();
-                });
-                
-                const logoutObserver = new MutationObserver(() => {
-                    logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
-                });
-                logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
-                logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
-            }
+    async function bulkMarkApplied(){
+      if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
+      const ids = Array.from(selected);
+      ui.btnBulkApplied && (ui.btnBulkApplied.disabled = true);
+      try{
+        const base = window.API?.base || '';
+        const token = window.API?.token?.get?.();
+        const res = await fetch(`${base}/api/v1/skus/bulk/apply`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
+        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+        if(!res.ok) throw new Error(data?.error || res.statusText);
+        const { matched=0, modified=0 } = data || {};
+        showNotification(`Marcados como aplicados: ${modified}/${matched}.`, 'success');
+        clearSelection();
+        await loadStats();
+        await loadPage();
+      }finally{
+        ui.btnBulkApplied && (ui.btnBulkApplied.disabled = false);
+      }
+    }
 
-            // Toggle menú móvil
-            if (mobileMenuToggle && mobileMenu) {
-                mobileMenuToggle.addEventListener('click', () => {
-                    mobileMenu.classList.toggle('hidden');
-                    const icon = mobileMenuToggle.querySelector('svg');
-                    if (icon) {
-                        if (mobileMenu.classList.contains('hidden')) {
-                            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
-                        } else {
-                            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
-                        }
-                    }
-                });
+    function updateStats(stats) {
+      document.getElementById('total-skus').textContent = stats.total || 0;
+      document.getElementById('pending-skus').textContent = stats.pending || 0;
+      document.getElementById('printed-skus').textContent = stats.printed || 0;
+      document.getElementById('applied-skus').textContent = stats.applied || 0;
+    }
 
-                // Cerrar menú al hacer clic en un enlace
-                mobileMenu.querySelectorAll('.mobile-nav-tab').forEach(link => {
-                    link.addEventListener('click', () => {
-                        mobileMenu.classList.add('hidden');
-                        const icon = mobileMenuToggle.querySelector('svg');
-                        if (icon) {
-                            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
-                        }
-                    });
-                });
-            }
-            
-            // Manejar navegación activa
-            const currentPage = document.body.getAttribute('data-page');
-            document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
-                if (tab.getAttribute('data-tab') === currentPage) {
-                    tab.classList.add('active');
-                }
-            });
+    function openNotesModal(id){
+      const span = document.getElementById('n-'+id);
+      const current = span ? span.textContent : '';
+      const modal = document.getElementById('modal');
+      const body = document.getElementById('modalBody');
+      const close = document.getElementById('modalClose');
+      if(!modal||!body||!close){ return alert('Modal no disponible'); }
+      body.innerHTML = `
+        <h3 class="text-xl font-bold sk-text mb-4">Notas del SKU</h3>
+        <textarea id="sku-notes-text" rows="6" class="w-full px-4 py-3 sk-field-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y">${current.replace(/</g,'&lt;')}</textarea>
+        <div class="flex justify-end gap-2 mt-4">
+          <button type="button" id="notes-cancel" class="sk-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
+          <button type="button" id="notes-save" class="sk-btn-primary px-4 py-2 font-semibold rounded-lg transition-all duration-200">Guardar</button>
+        </div>`;
+      modal.classList.remove('hidden');
+      document.body.classList.add('modal-open');
+      const closeAll = () => { modal.classList.add('hidden'); body.innerHTML=''; document.body.classList.remove('modal-open'); };
+      close.onclick = closeAll;
+      document.getElementById('notes-cancel').onclick = closeAll;
+      document.getElementById('notes-save').onclick = async () => {
+        try{
+          const value = document.getElementById('sku-notes-text').value || '';
+          await API.skus.updateNotes(id, value);
+          if (span) span.textContent = value;
+          showNotification('Notas actualizadas', 'success');
+          closeAll();
+        }catch(e){ showNotification('No se pudieron actualizar las notas: '+e.message, 'error'); }
+      };
+    }
 
-            // Manejar clicks en botones de navegación
-            document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const href = btn.getAttribute('data-href');
-                    if (href && href !== window.location.pathname.split('/').pop()) {
-                        window.location.href = href;
-                    }
-                });
-            });
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+
+      setTimeout(() => notification.classList.add('show'), 100);
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    }
+
+    async function printStickers() { showNotification('Imprimir stickers: usa las acciones en Inventario.', 'info'); }
+  </script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script src="./assets/js/admin-context.js"></script>
+  <script src="./assets/js/input-fix.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
         });
-        
-        // Botón del catálogo
-        document.addEventListener('DOMContentLoaded', () => {
-            const btn = document.getElementById('openPublicCatalog');
-            if(!btn) return;
-            const API = window.API || {};
-            const token = API?.token?.get?.() || '';
-            if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
-            (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
-                .then(body => {
-                    const company = body?.company || body || {};
-                    const storedId = API?.companyId?.get?.() || '';
-                    const companyId = company.id || company._id || storedId || '';
-                    const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-                    if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-                    if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-                    btn.dataset.state='ready';
-                    btn.onclick = () => {
-                        const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-                        window.open(url, '_blank');
-                    };
-                })
-                .catch(()=>{
-                    const storedId = API?.companyId?.get?.() || '';
-                    if(storedId){
-                        btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-                        btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
-                    } else {
-                        btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
-                    }
-                });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
         });
-    </script>
+
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        mobileMenu.querySelectorAll('.mobile-nav-tab').forEach(link => {
+          link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
+        });
+      }
+
+      const currentPage = document.body.getAttribute('data-page');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
+        if (tab.getAttribute('data-tab') === currentPage) {
+          tab.classList.add('active');
+        }
+      });
+
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const href = btn.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+
+    function setupCatalogButton() {
+      const btns = document.querySelectorAll('.js-open-public-catalog');
+      if (!btns.length) return;
+      const API = window.API;
+      if (!API || !API.token || !API.token.get) {
+        setTimeout(setupCatalogButton, 100);
+        return;
+      }
+      const applyReady = (companyId, enabled) => {
+        btns.forEach(btn => {
+          if (!companyId) { btn.disabled = true; btn.title = 'No se pudo obtener companyId'; return; }
+          if (!enabled) { btn.disabled = true; btn.title = 'Catálogo público deshabilitado'; btn.dataset.state = 'disabled'; return; }
+          btn.dataset.state = 'ready';
+          btn.disabled = false;
+          btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+        });
+      };
+      const applyNoAuth = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Inicia sesión para usar el catálogo'; });
+      };
+      const applyError = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Error consultando empresa'; btn.dataset.state = 'error'; });
+      };
+      const token = API.token.get() || '';
+      if (!token) { applyNoAuth(); return; }
+      (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
+        .then(body => {
+          const company = body?.company || body || {};
+          const storedId = API?.companyId?.get?.() || '';
+          const companyId = company.id || company._id || storedId || '';
+          const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
+          applyReady(companyId, enabled);
+        })
+        .catch(() => {
+          const storedId = API?.companyId?.get?.() || '';
+          if (storedId) {
+            btns.forEach(btn => {
+              btn.dataset.state = 'ready'; btn.title = ''; btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            });
+          } else {
+            applyError();
+          }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', setupCatalogButton);
+    if (document.readyState !== 'loading') setupCatalogButton();
+  </script>
 </body>
 </html>
