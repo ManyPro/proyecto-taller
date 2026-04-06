@@ -61,6 +61,15 @@
     body[data-page="precios"] #tab-precios tbody tr:hover {
       background: rgba(59, 130, 246, 0.08);
     }
+    /* Texto de filas: no usar text-white en tbody (theme-light: a veces no existe en el CSS de Tailwind) */
+    body[data-page="precios"] #pe-body-general,
+    body[data-page="precios"] #pe-body-inversion {
+      color: #e2e8f0;
+    }
+    body.theme-light[data-page="precios"] #pe-body-general,
+    body.theme-light[data-page="precios"] #pe-body-inversion {
+      color: #0f172a;
+    }
     body[data-page="precios"] .pr-iteminfo-title {
       font-weight: 700;
       font-size: 0.75rem;
@@ -480,7 +489,7 @@
               <div class="overflow-x-auto custom-scrollbar">
                 <table class="w-full text-sm mobile-as-cards pr-table" id="pe-table-general">
                   <thead id="pe-head-general" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100"></thead>
-                  <tbody id="pe-body-general" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                  <tbody id="pe-body-general"></tbody>
                 </table>
               </div>
               <div id="pe-pagination-general" class="mt-4"></div>
@@ -513,7 +522,7 @@
               <div class="overflow-x-auto custom-scrollbar">
                 <table class="w-full text-sm mobile-as-cards pr-table" id="pe-table-inversion">
                   <thead id="pe-head-inversion" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100"></thead>
-                  <tbody id="pe-body-inversion" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                  <tbody id="pe-body-inversion"></tbody>
                 </table>
               </div>
               <div id="pe-pagination-inversion" class="mt-4"></div>
