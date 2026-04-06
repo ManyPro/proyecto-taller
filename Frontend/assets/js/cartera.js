@@ -45,20 +45,14 @@ async function initCartera() {
     if (navCartera && navEmpresas && viewCartera && viewEmpresas) {
       navCartera.addEventListener('click', () => {
         navCartera.classList.add('active');
-        navCartera.classList.remove('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
-        navCartera.classList.add('text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
-        navEmpresas.classList.remove('active', 'text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
-        navEmpresas.classList.add('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
+        navEmpresas.classList.remove('active');
         viewCartera.classList.remove('hidden');
         viewEmpresas.classList.add('hidden');
       });
-      
+
       navEmpresas.addEventListener('click', () => {
         navEmpresas.classList.add('active');
-        navEmpresas.classList.remove('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
-        navEmpresas.classList.add('text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
-        navCartera.classList.remove('active', 'text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
-        navCartera.classList.add('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
+        navCartera.classList.remove('active');
         viewEmpresas.classList.remove('hidden');
         viewCartera.classList.add('hidden');
       });
@@ -131,7 +125,7 @@ function renderCompanies() {
     tbody.innerHTML = `
       <tr>
         <td colspan="6" class="px-4 py-8 text-center">
-          <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">No hay empresas registradas</div>
+          <div class="cr-table-empty mb-2">No hay empresas registradas</div>
           <button onclick="showCompanyModal()" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg transition-all duration-200 text-sm">
             + Crear primera empresa
           </button>
@@ -167,10 +161,10 @@ function renderCompanies() {
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Placas">
         ${company.type === 'recurrente' && company.plates && company.plates.length > 0 
-          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.slice(0, 3).map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono text-white dark:text-white theme-light:text-slate-900">${escapeHtml(p)}</span>`).join('')}</div>${company.plates.length > 3 ? `<div class="text-xs text-slate-400">+${company.plates.length - 3} más</div>` : `<div class="text-xs text-slate-400">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`}`
+          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.slice(0, 3).map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono text-white dark:text-white theme-light:text-slate-900">${escapeHtml(p)}</span>`).join('')}</div>${company.plates.length > 3 ? `<div class="text-xs cr-muted">+${company.plates.length - 3} más</div>` : `<div class="text-xs cr-muted">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`}`
           : company.type === 'recurrente' 
-            ? '<span class="text-slate-400 text-xs">Sin placas</span>'
-            : '<span class="text-slate-400 text-xs">-</span>'}
+            ? '<span class="cr-muted text-xs">Sin placas</span>'
+            : '<span class="cr-muted text-xs">-</span>'}
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Estado">
         <span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">${statusLabel}</span>
@@ -587,16 +581,16 @@ window.viewCompanyHistory = async function(companyId) {
                   <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
                 </tr>
               </thead>
-              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+              <tbody class="cr-modal-tbody">
                 ${salesList.slice(0, 20).map(sale => `
-                  <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
-                    <td class="px-3 py-2 font-mono">${String(sale.number || '').padStart(5, '0')}</td>
-                    <td class="px-3 py-2">${formatDate(sale.closedAt || sale.createdAt)}</td>
+                  <tr>
+                    <td class="px-3 py-2 font-mono cr-td-meta">${String(sale.number || '').padStart(5, '0')}</td>
+                    <td class="px-3 py-2 cr-td-meta">${formatDate(sale.closedAt || sale.createdAt)}</td>
                     <td class="px-3 py-2 font-mono">${escapeHtml(sale.vehicle?.plate || '—')}</td>
                     <td class="px-3 py-2 text-right font-semibold">${formatMoney(sale.total || 0)}</td>
                   </tr>
                 `).join('')}
-                ${salesList.length === 0 ? '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">No hay ventas registradas</td></tr>' : ''}
+                ${salesList.length === 0 ? '<tr><td colspan="4" class="px-3 py-4 text-center cr-table-empty">No hay ventas registradas</td></tr>' : ''}
               </tbody>
             </table>
           </div>
@@ -617,29 +611,26 @@ window.viewCompanyHistory = async function(companyId) {
                   <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
                 </tr>
               </thead>
-              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+              <tbody class="cr-modal-tbody">
                 ${receivablesList.map(rec => {
-                  const statusColor = rec.status === 'paid' 
-                    ? 'bg-green-500/20 text-green-400'
-                    : rec.status === 'partial'
-                    ? 'bg-blue-500/20 text-blue-400'
-                    : 'bg-yellow-500/20 text-yellow-400';
+                  const st = rec.status || '';
+                  const badgeClass = st === 'paid' ? 'cr-status cr-status--paid' : st === 'partial' ? 'cr-status cr-status--partial' : 'cr-status cr-status--pending';
                   return `
-                    <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
-                      <td class="px-3 py-2 font-mono">${escapeHtml(rec.saleNumber || '—')}</td>
+                    <tr>
+                      <td class="px-3 py-2 font-mono cr-td-meta">${escapeHtml(rec.saleNumber || '—')}</td>
                       <td class="px-3 py-2 font-mono">${escapeHtml(rec.vehicle?.plate || '—')}</td>
                       <td class="px-3 py-2 text-right">${formatMoney(rec.totalAmount || 0)}</td>
-                      <td class="px-3 py-2 text-right text-green-400">${formatMoney(rec.paidAmount || 0)}</td>
-                      <td class="px-3 py-2 text-right font-semibold text-orange-400">${formatMoney(rec.balance || 0)}</td>
+                      <td class="px-3 py-2 text-right cr-money-paid">${formatMoney(rec.paidAmount || 0)}</td>
+                      <td class="px-3 py-2 text-right font-semibold cr-money-balance">${formatMoney(rec.balance || 0)}</td>
                       <td class="px-3 py-2">
-                        <span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">
-                          ${rec.status === 'paid' ? 'Pagada' : rec.status === 'partial' ? 'Parcial' : 'Pendiente'}
+                        <span class="${badgeClass}">
+                          ${st === 'paid' ? 'Pagada' : st === 'partial' ? 'Parcial' : 'Pendiente'}
                         </span>
                       </td>
                     </tr>
                   `;
                 }).join('')}
-                ${receivablesList.length === 0 ? '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">No hay cuentas por cobrar</td></tr>' : ''}
+                ${receivablesList.length === 0 ? '<tr><td colspan="6" class="px-3 py-4 text-center cr-table-empty">No hay cuentas por cobrar</td></tr>' : ''}
               </tbody>
             </table>
           </div>
@@ -653,12 +644,6 @@ window.viewCompanyHistory = async function(companyId) {
     showError('Error al cargar historial de empresa');
   }
 };
-
-function formatDate(date) {
-  if (!date) return '—';
-  const d = new Date(date);
-  return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
-}
 
 // ========== CUENTAS POR COBRAR ==========
 
@@ -692,55 +677,58 @@ function renderReceivables() {
   if (!tbody) return;
   
   if (receivables.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-4 text-center text-slate-400">No hay cuentas por cobrar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-4 text-center cr-table-empty">No hay cuentas por cobrar</td></tr>';
     return;
   }
-  
+
+  const statusClass = {
+    pending: 'cr-status cr-status--pending',
+    partial: 'cr-status cr-status--partial',
+    paid: 'cr-status cr-status--paid',
+    cancelled: 'cr-status cr-status--cancelled'
+  };
+
+  const statusLabels = {
+    pending: 'Pendiente',
+    partial: 'Parcial',
+    paid: 'Pagada',
+    cancelled: 'Cancelada'
+  };
+
   tbody.innerHTML = receivables.map(r => {
-    const statusColors = {
-      pending: 'bg-yellow-500/20 text-yellow-400',
-      partial: 'bg-blue-500/20 text-blue-400',
-      paid: 'bg-green-500/20 text-green-400',
-      cancelled: 'bg-red-500/20 text-red-400'
-    };
-    
-    const statusLabels = {
-      pending: 'Pendiente',
-      partial: 'Parcial',
-      paid: 'Pagada',
-      cancelled: 'Cancelada'
-    };
-    
+    const st = r.status || '';
+    const badgeClass = statusClass[st] || 'cr-status';
+    const balanceCls = (Number(r.balance) || 0) > 0 ? 'cr-balance-due' : 'cr-balance-clear';
     return `
-      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
-        <td class="px-2 sm:px-4 py-2" data-label="Fecha">${formatDate(r.createdAt)}</td>
-        <td class="px-2 sm:px-4 py-2" data-label="Remisión">#${r.saleNumber || 'N/A'}</td>
+      <tr>
+        <td class="px-2 sm:px-4 py-2 cr-td-meta" data-label="Fecha">${formatDate(r.createdAt)}</td>
+        <td class="px-2 sm:px-4 py-2 cr-td-meta font-mono" data-label="Remisión">#${r.saleNumber || 'N/A'}</td>
         <td class="px-2 sm:px-4 py-2" data-label="Cliente">
-          <div class="font-medium text-sm sm:text-base">${escapeHtml(r.customer?.name || 'Sin nombre')}</div>
-          ${r.customer?.idNumber ? `<div class="text-xs text-slate-400">${escapeHtml(r.customer.idNumber)}</div>` : ''}
+          <div class="cr-customer-name text-sm sm:text-base">${escapeHtml(r.customer?.name || 'Sin nombre')}</div>
+          ${r.customer?.idNumber ? `<div class="cr-customer-id">${escapeHtml(r.customer.idNumber)}</div>` : ''}
         </td>
         <td class="px-2 sm:px-4 py-2" data-label="Placa">
           <span class="font-mono text-sm">${escapeHtml(r.vehicle?.plate || 'N/A')}</span>
         </td>
         <td class="px-2 sm:px-4 py-2" data-label="Empresa">
-          ${r.companyAccountId?.name ? `<span class="text-xs sm:text-sm">${escapeHtml(r.companyAccountId.name)}</span>` : '<span class="text-slate-400 text-xs">-</span>'}
+          ${r.companyAccountId?.name ? `<span class="text-xs sm:text-sm">${escapeHtml(r.companyAccountId.name)}</span>` : '<span class="cr-muted text-xs">-</span>'}
         </td>
         <td class="px-2 sm:px-4 py-2 text-right" data-label="Total"><span class="text-sm sm:text-base">$${formatMoney(r.totalAmount || 0)}</span></td>
         <td class="px-2 sm:px-4 py-2 text-right" data-label="Pagado"><span class="text-sm sm:text-base">$${formatMoney(r.paidAmount || 0)}</span></td>
-        <td class="px-2 sm:px-4 py-2 text-right font-bold" data-label="Saldo">
-          <span class="text-sm sm:text-base ${r.balance > 0 ? 'text-orange-400' : 'text-green-400'}">$${formatMoney(r.balance || 0)}</span>
+        <td class="px-2 sm:px-4 py-2 text-right" data-label="Saldo">
+          <span class="text-sm sm:text-base ${balanceCls}">$${formatMoney(r.balance || 0)}</span>
         </td>
         <td class="px-2 sm:px-4 py-2" data-label="Estado">
-          <span class="px-2 py-1 rounded text-xs ${statusColors[r.status] || ''}">${statusLabels[r.status] || r.status}</span>
+          <span class="${badgeClass}">${statusLabels[st] || st}</span>
         </td>
         <td class="px-2 sm:px-4 py-2" data-label="Acciones">
-          <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
+          <div class="flex flex-col sm:flex-row gap-1 sm:gap-2 justify-center sm:justify-start">
             ${r.status !== 'paid' && r.status !== 'cancelled' ? `
-              <button onclick="showPaymentModal('${r._id}')" class="px-2 sm:px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors whitespace-nowrap">Pago</button>
+              <button type="button" onclick="showPaymentModal('${r._id}')" class="px-2 sm:px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors whitespace-nowrap">Pago</button>
             ` : ''}
-            <button onclick="showReceivableDetail('${r._id}')" class="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors whitespace-nowrap">Ver</button>
+            <button type="button" onclick="showReceivableDetail('${r._id}')" class="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors whitespace-nowrap">Ver</button>
             ${r.status !== 'paid' && r.status !== 'cancelled' ? `
-              <button onclick="cancelReceivable('${r._id}')" class="px-2 sm:px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors whitespace-nowrap">Cancelar</button>
+              <button type="button" onclick="cancelReceivable('${r._id}')" class="px-2 sm:px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors whitespace-nowrap">Cancelar</button>
             ` : ''}
           </div>
         </td>
@@ -793,7 +781,7 @@ window.showPaymentModal = async function(receivableId) {
       <div class="text-sm text-slate-400 mb-2">Remisión: <span class="text-white theme-light:text-slate-900 font-medium">#${receivable.saleNumber || 'N/A'}</span></div>
       <div class="text-sm text-slate-400 mb-2">Total: <span class="text-white theme-light:text-slate-900 font-medium">$${formatMoney(receivable.totalAmount || 0)}</span></div>
       <div class="text-sm text-slate-400 mb-2">Pagado: <span class="text-white theme-light:text-slate-900 font-medium">$${formatMoney(receivable.paidAmount || 0)}</span></div>
-      <div class="text-sm text-slate-400">Saldo pendiente: <span class="text-orange-400 font-bold">$${formatMoney(receivable.balance || 0)}</span></div>
+      <div class="text-sm text-slate-400">Saldo pendiente: <span class="cr-balance-due">$${formatMoney(receivable.balance || 0)}</span></div>
     </div>
     <form id="payment-form" class="space-y-4">
       <div>
@@ -897,7 +885,7 @@ window.showReceivableDetail = async function(receivableId) {
             <div><span class="text-slate-400">Placa:</span> <span class="text-white theme-light:text-slate-900 font-mono">${escapeHtml(receivable.vehicle?.plate || 'N/A')}</span></div>
             <div><span class="text-slate-400">Total:</span> <span class="text-white theme-light:text-slate-900 font-bold">$${formatMoney(receivable.totalAmount || 0)}</span></div>
             <div><span class="text-slate-400">Pagado:</span> <span class="text-white theme-light:text-slate-900">$${formatMoney(receivable.paidAmount || 0)}</span></div>
-            <div><span class="text-slate-400">Saldo:</span> <span class="text-orange-400 font-bold">$${formatMoney(receivable.balance || 0)}</span></div>
+            <div><span class="text-slate-400">Saldo:</span> <span class="cr-balance-due">$${formatMoney(receivable.balance || 0)}</span></div>
             <div><span class="text-slate-400">Estado:</span> <span class="text-white theme-light:text-slate-900">${receivable.status || 'N/A'}</span></div>
           </div>
         </div>
@@ -914,20 +902,20 @@ window.showReceivableDetail = async function(receivableId) {
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Notas</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody class="cr-modal-tbody">
                   ${receivable.payments.map(p => `
-                    <tr class="border-b border-slate-700/30">
-                      <td class="px-3 py-2 text-white theme-light:text-slate-900">${formatDate(p.paymentDate)}</td>
-                      <td class="px-3 py-2 text-white theme-light:text-slate-900 font-medium">$${formatMoney(p.amount || 0)}</td>
-                      <td class="px-3 py-2 text-white theme-light:text-slate-900">${escapeHtml(p.paymentMethod || '')}</td>
-                      <td class="px-3 py-2 text-white theme-light:text-slate-900">${escapeHtml(p.notes || '')}</td>
+                    <tr>
+                      <td class="px-3 py-2 cr-td-meta">${formatDate(p.paymentDate)}</td>
+                      <td class="px-3 py-2 font-medium">$${formatMoney(p.amount || 0)}</td>
+                      <td class="px-3 py-2">${escapeHtml(p.paymentMethod || '')}</td>
+                      <td class="px-3 py-2">${escapeHtml(p.notes || '')}</td>
                     </tr>
                   `).join('')}
                 </tbody>
               </table>
             </div>
           </div>
-        ` : '<p class="text-slate-400 text-sm">No hay pagos registrados</p>'}
+        ` : '<p class="cr-muted text-sm">No hay pagos registrados</p>'}
         <div class="flex gap-2 justify-end pt-4">
           <button onclick="document.getElementById('modal').classList.add('hidden')" 
             class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cerrar</button>
@@ -977,11 +965,67 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function showFeedbackModal({ type = 'success', title = '', message = '' }) {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  if (!modal || !modalBody) {
+    // Fallback defensivo si el modal no está disponible
+    alert(`${type === 'error' ? '❌' : '✅'} ${message}`);
+    return;
+  }
+
+  const isError = type === 'error';
+  const icon = isError ? '⚠️' : '✅';
+  const bgClass = isError
+    ? 'from-red-950/40 via-slate-900/50 to-slate-900/30 theme-light:from-red-50 theme-light:via-white theme-light:to-orange-50 border-red-500/35 theme-light:border-red-200'
+    : 'from-emerald-950/40 via-slate-900/50 to-slate-900/30 theme-light:from-emerald-50 theme-light:via-white theme-light:to-cyan-50 border-emerald-500/35 theme-light:border-emerald-200';
+  const buttonClass = isError
+    ? 'from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 theme-light:from-red-500 theme-light:to-red-600'
+    : 'from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 theme-light:from-emerald-500 theme-light:to-emerald-600';
+  const titleText = title || (isError ? 'No se pudo completar la acción' : 'Operación exitosa');
+
+  modalBody.innerHTML = `
+    <div class="max-w-2xl mx-auto">
+      <div class="rounded-2xl p-6 border bg-gradient-to-br ${bgClass}">
+        <div class="flex items-start gap-4">
+          <div class="text-3xl leading-none">${icon}</div>
+          <div class="flex-1">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">${escapeHtml(titleText)}</h3>
+            <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3 mb-0">${escapeHtml(message)}</p>
+          </div>
+        </div>
+        <div class="flex justify-end mt-6">
+          <button id="feedback-modal-ok" class="px-5 py-2.5 bg-gradient-to-r ${buttonClass} text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  const okBtn = document.getElementById('feedback-modal-ok');
+  if (okBtn) {
+    okBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+}
+
 function showError(message) {
-  alert(`❌ ${message}`);
+  showFeedbackModal({
+    type: 'error',
+    title: 'Error',
+    message: message || 'Ocurrió un error inesperado'
+  });
 }
 
 function showSuccess(message) {
-  alert(`✅ ${message}`);
+  const safeMessage = message || 'La operación se completó correctamente';
+  showFeedbackModal({
+    type: 'success',
+    title: /pago/i.test(safeMessage) ? 'Pago registrado' : 'Operación exitosa',
+    message: safeMessage
+  });
 }
 

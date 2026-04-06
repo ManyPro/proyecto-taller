@@ -4,179 +4,300 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Taller App - Cartera</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260340" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
   <script src="./assets/js/theme-engine.js"></script>
   <script src="./assets/js/modal-system.js"></script>
   <style>
-    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
-    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
-    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
-    }
-    body.theme-light [class*="bg-slate-800/50"],
-    body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(224, 242, 254, 0.9) !important;
-    }
-    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #e0f2fe !important;
-    }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-orange-600):not(.bg-orange-700) {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-300 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-400 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-500 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-600 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-700 {
-      color: #000000 !important;
-    }
-    body.theme-light .text-slate-800 {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #000000 !important;
-    }
-    body.theme-light #modal label,
-    body.theme-light #modal .text-slate-300,
-    body.theme-light #modal .text-slate-400,
-    body.theme-light #modal .text-slate-500,
-    body.theme-light #modal .text-slate-600,
-    body.theme-light #modal .text-slate-700,
-    body.theme-light #modal .text-slate-800,
-    body.theme-light #modal h1,
-    body.theme-light #modal h2,
-    body.theme-light #modal h3,
-    body.theme-light #modal h4,
-    body.theme-light #modal p,
-    body.theme-light #modal span,
-    body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
-      color: #000000 !important;
-    }
-    /* Mejorar contraste en selects y dropdowns */
-    body.theme-light select,
-    body.theme-light select option,
-    body.theme-light select.text-slate-300,
-    body.theme-light select.text-slate-400,
-    body.theme-light select.text-slate-500,
-    body.theme-light select.text-slate-600,
-    body.theme-light select.text-slate-700,
-    body.theme-light select.text-slate-800 {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    body.theme-light select option {
-      color: #000000 !important;
-      background-color: #ffffff !important;
-    }
-    /* Mejorar contraste en inputs dentro de modales */
-    body.theme-light #modal input,
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      color: #000000 !important;
-    }
-    body.theme-light #modal input::placeholder,
-    body.theme-light #modal textarea::placeholder {
-      color: #666666 !important;
-    }
-    /* Mejorar contraste en dropdowns de vehículos y otros */
-    body.theme-light [id*="dropdown"],
-    body.theme-light [id*="Dropdown"],
-    body.theme-light [class*="dropdown"],
-    body.theme-light [class*="Dropdown"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-    }
-    body.theme-light [id*="dropdown"] *,
-    body.theme-light [id*="Dropdown"] *,
-    body.theme-light [class*="dropdown"] *,
-    body.theme-light [class*="Dropdown"] * {
-      color: #000000 !important;
-    }
-    /* Cambiar fondos grises de formularios a blanco/celeste claro */
-    body.theme-light input[class*="bg-slate-900"],
-    body.theme-light textarea[class*="bg-slate-900"],
-    body.theme-light select[class*="bg-slate-900"],
-    body.theme-light input[class*="bg-slate-800"],
-    body.theme-light textarea[class*="bg-slate-800"],
-    body.theme-light select[class*="bg-slate-800"] {
-      background-color: #ffffff !important;
-    }
-    body.theme-light input[class*="bg-slate-900/50"],
-    body.theme-light textarea[class*="bg-slate-900/50"],
-    body.theme-light select[class*="bg-slate-900/50"],
-    body.theme-light input[class*="bg-slate-800/50"],
-    body.theme-light textarea[class*="bg-slate-800/50"],
-    body.theme-light select[class*="bg-slate-800/50"] {
-      background-color: #ffffff !important;
-    }
-    /* Cambiar fondo del modal a blanco */
-    body.theme-light #modal > div,
-    body.theme-light #modal .bg-slate-800:not([class*="hover"]),
-    body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light #modal [class*="bg-slate-800/50"] {
-      background-color: rgba(255, 255, 255, 0.95) !important;
-    }
-    /* Cambiar todos los inputs, textareas y selects dentro de modales */
-    body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
-    body.theme-light #modal textarea,
-    body.theme-light #modal select {
-      background-color: #ffffff !important;
-      border-color: #7dd3fc !important;
-    }
-    /* Cambiar fondos de formularios en toda la página */
-    body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
-    body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
-      background-color: #ffffff !important;
-    }
-    body.theme-light [class*="border-slate-700/50"],
-    body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
-    body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-      color: #000000 !important;
-    }
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #bae6fd !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
-    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #7dd3fc !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-      border-color: #7dd3fc !important;
-    }
-    body {
-      background-color: #000000;
+    /* Cartera: tema scoped (misma línea que Lista de precios; sin overrides globales agresivos) */
+    body[data-page="cartera"] {
+      background-color: #020617;
       min-height: 100vh;
     }
-    body.theme-light {
-      background-color: #e0f2fe;
+    body.theme-light[data-page="cartera"] {
+      background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 100%);
     }
+    body[data-page="cartera"] #tab-cartera,
+    body[data-page="cartera"] #tab-cartera * {
+      box-sizing: border-box;
+    }
+
+    body[data-page="cartera"] .cartera-nav-tab {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.35);
+      color: #cbd5e1;
+    }
+    body[data-page="cartera"] .cartera-nav-tab:hover:not(.active) {
+      background: rgba(51, 65, 85, 0.45);
+      color: #f1f5f9;
+    }
+    body[data-page="cartera"] .cartera-nav-tab.active {
+      color: #ffffff !important;
+      border-color: rgba(249, 115, 22, 0.45) !important;
+      background: linear-gradient(135deg, #ea580c, #c2410c) !important;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
+    }
+    body.theme-light[data-page="cartera"] .cartera-nav-tab:not(.active) {
+      background: #dbeafe !important;
+      color: #1e3a8a !important;
+      border-color: #93c5fd !important;
+    }
+    body.theme-light[data-page="cartera"] .cartera-nav-tab:not(.active):hover {
+      background: #bfdbfe !important;
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="cartera"] .cartera-nav-tab.active {
+      color: #ffffff !important;
+      border-color: rgba(234, 88, 12, 0.4) !important;
+      background: linear-gradient(135deg, #ea580c, #c2410c) !important;
+    }
+
+    body[data-page="cartera"] .cr-table thead th {
+      text-align: left;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      color: #94a3b8;
+      background: rgba(15, 23, 42, 0.92);
+      border-bottom: 1px solid rgba(51, 65, 85, 0.85);
+      padding: 0.65rem 0.85rem;
+    }
+    body.theme-light[data-page="cartera"] .cr-table thead th {
+      color: #334155;
+      background: #e2e8f0;
+      border-bottom-color: #cbd5e1;
+    }
+    body[data-page="cartera"] .cr-table thead th.text-right {
+      text-align: right;
+    }
+    body[data-page="cartera"] .cr-table thead th.text-center {
+      text-align: center;
+    }
+
+    body[data-page="cartera"] #receivables-body,
+    body[data-page="cartera"] #companies-body {
+      color: #e2e8f0;
+    }
+    body.theme-light[data-page="cartera"] #receivables-body,
+    body.theme-light[data-page="cartera"] #companies-body {
+      color: #0f172a;
+    }
+    body[data-page="cartera"] #receivables-body tr,
+    body[data-page="cartera"] #companies-body tr {
+      border-bottom: 1px solid rgba(51, 65, 85, 0.45);
+    }
+    body[data-page="cartera"] #receivables-body tr:nth-child(even),
+    body[data-page="cartera"] #companies-body tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.35);
+    }
+    body.theme-light[data-page="cartera"] #receivables-body tr,
+    body.theme-light[data-page="cartera"] #companies-body tr {
+      border-bottom-color: #e2e8f0;
+    }
+    body.theme-light[data-page="cartera"] #receivables-body tr:nth-child(even),
+    body.theme-light[data-page="cartera"] #companies-body tr:nth-child(even) {
+      background: rgba(241, 245, 249, 0.75);
+    }
+    body[data-page="cartera"] #receivables-body tr:hover,
+    body[data-page="cartera"] #companies-body tr:hover {
+      background: rgba(59, 130, 246, 0.08);
+    }
+
+    body[data-page="cartera"] .cr-td-meta {
+      color: #94a3b8;
+      font-size: 0.8125rem;
+    }
+    body.theme-light[data-page="cartera"] .cr-td-meta {
+      color: #475569;
+    }
+    body[data-page="cartera"] .cr-customer-name {
+      font-weight: 600;
+      color: inherit;
+    }
+    body[data-page="cartera"] .cr-customer-id {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.125rem;
+    }
+    body.theme-light[data-page="cartera"] .cr-customer-id {
+      color: #64748b;
+    }
+    body[data-page="cartera"] .cr-table-empty {
+      color: #94a3b8;
+    }
+    body.theme-light[data-page="cartera"] .cr-table-empty {
+      color: #64748b;
+    }
+    body[data-page="cartera"] .cr-muted {
+      color: #94a3b8;
+    }
+    body.theme-light[data-page="cartera"] .cr-muted {
+      color: #64748b;
+    }
+
+    body[data-page="cartera"] .cr-balance-due {
+      color: #fb923c;
+      font-weight: 700;
+    }
+    body.theme-light[data-page="cartera"] .cr-balance-due {
+      color: #c2410c;
+    }
+    body[data-page="cartera"] .cr-balance-clear {
+      color: #4ade80;
+      font-weight: 700;
+    }
+    body.theme-light[data-page="cartera"] .cr-balance-clear {
+      color: #15803d;
+    }
+
+    body[data-page="cartera"] .cr-status {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    body[data-page="cartera"] .cr-status--pending {
+      background: rgba(234, 179, 8, 0.22);
+      color: #facc15;
+    }
+    body.theme-light[data-page="cartera"] .cr-status--pending {
+      background: rgba(254, 240, 138, 0.85);
+      color: #854d0e;
+    }
+    body[data-page="cartera"] .cr-status--partial {
+      background: rgba(59, 130, 246, 0.22);
+      color: #93c5fd;
+    }
+    body.theme-light[data-page="cartera"] .cr-status--partial {
+      background: rgba(219, 234, 254, 0.95);
+      color: #1d4ed8;
+    }
+    body[data-page="cartera"] .cr-status--paid {
+      background: rgba(34, 197, 94, 0.22);
+      color: #86efac;
+    }
+    body.theme-light[data-page="cartera"] .cr-status--paid {
+      background: rgba(220, 252, 231, 0.95);
+      color: #166534;
+    }
+    body[data-page="cartera"] .cr-status--cancelled {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fca5a5;
+    }
+    body.theme-light[data-page="cartera"] .cr-status--cancelled {
+      background: rgba(254, 226, 226, 0.95);
+      color: #b91c1c;
+    }
+
+    body[data-page="cartera"] .cr-btn-primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(59, 130, 246, 0.45) !important;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+    }
+    body[data-page="cartera"] .cr-btn-primary:hover {
+      filter: brightness(1.05);
+    }
+    body[data-page="cartera"] .cr-btn-secondary {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #e2e8f0 !important;
+      border: 1px solid rgba(148, 163, 184, 0.35) !important;
+    }
+    body[data-page="cartera"] .cr-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14) !important;
+    }
+    body.theme-light[data-page="cartera"] .cr-btn-secondary {
+      background: #ffffff !important;
+      color: #1e293b !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light[data-page="cartera"] .cr-btn-secondary:hover {
+      background: #f1f5f9 !important;
+    }
+
+    body.theme-light[data-page="cartera"] #modalBody {
+      color: #0f172a;
+    }
+    body.theme-light[data-page="cartera"] #modalBody h1,
+    body.theme-light[data-page="cartera"] #modalBody h2,
+    body.theme-light[data-page="cartera"] #modalBody h3 {
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="cartera"] #modalBody label {
+      color: #334155 !important;
+    }
+    body.theme-light[data-page="cartera"] #modalBody input,
+    body.theme-light[data-page="cartera"] #modalBody textarea,
+    body.theme-light[data-page="cartera"] #modalBody select {
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+    }
+    body.theme-light[data-page="cartera"] #modalBody input::placeholder,
+    body.theme-light[data-page="cartera"] #modalBody textarea::placeholder {
+      color: #64748b !important;
+    }
+
+    body[data-page="cartera"] #modalBody .cr-modal-tbody {
+      color: #e2e8f0;
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-modal-tbody {
+      color: #0f172a;
+    }
+    body[data-page="cartera"] #modalBody .cr-td-meta {
+      color: #94a3b8;
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-td-meta {
+      color: #475569;
+    }
+    body[data-page="cartera"] #modalBody .cr-modal-tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.25);
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-modal-tbody tr:nth-child(even) {
+      background: rgba(241, 245, 249, 0.65);
+    }
+    body[data-page="cartera"] #modalBody .cr-money-paid {
+      color: #4ade80;
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-money-paid {
+      color: #15803d !important;
+    }
+    body[data-page="cartera"] #modalBody .cr-money-balance {
+      color: #fb923c;
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-money-balance {
+      color: #c2410c !important;
+    }
+    body.theme-light[data-page="cartera"] #modalBody .text-slate-400,
+    body.theme-light[data-page="cartera"] #modalBody .text-slate-500 {
+      color: #64748b !important;
+    }
+
+    body.theme-light[data-page="cartera"] #tab-cartera h3 {
+      color: #0f172a !important;
+    }
+    body.theme-light[data-page="cartera"] #tab-cartera .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light[data-page="cartera"] #stats-balance {
+      color: #ea580c !important;
+    }
+    body.theme-light[data-page="cartera"] #stats-pending {
+      color: #ca8a04 !important;
+    }
+    body.theme-light[data-page="cartera"] #stats-partial {
+      color: #2563eb !important;
+    }
+    body.theme-light[data-page="cartera"] #stats-paid {
+      color: #15803d !important;
+    }
+    body.theme-light[data-page="cartera"] #tab-cartera select,
+    body.theme-light[data-page="cartera"] #tab-cartera input:not([type="checkbox"]) {
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+    }
+
     #modal.hidden {
       display: none !important;
     }
@@ -212,29 +333,14 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(148, 163, 184, 0.7);
     }
-    body.theme-light .custom-scrollbar {
+    body.theme-light[data-page="cartera"] .custom-scrollbar {
       scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
     }
-    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+    body.theme-light[data-page="cartera"] .custom-scrollbar::-webkit-scrollbar-thumb {
       background: rgba(100, 116, 139, 0.4);
     }
-    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    body.theme-light[data-page="cartera"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
-    }
-    body.theme-light .nav-tab:not(.active),
-    body.theme-light .mobile-nav-tab:not(.active) {
-      color: #000000 !important;
-      background-color: transparent !important;
-    }
-    body.theme-light .nav-tab:not(.active):hover,
-    body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #000000 !important;
-      background-color: rgba(125, 211, 252, 0.5) !important;
-    }
-    body.theme-light .nav-tab.active,
-    body.theme-light .mobile-nav-tab.active {
-      color: #ffffff !important;
-      background-color: #2563eb !important;
     }
     /* Responsive design */
     @media (max-width: 768px) {
@@ -488,28 +594,30 @@
   <main>
     <!-- ========== APP HEADER ========== -->
     <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+      <div class="home-header-shell shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16 md:h-20">
-            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
               <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
               <div class="hidden sm:flex flex-col">
-                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+                <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
               </div>
-              <div class="sm:hidden text-white font-semibold text-sm">
+              <div class="sm:hidden text-white font-semibold text-sm home-header-company">
                 <span id="companyNameMobile">-</span>
               </div>
             </div>
-            <div class="hidden md:flex items-center gap-2">
-              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+
+            <div class="hidden md:flex items-center gap-2 home-header-actions">
+              <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
             </div>
-            <div class="md:hidden flex items-center gap-2">
-              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+
+            <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
@@ -517,45 +625,43 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Navegación Principal (Desktop) -->
-      <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-orange-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-          </nav>
+        <div class="hidden md:block home-header-nav-row">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+            <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab active px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
+          </div>
         </div>
       </div>
-    </div>
-    
-    <!-- Menú Móvil (Mobile Menu) -->
-    <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
-      <div class="px-4 py-3 space-y-1">
-        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-orange-600 rounded-lg transition-all duration-200">Cartera</button>
-        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+
+      <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+        </div>
       </div>
     </div>
 
@@ -576,10 +682,10 @@
           <!-- Navegación interna por pestañas -->
           <div class="mb-6">
             <div class="flex gap-2 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-              <button id="cartera-nav-cartera" class="cartera-nav-tab active px-4 py-3 text-sm font-medium text-white bg-orange-600 dark:bg-orange-600 theme-light:bg-orange-500 rounded-t-lg transition-all duration-200">
+              <button type="button" id="cartera-nav-cartera" class="cartera-nav-tab active px-4 py-3 text-sm font-medium rounded-t-lg transition-all duration-200">
                 Cartera
               </button>
-              <button id="cartera-nav-empresas" class="cartera-nav-tab px-4 py-3 text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 rounded-t-lg transition-all duration-200">
+              <button type="button" id="cartera-nav-empresas" class="cartera-nav-tab px-4 py-3 text-sm font-medium rounded-t-lg transition-all duration-200">
                 Empresas
               </button>
             </div>
@@ -625,28 +731,28 @@
               <input type="date" id="filter-from" class="w-full sm:w-auto px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
               <input type="date" id="filter-to" class="w-full sm:w-auto px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
               <div class="flex gap-2 w-full sm:w-auto">
-                <button id="btn-apply-filters" class="flex-1 sm:flex-none px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Aplicar</button>
-                <button id="btn-refresh" class="flex-1 sm:flex-none px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Actualizar</button>
+                <button type="button" id="btn-apply-filters" class="cr-btn-primary flex-1 sm:flex-none px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">Aplicar</button>
+                <button type="button" id="btn-refresh" class="cr-btn-secondary flex-1 sm:flex-none px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">Actualizar</button>
               </div>
             </div>
             <div class="max-h-[400px] sm:max-h-[500px] overflow-auto custom-scrollbar">
               <div class="overflow-x-auto">
-                <table class="w-full text-sm min-w-[1000px]">
-                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
-                    <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Fecha">Fecha</th>
-                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Remisión">Remisión</th>
-                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Cliente">Cliente</th>
-                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placa">Placa</th>
-                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Empresa">Empresa</th>
-                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Total">Total</th>
-                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Pagado">Pagado</th>
-                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Saldo">Saldo</th>
-                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Estado">Estado</th>
-                      <th class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
+                <table class="cr-table w-full text-sm min-w-[1000px]">
+                  <thead class="sticky top-0 z-[1]">
+                    <tr>
+                      <th class="px-2 sm:px-4 py-2 text-left" data-label="Fecha">Fecha</th>
+                      <th class="px-2 sm:px-4 py-2 text-left" data-label="Remisión">Remisión</th>
+                      <th class="px-2 sm:px-4 py-2 text-left" data-label="Cliente">Cliente</th>
+                      <th class="px-2 sm:px-4 py-2 text-left" data-label="Placa">Placa</th>
+                      <th class="px-2 sm:px-4 py-2 text-left" data-label="Empresa">Empresa</th>
+                      <th class="px-2 sm:px-4 py-2 text-right" data-label="Total">Total</th>
+                      <th class="px-2 sm:px-4 py-2 text-right" data-label="Pagado">Pagado</th>
+                      <th class="px-2 sm:px-4 py-2 text-right" data-label="Saldo">Saldo</th>
+                      <th class="px-2 sm:px-4 py-2 text-left" data-label="Estado">Estado</th>
+                      <th class="px-2 sm:px-4 py-2 text-center" data-label="Acciones">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody id="receivables-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                  <tbody id="receivables-body"></tbody>
                 </table>
               </div>
             </div>
@@ -666,18 +772,18 @@
                 </button>
               </div>
               <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
-                    <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Nombre</th>
-                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Tipo</th>
-                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Contacto</th>
-                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placas</th>
-                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
-                      <th class="px-2 sm:px-4 py-3 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Acciones</th>
+                <table class="cr-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="px-2 sm:px-4 py-3 text-left">Nombre</th>
+                      <th class="px-2 sm:px-4 py-3 text-left">Tipo</th>
+                      <th class="px-2 sm:px-4 py-3 text-left">Contacto</th>
+                      <th class="px-2 sm:px-4 py-3 text-left">Placas</th>
+                      <th class="px-2 sm:px-4 py-3 text-left">Estado</th>
+                      <th class="px-2 sm:px-4 py-3 text-center">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody id="companies-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                  <tbody id="companies-body"></tbody>
                 </table>
               </div>
             </div>
@@ -767,38 +873,54 @@
         });
       });
     });
-    
-    // Botón del catálogo
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
-      const API = window.API || {};
-      const token = API?.token?.get?.() || '';
-      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+
+    function setupCatalogButton() {
+      const btns = document.querySelectorAll('.js-open-public-catalog');
+      if (!btns.length) return;
+      const API = window.API;
+      if (!API || !API.token || !API.token.get) {
+        setTimeout(setupCatalogButton, 100);
+        return;
+      }
+      const applyReady = (companyId, enabled) => {
+        btns.forEach(btn => {
+          if (!companyId) { btn.disabled = true; btn.title = 'No se pudo obtener companyId'; return; }
+          if (!enabled) { btn.disabled = true; btn.title = 'Catálogo público deshabilitado'; btn.dataset.state = 'disabled'; return; }
+          btn.dataset.state = 'ready';
+          btn.disabled = false;
+          btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+        });
+      };
+      const applyNoAuth = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Inicia sesión para usar el catálogo'; });
+      };
+      const applyError = () => {
+        btns.forEach(btn => { btn.disabled = true; btn.title = 'Error consultando empresa'; btn.dataset.state = 'error'; });
+      };
+      const token = API.token.get() || '';
+      if (!token) { applyNoAuth(); return; }
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-          btn.dataset.state='ready';
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          applyReady(companyId, enabled);
         })
-        .catch(()=>{
+        .catch(() => {
           const storedId = API?.companyId?.get?.() || '';
-          if(storedId){
-            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          if (storedId) {
+            btns.forEach(btn => {
+              btn.dataset.state = 'ready'; btn.title = ''; btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            });
           } else {
-            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+            applyError();
           }
         });
-    });
+    }
+    document.addEventListener('DOMContentLoaded', setupCatalogButton);
+    if (document.readyState !== 'loading') setupCatalogButton();
   </script>
 </body>
 </html>
