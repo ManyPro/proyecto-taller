@@ -126,7 +126,7 @@ function renderCompanies() {
       <tr>
         <td colspan="6" class="px-4 py-8 text-center">
           <div class="cr-table-empty mb-2">No hay empresas registradas</div>
-          <button onclick="showCompanyModal()" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg transition-all duration-200 text-sm">
+          <button type="button" onclick="showCompanyModal()" class="cr-btn-orange px-4 py-2 font-semibold rounded-lg transition-all duration-200 text-sm">
             + Crear primera empresa
           </button>
         </td>
@@ -137,37 +137,33 @@ function renderCompanies() {
   
   tbody.innerHTML = companies.map(company => {
     const typeLabel = company.type === 'particular' ? 'Particular' : 'Recurrente';
-    const typeColor = company.type === 'particular' 
-      ? 'bg-purple-500/20 text-purple-400 dark:text-purple-400 theme-light:text-purple-700 border-purple-500/30'
-      : 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700 border-green-500/30';
-    const statusColor = company.active 
-      ? 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700'
-      : 'bg-red-500/20 text-red-400 dark:text-red-400 theme-light:text-red-700';
+    const typePill = company.type === 'particular' ? 'cr-pill cr-pill--purple' : 'cr-pill cr-pill--green';
+    const statusPill = company.active ? 'cr-pill cr-pill--green' : 'cr-pill cr-pill--red';
     const statusLabel = company.active ? 'Activa' : 'Inactiva';
     
     return `
     <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50 transition-colors">
       <td class="px-2 sm:px-4 py-3" data-label="Nombre">
-        <div class="font-semibold text-sm sm:text-base text-white dark:text-white theme-light:text-slate-900">${escapeHtml(company.name)}</div>
-        ${company.description ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${escapeHtml(company.description)}</div>` : ''}
+        <div class="font-semibold text-sm sm:text-base cr-text">${escapeHtml(company.name)}</div>
+        ${company.description ? `<div class="text-xs cr-muted mt-1">${escapeHtml(company.description)}</div>` : ''}
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Tipo">
-        <span class="px-2 py-1 rounded text-xs font-semibold border ${typeColor}">${typeLabel}</span>
+        <span class="${typePill}">${typeLabel}</span>
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Contacto">
-        ${company.contact?.name ? `<div class="text-xs sm:text-sm text-white dark:text-white theme-light:text-slate-900 font-medium">${escapeHtml(company.contact.name)}</div>` : ''}
-        ${company.contact?.phone ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">📞 ${escapeHtml(company.contact.phone)}</div>` : ''}
-        ${company.contact?.email ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">✉️ ${escapeHtml(company.contact.email)}</div>` : ''}
+        ${company.contact?.name ? `<div class="text-xs sm:text-sm cr-text font-medium">${escapeHtml(company.contact.name)}</div>` : ''}
+        ${company.contact?.phone ? `<div class="text-xs cr-muted mt-0.5">📞 ${escapeHtml(company.contact.phone)}</div>` : ''}
+        ${company.contact?.email ? `<div class="text-xs cr-muted mt-0.5">✉️ ${escapeHtml(company.contact.email)}</div>` : ''}
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Placas">
         ${company.type === 'recurrente' && company.plates && company.plates.length > 0 
-          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.slice(0, 3).map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono text-white dark:text-white theme-light:text-slate-900">${escapeHtml(p)}</span>`).join('')}</div>${company.plates.length > 3 ? `<div class="text-xs cr-muted">+${company.plates.length - 3} más</div>` : `<div class="text-xs cr-muted">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`}`
+          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.slice(0, 3).map(p => `<span class="cr-plate-chip">${escapeHtml(p)}</span>`).join('')}</div>${company.plates.length > 3 ? `<div class="text-xs cr-muted">+${company.plates.length - 3} más</div>` : `<div class="text-xs cr-muted">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`}`
           : company.type === 'recurrente' 
             ? '<span class="cr-muted text-xs">Sin placas</span>'
             : '<span class="cr-muted text-xs">-</span>'}
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Estado">
-        <span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">${statusLabel}</span>
+        <span class="${statusPill}">${statusLabel}</span>
       </td>
       <td class="px-2 sm:px-4 py-3" data-label="Acciones">
         <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
@@ -195,78 +191,78 @@ function showCompanyModal(companyId = null) {
   if (!modalBody) return;
   
   modalBody.innerHTML = `
-    <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">
+    <h2 class="text-2xl font-bold cr-text mb-4">
       ${company ? 'Editar Empresa' : 'Nueva Empresa'}
     </h2>
     <form id="company-form" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Nombre *</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Nombre *</label>
         <input type="text" id="company-name" required value="${company?.name || ''}" 
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Tipo de Empresa *</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Tipo de Empresa *</label>
         <select id="company-type" required
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
           <option value="recurrente" ${company?.type === 'recurrente' || !company ? 'selected' : ''}>Recurrente</option>
           <option value="particular" ${company?.type === 'particular' ? 'selected' : ''}>Particular</option>
         </select>
-        <p class="text-xs text-slate-400 mt-1">
+        <p class="text-xs cr-muted mt-1">
           <strong>Recurrente:</strong> Los vehículos pertenecen a la empresa. Se pueden agregar placas manualmente.<br>
           <strong>Particular:</strong> La empresa recibe vehículos particulares que no le pertenecen. Los links son temporales.
         </p>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Descripción</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Descripción</label>
         <textarea id="company-description" rows="2"
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.description || ''}</textarea>
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.description || ''}</textarea>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Contacto</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Contacto</label>
         <div class="grid grid-cols-2 gap-2">
           <input type="text" id="company-contact-name" placeholder="Nombre" value="${company?.contact?.name || ''}"
-            class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            class="cr-field-input px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
           <input type="text" id="company-contact-phone" placeholder="Teléfono" value="${company?.contact?.phone || ''}"
-            class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            class="cr-field-input px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <input type="email" id="company-contact-email" placeholder="Email" value="${company?.contact?.email || ''}" 
-          class="w-full mt-2 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          class="cr-field-input w-full mt-2 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
         <textarea id="company-contact-address" placeholder="Dirección" rows="2" 
-          class="w-full mt-2 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.contact?.address || ''}</textarea>
+          class="cr-field-input w-full mt-2 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.contact?.address || ''}</textarea>
       </div>
       <div id="company-plates-section" style="display: ${company?.type === 'recurrente' || !company ? 'block' : 'none'};">
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Placas (solo para empresas recurrentes)</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Placas (solo para empresas recurrentes)</label>
         <div class="flex gap-2 mb-2">
           <input type="text" id="new-plate-input" placeholder="Ej: ABC123" 
-            class="flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
+            class="cr-field-input flex-1 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
             onkeypress="if(event.key==='Enter'){event.preventDefault();addPlateToCompany();}" />
           <button type="button" onclick="addPlateToCompany()" 
-            class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar</button>
+            class="cr-btn-orange px-4 py-2 font-semibold rounded-lg transition-all duration-200 shrink-0">Agregar</button>
         </div>
         <div id="plates-list" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar mb-2">
           ${(company?.type === 'recurrente' && company?.plates) ? company.plates.map(plate => `
-            <div class="plate-item flex items-center justify-between p-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300" data-plate="${escapeHtml(plate)}">
+            <div class="plate-item cr-modal-panel flex items-center justify-between p-2" data-plate="${escapeHtml(plate)}">
               <div class="flex-1">
-                <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(plate)}</div>
-                <div class="plate-vehicle-info text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Buscando información...</div>
+                <div class="font-mono font-semibold cr-text">${escapeHtml(plate)}</div>
+                <div class="plate-vehicle-info text-xs cr-muted">Buscando información...</div>
               </div>
               <button type="button" onclick="removePlateFromCompany('${escapeHtml(plate)}')" 
-                class="ml-2 px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded text-xs transition-colors">Eliminar</button>
+                class="ml-2 px-2 py-1 bg-red-600/25 hover:bg-red-600/40 text-red-300 hover:text-red-200 rounded text-xs transition-colors">Eliminar</button>
             </div>
-          `).join('') : '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>'}
+          `).join('') : '<p class="text-xs cr-muted text-center py-2">No hay placas agregadas</p>'}
         </div>
-        <p class="text-xs text-slate-400 mt-1">Agrega las placas de los vehículos que pertenecen a esta empresa. Cuando una de estas placas quede debiendo, se asociará automáticamente a esta empresa.</p>
+        <p class="text-xs cr-muted mt-1">Agrega las placas de los vehículos que pertenecen a esta empresa. Cuando una de estas placas quede debiendo, se asociará automáticamente a esta empresa.</p>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Notas</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Notas</label>
         <textarea id="company-notes" rows="2"
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.notes || ''}</textarea>
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.notes || ''}</textarea>
       </div>
       <div class="flex gap-2 justify-end pt-4">
         <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" 
-          class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cancelar</button>
+          class="cr-btn-gray-modal px-4 py-2 rounded-lg transition-colors">Cancelar</button>
         <button type="submit" 
-          class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+          class="cr-btn-orange px-4 py-2 font-semibold rounded-lg transition-all duration-200">Guardar</button>
       </div>
     </form>
   `;
@@ -288,7 +284,7 @@ function showCompanyModal(companyId = null) {
         window.currentCompanyPlates = [];
         const platesList = document.getElementById('plates-list');
         if (platesList) {
-          platesList.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>';
+          platesList.innerHTML = '<p class="text-xs cr-muted text-center py-2">No hay placas agregadas</p>';
         }
       }
     });
@@ -341,15 +337,15 @@ window.addPlateToCompany = async function() {
     }
     
     const plateDiv = document.createElement('div');
-    plateDiv.className = 'plate-item flex items-center justify-between p-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300';
+    plateDiv.className = 'plate-item cr-modal-panel flex items-center justify-between p-2';
     plateDiv.setAttribute('data-plate', plate);
     plateDiv.innerHTML = `
       <div class="flex-1">
-        <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(plate)}</div>
-        <div class="plate-vehicle-info text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Buscando información...</div>
+        <div class="font-mono font-semibold cr-text">${escapeHtml(plate)}</div>
+        <div class="plate-vehicle-info text-xs cr-muted">Buscando información...</div>
       </div>
       <button type="button" onclick="removePlateFromCompany('${escapeHtml(plate)}')" 
-        class="ml-2 px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded text-xs transition-colors">Eliminar</button>
+        class="ml-2 px-2 py-1 bg-red-600/25 hover:bg-red-600/40 text-red-300 hover:text-red-200 rounded text-xs transition-colors">Eliminar</button>
     `;
     platesList.appendChild(plateDiv);
     
@@ -373,7 +369,7 @@ window.removePlateFromCompany = function(plate) {
   
   const platesList = document.getElementById('plates-list');
   if (platesList && platesList.children.length === 0) {
-    platesList.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>';
+    platesList.innerHTML = '<p class="text-xs cr-muted text-center py-2">No hay placas agregadas</p>';
   }
 };
 
@@ -399,15 +395,14 @@ async function loadVehicleInfo(plate) {
       
       if (parts.length > 0) {
         infoEl.textContent = parts.join(' - ');
-        infoEl.classList.remove('text-slate-400');
-        infoEl.classList.add('text-green-400', 'dark:text-green-400', 'theme-light:text-green-600');
+        infoEl.className = 'plate-vehicle-info text-xs cr-hint-ok';
       } else {
         infoEl.textContent = 'Sin información de vehículo';
-        infoEl.classList.add('text-yellow-400', 'dark:text-yellow-400', 'theme-light:text-yellow-600');
+        infoEl.className = 'plate-vehicle-info text-xs cr-hint-warn';
       }
     } else {
       infoEl.textContent = 'Placa no registrada en el sistema';
-      infoEl.classList.add('text-yellow-400', 'dark:text-yellow-400', 'theme-light:text-yellow-600');
+      infoEl.className = 'plate-vehicle-info text-xs cr-hint-warn';
     }
   } catch (err) {
     console.error('Error loading vehicle info:', err);
@@ -416,7 +411,7 @@ async function loadVehicleInfo(plate) {
       const infoEl = plateItem.querySelector('.plate-vehicle-info');
       if (infoEl) {
         infoEl.textContent = 'Error al buscar información';
-        infoEl.classList.add('text-red-400', 'dark:text-red-400', 'theme-light:text-red-600');
+        infoEl.className = 'plate-vehicle-info text-xs cr-hint-error';
       }
     }
   }
@@ -517,68 +512,61 @@ window.viewCompanyHistory = async function(companyId) {
     if (!modalBody) return;
     
     modalBody.innerHTML = `
-      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="cr-history-wrap p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-xl">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Historial: ${escapeHtml(company.name)}</h3>
-            <span class="px-2 py-1 rounded text-xs font-semibold ${
-              company.type === 'recurrente'
-                ? 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700'
-                : 'bg-purple-500/20 text-purple-400 dark:text-purple-400 theme-light:text-purple-700'
-            }">${company.type === 'recurrente' ? 'Recurrente' : 'Particular'}</span>
+            <h3 class="text-2xl font-bold cr-text mb-1">Historial: ${escapeHtml(company.name)}</h3>
+            <span class="${company.type === 'recurrente' ? 'cr-pill cr-pill--green' : 'cr-pill cr-pill--purple'}">${company.type === 'recurrente' ? 'Recurrente' : 'Particular'}</span>
           </div>
-          <button onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">✕ Cerrar</button>
+          <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="cr-btn-gray-modal px-4 py-2 rounded-lg transition-colors">✕ Cerrar</button>
         </div>
         
-        <!-- Estadísticas -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Ventas</div>
-            <div class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">${totalSales}</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${formatMoney(totalSalesAmount)}</div>
+          <div class="cr-modal-panel rounded-lg p-4">
+            <div class="text-xs cr-muted mb-1">Total Ventas</div>
+            <div class="text-2xl font-bold cr-text">${totalSales}</div>
+            <div class="text-xs cr-muted mt-1">${formatMoney(totalSalesAmount)}</div>
           </div>
-          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cuentas por Cobrar</div>
-            <div class="text-2xl font-bold text-orange-400 dark:text-orange-400 theme-light:text-orange-600">${totalReceivables}</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${formatMoney(totalReceivablesAmount)}</div>
+          <div class="cr-modal-panel rounded-lg p-4">
+            <div class="text-xs cr-muted mb-1">Cuentas por Cobrar</div>
+            <div class="text-2xl font-bold text-orange-500">${totalReceivables}</div>
+            <div class="text-xs cr-muted mt-1">${formatMoney(totalReceivablesAmount)}</div>
           </div>
-          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pagado</div>
-            <div class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${formatMoney(totalPaid)}</div>
+          <div class="cr-modal-panel rounded-lg p-4">
+            <div class="text-xs cr-muted mb-1">Pagado</div>
+            <div class="text-2xl font-bold text-green-600">${formatMoney(totalPaid)}</div>
           </div>
-          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Saldo Pendiente</div>
-            <div class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">${formatMoney(totalBalance)}</div>
+          <div class="cr-modal-panel rounded-lg p-4">
+            <div class="text-xs cr-muted mb-1">Saldo Pendiente</div>
+            <div class="text-2xl font-bold text-amber-600">${formatMoney(totalBalance)}</div>
           </div>
         </div>
         
-        <!-- Links activos (solo para empresas recurrentes) -->
         ${company.type === 'recurrente' && links.length > 0 ? `
           <div class="mb-6">
-            <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">Vehículos Vinculados (${links.length})</h4>
+            <h4 class="text-sm font-semibold cr-text mb-3">Vehículos Vinculados (${links.length})</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               ${links.map(link => `
-                <div class="p-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-                  <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(link.plate)}</div>
-                  ${link.customerName ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${escapeHtml(link.customerName)}</div>` : ''}
-                  <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-500 mt-1">Vinculado: ${formatDate(link.linkedAt)}</div>
+                <div class="p-3 cr-modal-panel rounded-lg">
+                  <div class="font-mono font-semibold cr-text">${escapeHtml(link.plate)}</div>
+                  ${link.customerName ? `<div class="text-xs cr-muted mt-1">${escapeHtml(link.customerName)}</div>` : ''}
+                  <div class="text-xs cr-muted mt-1">Vinculado: ${formatDate(link.linkedAt)}</div>
                 </div>
               `).join('')}
             </div>
           </div>
         ` : ''}
         
-        <!-- Ventas recientes -->
         <div class="mb-6">
-          <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">Ventas Recientes</h4>
+          <h4 class="text-sm font-semibold cr-text mb-3">Ventas Recientes</h4>
           <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
-                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Remisión</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placa</th>
-                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+            <table class="cr-table w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="px-3 py-2 text-left">Remisión</th>
+                  <th class="px-3 py-2 text-left">Fecha</th>
+                  <th class="px-3 py-2 text-left">Placa</th>
+                  <th class="px-3 py-2 text-right">Total</th>
                 </tr>
               </thead>
               <tbody class="cr-modal-tbody">
@@ -596,19 +584,18 @@ window.viewCompanyHistory = async function(companyId) {
           </div>
         </div>
         
-        <!-- Cuentas por cobrar -->
         <div>
-          <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">Cuentas por Cobrar</h4>
+          <h4 class="text-sm font-semibold cr-text mb-3">Cuentas por Cobrar</h4>
           <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
-                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Remisión</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placa</th>
-                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
-                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Pagado</th>
-                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Saldo</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
+            <table class="cr-table w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="px-3 py-2 text-left">Remisión</th>
+                  <th class="px-3 py-2 text-left">Placa</th>
+                  <th class="px-3 py-2 text-right">Total</th>
+                  <th class="px-3 py-2 text-right">Pagado</th>
+                  <th class="px-3 py-2 text-right">Saldo</th>
+                  <th class="px-3 py-2 text-left">Estado</th>
                 </tr>
               </thead>
               <tbody class="cr-modal-tbody">
@@ -775,24 +762,24 @@ window.showPaymentModal = async function(receivableId) {
   }
   
   modalBody.innerHTML = `
-    <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Registrar Pago</h2>
-    <div class="mb-4 p-4 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg">
-      <div class="text-sm text-slate-400 mb-2">Cliente: <span class="text-white theme-light:text-slate-900 font-medium">${escapeHtml(receivable.customer?.name || 'Sin nombre')}</span></div>
-      <div class="text-sm text-slate-400 mb-2">Remisión: <span class="text-white theme-light:text-slate-900 font-medium">#${receivable.saleNumber || 'N/A'}</span></div>
-      <div class="text-sm text-slate-400 mb-2">Total: <span class="text-white theme-light:text-slate-900 font-medium">$${formatMoney(receivable.totalAmount || 0)}</span></div>
-      <div class="text-sm text-slate-400 mb-2">Pagado: <span class="text-white theme-light:text-slate-900 font-medium">$${formatMoney(receivable.paidAmount || 0)}</span></div>
-      <div class="text-sm text-slate-400">Saldo pendiente: <span class="cr-balance-due">$${formatMoney(receivable.balance || 0)}</span></div>
+    <h2 class="text-2xl font-bold cr-text mb-4">Registrar Pago</h2>
+    <div class="mb-4 p-4 cr-modal-panel">
+      <div class="text-sm mb-2 cr-muted">Cliente: <span class="cr-text font-medium">${escapeHtml(receivable.customer?.name || 'Sin nombre')}</span></div>
+      <div class="text-sm mb-2 cr-muted">Remisión: <span class="cr-text font-medium">#${receivable.saleNumber || 'N/A'}</span></div>
+      <div class="text-sm mb-2 cr-muted">Total: <span class="cr-text font-medium">$${formatMoney(receivable.totalAmount || 0)}</span></div>
+      <div class="text-sm mb-2 cr-muted">Pagado: <span class="cr-text font-medium">$${formatMoney(receivable.paidAmount || 0)}</span></div>
+      <div class="text-sm cr-muted">Saldo pendiente: <span class="cr-balance-due">$${formatMoney(receivable.balance || 0)}</span></div>
     </div>
     <form id="payment-form" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Monto *</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Monto *</label>
         <input type="number" id="payment-amount" required min="0.01" max="${receivable.balance}" step="0.01"
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Método de Pago</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Método de Pago</label>
         <select id="payment-method"
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
           <option value="Efectivo">Efectivo</option>
           <option value="Transferencia">Transferencia</option>
           <option value="Cheque">Cheque</option>
@@ -801,23 +788,23 @@ window.showPaymentModal = async function(receivableId) {
         </select>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Cuenta *</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Cuenta *</label>
         <select id="payment-account" required
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
           <option value="">Seleccionar cuenta</option>
           ${accounts.map(acc => `<option value="${acc.accountId || acc._id || acc.id}">${escapeHtml(acc.name || 'Sin nombre')}</option>`).join('')}
         </select>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Notas</label>
+        <label class="block text-sm font-medium mb-1 cr-muted">Notas</label>
         <textarea id="payment-notes" rows="2"
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+          class="cr-field-input w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
       </div>
       <div class="flex gap-2 justify-end pt-4">
         <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" 
-          class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cancelar</button>
+          class="cr-btn-gray-modal px-4 py-2 rounded-lg transition-colors">Cancelar</button>
         <button type="submit" 
-          class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Registrar Pago</button>
+          class="cr-btn-green px-4 py-2 font-semibold rounded-lg transition-all duration-200">Registrar Pago</button>
       </div>
     </form>
   `;
@@ -874,32 +861,32 @@ window.showReceivableDetail = async function(receivableId) {
     if (!modalBody) return;
     
     modalBody.innerHTML = `
-      <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Detalle de Cuenta por Cobrar</h2>
+      <h2 class="text-2xl font-bold cr-text mb-4">Detalle de Cuenta por Cobrar</h2>
       <div class="space-y-4">
-        <div class="p-4 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg">
-          <h3 class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Información General</h3>
+        <div class="p-4 cr-modal-panel">
+          <h3 class="font-semibold cr-text mb-2">Información General</h3>
           <div class="grid grid-cols-2 gap-2 text-sm">
-            <div><span class="text-slate-400">Remisión:</span> <span class="text-white theme-light:text-slate-900">#${receivable.saleNumber || 'N/A'}</span></div>
-            <div><span class="text-slate-400">Fecha:</span> <span class="text-white theme-light:text-slate-900">${formatDate(receivable.createdAt)}</span></div>
-            <div><span class="text-slate-400">Cliente:</span> <span class="text-white theme-light:text-slate-900">${escapeHtml(receivable.customer?.name || 'Sin nombre')}</span></div>
-            <div><span class="text-slate-400">Placa:</span> <span class="text-white theme-light:text-slate-900 font-mono">${escapeHtml(receivable.vehicle?.plate || 'N/A')}</span></div>
-            <div><span class="text-slate-400">Total:</span> <span class="text-white theme-light:text-slate-900 font-bold">$${formatMoney(receivable.totalAmount || 0)}</span></div>
-            <div><span class="text-slate-400">Pagado:</span> <span class="text-white theme-light:text-slate-900">$${formatMoney(receivable.paidAmount || 0)}</span></div>
-            <div><span class="text-slate-400">Saldo:</span> <span class="cr-balance-due">$${formatMoney(receivable.balance || 0)}</span></div>
-            <div><span class="text-slate-400">Estado:</span> <span class="text-white theme-light:text-slate-900">${receivable.status || 'N/A'}</span></div>
+            <div><span class="cr-muted">Remisión:</span> <span class="cr-text">#${receivable.saleNumber || 'N/A'}</span></div>
+            <div><span class="cr-muted">Fecha:</span> <span class="cr-text">${formatDate(receivable.createdAt)}</span></div>
+            <div><span class="cr-muted">Cliente:</span> <span class="cr-text">${escapeHtml(receivable.customer?.name || 'Sin nombre')}</span></div>
+            <div><span class="cr-muted">Placa:</span> <span class="cr-text font-mono">${escapeHtml(receivable.vehicle?.plate || 'N/A')}</span></div>
+            <div><span class="cr-muted">Total:</span> <span class="cr-text font-bold">$${formatMoney(receivable.totalAmount || 0)}</span></div>
+            <div><span class="cr-muted">Pagado:</span> <span class="cr-text">$${formatMoney(receivable.paidAmount || 0)}</span></div>
+            <div><span class="cr-muted">Saldo:</span> <span class="cr-balance-due">$${formatMoney(receivable.balance || 0)}</span></div>
+            <div><span class="cr-muted">Estado:</span> <span class="cr-text">${receivable.status || 'N/A'}</span></div>
           </div>
         </div>
         ${receivable.payments && receivable.payments.length > 0 ? `
           <div>
-            <h3 class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Historial de Pagos</h3>
+            <h3 class="font-semibold cr-text mb-2">Historial de Pagos</h3>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
-                <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-200">
+                <thead class="cr-table">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Monto</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Método</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Notas</th>
+                    <th class="px-3 py-2 text-left">Fecha</th>
+                    <th class="px-3 py-2 text-left">Monto</th>
+                    <th class="px-3 py-2 text-left">Método</th>
+                    <th class="px-3 py-2 text-left">Notas</th>
                   </tr>
                 </thead>
                 <tbody class="cr-modal-tbody">
@@ -917,8 +904,8 @@ window.showReceivableDetail = async function(receivableId) {
           </div>
         ` : '<p class="cr-muted text-sm">No hay pagos registrados</p>'}
         <div class="flex gap-2 justify-end pt-4">
-          <button onclick="document.getElementById('modal').classList.add('hidden')" 
-            class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">Cerrar</button>
+          <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" 
+            class="cr-btn-gray-modal px-4 py-2 rounded-lg transition-colors">Cerrar</button>
         </div>
       </div>
     `;
@@ -976,26 +963,21 @@ function showFeedbackModal({ type = 'success', title = '', message = '' }) {
 
   const isError = type === 'error';
   const icon = isError ? '⚠️' : '✅';
-  const bgClass = isError
-    ? 'from-red-950/40 via-slate-900/50 to-slate-900/30 theme-light:from-red-50 theme-light:via-white theme-light:to-orange-50 border-red-500/35 theme-light:border-red-200'
-    : 'from-emerald-950/40 via-slate-900/50 to-slate-900/30 theme-light:from-emerald-50 theme-light:via-white theme-light:to-cyan-50 border-emerald-500/35 theme-light:border-emerald-200';
-  const buttonClass = isError
-    ? 'from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 theme-light:from-red-500 theme-light:to-red-600'
-    : 'from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 theme-light:from-emerald-500 theme-light:to-emerald-600';
+  const okBtnClass = isError ? 'cr-btn-red' : 'cr-btn-green';
   const titleText = title || (isError ? 'No se pudo completar la acción' : 'Operación exitosa');
 
   modalBody.innerHTML = `
     <div class="max-w-2xl mx-auto">
-      <div class="rounded-2xl p-6 border bg-gradient-to-br ${bgClass}">
+      <div class="cr-modal-panel rounded-2xl p-6 border border-slate-600/30">
         <div class="flex items-start gap-4">
           <div class="text-3xl leading-none">${icon}</div>
           <div class="flex-1">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">${escapeHtml(titleText)}</h3>
-            <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3 mb-0">${escapeHtml(message)}</p>
+            <h3 class="text-xl font-bold cr-text m-0">${escapeHtml(titleText)}</h3>
+            <p class="text-sm cr-muted mt-3 mb-0">${escapeHtml(message)}</p>
           </div>
         </div>
         <div class="flex justify-end mt-6">
-          <button id="feedback-modal-ok" class="px-5 py-2.5 bg-gradient-to-r ${buttonClass} text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+          <button type="button" id="feedback-modal-ok" class="${okBtnClass} px-5 py-2.5 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
             Aceptar
           </button>
         </div>

@@ -217,6 +217,145 @@
       background: #f1f5f9 !important;
     }
 
+    /* Texto principal filas/celdas y modales — sin depender de theme-light: en Tailwind */
+    body[data-page="cartera"] .cr-text {
+      color: #f1f5f9;
+    }
+    body.theme-light[data-page="cartera"] .cr-text {
+      color: #0f172a !important;
+    }
+
+    body[data-page="cartera"] .cr-pill {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    body[data-page="cartera"] .cr-pill--green {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+    body.theme-light[data-page="cartera"] .cr-pill--green {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+    body[data-page="cartera"] .cr-pill--purple {
+      background: rgba(168, 85, 247, 0.2);
+      color: #d8b4fe;
+      border-color: rgba(168, 85, 247, 0.35);
+    }
+    body.theme-light[data-page="cartera"] .cr-pill--purple {
+      background: #f3e8ff;
+      color: #6b21a8;
+      border-color: #e9d5ff;
+    }
+    body[data-page="cartera"] .cr-pill--red {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fca5a5;
+      border-color: rgba(248, 113, 113, 0.35);
+    }
+    body.theme-light[data-page="cartera"] .cr-pill--red {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+
+    body[data-page="cartera"] .cr-plate-chip {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-family: ui-monospace, monospace;
+      background: rgba(51, 65, 85, 0.65);
+      color: #f1f5f9;
+    }
+    body.theme-light[data-page="cartera"] .cr-plate-chip {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+
+    body[data-page="cartera"] .cr-modal-panel {
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      border-radius: 0.5rem;
+    }
+    body.theme-light[data-page="cartera"] .cr-modal-panel {
+      background: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    body[data-page="cartera"] .cr-btn-orange {
+      background: linear-gradient(135deg, #ea580c, #c2410c) !important;
+      color: #ffffff !important;
+      border: none !important;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+    }
+    body[data-page="cartera"] .cr-btn-orange:hover {
+      filter: brightness(1.06);
+    }
+    body[data-page="cartera"] .cr-btn-green {
+      background: linear-gradient(135deg, #16a34a, #15803d) !important;
+      color: #ffffff !important;
+      border: none !important;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
+    }
+    body[data-page="cartera"] .cr-btn-green:hover {
+      filter: brightness(1.06);
+    }
+    body[data-page="cartera"] .cr-btn-gray-modal {
+      background: #475569 !important;
+      color: #ffffff !important;
+      border: none !important;
+    }
+    body[data-page="cartera"] .cr-btn-gray-modal:hover {
+      background: #334155 !important;
+    }
+
+    body[data-page="cartera"] .cr-btn-red {
+      background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+      color: #ffffff !important;
+      border: none !important;
+    }
+    body[data-page="cartera"] .cr-btn-red:hover {
+      filter: brightness(1.06);
+    }
+
+    body[data-page="cartera"] .cr-hint-ok { color: #86efac; }
+    body.theme-light[data-page="cartera"] .cr-hint-ok { color: #15803d !important; }
+    body[data-page="cartera"] .cr-hint-warn { color: #facc15; }
+    body.theme-light[data-page="cartera"] .cr-hint-warn { color: #a16207 !important; }
+    body[data-page="cartera"] .cr-hint-error { color: #fca5a5; }
+    body.theme-light[data-page="cartera"] .cr-hint-error { color: #b91c1c !important; }
+
+    body.theme-light[data-page="cartera"] #modal > div.relative {
+      background: #f8fafc !important;
+    }
+
+    body[data-page="cartera"] #modalBody .cr-field-input {
+      background: rgba(15, 23, 42, 0.55);
+      color: #f1f5f9 !important;
+      border: 1px solid rgba(71, 85, 105,0.55);
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-field-input {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    body[data-page="cartera"] #modalBody .cr-history-wrap {
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid rgba(71, 85, 105, 0.45);
+      border-radius: 0.75rem;
+    }
+    body.theme-light[data-page="cartera"] #modalBody .cr-history-wrap {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+
     body.theme-light[data-page="cartera"] #modalBody {
       color: #0f172a;
     }
@@ -767,7 +906,7 @@
                   <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Empresas de Cartera</h3>
                   <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Gestiona empresas recurrentes y particulares para tracking de ventas y cartera</p>
                 </div>
-                <button id="btn-add-company" class="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base">
+                <button type="button" id="btn-add-company" class="cr-btn-orange w-full sm:w-auto px-4 py-2 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base">
                   + Crear Empresa
                 </button>
               </div>
