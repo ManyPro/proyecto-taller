@@ -276,7 +276,7 @@ export async function createTransfer(req, res) {
       const transferId = new mongoose.Types.ObjectId().toString();
       const transferDate = date ? localToUTC(date) : new Date();
 
-      const created = await CashFlowEntry.create([{
+      const created = await CashFlowEntry.insertMany([{
         companyId: req.companyId,
         accountId: fromAcc._id,
         kind: 'OUT',
@@ -308,7 +308,7 @@ export async function createTransfer(req, res) {
           toAccountId: toAcc._id,
           transferDirection: 'INCOMING'
         }
-      }], { session });
+      }], { session, ordered: true });
 
       outEntry = created[0];
       inEntry = created[1];
