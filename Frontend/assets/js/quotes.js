@@ -2878,7 +2878,9 @@ export function initQuotes({ getCompanyEmail }) {
       const rows=readRows(); 
       console.log('[recalc modal] Rows leídos:', rows.length, rows);
       let subP=0, subS=0;
-      rows.forEach(({type,qty,price})=>{
+      rows.forEach(({type,qty,price,comboParent})=>{
+        // No sumar ítems internos de combo (solo referencia en "Incluye")
+        if (comboParent) return;
         const q=qty>0?qty:1; const st=q*(price||0);
         if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
       });
@@ -3301,7 +3303,10 @@ export function initQuotes({ getCompanyEmail }) {
         
         // Calcular descuento para guardar
         let discountValue = 0;
-        const subtotal = rows.reduce((sum, r) => sum + ((r.qty>0?r.qty:1)*(r.price||0)), 0);
+        const subtotal = rows.reduce((sum, r) => {
+          if (r?.comboParent) return sum;
+          return sum + ((r.qty>0?r.qty:1)*(r.price||0));
+        }, 0);
         if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
           discountValue = (subtotal * currentDiscount.value) / 100;
         } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
@@ -5748,10 +5753,10 @@ export function initQuotes({ getCompanyEmail }) {
       container.innerHTML = `
         <div class="space-y-4">
           <div class="flex gap-2 border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pb-2">
-            <button id="nav-prices-inline" class="flex-1 px-3 py-2 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'prices' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
+            <button type="button" id="nav-prices-inline" class="q-quote-nav-tab flex-1 px-3 py-2 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'prices' ? 'q-quote-nav-tab--active bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-slate-200 dark:text-slate-200 theme-light:bg-slate-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
               💰 Lista de precios
             </button>
-            <button id="nav-inventory-inline" class="flex-1 px-3 py-2 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'inventory' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
+            <button type="button" id="nav-inventory-inline" class="q-quote-nav-tab flex-1 px-3 py-2 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'inventory' ? 'q-quote-nav-tab--active bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-slate-200 dark:text-slate-200 theme-light:bg-slate-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
               📦 Inventario
             </button>
           </div>

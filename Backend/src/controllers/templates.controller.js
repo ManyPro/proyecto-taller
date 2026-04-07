@@ -1292,6 +1292,26 @@ function normalizeTemplateHtml(html='') {
   if (!html) return '';
   let output = String(html);
 
+  const comboMainRowStyle = 'background: #fff7cc; font-weight: 700;';
+  const applyInlineStyleToTrTag = (trTag, styleToApply) => {
+    if (!trTag || !styleToApply) return trTag;
+    if (/style\s*=\s*"/i.test(trTag)) {
+      return trTag.replace(/style\s*=\s*"([^"]*)"/i, (_m, existing) => {
+        const cleanExisting = String(existing || '').trim().replace(/;?\s*$/, '');
+        const separator = cleanExisting ? '; ' : '';
+        return `style="${cleanExisting}${separator}${styleToApply}"`;
+      });
+    }
+    return trTag.replace(/>$/, ` style="${styleToApply}">`);
+  };
+  const highlightComboMainRows = (htmlStr) => {
+    if (!htmlStr || !htmlStr.includes('sale.itemsGrouped.combos')) return htmlStr;
+    return htmlStr.replace(
+      /(\{\{#each sale\.itemsGrouped\.combos\}\}\s*)(<tr\b[^>]*>)/gi,
+      (_m, eachBlock, trTag) => `${eachBlock}${applyInlineStyleToTrTag(trTag, comboMainRowStyle)}`
+    );
+  };
+
   // Primero, reemplazar cualquier escape HTML de las llaves de Handlebars
   output = output.replace(/&#123;&#123;/g, '{{');
   output = output.replace(/&#125;&#125;/g, '}}');
@@ -1357,7 +1377,7 @@ function normalizeTemplateHtml(html='') {
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
-          <tr>
+          <tr style="background: #fff7cc; font-weight: 700;">
             <td><strong>{{name}}</strong></td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
@@ -1419,7 +1439,7 @@ function normalizeTemplateHtml(html='') {
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
-          <tr>
+          <tr style="background: #fff7cc; font-weight: 700;">
             <td><strong>{{name}}</strong></td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
@@ -1499,6 +1519,7 @@ function normalizeTemplateHtml(html='') {
     }
 
     output = normalizeSaleRemissionTableTfoot(output);
+    output = highlightComboMainRows(output);
   }
   
   // Para cotizaciones - convertir a estructura agrupada igual que remisiones

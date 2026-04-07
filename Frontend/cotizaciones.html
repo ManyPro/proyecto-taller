@@ -233,6 +233,19 @@
     body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(h2, h3, h4) {
       color: #0f172a !important;
     }
+    /* Pestañas Lista de precios / Inventario (panel Agregar items): contraste fijo en modo claro */
+    body.theme-light[data-page="cotizaciones"] .q-quote-nav-tab:not(.q-quote-nav-tab--active) {
+      color: #0f172a !important;
+      background: #e2e8f0 !important;
+    }
+    body.theme-light[data-page="cotizaciones"] .q-quote-nav-tab:not(.q-quote-nav-tab--active):hover {
+      color: #0f172a !important;
+      background: #cbd5e1 !important;
+    }
+    body.theme-light[data-page="cotizaciones"] .q-quote-nav-tab.q-quote-nav-tab--active {
+      color: #ffffff !important;
+      background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
+    }
     body.theme-light[data-page="cotizaciones"] #tab-cotizaciones :is(label, .text-slate-400, .text-slate-500, .text-slate-600) {
       color: #334155 !important;
       font-weight: 600;
