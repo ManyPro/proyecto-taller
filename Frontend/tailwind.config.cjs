@@ -1,3 +1,5 @@
+const plugin = require("tailwindcss/plugin");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -71,5 +73,10 @@ module.exports = {
     {
       pattern: /(bg|text|border|from|to|via)-(slate|blue|green|red|yellow|purple|indigo|emerald|cyan)-(50|100|200|300|400|500|600|700|800|900)(\/\d+)?/
     }
+  ],
+  plugins: [
+    plugin(({ addVariant }) => {
+      addVariant("theme-light", "body.theme-light &");
+    })
   ]
 };
