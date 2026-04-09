@@ -2123,7 +2123,7 @@ async function openMaintenanceServicesModal() {
 
       const modalHTML = `
         <div class="p-6 flex flex-col h-full max-h-[90vh]">
-          <div class="flex-1 overflow-y-auto modal-body-scroll">
+          <div class="flex-1 overflow-y-auto overflow-x-hidden modal-body-scroll custom-scrollbar">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="p-2 bg-blue-600/25 dark:bg-blue-600/25 theme-light:bg-sky-200 rounded-xl shrink-0 text-2xl leading-none" aria-hidden="true">🔧</div>
@@ -2153,8 +2153,9 @@ async function openMaintenanceServicesModal() {
               Omitir
             </button>
             <button 
+              type="button"
               id="maintenance-continue" 
-              class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+              class="sales-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Continuar
             </button>
@@ -2204,9 +2205,10 @@ async function openMaintenanceServicesModal() {
       }
       
       // Agregar estilos CSS para los checkboxes personalizados y scrollbars si no existen
-      if (!document.getElementById('maintenance-checkbox-styles')) {
+      if (!document.getElementById('maintenance-checkbox-styles-v2')) {
+        document.getElementById('maintenance-checkbox-styles')?.remove();
         const style = document.createElement('style');
-        style.id = 'maintenance-checkbox-styles';
+        style.id = 'maintenance-checkbox-styles-v2';
         style.textContent = `
           .maintenance-service-card input[type="checkbox"]:checked ~ div {
             border-color: rgb(59, 130, 246) !important;
@@ -2218,60 +2220,6 @@ async function openMaintenanceServicesModal() {
           }
           .maintenance-service-card:hover .w-6 {
             border-color: rgb(96, 165, 250) !important;
-          }
-          
-          /* Estilos personalizados para scrollbars - Mejorados */
-          /* NOTA: saleId se declara UNA SOLA VEZ en la línea 1627 dentro de loadTemplates().then() */
-          #maintenance-services-container::-webkit-scrollbar {
-            width: 10px;
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 10px;
-            border: 1px solid rgba(51, 65, 85, 0.3);
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.9) 100%);
-            border-radius: 10px;
-            border: 2px solid rgba(15, 23, 42, 0.8);
-            box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.2);
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 246, 1) 100%);
-            box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3), 0 0 4px rgba(59, 130, 246, 0.4);
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-thumb:active {
-            background: linear-gradient(180deg, rgba(37, 99, 235, 1) 0%, rgba(29, 78, 216, 1) 100%);
-          }
-          
-          /* Para Firefox */
-          #maintenance-services-container {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(59, 130, 246, 0.8) rgba(15, 23, 42, 0.8);
-          }
-          
-          /* Scrollbar para el modal completo si tiene scroll */
-          .modal-body-scroll::-webkit-scrollbar {
-            width: 10px;
-          }
-          
-          .modal-body-scroll::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 10px;
-          }
-          
-          .modal-body-scroll::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.9) 100%);
-            border-radius: 10px;
-            border: 2px solid rgba(15, 23, 42, 0.8);
-          }
-          
-          .modal-body-scroll::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 246, 1) 100%);
           }
         `;
         document.head.appendChild(style);
@@ -2613,7 +2561,7 @@ function buildCloseModalContent(){
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
           <p id="cv-labor-total" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(current?.laborValue || 0)}</strong></p>
         </div>
-        <button id="cv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+        <button id="cv-add-commission" type="button" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
@@ -2646,7 +2594,7 @@ function buildCloseModalContent(){
       </div>
       <div class="flex gap-2 mb-3">
         <input id="cv-investment-amount" type="number" min="0" step="0.01" placeholder="Valor de inversión (opcional)" class="flex-1 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400" />
-        <button id="cv-add-investment-from-list" type="button" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📋 Desde lista</button>
+        <button id="cv-add-investment-from-list" type="button" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📋 Desde lista</button>
       </div>
       <div id="cv-investment-prices-menu" class="hidden mt-4 p-4 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
         <div class="flex justify-between items-center mb-3">
@@ -2689,8 +2637,8 @@ function buildCloseModalContent(){
         <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
       <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
-        <button id="cv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
-        <button type="button" id="cv-send-survey" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
+        <button id="cv-confirm" class="sales-main-btn w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
+        <button type="button" id="cv-send-survey" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
         <button type="button" id="cv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
@@ -4769,8 +4717,7 @@ async function renderSale(){
     
     const btnEditName = document.createElement('button');
     btnEditName.innerHTML = '✏️ Editar Nombre';
-    btnEditName.className = 'secondary';
-    btnEditName.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(34, 197, 94, 0.3); color: #86efac;';
+    btnEditName.className = 'sale-item-btn-edit-name';
     btnEditName.onclick = async () => {
       await openEditNameModal(it, tr);
     };
@@ -4778,7 +4725,6 @@ async function renderSale(){
     const btnEdit = document.createElement('button');
     btnEdit.textContent = 'Editar $';
     btnEdit.className = 'secondary';
-    btnEdit.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnEdit.onclick = async () => {
       await openEditPriceModal(it);
     };
@@ -4786,7 +4732,6 @@ async function renderSale(){
     const btnZero = document.createElement('button');
     btnZero.textContent = 'Precio 0';
     btnZero.className = 'secondary';
-    btnZero.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnZero.onclick = async () => {
       await updateSaleAndRender(async () => {
         current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
@@ -4795,7 +4740,6 @@ async function renderSale(){
     
     const btnDel = tr.querySelector('button.remove');
     if (btnDel) {
-      btnDel.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(239, 68, 68, 0.2); color: #fca5a5;';
       btnDel.onclick = async () => {
         if (!confirm('¿Eliminar este item?')) return;
         await updateSaleAndRender(async () => {
@@ -5185,7 +5129,7 @@ async function openAdvancePaymentModal(){
     <div id="adv-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
 
     <div class="flex flex-col sm:flex-row gap-2 pt-2">
-      <button id="adv-save" class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar abono</button>
+      <button type="button" id="adv-save" class="sales-main-btn flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar abono</button>
       <button id="adv-cancel" type="button" class="px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
     </div>
   `;
@@ -5331,7 +5275,7 @@ async function openDiscountModal(){
     <div id="disc-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
 
     <div class="flex flex-col sm:flex-row gap-2 pt-2">
-      <button id="disc-save" class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar descuento</button>
+      <button type="button" id="disc-save" class="sales-main-btn flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar descuento</button>
       <button id="disc-cancel" type="button" class="px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
     </div>
   `;
@@ -5405,7 +5349,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
     // Agregar botón "OMITIR" para usar nombre placeholder
     const skipBtn = document.createElement('button');
     skipBtn.id = 'qr-skip-slot';
-    skipBtn.className = 'px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-200 mt-2';
+    skipBtn.className = 'sales-main-btn px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-200 mt-2';
     skipBtn.textContent = '⏭️ OMITIR (usar nombre placeholder)';
     skipBtn.style.width = '100%';
     
@@ -6708,21 +6652,27 @@ function showManualView(parentNode) {
   let currentView = currentVehicleId ? 'prices' : 'inventory'; // Por defecto, mostrar inventario si no hay vehículo
   
   function renderView() {
+    const tabBase =
+      'sales-nav-btn flex-1 min-w-0 px-3 py-3 text-sm font-semibold rounded-t-lg transition-all duration-200';
+    const tabInactive =
+      'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300';
+    const tabActive =
+      'active bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white shadow-md';
     parentNode.innerHTML = `
       <div style="margin-bottom:16px;">
         <h3 style="margin-top:0;margin-bottom:16px;">Agregar manual</h3>
-        <div style="display:flex;gap:8px;border-bottom:2px solid var(--border);padding-bottom:8px;">
-          <button id="nav-prices" class="${currentView === 'prices' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+        <div class="flex gap-2 border-b-2 border-slate-600/40 dark:border-slate-600/40 theme-light:border-slate-200 pb-2">
+          <button type="button" id="nav-prices" class="${tabBase} ${currentView === 'prices' ? tabActive : tabInactive}">
             💰 Lista de precios
           </button>
-          <button id="nav-inventory" class="${currentView === 'inventory' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+          <button type="button" id="nav-inventory" class="${tabBase} ${currentView === 'inventory' ? tabActive : tabInactive}">
             📦 Inventario
           </button>
         </div>
       </div>
-      <div id="manual-content" style="min-height:400px;max-height:70vh;overflow-y:auto;"></div>
+      <div id="manual-content" class="custom-scrollbar min-h-[400px] max-h-[70vh] overflow-y-auto overflow-x-hidden"></div>
       <div style="margin-top:16px;text-align:center;">
-        <button id="manual-back-btn" class="secondary" style="padding:8px 24px;">← Volver</button>
+        <button type="button" id="manual-back-btn" class="px-6 py-2 rounded-xl font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 bg-slate-700/40 hover:bg-slate-700/55 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-white theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-900 transition-all">← Volver</button>
       </div>
     `;
     
@@ -7215,7 +7165,7 @@ async function renderInventoryView(container) {
             <div style="font-weight:600;margin-bottom:4px;">${item.name || 'Sin nombre'}</div>
             <div style="font-size:13px;color:var(--text);"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku || 'N/A'}</strong> | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
           </div>
-          <button class="add-inventory-btn primary" data-item-id="${item._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;margin-left:12px;">Agregar</button>
+          <button type="button" class="add-inventory-btn sales-main-btn shrink-0 ml-3 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all duration-200" data-item-id="${item._id}">Agregar</button>
         `;
         
         card.querySelector('.add-inventory-btn').onclick = async () => {
@@ -7286,9 +7236,9 @@ async function renderInventoryView(container) {
         <input id="inventory-filter-sku" type="text" placeholder="Buscar por SKU..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
         <input id="inventory-filter-name" type="text" placeholder="Buscar por nombre..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
       </div>
-      <button id="inventory-search-btn" class="primary" style="width:100%;padding:10px;border-radius:6px;border:none;font-weight:600;cursor:pointer;">🔍 Buscar</button>
+      <button type="button" id="inventory-search-btn" class="sales-main-btn w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold border border-white/10 transition-all duration-200">🔍 Buscar</button>
     </div>
-    <div id="inventory-list" style="max-height:50vh;overflow-y:auto;"></div>
+    <div id="inventory-list" class="custom-scrollbar max-h-[50vh] overflow-y-auto overflow-x-hidden"></div>
     <div style="text-align:center;margin-top:12px;">
       <button id="load-more-inventory" class="secondary" style="padding:8px 16px;display:none;">Cargar más</button>
     </div>
@@ -8508,7 +8458,8 @@ async function openSpecialNotesModal() {
             />
             <button 
               id="sn-add-note" 
-              class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap"
+              type="button"
+              class="sales-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap"
             >
               ➕ Agregar
             </button>
@@ -8517,7 +8468,7 @@ async function openSpecialNotesModal() {
         </div>
         
         <div class="flex flex-wrap gap-3 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-          <button id="sn-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+          <button type="button" id="sn-save" class="sales-main-btn flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
           <button id="sn-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
         </div>
       </div>
@@ -13415,7 +13366,7 @@ function buildEditCloseModalContent(sale, total) {
           <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">🛠️</span> Desglose de mano de obra</label>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Edita las líneas de participación técnica.</p>
         </div>
-        <button id="ecv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+        <button id="ecv-add-commission" type="button" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
@@ -13454,7 +13405,7 @@ function buildEditCloseModalContent(sale, total) {
         </div>
       </div>
       <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
-        <button id="ecv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+        <button id="ecv-confirm" class="sales-main-btn w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
         <button type="button" id="ecv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="ecv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>

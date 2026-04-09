@@ -212,6 +212,32 @@
     body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
       color: #000000 !important;
     }
+    /* Insignias COMBO / GENERAL / tipo en lista de precios (fondo intenso → texto blanco) */
+    body.theme-light #modal span.bg-violet-600,
+    body.theme-light #modal span.bg-cyan-600,
+    body.theme-light #modal span.bg-emerald-600,
+    body.theme-light #modal span.bg-blue-600,
+    body.theme-light #modal span[class*="bg-violet-600"],
+    body.theme-light #modal span[class*="bg-cyan-600"],
+    body.theme-light #modal span[class*="bg-emerald-600"],
+    body.theme-light #modal span[class*="bg-blue-600"] {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.25);
+    }
+    /* Pisa la regla anterior: spans dentro de botones gradiente (.sales-main-btn) deben ir en blanco */
+    body.theme-light #modal .sales-main-btn,
+    body.theme-light #modal .sales-main-btn * {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    /* Lector QR: el label del botón es texto directo (no span); máxima especificidad */
+    body.theme-light #modal button#qr-add-manual,
+    body.theme-light #modal button#qr-capture-plate,
+    body.theme-light #modal button#qr-confirm-plate,
+    body.theme-light #modal button#qr-finish-multi {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
     /* Mejorar contraste en selects y dropdowns */
     body.theme-light select,
     body.theme-light select option,
@@ -512,6 +538,34 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
+    /* Agregar manual + listas en modal: scrollbar más integrada */
+    #modal .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(96, 165, 250, 0.45) transparent;
+    }
+    #modal .custom-scrollbar::-webkit-scrollbar {
+      width: 9px;
+      height: 9px;
+    }
+    #modal .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(96, 165, 250, 0.55), rgba(59, 130, 246, 0.45));
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    #modal .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.75), rgba(37, 99, 235, 0.6));
+      border-radius: 999px;
+    }
+    body.theme-light #modal .custom-scrollbar {
+      scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
+    }
+    body.theme-light #modal .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.35), rgba(37, 99, 235, 0.28));
+    }
+    body.theme-light #modal .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.55), rgba(29, 78, 216, 0.45));
+    }
     /* Barras de navegación hub — mismo criterio que Notas */
     body.theme-light .nav-tab:not(.active),
     body.theme-light .mobile-nav-tab:not(.active) {
@@ -604,6 +658,26 @@
     body.theme-light #sales-body td:last-child button.remove:hover {
       background: #fecaca;
       color: #b91c1c;
+    }
+    /* Ítem venta: Editar nombre (evitar verde claro sobre verde pálido en modo claro) */
+    #sales-body td:last-child button.sale-item-btn-edit-name {
+      background: rgba(34, 197, 94, 0.35);
+      color: #bbf7d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    #sales-body td:last-child button.sale-item-btn-edit-name:hover {
+      background: rgba(34, 197, 94, 0.5);
+      color: #ffffff;
+    }
+    body.theme-light #sales-body td:last-child button.sale-item-btn-edit-name {
+      background: #dcfce7;
+      color: #14532d;
+      border: 1px solid #86efac;
+    }
+    body.theme-light #sales-body td:last-child button.sale-item-btn-edit-name:hover {
+      background: #bbf7d0;
+      color: #052e16;
+      border-color: #4ade80;
     }
     /* Estilos para la orden de trabajo */
     #sv-wo-body tr.wo-section-header td {
@@ -1054,7 +1128,7 @@
                     <div class="relative">
                       <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vehículo (opcional)</label>
                       <input id="v-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-                      <div id="v-vehicle-dropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg max-h-48 overflow-y-auto shadow-xl"></div>
+                      <div id="v-vehicle-dropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg max-h-48 overflow-y-auto overflow-x-hidden custom-scrollbar shadow-xl"></div>
                       <input type="hidden" id="v-vehicle-id" />
                       <div id="v-vehicle-selected" class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
                     </div>
@@ -1069,7 +1143,7 @@
                 <div class="mt-6 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
                   <div class="flex items-center justify-between mb-2">
                     <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Asociar a Empresa</label>
-                    <button type="button" id="cv-associate-company" class="px-4 py-2 text-sm bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                    <button type="button" id="cv-associate-company" class="sales-main-btn px-4 py-2 text-sm bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
                       <span id="cv-company-status">Seleccionar empresa</span>
                     </button>
                   </div>
@@ -1087,8 +1161,8 @@
                   </p>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
-                  <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200">Cancelar</button>
-                  <button id="sales-save-cv" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+                  <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-white theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-800 font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+                  <button type="button" id="sales-save-cv" class="sales-main-btn px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
                 </div>
               </div>
             </template>
@@ -1442,7 +1516,7 @@
           </div>
           <div class="flex gap-2 mt-4">
             <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)" class="flex-1 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-            <button id="qr-add-manual" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 border border-white/10">Agregar</button>
+            <button type="button" id="qr-add-manual" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 border border-white/10">Agregar</button>
           </div>
           <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-3 text-center" id="qr-msg">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
           <ul id="qr-history" class="qr-history mt-4 space-y-2"></ul>
