@@ -3897,11 +3897,13 @@ function showCloseSaleSummaryPopup(closeResult, closedSale) {
   };
 
   const node = document.createElement('div');
-  node.className = 'w-[min(980px,96vw)] rounded-2xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 bg-slate-900 dark:bg-slate-900 theme-light:bg-white shadow-2xl';
+  /* Dentro de #modalBody (max-w-4xl): ancho fijo 980px desbordaba y generaba scroll horizontal */
+  node.className =
+    'close-sale-summary-root w-full max-w-full min-w-0 overflow-x-hidden rounded-2xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 bg-slate-900 dark:bg-slate-900 theme-light:bg-white shadow-2xl box-border';
   node.innerHTML = `
-    <div class="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 dark:from-emerald-600/20 dark:to-cyan-600/20 theme-light:from-emerald-100 theme-light:to-cyan-100">
-      <div class="flex items-center justify-between gap-3">
-        <div>
+    <div class="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 dark:from-emerald-600/20 dark:to-cyan-600/20 theme-light:from-emerald-100 theme-light:to-cyan-100 min-w-0">
+      <div class="flex items-center justify-between gap-3 min-w-0">
+        <div class="min-w-0 flex-1">
           <h3 class="text-base sm:text-lg font-extrabold text-white dark:text-white theme-light:text-slate-900">Venta cerrada con éxito</h3>
           <p class="text-[11px] sm:text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mt-1">Remisión #${saleNumber}</p>
         </div>
@@ -3912,27 +3914,27 @@ function showCloseSaleSummaryPopup(closeResult, closedSale) {
       </div>
     </div>
 
-    <div class="px-3 sm:px-5 py-3 sm:py-4 space-y-3">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+    <div class="px-3 sm:px-5 py-3 sm:py-4 space-y-3 min-w-0">
+      <div class="grid grid-cols-3 gap-1.5 sm:gap-3 min-w-0">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-2 sm:p-3 min-w-0">
           <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Inv. general</p>
           <p class="mt-1 text-base sm:text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.inventoryQty || 0)}</p>
           <p class="text-[11px] sm:text-xs text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700">${money(Number(totals.inventoryValue || 0))}</p>
         </div>
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-2 sm:p-3 min-w-0">
           <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Inv. inversor</p>
           <p class="mt-1 text-base sm:text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.investorQty || 0)}</p>
           <p class="text-[11px] sm:text-xs text-amber-300 dark:text-amber-300 theme-light:text-amber-700">${money(Number(totals.investorValue || 0))}</p>
         </div>
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
-          <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total descontado</p>
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-2 sm:p-3 min-w-0">
+          <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600 leading-tight">Total descontado</p>
           <p class="mt-1 text-base sm:text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.totalQty || 0)} und</p>
           <p class="text-[11px] sm:text-xs text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(Number(totals.totalValue || 0))}</p>
         </div>
       </div>
 
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden">
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-3 min-w-0">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden min-w-0">
           <div class="px-4 py-2 bg-cyan-600/15 dark:bg-cyan-600/15 theme-light:bg-cyan-100 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200">
             <h4 class="text-sm font-bold text-cyan-200 dark:text-cyan-200 theme-light:text-cyan-800">General</h4>
           </div>
@@ -3941,7 +3943,7 @@ function showCloseSaleSummaryPopup(closeResult, closedSale) {
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden min-w-0">
           <div class="px-4 py-2 bg-amber-600/15 dark:bg-amber-600/15 theme-light:bg-amber-100 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200">
             <h4 class="text-sm font-bold text-amber-200 dark:text-amber-200 theme-light:text-amber-800">Inversor</h4>
           </div>

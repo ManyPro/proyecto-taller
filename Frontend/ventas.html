@@ -450,6 +450,15 @@
     #modal > div {
       pointer-events: auto;
       touch-action: pan-y;
+      min-width: 0;
+    }
+    /* Resumen post-cierre: sin scroll horizontal; cabe en el panel del modal */
+    body[data-page="ventas"] #modal:not(.hidden) > div.relative:has(.close-sale-summary-root) {
+      max-width: min(96vw, 64rem);
+    }
+    body[data-page="ventas"] #modalBody:has(.close-sale-summary-root) {
+      overflow-x: hidden;
+      min-width: 0;
     }
     /* Mejorar experiencia táctil en móviles */
     #modal button,

@@ -492,10 +492,64 @@ export const listItems = async (req, res) => {
       }
     }
   }
-  if (supplierId === 'GENERAL') {
-    q.supplierId = null;
-  } else if (supplierId && mongoose.Types.ObjectId.isValid(supplierId)) {
-    q.supplierId = new mongoose.Types.ObjectId(supplierId);
+  if (supplierId) {
+    const companyObjectId = new mongoose.Types.ObjectId(req.companyId);
+    let supplierItemIds = [];
+
+    if (supplierId === 'GENERAL') {
+      const purchaseIdsGeneral = await Purchase.distinct('_id', {
+        companyId: companyObjectId,
+        $or: [{ supplierId: null }, { supplierId: { $exists: false } }]
+      });
+
+      const stockEntryItemIds = await StockEntry.distinct('itemId', {
+        companyId: companyObjectId,
+        $or: [
+          { supplierId: null },
+          { supplierId: { $exists: false } },
+          ...(purchaseIdsGeneral.length ? [{ purchaseId: { $in: purchaseIdsGeneral } }] : [])
+        ]
+      });
+
+      const directItemIds = await Item.distinct('_id', {
+        companyId: companyObjectId,
+        $or: [{ supplierId: null }, { supplierId: { $exists: false } }]
+      });
+
+      supplierItemIds = Array.from(
+        new Set([...stockEntryItemIds, ...directItemIds].map((id) => String(id)))
+      );
+    } else if (mongoose.Types.ObjectId.isValid(supplierId)) {
+      const supplierObjectId = new mongoose.Types.ObjectId(supplierId);
+
+      const purchaseIdsBySupplier = await Purchase.distinct('_id', {
+        companyId: companyObjectId,
+        supplierId: supplierObjectId
+      });
+
+      const stockEntryItemIds = await StockEntry.distinct('itemId', {
+        companyId: companyObjectId,
+        $or: [
+          { supplierId: supplierObjectId },
+          ...(purchaseIdsBySupplier.length ? [{ purchaseId: { $in: purchaseIdsBySupplier } }] : [])
+        ]
+      });
+
+      const directItemIds = await Item.distinct('_id', {
+        companyId: companyObjectId,
+        supplierId: supplierObjectId
+      });
+
+      supplierItemIds = Array.from(
+        new Set([...stockEntryItemIds, ...directItemIds].map((id) => String(id)))
+      );
+    }
+
+    if (!supplierItemIds.length) {
+      q._id = { $in: [] };
+    } else {
+      q._id = { $in: supplierItemIds.map((id) => new mongoose.Types.ObjectId(id)) };
+    }
   }
 
   // Paginación opcional: si viene page o limit, respetar y devolver meta
