@@ -392,7 +392,7 @@ export const deleteVehicleIntake = async (req, res) => {
 // ======================= ITEMS ========================
 
 export const listItems = async (req, res) => {
-  const { name, sku, vehicleTarget, vehicleIntakeId, purchaseId, brand } = req.query;
+  const { name, sku, vehicleTarget, vehicleIntakeId, supplierId, brand } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
   if (name) {
@@ -492,13 +492,10 @@ export const listItems = async (req, res) => {
       }
     }
   }
-  if (purchaseId && mongoose.Types.ObjectId.isValid(purchaseId)) {
-    const purchaseObjectId = new mongoose.Types.ObjectId(purchaseId);
-    const itemIds = await StockEntry.distinct("itemId", {
-      companyId: new mongoose.Types.ObjectId(req.companyId),
-      purchaseId: purchaseObjectId
-    });
-    q._id = { $in: itemIds };
+  if (supplierId === 'GENERAL') {
+    q.supplierId = null;
+  } else if (supplierId && mongoose.Types.ObjectId.isValid(supplierId)) {
+    q.supplierId = new mongoose.Types.ObjectId(supplierId);
   }
 
   // Paginación opcional: si viene page o limit, respetar y devolver meta
@@ -518,7 +515,7 @@ export const listItems = async (req, res) => {
   }
 
   // Si no hay filtros, limitar a 10 por defecto para ahorrar recursos
-  const hasFilter = !!(name || sku || vehicleTarget || vehicleIntakeId || purchaseId || brand);
+  const hasFilter = !!(name || sku || vehicleTarget || vehicleIntakeId || supplierId || brand);
   const DEFAULT_LIMIT = 10;
 
   if (!hasFilter) {

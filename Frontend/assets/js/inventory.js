@@ -1202,25 +1202,23 @@ if (__ON_INV_PAGE__) {
     renderIntakesList();
   }
 
-  async function refreshPurchaseFilter() {
+  async function refreshSupplierFilter() {
     if (!qIntake) return;
     const currentValue = qIntake.value || '';
     try {
-      const data = await API.purchases.purchases.list({ limit: 1000 });
-      const purchases = Array.isArray(data?.items) ? data.items : [];
+      const data = await API.purchases.suppliers.list({ active: true, limit: 1000 });
+      const suppliers = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
       qIntake.innerHTML =
-        `<option value="">Todas las compras</option>` +
-        purchases.map((p) => {
-          const date = p?.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString('es-CO') : 'Sin fecha';
-          const supplier = p?.supplierId?.name || 'GENERAL';
-          return `<option value="${p._id}">Compra ${date} • ${escapeHtml(supplier)}</option>`;
+        `<option value="">Todos los proveedores</option>` +
+        suppliers.map((s) => {
+          return `<option value="${s._id}">${escapeHtml((s?.name || 'GENERAL').toUpperCase())}</option>`;
         }).join('');
-      if (currentValue && purchases.some((p) => String(p?._id) === String(currentValue))) {
+      if (currentValue && suppliers.some((s) => String(s?._id) === String(currentValue))) {
         qIntake.value = currentValue;
       }
     } catch (e) {
-      console.error('No se pudieron cargar compras para filtro:', e);
-      qIntake.innerHTML = `<option value="">Todas las compras</option>`;
+      console.error('No se pudieron cargar proveedores para filtro:', e);
+      qIntake.innerHTML = `<option value="">Todos los proveedores</option>`;
     }
   }
 
@@ -1830,7 +1828,7 @@ if (__ON_INV_PAGE__) {
           stockEntry: response.stockEntry
         };
 
-        const purchaseTitle = `COMPRA: ${supplierName.toUpperCase()}`;
+        const purchaseTitle = supplierName.toUpperCase();
         const list = [{ it: itemWithQr, count: qty }];
 
         try {
@@ -2351,7 +2349,7 @@ if (__ON_INV_PAGE__) {
       sku: qSku?.value.trim() || "",
       brand: qBrand ? qBrand.value.trim() : undefined,
       vehicleTarget: qVehicle ? qVehicle.value.trim() : undefined,
-      purchaseId: qIntake?.value || undefined,
+      supplierId: qIntake?.value || undefined,
     };
     // When searching, start from first page and keep current limit
     refreshItems({ ...params, page: 1, limit: state.paging?.limit || 15 });
@@ -4230,7 +4228,7 @@ function openMarketplaceHelper(item){
   console.log('🚀 Inicializando inventario...', { paging: state.paging });
   initInternalNavigation();
   refreshIntakes();
-  refreshPurchaseFilter();
+  refreshSupplierFilter();
   // Initial load: page 1, limit per page
   console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
@@ -4259,7 +4257,7 @@ function initInternalNavigation() {
     viewInventario.classList.remove('hidden');
     viewCompras.classList.add('hidden');
     viewInversores.classList.add('hidden');
-    refreshPurchaseFilter();
+    refreshSupplierFilter();
   });
 
   btnCompras.addEventListener('click', () => {
@@ -4613,7 +4611,7 @@ async function loadPurchasesList() {
     // Cargar todas las compras (sin límite o con límite alto)
     const data = await API.purchases.purchases.list({ limit: 1000 });
     container.innerHTML = renderPurchasesList(data.items || []);
-    refreshPurchaseFilter();
+    refreshSupplierFilter();
   } catch (err) {
     console.error('Error cargando compras:', err);
     container.innerHTML = `<p class="text-red-400 text-sm">Error: ${err.message || 'Error desconocido'}</p>`;
