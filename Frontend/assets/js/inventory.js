@@ -1199,15 +1199,29 @@ if (__ON_INV_PAGE__) {
     const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
 
-    if (qIntake) {
-      qIntake.innerHTML =
-        `<option value="">Todas las entradas</option>` +
-        state.intakes
-          .map((v) => `<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
-          .join("");
-    }
-
     renderIntakesList();
+  }
+
+  async function refreshPurchaseFilter() {
+    if (!qIntake) return;
+    const currentValue = qIntake.value || '';
+    try {
+      const data = await API.purchases.purchases.list({ limit: 1000 });
+      const purchases = Array.isArray(data?.items) ? data.items : [];
+      qIntake.innerHTML =
+        `<option value="">Todas las compras</option>` +
+        purchases.map((p) => {
+          const date = p?.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString('es-CO') : 'Sin fecha';
+          const supplier = p?.supplierId?.name || 'GENERAL';
+          return `<option value="${p._id}">Compra ${date} • ${escapeHtml(supplier)}</option>`;
+        }).join('');
+      if (currentValue && purchases.some((p) => String(p?._id) === String(currentValue))) {
+        qIntake.value = currentValue;
+      }
+    } catch (e) {
+      console.error('No se pudieron cargar compras para filtro:', e);
+      qIntake.innerHTML = `<option value="">Todas las compras</option>`;
+    }
   }
 
   function renderIntakesList() {
@@ -1642,6 +1656,7 @@ if (__ON_INV_PAGE__) {
         <div class="flex gap-3 mt-6">
           <button id="stk-save" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Agregar</button>
           <button id="stk-generate-stickers" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Agregar y Generar Stickers</button>
+          <button id="stk-generate-stickers-purchase" class="px-6 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors">Agregar y Generar Stickers + Compra</button>
           <button id="stk-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
         </div>
       </div>
@@ -1771,6 +1786,72 @@ if (__ON_INV_PAGE__) {
         }
         } catch (err) {
           hideBusy();
+        alert('Error agregando stock: ' + (err.message || err));
+      }
+    };
+
+    // Botón para agregar stock y generar stickers + compra (2 stickers por unidad)
+    document.getElementById('stk-generate-stickers-purchase').onclick = async () => {
+      const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
+      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const supplierSelect = document.getElementById('stk-supplier');
+      const supplierId = supplierSelect?.value || 'GENERAL';
+      const supplierName = supplierSelect?.selectedOptions?.[0]?.textContent?.trim() || 'GENERAL';
+      const investorId = document.getElementById('stk-investor').value || 'GENERAL';
+      let purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
+      const purchaseTotal = document.getElementById('stk-purchase-total').value ? parseFloat(document.getElementById('stk-purchase-total').value) : undefined;
+      const note = document.getElementById('stk-note').value || '';
+      
+      // Si hay precio total, calcular precio unitario
+      if (purchaseTotal && purchaseTotal > 0 && qty > 0) {
+        purchasePrice = purchaseTotal / qty;
+      }
+      
+      try {
+        showBusy('Agregando stock y generando stickers + compra...');
+        
+        const payload = { qty, note };
+        if (supplierId && supplierId !== '') payload.supplierId = supplierId;
+        if (investorId && investorId !== '') payload.investorId = investorId;
+        if (purchasePrice !== undefined) payload.purchasePrice = purchasePrice;
+        
+        const response = await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
+        showToast('Stock agregado');
+        
+        const purchasesList = document.getElementById('purchases-list');
+        if (purchasesList) {
+          loadPurchasesList();
+        }
+        
+        const itemWithQr = { 
+          ...it, 
+          qrData: response.qrData,
+          stockEntryId: response.stockEntryId,
+          stockEntry: response.stockEntry
+        };
+
+        const purchaseTitle = `COMPRA: ${supplierName.toUpperCase()}`;
+        const list = [{ it: itemWithQr, count: qty }];
+
+        try {
+          const base = it.sku || it._id || 'stickers';
+          await renderStickerPdf(list, `stickers-${base}`, {
+            includePurchaseSticker: true,
+            purchaseTitle,
+            purchaseNote: note
+          });
+          invCloseModal();
+          await refreshItems(state.lastItemsParams);
+          hideBusy();
+          showToast('Stock agregado y stickers + compra generados');
+          return;
+        } catch (err) {
+          hideBusy();
+          alert('Error generando stickers + compra: ' + (err.message || err));
+          return;
+        }
+      } catch (err) {
+        hideBusy();
         alert('Error agregando stock: ' + (err.message || err));
       }
     };
@@ -2270,7 +2351,7 @@ if (__ON_INV_PAGE__) {
       sku: qSku?.value.trim() || "",
       brand: qBrand ? qBrand.value.trim() : undefined,
       vehicleTarget: qVehicle ? qVehicle.value.trim() : undefined,
-      vehicleIntakeId: qIntake?.value || undefined,
+      purchaseId: qIntake?.value || undefined,
     };
     // When searching, start from first page and keep current limit
     refreshItems({ ...params, page: 1, limit: state.paging?.limit || 15 });
@@ -3790,11 +3871,15 @@ function openMarketplaceHelper(item){
     return html;
   }
 
-  async function renderStickerPdf(list, filenameBase = 'stickers') {
+  async function renderStickerPdf(list, filenameBase = 'stickers', options = {}) {
     // Generación directa con jsPDF (sin html2canvas)
     const jsPDF = await ensureJsPDF();
     const widthMm = 50;
     const heightMm = 30;
+    const includePurchaseSticker = !!options?.includePurchaseSticker;
+    const purchaseTitleText = String(options?.purchaseTitle || 'COMPRA').trim();
+    const purchaseNoteText = String(options?.purchaseNote || '').trim();
+    const purchaseDateText = new Date().toLocaleDateString('es-CO');
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -3824,82 +3909,152 @@ function openMarketplaceHelper(item){
       });
     }
 
+    function fitMultilineTextToBox(text, boxW, boxH, maxFont = 10, minFont = 3.5, lineHeightFactor = 1.18) {
+      const clean = String(text || '').trim();
+      if (!clean) return { lines: [''], fontSize: minFont, lineHeight: minFont * lineHeightFactor };
+      let best = { lines: [clean], fontSize: minFont, lineHeight: minFont * lineHeightFactor };
+      for (let fs = maxFont; fs >= minFont; fs -= 0.2) {
+        doc.setFontSize(fs);
+        const lines = doc.splitTextToSize(clean, Math.max(1, boxW));
+        const lh = fs * lineHeightFactor;
+        const totalH = lines.length * lh;
+        if (totalH <= boxH) {
+          return { lines, fontSize: fs, lineHeight: lh };
+        }
+        best = { lines, fontSize: fs, lineHeight: lh };
+      }
+      return best;
+    }
+
+    function drawPurchaseStickerPage(item) {
+      const itemName = String(item?.name || item?.sku || '').toUpperCase().trim() || 'ITEM';
+      const title = purchaseTitleText ? purchaseTitleText.toUpperCase() : 'COMPRA';
+
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, widthMm, heightMm, 'F');
+
+      // Marco suave para mantener buena lectura en impresora térmica
+      doc.setDrawColor(190, 190, 190);
+      doc.setLineWidth(0.25);
+      doc.roundedRect(1.2, 1.2, widthMm - 2.4, heightMm - 2.4, 1.2, 1.2, 'S');
+
+      // Título de compra
+      const titleBox = { x: 2.4, y: 2.4, w: widthMm - 4.8, h: 8.5 };
+      const titleFit = fitMultilineTextToBox(title, titleBox.w, titleBox.h, 7.4, 4.2, 1.12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(titleFit.fontSize);
+      const titleStartY = titleBox.y + Math.max(titleFit.fontSize, (titleBox.h - titleFit.lines.length * titleFit.lineHeight) / 2 + titleFit.fontSize * 0.85);
+      titleFit.lines.forEach((ln, idx) => {
+        doc.text(ln, titleBox.x + titleBox.w / 2, titleStartY + idx * titleFit.lineHeight, { align: 'center' });
+      });
+
+      // Nombre del item (zona principal con autoajuste fuerte)
+      const itemBox = { x: 2.8, y: 11.4, w: widthMm - 5.6, h: 15.2 };
+      const itemFit = fitMultilineTextToBox(itemName, itemBox.w, itemBox.h, 8.8, 3.1, 1.15);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(itemFit.fontSize);
+      const itemStartY = itemBox.y + Math.max(itemFit.fontSize, (itemBox.h - itemFit.lines.length * itemFit.lineHeight) / 2 + itemFit.fontSize * 0.85);
+      itemFit.lines.forEach((ln, idx) => {
+        doc.text(ln, itemBox.x + itemBox.w / 2, itemStartY + idx * itemFit.lineHeight, { align: 'center' });
+      });
+
+      // Pie opcional de referencia
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(2.9);
+      const footer = purchaseNoteText
+        ? `${purchaseDateText} - ${purchaseNoteText}`.slice(0, 95)
+        : purchaseDateText;
+      doc.text(footer, widthMm / 2, heightMm - 1.2, { align: 'center' });
+    }
+
+    async function drawQrStickerPage(item) {
+      const it = item;
+      // Layout con leve margen interno y proporciones más cercanas al recordatorio
+      const innerMargin = 1; // mm
+      const gap = 1; // mm entre columnas
+      const contentW = widthMm - innerMargin * 2;
+      const contentH = heightMm - innerMargin * 2;
+
+      const leftColW = contentW * 0.47;
+      const rightColW = contentW - leftColW - gap;
+
+      const leftColX = innerMargin;
+      const rightColX = innerMargin + leftColW + gap;
+      const colY = innerMargin;
+      const rightColH = contentH;
+
+      // Logo arriba, centrado en la derecha
+      const logoW = rightColW * 0.8;
+      const logoH = rightColH * 0.18;
+      const logoX = rightColX + (rightColW - logoW) / 2;
+      const logoY = colY;
+
+      // Cargar logo
+      const layout = await getStickerLayoutForCompany();
+      const logoUrl = (layout.elements.find(e => e.id === 'logo') || {}).url || '';
+      let logoDataUrl = '';
+      if (logoUrl) {
+        try { logoDataUrl = await fetchAsDataURL(logoUrl); } catch {}
+      }
+
+      // Generar QR desde backend (ya se usa en HTML)
+      // Si el item tiene stockEntryId, usarlo para generar el QR correcto
+      const stockEntryId = it.stockEntryId || (it.stockEntry && it.stockEntry._id) || null;
+      const qrDataUrl = await generateQRCodeDataURL(it._id, stockEntryId);
+
+      // QR centrado debajo del logo
+      const qrW = rightColW * 0.9;
+      const qrH = Math.min(rightColH - logoH - gap, qrW);
+      const qrX = rightColX + (rightColW - qrW) / 2;
+      const qrY = logoY + logoH + gap;
+
+      // SKU centrado en la izquierda
+      const skuText = String(it.sku || '').toUpperCase();
+      const baseFontSizeMm = 10;
+      const skuBoxW = leftColW;
+      const skuFontSize = calculateOptimalSkuFontSizeMm(skuText, skuBoxW, baseFontSizeMm);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(skuFontSize);
+
+      // Dibujar fondo blanco
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, widthMm, heightMm, 'F');
+
+      // Logo
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
+        } catch {}
+      }
+
+      // QR
+      if (qrDataUrl) {
+        try {
+          doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrW, qrH);
+        } catch {}
+      }
+
+      // SKU
+      const skuBoxH = heightMm * 0.34;
+      const skuBoxY = (heightMm - skuBoxH) / 2;
+      doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
+    }
+
     // Procesar stickers
+    let renderedPages = 0;
+    const appendPage = () => {
+      if (renderedPages > 0) doc.addPage([widthMm, heightMm], 'landscape');
+      renderedPages += 1;
+    };
     for (let page = 0; page < list.length; page++) {
       const { it, count } = list[page];
       for (let c = 0; c < count; c++) {
-        if (page > 0 || c > 0) doc.addPage([widthMm, heightMm], 'landscape');
-
-        // Layout con leve margen interno y proporciones más cercanas al recordatorio
-        const innerMargin = 1; // mm
-        const gap = 1; // mm entre columnas
-        const contentW = widthMm - innerMargin * 2;
-        const contentH = heightMm - innerMargin * 2;
-
-        const leftColW = contentW * 0.47;
-        const rightColW = contentW - leftColW - gap;
-
-        const leftColX = innerMargin;
-        const rightColX = innerMargin + leftColW + gap;
-        const colY = innerMargin;
-        const rightColH = contentH;
-
-        // Logo arriba, centrado en la derecha
-        const logoW = rightColW * 0.8;
-        const logoH = rightColH * 0.18;
-        const logoX = rightColX + (rightColW - logoW) / 2;
-        const logoY = colY;
-
-        // Cargar logo
-        const layout = await getStickerLayoutForCompany();
-        const logoUrl = (layout.elements.find(e => e.id === 'logo') || {}).url || '';
-        let logoDataUrl = '';
-        if (logoUrl) {
-          try { logoDataUrl = await fetchAsDataURL(logoUrl); } catch {}
+        if (includePurchaseSticker) {
+          appendPage();
+          drawPurchaseStickerPage(it);
         }
-
-        // Generar QR desde backend (ya se usa en HTML)
-        // Si el item tiene stockEntryId, usarlo para generar el QR correcto
-        const stockEntryId = it.stockEntryId || (it.stockEntry && it.stockEntry._id) || null;
-        const qrDataUrl = await generateQRCodeDataURL(it._id, stockEntryId);
-
-        // QR centrado debajo del logo
-        const qrW = rightColW * 0.9;
-        const qrH = Math.min(rightColH - logoH - gap, qrW);
-        const qrX = rightColX + (rightColW - qrW) / 2;
-        const qrY = logoY + logoH + gap;
-
-        // SKU centrado en la izquierda
-        const skuText = String(it.sku || '').toUpperCase();
-        // Calcular tamaño de fuente óptimo para que el SKU quepa en una sola línea
-        const baseFontSizeMm = 10;
-        const skuBoxW = leftColW;
-        const skuFontSize = calculateOptimalSkuFontSizeMm(skuText, skuBoxW, baseFontSizeMm);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(skuFontSize);
-
-        // Dibujar fondo blanco
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, widthMm, heightMm, 'F');
-
-        // Logo
-        if (logoDataUrl) {
-          try {
-            doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
-          } catch {}
-        }
-
-        // QR
-        if (qrDataUrl) {
-          try {
-            doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrW, qrH);
-          } catch {}
-        }
-
-        // SKU
-        const skuBoxH = heightMm * 0.34;
-        const skuBoxY = (heightMm - skuBoxH) / 2;
-        doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
+        appendPage();
+        await drawQrStickerPage(it);
       }
     }
 
@@ -4075,6 +4230,7 @@ function openMarketplaceHelper(item){
   console.log('🚀 Inicializando inventario...', { paging: state.paging });
   initInternalNavigation();
   refreshIntakes();
+  refreshPurchaseFilter();
   // Initial load: page 1, limit per page
   console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
@@ -4103,6 +4259,7 @@ function initInternalNavigation() {
     viewInventario.classList.remove('hidden');
     viewCompras.classList.add('hidden');
     viewInversores.classList.add('hidden');
+    refreshPurchaseFilter();
   });
 
   btnCompras.addEventListener('click', () => {
@@ -4456,6 +4613,7 @@ async function loadPurchasesList() {
     // Cargar todas las compras (sin límite o con límite alto)
     const data = await API.purchases.purchases.list({ limit: 1000 });
     container.innerHTML = renderPurchasesList(data.items || []);
+    refreshPurchaseFilter();
   } catch (err) {
     console.error('Error cargando compras:', err);
     container.innerHTML = `<p class="text-red-400 text-sm">Error: ${err.message || 'Error desconocido'}</p>`;
