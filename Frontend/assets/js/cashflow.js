@@ -249,15 +249,15 @@ async function loadMovements(reset=false){
       const getMovementRowClasses = (entry) => {
         const metaType = String(entry?.meta?.type || '').toLowerCase();
         if (metaType === 'employee_loan') {
-          return 'bg-gradient-to-r from-violet-600/16 via-fuchsia-500/10 to-transparent dark:from-violet-600/16 dark:via-fuchsia-500/10 dark:to-transparent theme-light:from-violet-100 theme-light:via-fuchsia-50 theme-light:to-white hover:from-violet-600/24 hover:via-fuchsia-500/16 hover:to-transparent dark:hover:from-violet-600/24 dark:hover:via-fuchsia-500/16 dark:hover:to-transparent theme-light:hover:from-violet-200 theme-light:hover:via-fuchsia-100 theme-light:hover:to-white';
+          return 'cf-movement-row cf-movement-loan';
         }
         if (entry.source === 'TRANSFER') {
-          return 'bg-gradient-to-r from-sky-600/16 via-blue-500/10 to-transparent dark:from-sky-600/16 dark:via-blue-500/10 dark:to-transparent theme-light:from-sky-100 theme-light:via-blue-50 theme-light:to-white hover:from-sky-600/24 hover:via-blue-500/16 hover:to-transparent dark:hover:from-sky-600/24 dark:hover:via-blue-500/16 dark:hover:to-transparent theme-light:hover:from-sky-200 theme-light:hover:via-blue-100 theme-light:hover:to-white';
+          return 'cf-movement-row cf-movement-transfer';
         }
         if (entry.kind === 'IN') {
-          return 'bg-gradient-to-r from-emerald-600/16 via-green-500/10 to-transparent dark:from-emerald-600/16 dark:via-green-500/10 dark:to-transparent theme-light:from-emerald-100 theme-light:via-green-50 theme-light:to-white hover:from-emerald-600/24 hover:via-green-500/16 hover:to-transparent dark:hover:from-emerald-600/24 dark:hover:via-green-500/16 dark:hover:to-transparent theme-light:hover:from-emerald-200 theme-light:hover:via-green-100 theme-light:hover:to-white';
+          return 'cf-movement-row cf-movement-in';
         }
-        return 'bg-gradient-to-r from-rose-600/16 via-red-500/10 to-transparent dark:from-rose-600/16 dark:via-red-500/10 dark:to-transparent theme-light:from-rose-100 theme-light:via-red-50 theme-light:to-white hover:from-rose-600/24 hover:via-red-500/16 hover:to-transparent dark:hover:from-rose-600/24 dark:hover:via-red-500/16 dark:hover:to-transparent theme-light:hover:from-rose-200 theme-light:hover:via-red-100 theme-light:hover:to-white';
+        return 'cf-movement-row cf-movement-out';
       };
       
       rowsBody.innerHTML = items.map((x)=>{
