@@ -1442,10 +1442,14 @@ body.dense .card{ padding:12px 12px 14px; }
   gap:10px;
   color:#1f2937;
 }
-/* Mejorar contraste en modales y menús - Modo claro */
+/* Mejorar contraste en modales y menús - Modo claro
+   No forzar negro en botones ni en su interior: suelen ser gradiente/azul (from-*)
+   y .bg-blue-600 no coincide con clases solo "from-blue-600". */
 body.theme-light #modal,
-body.theme-light #modalBody,
-body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
+body.theme-light #modalBody {
+  color: #000000 !important;
+}
+body.theme-light #modal *:not(button):not(button *):not(a):not(a *):not([role="button"]):not([role="button"] *):not(.sales-main-btn):not(.sales-main-btn *):not([class*="bg-gradient"]):not([class*="from-"]):not([class*="via-"]):not([class*="to-"]):not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-violet-600):not(.bg-emerald-600):not(.bg-cyan-600) {
   color: #000000 !important;
 }
 body.theme-light #modal label,
@@ -1465,6 +1469,43 @@ body.theme-light #modal p,
 body.theme-light #modal span,
 body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
   color: #000000 !important;
+}
+body.theme-light #modal button span,
+body.theme-light #modal button svg {
+  color: inherit !important;
+}
+body.theme-light #modal .sales-main-btn,
+body.theme-light #modal .sales-main-btn * {
+  color: #ffffff !important;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+}
+body.theme-light #modal button[class*="bg-gradient-to-r"],
+body.theme-light #modal button[class*="bg-gradient-to-br"] {
+  color: #ffffff !important;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+}
+body.theme-light #modal button[class*="bg-gradient-to-r"] *,
+body.theme-light #modal button[class*="bg-gradient-to-br"] * {
+  color: #ffffff !important;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.3);
+}
+body.theme-light #modal button[class*="bg-blue-600"],
+body.theme-light #modal button[class*="bg-blue-700"],
+body.theme-light #modal button[class*="bg-emerald-600"],
+body.theme-light #modal button[class*="bg-emerald-700"],
+body.theme-light #modal button[class*="bg-green-600"],
+body.theme-light #modal button[class*="bg-green-700"],
+body.theme-light #modal button[class*="bg-violet-600"],
+body.theme-light #modal button[class*="bg-violet-700"],
+body.theme-light #modal button[class*="bg-purple-600"],
+body.theme-light #modal button[class*="bg-indigo-600"],
+body.theme-light #modal button[class*="bg-orange-600"],
+body.theme-light #modal button[class*="bg-amber-600"],
+body.theme-light #modal button[class*="bg-red-600"],
+body.theme-light #modal button[class*="bg-cyan-600"],
+body.theme-light #modal button[class*="bg-teal-600"] {
+  color: #ffffff !important;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.3);
 }
 /* Mejorar contraste en selects y dropdowns */
 body.theme-light select,

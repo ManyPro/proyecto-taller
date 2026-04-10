@@ -97,7 +97,7 @@
     }
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "./assets/ui.css?v=20260340";
+    link.href = "./assets/ui.css?v=20260406";
     head.appendChild(link);
   }
 
