@@ -245,13 +245,28 @@ async function loadMovements(reset=false){
           second: '2-digit' 
         });
       };
+
+      const getMovementRowClasses = (entry) => {
+        const metaType = String(entry?.meta?.type || '').toLowerCase();
+        if (metaType === 'employee_loan') {
+          return 'bg-gradient-to-r from-violet-600/16 via-fuchsia-500/10 to-transparent dark:from-violet-600/16 dark:via-fuchsia-500/10 dark:to-transparent theme-light:from-violet-100 theme-light:via-fuchsia-50 theme-light:to-white hover:from-violet-600/24 hover:via-fuchsia-500/16 hover:to-transparent dark:hover:from-violet-600/24 dark:hover:via-fuchsia-500/16 dark:hover:to-transparent theme-light:hover:from-violet-200 theme-light:hover:via-fuchsia-100 theme-light:hover:to-white';
+        }
+        if (entry.source === 'TRANSFER') {
+          return 'bg-gradient-to-r from-sky-600/16 via-blue-500/10 to-transparent dark:from-sky-600/16 dark:via-blue-500/10 dark:to-transparent theme-light:from-sky-100 theme-light:via-blue-50 theme-light:to-white hover:from-sky-600/24 hover:via-blue-500/16 hover:to-transparent dark:hover:from-sky-600/24 dark:hover:via-blue-500/16 dark:hover:to-transparent theme-light:hover:from-sky-200 theme-light:hover:via-blue-100 theme-light:hover:to-white';
+        }
+        if (entry.kind === 'IN') {
+          return 'bg-gradient-to-r from-emerald-600/16 via-green-500/10 to-transparent dark:from-emerald-600/16 dark:via-green-500/10 dark:to-transparent theme-light:from-emerald-100 theme-light:via-green-50 theme-light:to-white hover:from-emerald-600/24 hover:via-green-500/16 hover:to-transparent dark:hover:from-emerald-600/24 dark:hover:via-green-500/16 dark:hover:to-transparent theme-light:hover:from-emerald-200 theme-light:hover:via-green-100 theme-light:hover:to-white';
+        }
+        return 'bg-gradient-to-r from-rose-600/16 via-red-500/10 to-transparent dark:from-rose-600/16 dark:via-red-500/10 dark:to-transparent theme-light:from-rose-100 theme-light:via-red-50 theme-light:to-white hover:from-rose-600/24 hover:via-red-500/16 hover:to-transparent dark:hover:from-rose-600/24 dark:hover:via-red-500/16 dark:hover:to-transparent theme-light:hover:from-rose-200 theme-light:hover:via-red-100 theme-light:hover:to-white';
+      };
       
-      rowsBody.innerHTML = items.map((x, idx)=>{
+      rowsBody.innerHTML = items.map((x)=>{
         const inAmt = x.kind==='IN'? money(x.amount):'';
         const outAmt = x.kind==='OUT'? money(x.amount):'';
         const date = formatDate(x.date||x.createdAt);
         const accName = escapeHtml(x.accountId?.name||x.accountName||'');
         let desc = escapeHtml(x.description||'');
+        const rowClasses = getMovementRowClasses(x);
         
         // Si la entrada es de una venta, agregar número de venta y placa a la descripción
         if (x.source === 'SALE' && x.sourceRef) {
@@ -270,7 +285,7 @@ async function loadMovements(reset=false){
         const canEdit = true;
         const rowId = escapeHtml(x._id);
         
-        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-slate-800/15 dark:bg-slate-800/15 theme-light:bg-white/70' : ''}">
+        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 transition-colors ${rowClasses}">
           <td data-label="Fecha" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
           <td data-label="Cuenta" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
           <td data-label="Descripción" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>

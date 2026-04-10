@@ -276,9 +276,7 @@ export const payInvestment = async (req, res) => {
           kind: 'OUT',
           source: 'INVESTMENT',
           sourceRef: investorId,
-          description: trimmedNotes
-            ? `Pago de inversión: ${investmentItems.length} item(s) - ${trimmedNotes}`
-            : `Pago de inversión: ${investmentItems.length} item(s)`,
+          description: trimmedNotes || `Pago de inversión: ${investmentItems.length} item(s)`,
           amount: totalAmount,
           balanceAfter: newBalance,
           date: paymentDate,
