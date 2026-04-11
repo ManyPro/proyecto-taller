@@ -1169,6 +1169,38 @@
     } catch(e) {
       console.warn('Error cargando cuentas:', e);
     }
+
+    let bossPortalConfig = { enabled: false, username: '', passwordConfigured: false, allowedSupplierIds: [] };
+    try {
+      const bossPortalReq = await fetch(`${API.base || ''}/api/v1/company/boss-portal`, {
+        headers: {
+          'Authorization': `Bearer ${currentCompanyToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (bossPortalReq.ok) {
+        const bossPortalData = await bossPortalReq.json();
+        bossPortalConfig = bossPortalData?.bossPortal || bossPortalConfig;
+      }
+    } catch(e) {
+      console.warn('Error cargando bossPortal:', e);
+    }
+
+    let suppliersList = [];
+    try {
+      const suppliersReq = await fetch(`${API.base || ''}/api/v1/purchases/suppliers?active=true`, {
+        headers: {
+          'Authorization': `Bearer ${currentCompanyToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (suppliersReq.ok) {
+        const suppliersData = await suppliersReq.json();
+        suppliersList = Array.isArray(suppliersData?.items) ? suppliersData.items : [];
+      }
+    } catch(e) {
+      console.warn('Error cargando proveedores del portal del jefe:', e);
+    }
     
     console.log('[loadAdminTab] Renderizando contenido admin, empresa:', company.name || company.email);
     console.log('[loadAdminTab] companiesList tiene', companiesList.length, 'empresas');
@@ -1224,6 +1256,49 @@
               ` : `
                 <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay cuentas disponibles.</p>
               `}
+            </div>
+
+            <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
+              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">👔 Portal del Jefe</h4>
+              <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Configura el acceso separado del jefe del taller y define qué proveedores podrá usar en el filtro de inventario.</p>
+              <div class="space-y-4">
+                <label class="flex items-center gap-3 px-4 py-3 bg-slate-700/20 dark:bg-slate-700/20 theme-light:bg-white rounded-xl border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/40">
+                  <input id="bossPortalEnabled" type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" ${bossPortalConfig.enabled ? 'checked' : ''} />
+                  <div>
+                    <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">Habilitar portal del jefe</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Activa el login aparte del jefe en boss-login.html.</div>
+                  </div>
+                </label>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-white dark:text-white theme-light:text-slate-900 mb-2">Usuario del jefe</label>
+                    <input id="bossPortalUsername" type="text" value="${bossPortalConfig.username || ''}" placeholder="jefe.taller" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-white dark:text-white theme-light:text-slate-900 mb-2">Nueva contraseña del jefe</label>
+                    <input id="bossPortalPassword" type="password" placeholder="${bossPortalConfig.passwordConfigured ? 'Dejar vacío para conservar la actual' : 'Mínimo 6 caracteres'}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${bossPortalConfig.passwordConfigured ? 'Ya hay una contraseña configurada.' : 'Todavía no hay contraseña configurada.'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-white dark:text-white theme-light:text-slate-900 mb-2">Proveedores permitidos para el filtro de inventario</label>
+                  <div id="bossPortalSuppliersList" class="flex flex-wrap gap-3">
+                    <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                      <input type="checkbox" data-boss-supplier-id="GENERAL" ${Array.isArray(bossPortalConfig.allowedSupplierIds) && bossPortalConfig.allowedSupplierIds.includes('GENERAL') ? 'checked' : ''} class="w-4 h-4 text-violet-600 rounded focus:ring-violet-500"/>
+                      <span class="text-sm text-white dark:text-white theme-light:text-slate-900">GENERAL</span>
+                    </label>
+                    ${suppliersList.map(supplier => `
+                      <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                        <input type="checkbox" data-boss-supplier-id="${supplier._id}" ${Array.isArray(bossPortalConfig.allowedSupplierIds) && bossPortalConfig.allowedSupplierIds.includes(String(supplier._id)) ? 'checked' : ''} class="w-4 h-4 text-violet-600 rounded focus:ring-violet-500"/>
+                        <span class="text-sm text-white dark:text-white theme-light:text-slate-900">${supplier.name || 'Proveedor'}</span>
+                      </label>
+                    `).join('')}
+                    ${suppliersList.length === 0 ? '<p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay proveedores activos cargados para esta empresa.</p>' : ''}
+                  </div>
+                </div>
+              </div>
             </div>
             
             <!-- Manejo de Bases de Datos -->
@@ -1373,6 +1448,42 @@
         });
         if (!restrictionsResult || !restrictionsResult.restrictions) {
           throw new Error('Error al guardar restrictions: respuesta inválida');
+        }
+
+        const bossPortalEnabled = document.getElementById('bossPortalEnabled')?.checked === true;
+        const bossPortalUsername = String(document.getElementById('bossPortalUsername')?.value || '').trim().toLowerCase();
+        const bossPortalPassword = String(document.getElementById('bossPortalPassword')?.value || '').trim();
+        const bossPortalAllowedSupplierIds = [];
+        document.querySelectorAll('#bossPortalSuppliersList input[data-boss-supplier-id]:checked').forEach(ch => {
+          bossPortalAllowedSupplierIds.push(String(ch.dataset.bossSupplierId || '').trim());
+        });
+
+        if (bossPortalEnabled && !bossPortalUsername) {
+          throw new Error('Debes ingresar un usuario para el portal del jefe');
+        }
+
+        const bossPortalPayload = {
+          enabled: bossPortalEnabled,
+          allowedSupplierIds: bossPortalAllowedSupplierIds
+        };
+        if (bossPortalUsername) {
+          bossPortalPayload.username = bossPortalUsername;
+        }
+        if (bossPortalPassword) {
+          bossPortalPayload.password = bossPortalPassword;
+        }
+
+        const bossPortalReq = await fetch(`${API.base || ''}/api/v1/company/boss-portal`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${currentCompanyToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(bossPortalPayload)
+        });
+        const bossPortalRes = await bossPortalReq.json().catch(() => ({}));
+        if (!bossPortalReq.ok || !bossPortalRes?.bossPortal) {
+          throw new Error(bossPortalRes?.error || 'No se pudo guardar el portal del jefe');
         }
         
         // Guardar BD compartida (SIMPLIFICADO - solo companyId, se comparte TODA la data)

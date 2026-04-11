@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Portal Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-login">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+    <div class="boss-login-wrap">
+      <div class="boss-login-card">
+        <div class="boss-actions" style="justify-content:space-between; align-items:center; margin-bottom: 20px;">
+          <a href="index.html" class="boss-btn boss-btn-secondary">← Volver</a>
+          <button type="button" data-boss-theme-toggle class="boss-btn boss-btn-secondary">🌞</button>
+        </div>
+        <div style="margin-bottom: 22px;">
+          <div class="boss-pill" style="margin-bottom: 10px;">Solo lectura</div>
+          <h1 class="boss-login-title" style="font-size: 1.8rem; margin-bottom: 6px;">Ingreso jefe del taller</h1>
+          <p class="boss-login-subtitle">Acceso separado para revisar caja, ventas e inventario sin opciones de edición.</p>
+        </div>
+        <form id="bossLoginForm" class="boss-form-grid">
+          <div>
+            <label for="bossEmail" class="boss-label">Correo de la empresa</label>
+            <input id="bossEmail" class="boss-input" type="email" placeholder="empresa@correo.com" required />
+          </div>
+          <div>
+            <label for="bossUsername" class="boss-label">Usuario del jefe</label>
+            <input id="bossUsername" class="boss-input" type="text" placeholder="jefe.taller" required />
+          </div>
+          <div>
+            <label for="bossPassword" class="boss-label">Contraseña</label>
+            <input id="bossPassword" class="boss-input" type="password" placeholder="********" required />
+          </div>
+          <div class="boss-login-actions">
+            <button id="bossLoginButton" type="submit" class="boss-btn boss-btn-primary" style="flex:1;">Entrar</button>
+          </div>
+          <div id="bossLoginFeedback" class="boss-feedback"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>

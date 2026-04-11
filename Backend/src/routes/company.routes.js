@@ -7,6 +7,18 @@ const router = Router();
 const DEFAULT_APPOINTMENT_COLOR = '#2563EB';
 const isValidHexColor = (value) => /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(value || '').trim());
 
+function sanitizeBossPortalConfig(company) {
+  const bossPortal = company?.bossPortal || {};
+  return {
+    enabled: bossPortal.enabled === true,
+    username: String(bossPortal.username || '').trim().toLowerCase(),
+    passwordConfigured: !!bossPortal.passwordHash,
+    allowedSupplierIds: Array.isArray(bossPortal.allowedSupplierIds)
+      ? bossPortal.allowedSupplierIds.map((value) => String(value || '').trim()).filter(Boolean)
+      : []
+  };
+}
+
 /**
  * Empresa donde viven los técnicos (documento Company.technicians).
  * Con BD compartida, la sesión JWT puede ser una empresa secundaria pero los datos están en la principal (req.companyId).
@@ -674,6 +686,61 @@ router.patch('/restrictions', async (req, res) => {
   
   await req.companyDoc.save();
   res.json({ restrictions: req.companyDoc.restrictions });
+});
+
+router.get('/boss-portal', (req, res) => {
+  res.json({ bossPortal: sanitizeBossPortalConfig(req.companyDoc) });
+});
+
+router.patch('/boss-portal', async (req, res) => {
+  const patch = req.body || {};
+  if (typeof patch !== 'object' || Array.isArray(patch)) {
+    return res.status(400).json({ error: 'payload invÃ¡lido' });
+  }
+
+  req.companyDoc.bossPortal ||= {
+    enabled: false,
+    username: '',
+    passwordHash: '',
+    allowedSupplierIds: []
+  };
+
+  if (patch.enabled !== undefined) {
+    req.companyDoc.bossPortal.enabled = patch.enabled === true;
+  }
+
+  if (patch.username !== undefined) {
+    const username = String(patch.username || '').trim().toLowerCase();
+    if (!username) {
+      return res.status(400).json({ error: 'username requerido' });
+    }
+    req.companyDoc.bossPortal.username = username;
+  }
+
+  if (patch.password !== undefined) {
+    const password = String(patch.password || '');
+    if (password.trim().length < 6) {
+      return res.status(400).json({ error: 'La contraseÃ±a del jefe debe tener al menos 6 caracteres' });
+    }
+    const bcrypt = await import('bcryptjs');
+    req.companyDoc.bossPortal.passwordHash = await bcrypt.default.hash(password, 10);
+  }
+
+  if (patch.allowedSupplierIds !== undefined) {
+    if (!Array.isArray(patch.allowedSupplierIds)) {
+      return res.status(400).json({ error: 'allowedSupplierIds debe ser un array' });
+    }
+    req.companyDoc.bossPortal.allowedSupplierIds = Array.from(
+      new Set(
+        patch.allowedSupplierIds
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  await req.companyDoc.save();
+  res.json({ bossPortal: sanitizeBossPortalConfig(req.companyDoc) });
 });
 
 // ========== Toggle CatÃ¡logo PÃºblico ==========

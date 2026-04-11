@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 // Eliminado flujo de email/token para modo local
 import crypto from 'crypto'; // (podrÃ­a eliminarse si ya no se usan tokens)
 import Company from '../models/Company.js';
-import { authCompany } from '../middlewares/auth.js';
+import { authBossReadonly, authCompany } from '../middlewares/auth.js';
 
 const router = Router();
 
@@ -19,6 +19,33 @@ function signCompany(company) {
     role: 'company'
   };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+}
+
+function signBoss(company, username) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET no configurado');
+  }
+  const payload = {
+    sub: `boss:${company._id}`,
+    companyId: String(company._id),
+    email: company.email,
+    username: String(username || '').toLowerCase().trim(),
+    kind: 'boss',
+    role: 'boss_readonly'
+  };
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+}
+
+function sanitizeBossPortalConfig(company) {
+  const bossPortal = company?.bossPortal || {};
+  return {
+    enabled: bossPortal.enabled === true,
+    username: String(bossPortal.username || '').trim().toLowerCase(),
+    passwordConfigured: !!bossPortal.passwordHash,
+    allowedSupplierIds: Array.isArray(bossPortal.allowedSupplierIds)
+      ? bossPortal.allowedSupplierIds.map((value) => String(value || '').trim()).filter(Boolean)
+      : []
+  };
 }
 
 /**
@@ -96,6 +123,81 @@ router.get('/me', authCompany, async (req, res) => {
   } catch (err) {
     console.error('[auth/company/me] Error:', err);
     res.status(500).json({ error: 'Error al obtener información de empresa' });
+  }
+});
+
+router.post('/boss/login', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').toLowerCase().trim();
+    const username = String(req.body?.username || '').toLowerCase().trim();
+    const password = String(req.body?.password || '');
+
+    if (!email || !username || !password) {
+      return res.status(400).json({ error: 'email, username y password son requeridos' });
+    }
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ error: 'JWT_SECRET no configurado' });
+    }
+
+    const company = await Company.findOne({ email });
+    if (!company) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
+
+    const bossPortal = company.bossPortal || {};
+    const configuredUsername = String(bossPortal.username || '').toLowerCase().trim();
+    const configuredHash = String(bossPortal.passwordHash || '');
+    if (bossPortal.enabled !== true || !configuredUsername || !configuredHash) {
+      return res.status(403).json({ error: 'El portal del jefe no estÃ¡ configurado para esta empresa' });
+    }
+    if (configuredUsername !== username) {
+      return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
+    }
+
+    const ok = await bcrypt.compare(password, configuredHash);
+    if (!ok) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
+
+    const token = signBoss(company, configuredUsername);
+    return res.json({
+      token,
+      boss: {
+        username: configuredUsername,
+        role: 'boss_readonly'
+      },
+      company: {
+        id: company._id,
+        name: company.name,
+        email: company.email
+      },
+      config: sanitizeBossPortalConfig(company)
+    });
+  } catch (e) {
+    console.error('[auth/company/boss/login] Error:', e);
+    return res.status(500).json({ error: 'Error en login del jefe' });
+  }
+});
+
+router.get('/boss/me', authBossReadonly, async (req, res) => {
+  try {
+    const company = await Company.findById(req.company.id).lean();
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+    const bossPortal = sanitizeBossPortalConfig(company);
+    if (!bossPortal.enabled) {
+      return res.status(403).json({ error: 'El portal del jefe estÃ¡ deshabilitado' });
+    }
+    return res.json({
+      boss: {
+        username: String(req.user?.username || bossPortal.username || '').toLowerCase().trim(),
+        role: 'boss_readonly'
+      },
+      company: {
+        id: company._id,
+        name: company.name,
+        email: company.email
+      },
+      config: bossPortal
+    });
+  } catch (err) {
+    console.error('[auth/company/boss/me] Error:', err);
+    return res.status(500).json({ error: 'Error al obtener informaciÃ³n del portal del jefe' });
   }
 });
 

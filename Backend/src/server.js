@@ -42,6 +42,7 @@ import maintenanceRouter from './routes/maintenance.routes.js';
 import customerRouter from './routes/customer.routes.js';
 import purchasesRouter from './routes/purchases.routes.js';
 import investmentsRouter from './routes/investments.routes.js';
+import bossCashflowRouter from './routes/boss.cashflow.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 
 const app = express();
@@ -223,6 +224,7 @@ app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/sales', salesStreamRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
+app.use('/api/v1/boss/cashflow', bossCashflowRouter);
 app.use('/api/v1/public/catalog', publicCatalogRouter);
 app.use('/api/v1/public/customer', customerPublicRouter);
 app.use('/api/v1/admin', adminRouter);

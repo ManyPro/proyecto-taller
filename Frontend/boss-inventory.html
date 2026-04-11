@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Inventario Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-inventory">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+    <header class="boss-topbar">
+      <div class="boss-topbar-inner">
+        <div>
+          <div class="boss-brand-kicker">Portal jefe del taller</div>
+          <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+          <div class="boss-muted">Inventario readonly</div>
+        </div>
+        <div class="boss-actions">
+          <button type="button" data-boss-theme-toggle class="boss-btn boss-btn-secondary">🌞</button>
+          <button type="button" data-boss-logout class="boss-btn boss-btn-secondary">Salir</button>
+        </div>
+      </div>
+    </header>
+    <main class="boss-main">
+      <div class="boss-page-header">
+        <div>
+          <div class="boss-pill">Filtro por proveedor preparado</div>
+          <h2 class="boss-page-title" style="font-size: 1.8rem; margin-top: 10px;">Inventario del jefe</h2>
+          <p class="boss-muted">Esta base queda lista para mostrar solo ítems, unidades y el filtro por proveedores permitidos.</p>
+        </div>
+        <nav class="boss-nav">
+          <a href="boss-home.html" class="boss-nav-link">Inicio</a>
+          <a href="boss-cashflow.html" class="boss-nav-link">Caja</a>
+          <a href="boss-sales.html" class="boss-nav-link">Ventas</a>
+          <a href="boss-inventory.html" class="boss-nav-link active">Inventario</a>
+        </nav>
+      </div>
+      <section class="boss-panel">
+        <div class="boss-empty-state">
+          <h3 class="boss-card-title">Próxima conexión</h3>
+          <p class="boss-empty-copy">Aquí conectaremos el filtro por proveedor permitido y el ordenamiento por proximidad al stock mínimo.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>

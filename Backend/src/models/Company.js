@@ -41,6 +41,16 @@ const CompanySchema = new mongoose.Schema(
       default: {}
     },
 
+    bossPortal: {
+      enabled: { type: Boolean, default: false },
+      username: { type: String, default: '', trim: true, lowercase: true },
+      passwordHash: { type: String, default: '' },
+      allowedSupplierIds: {
+        type: [String],
+        default: []
+      }
+    },
+
     // Compartir base de datos: desde la empresa principal, se pueden agregar múltiples empresas secundarias
     // Cuando se comparte BD, se comparte TODA la data (ventas, calendario, inventario, clientes, etc.)
     sharedDatabaseConfig: {

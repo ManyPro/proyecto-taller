@@ -187,7 +187,9 @@ const API = {
     setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {}),
     getFeatureOptions: () => http.get('/api/v1/company/feature-options').then(r => r.featureOptions || {}),
     setFeatureOptions: (patch) => http.patch('/api/v1/company/feature-options', patch).then(r => r.featureOptions || {}),
-    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {})
+    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {}),
+    getBossPortal: () => http.get('/api/v1/company/boss-portal').then(r => r.bossPortal || {}),
+    setBossPortal: (patch) => http.patch('/api/v1/company/boss-portal', patch).then(r => r.bossPortal || {})
   },
 
   // Empresa activa

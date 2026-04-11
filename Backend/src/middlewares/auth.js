@@ -27,6 +27,10 @@ export function authCompany(req, res, next) {
       return res.status(401).json({ error: 'Missing Bearer token' });
     }
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (payload?.kind === 'boss') {
+      logger.warn('[authCompany] Boss token rejected on company route', { path: req.path, method: req.method, companyId: payload.companyId });
+      return res.status(403).json({ error: 'Boss token cannot access company routes' });
+    }
     if (!payload.companyId) {
       logger.warn('[authCompany] No company in token', { path: req.path, method: req.method, userId: payload.sub });
       return res.status(403).json({ error: 'No company in token' });
@@ -37,6 +41,27 @@ export function authCompany(req, res, next) {
     next();
   } catch (err) {
     logger.warn('[authCompany] Invalid token', { path: req.path, method: req.method, error: err?.message });
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+export function authBossReadonly(req, res, next) {
+  try {
+    const token = parseBearer(req);
+    if (!token) {
+      logger.warn('[authBossReadonly] Missing Bearer token', { path: req.path, method: req.method });
+      return res.status(401).json({ error: 'Missing Bearer token' });
+    }
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (payload?.kind !== 'boss' || payload?.role !== 'boss_readonly' || !payload?.companyId) {
+      logger.warn('[authBossReadonly] Invalid boss token payload', { path: req.path, method: req.method, kind: payload?.kind, role: payload?.role });
+      return res.status(403).json({ error: 'Invalid boss token' });
+    }
+    req.company = { id: payload.companyId };
+    req.user = { id: payload.sub, ...payload };
+    next();
+  } catch (err) {
+    logger.warn('[authBossReadonly] Invalid token', { path: req.path, method: req.method, error: err?.message });
     return res.status(401).json({ error: 'Invalid token' });
   }
 }

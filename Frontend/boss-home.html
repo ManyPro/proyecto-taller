@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Inicio Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-home">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+    <header class="boss-topbar">
+      <div class="boss-topbar-inner">
+        <div>
+          <div class="boss-brand-kicker">Portal jefe del taller</div>
+          <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+          <div class="boss-muted">Usuario: <span data-boss-username>—</span></div>
+        </div>
+        <div class="boss-actions">
+          <button type="button" data-boss-theme-toggle class="boss-btn boss-btn-secondary">🌞</button>
+          <button type="button" data-boss-logout class="boss-btn boss-btn-secondary">Salir</button>
+        </div>
+      </div>
+    </header>
+    <main class="boss-main">
+      <div class="boss-page-header">
+        <div>
+          <div class="boss-pill">Base lista</div>
+          <h2 class="boss-page-title" style="font-size: 1.8rem; margin-top: 10px;">Módulos del jefe</h2>
+          <p class="boss-muted">Desde aquí vamos a conectar las vistas readonly del sistema.</p>
+        </div>
+        <nav class="boss-nav">
+          <a href="boss-home.html" class="boss-nav-link active">Inicio</a>
+          <a href="boss-cashflow.html" class="boss-nav-link">Caja</a>
+          <a href="boss-sales.html" class="boss-nav-link">Ventas</a>
+          <a href="boss-inventory.html" class="boss-nav-link">Inventario</a>
+        </nav>
+      </div>
+      <section class="boss-grid">
+        <a href="boss-cashflow.html" class="boss-card" style="text-decoration:none; color:inherit;">
+          <div class="boss-card-icon boss-icon-blue">💰</div>
+          <h3 class="boss-card-title">Flujo de caja</h3>
+          <p class="boss-card-copy">Base separada para conectar la vista completa de movimientos y filtros en modo solo lectura.</p>
+        </a>
+        <a href="boss-sales.html" class="boss-card" style="text-decoration:none; color:inherit;">
+          <div class="boss-card-icon boss-icon-green">🚗</div>
+          <h3 class="boss-card-title">Ventas</h3>
+          <p class="boss-card-copy">Página independiente para soportar subpestañas de ventas abiertas e historial sin conflictos técnicos.</p>
+        </a>
+        <a href="boss-inventory.html" class="boss-card" style="text-decoration:none; color:inherit;">
+          <div class="boss-card-icon boss-icon-purple">📦</div>
+          <h3 class="boss-card-title">Inventario</h3>
+          <p class="boss-card-copy">Base lista para filtrar por proveedor permitido y priorizar ítems cercanos al stock mínimo.</p>
+        </a>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>
