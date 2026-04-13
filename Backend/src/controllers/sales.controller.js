@@ -415,6 +415,16 @@ export const getSale = async (req, res) => {
   }
   
   const saleObj = sale.toObject();
+  const priceRefIds = [...new Set((saleObj.items || [])
+    .filter(item => item?.refId)
+    .map(item => String(item.refId)))];
+  const priceEntries = priceRefIds.length
+    ? await PriceEntry.find({ _id: { $in: priceRefIds } }).select('_id type comboProducts').lean()
+    : [];
+  const priceEntryMap = {};
+  priceEntries.forEach(entry => {
+    priceEntryMap[String(entry._id)] = entry;
+  });
   
   // Enriquecer items con información de StockEntry si están linkeados
   const Account = (await import('../models/Account.js')).default;
@@ -473,7 +483,61 @@ export const getSale = async (req, res) => {
     return item;
   }));
   
-  saleObj.items = enrichedItems;
+  let activeComboContext = null;
+  saleObj.items = enrichedItems.map((item) => {
+    const refId = item?.refId ? String(item.refId) : null;
+    const priceEntry = refId ? priceEntryMap[refId] : null;
+    const skuUpper = String(item?.sku || '').trim().toUpperCase();
+    const nameUpper = String(item?.name || '').trim().toUpperCase();
+    const enrichedItem = {
+      ...item,
+      refId,
+      displayType: 'product',
+      nestedUnderCombo: false,
+      comboParentRefId: null
+    };
+
+    if (activeComboContext) {
+      const matchesComboChild = skuUpper.startsWith('CP-')
+        || (refId && activeComboContext.productRefIds.has(refId))
+        || (nameUpper && activeComboContext.productNames.has(nameUpper) && Number(item?.unitPrice || 0) === 0);
+
+      if (matchesComboChild) {
+        enrichedItem.displayType = item?.source === 'service' ? 'service' : 'product';
+        enrichedItem.nestedUnderCombo = true;
+        enrichedItem.comboParentRefId = activeComboContext.refId;
+        return enrichedItem;
+      }
+
+      activeComboContext = null;
+    }
+
+    if (item?.source === 'service' || priceEntry?.type === 'service') {
+      enrichedItem.displayType = 'service';
+      return enrichedItem;
+    }
+
+    if (item?.source === 'inventory' || priceEntry?.type === 'product' || skuUpper.startsWith('CP-')) {
+      enrichedItem.displayType = 'product';
+      return enrichedItem;
+    }
+
+    if (priceEntry?.type === 'combo' || item?.source === 'price') {
+      enrichedItem.displayType = 'combo';
+      activeComboContext = {
+        refId: String(item?._id || refId || ''),
+        productRefIds: new Set((priceEntry?.comboProducts || [])
+          .map(cp => cp?.itemId ? String(cp.itemId) : null)
+          .filter(Boolean)),
+        productNames: new Set((priceEntry?.comboProducts || [])
+          .map(cp => String(cp?.name || '').trim().toUpperCase())
+          .filter(Boolean))
+      };
+      return enrichedItem;
+    }
+
+    return enrichedItem;
+  });
   
   // Normalizar openSlots para asegurar que comboPriceId y completedItemId sean strings
   if (saleObj.openSlots && Array.isArray(saleObj.openSlots)) {

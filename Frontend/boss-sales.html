@@ -86,15 +86,18 @@
 
         <div class="boss-subtab-panel hidden" data-boss-sales-panel="history">
           <div class="boss-filter-toolbar boss-history-quick-filters">
+            <button id="bossSalesHistoryToggleFilters" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button" aria-expanded="false">🔎 Mostrar filtros</button>
             <button id="bossSalesHistoryToday" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button">📅 Mostrar hoy</button>
             <button id="bossSalesHistoryCurrentPeriod" class="boss-btn boss-btn-secondary boss-filter-toggle boss-filter-toggle-active" type="button">🗓️ Mostrar periodo actual</button>
           </div>
-          <div class="boss-filter-grid">
-            <input id="bossSalesHistoryFrom" class="boss-input" type="date" />
-            <input id="bossSalesHistoryTo" class="boss-input" type="date" />
-            <input id="bossSalesHistoryPlate" class="boss-input" type="text" placeholder="Placa" />
-            <input id="bossSalesHistoryNumber" class="boss-input" type="text" placeholder="# Venta" />
-            <button id="bossSalesHistoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar filtros</button>
+          <div id="bossSalesHistoryFiltersPanel" class="boss-filter-panel hidden">
+            <div class="boss-filter-grid">
+              <input id="bossSalesHistoryFrom" class="boss-input" type="date" />
+              <input id="bossSalesHistoryTo" class="boss-input" type="date" />
+              <input id="bossSalesHistoryPlate" class="boss-input" type="text" placeholder="Placa" />
+              <input id="bossSalesHistoryNumber" class="boss-input" type="text" placeholder="# Venta" />
+              <button id="bossSalesHistoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar filtros</button>
+            </div>
           </div>
           <div class="boss-summary-row" id="bossSalesHistorySummary">
             <div class="boss-summary-chip in">Con pago: —</div>

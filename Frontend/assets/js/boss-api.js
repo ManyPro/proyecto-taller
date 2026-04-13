@@ -177,7 +177,6 @@ export const BossAPI = {
     get: (id) => bossRequest('GET', `/api/v1/boss/sales/${encodeURIComponent(id)}`)
   },
   inventory: {
-    suppliers: () => bossRequest('GET', '/api/v1/boss/inventory/suppliers'),
     items: (params = {}) => {
       const qs = new URLSearchParams();
       Object.entries(params || {}).forEach(([key, value]) => {

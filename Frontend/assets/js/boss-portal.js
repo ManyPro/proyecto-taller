@@ -69,6 +69,27 @@ async function ensureBossSession() {
   }
 }
 
+const BOSS_AUTO_REFRESH_MS = 60 * 1000;
+let bossAutoRefreshIntervalId = null;
+
+/** Refresco automático de datos (cada 1 min). `run` debe ser async o devolver Promise. */
+function startBossAutoRefresh(run) {
+  if (bossAutoRefreshIntervalId != null) {
+    clearInterval(bossAutoRefreshIntervalId);
+    bossAutoRefreshIntervalId = null;
+  }
+  bossAutoRefreshIntervalId = window.setInterval(() => {
+    Promise.resolve(run()).catch((err) => console.warn('[boss] Auto-actualización', err));
+  }, BOSS_AUTO_REFRESH_MS);
+  const stop = () => {
+    if (bossAutoRefreshIntervalId != null) {
+      clearInterval(bossAutoRefreshIntervalId);
+      bossAutoRefreshIntervalId = null;
+    }
+  };
+  window.addEventListener('pagehide', stop, { once: true });
+}
+
 function bindLogout() {
   document.querySelectorAll('[data-boss-logout]').forEach((button) => {
     button.addEventListener('click', async () => {
@@ -202,7 +223,7 @@ async function loadBossHomeSummary() {
   const [balancesResult, openSalesResult, inventoryResult] = await Promise.allSettled([
     BossAPI.cashflow.balances(),
     BossAPI.sales.list({ status: 'draft', page: 1, limit: 1 }),
-    BossAPI.inventory.items({ page: 1, limit: 100 })
+    BossAPI.inventory.items({ page: 1, limit: 1 })
   ]);
 
   const balances = balancesResult.status === 'fulfilled' ? balancesResult.value : null;
@@ -210,11 +231,13 @@ async function loadBossHomeSummary() {
   const inventory = inventoryResult.status === 'fulfilled' ? inventoryResult.value : null;
   const balanceItems = Array.isArray(balances?.balances) ? balances.balances : [];
   const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
-  const lowStockCount = inventoryItems.filter((item) => {
-    const stock = Number(item?.stock || 0);
-    const minStock = Number(item?.minStock || 0);
-    return minStock > 0 && stock <= minStock;
-  }).length;
+  const lowStockCount = Number.isFinite(Number(inventory?.atRiskCount))
+    ? Number(inventory.atRiskCount)
+    : inventoryItems.filter((item) => {
+      const stock = Number(item?.stock || 0);
+      const minStock = Number(item?.minStock || 0);
+      return minStock > 0 && stock <= minStock;
+    }).length;
 
   const cashBreakdown = balanceItems.length
     ? balanceItems
@@ -247,7 +270,7 @@ async function loadBossHomeSummary() {
   `;
 }
 
-async function loadBossCashflowAccounts() {
+async function loadBossCashflowAccounts(silent = false) {
   const body = document.getElementById('bossCfAccountsBody');
   const total = document.getElementById('bossCfAccountsTotal');
   const accountSelect = document.getElementById('bossCfAccount');
@@ -274,12 +297,13 @@ async function loadBossCashflowAccounts() {
     )).join('');
     if (selected) accountSelect.value = selected;
   } catch (err) {
+    if (silent) return;
     body.innerHTML = `<tr><td colspan="3">${escapeHtml(err?.message || 'Error cargando cuentas')}</td></tr>`;
     total.textContent = 'Total: —';
   }
 }
 
-async function loadBossCashflowEntries(reset = false) {
+async function loadBossCashflowEntries(reset = false, silent = false) {
   if (reset) bossCashflowState.page = 1;
   const rows = document.getElementById('bossCfRows');
   const summary = document.getElementById('bossCashflowSummary');
@@ -298,7 +322,9 @@ async function loadBossCashflowEntries(reset = false) {
     source: document.getElementById('bossCfSource')?.value || ''
   };
 
-  rows.innerHTML = '<tr><td colspan="6">Cargando movimientos…</td></tr>';
+  if (!silent) {
+    rows.innerHTML = '<tr><td colspan="6">Cargando movimientos…</td></tr>';
+  }
   try {
     const response = await BossAPI.cashflow.entries(params);
     const items = Array.isArray(response?.items) ? response.items : [];
@@ -336,6 +362,7 @@ async function loadBossCashflowEntries(reset = false) {
     prev.disabled = bossCashflowState.page <= 1;
     next.disabled = bossCashflowState.page >= bossCashflowState.pages;
   } catch (err) {
+    if (silent) return;
     rows.innerHTML = `<tr><td colspan="6">${escapeHtml(err?.message || 'Error cargando movimientos')}</td></tr>`;
     summary.innerHTML = `
       <div class="boss-summary-chip in">Entradas: —</div>
@@ -420,6 +447,90 @@ function getPaidAmount(sale) {
   return paymentMethods + advances;
 }
 
+function getBossOrderItemType(item) {
+  const explicitType = String(item?.displayType || '').trim().toLowerCase();
+  if (explicitType === 'combo' || explicitType === 'service' || explicitType === 'product') {
+    return explicitType;
+  }
+
+  const skuUpper = String(item?.sku || '').trim().toUpperCase();
+  if (skuUpper.startsWith('CP-')) return 'product';
+  if (item?.source === 'service') return 'service';
+  if (item?.source === 'inventory') return 'product';
+  return 'combo';
+}
+
+function getBossOrderItemLabel(type) {
+  if (type === 'combo') return 'Combo';
+  if (type === 'service') return 'Servicio';
+  return 'Producto';
+}
+
+function groupBossOrderItems(items) {
+  const groups = [];
+  let activeComboGroup = null;
+
+  items.forEach((item, index) => {
+    const normalizedItem = { ...item, displayType: getBossOrderItemType(item) };
+    const isNested = Boolean(item?.nestedUnderCombo);
+
+    if (isNested && activeComboGroup) {
+      activeComboGroup.children.push(normalizedItem);
+      return;
+    }
+
+    const group = {
+      key: escapeHtml(String(item?._id || item?.refId || `boss-order-item-${index}`)),
+      item: normalizedItem,
+      children: []
+    };
+
+    groups.push(group);
+    activeComboGroup = normalizedItem.displayType === 'combo' ? group : null;
+  });
+
+  return groups;
+}
+
+function renderBossOrderItem(item, options = {}) {
+  const type = getBossOrderItemType(item);
+  const isNested = options.nested === true;
+  const totalValue = money(item.total || (Number(item.qty || 0) * Number(item.unitPrice || 0)));
+  const metaValue = [item.sku || '', item.source || ''].filter(Boolean).join(' · ');
+
+  return `
+    <div class="boss-order-item boss-order-item--${type}${isNested ? ' boss-order-item--nested' : ''}">
+      <div class="boss-order-item-main">
+        <span class="boss-order-badge boss-order-badge--${type}">${getBossOrderItemLabel(type)}</span>
+        <div>
+          <div class="boss-item-name">${escapeHtml(item.name || item.sku || 'Ítem')}</div>
+          <div class="boss-item-meta">${escapeHtml(metaValue)}</div>
+        </div>
+      </div>
+      <div class="boss-order-item-side">
+        <div class="boss-item-name">${totalValue}</div>
+        <div class="boss-item-meta">Cant. ${escapeHtml(item.qty || 0)} · Unitario ${money(item.unitPrice || 0)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderBossOrderItems(items) {
+  const groups = groupBossOrderItems(items);
+  if (!groups.length) return '<div class="boss-item-meta">Sin ítems registrados.</div>';
+
+  return groups.map((group) => `
+    <div class="boss-order-group">
+      ${renderBossOrderItem(group.item)}
+      ${group.children.length ? `
+        <div class="boss-order-children">
+          ${group.children.map((child) => renderBossOrderItem(child, { nested: true })).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
 function renderBossSaleDetail(detailNode, sale) {
   const items = Array.isArray(sale?.items) ? sale.items : [];
   const paymentMethods = Array.isArray(sale?.paymentMethods) ? sale.paymentMethods : [];
@@ -441,25 +552,23 @@ function renderBossSaleDetail(detailNode, sale) {
       </div>
       <div class="boss-detail-box">
         <div class="boss-detail-title">Pago</div>
-        <div>${paymentMethods.length ? paymentMethods.map((method) => `${escapeHtml(method.method || 'Método')}: ${money(method.amount)}`).join('<br>') : 'Sin métodos registrados'}</div>
+        <div class="boss-payment-list">${paymentMethods.length ? paymentMethods.map((method) => {
+          const methodName = escapeHtml(method.method || 'Método');
+          const accountName = escapeHtml(method.accountName || method.account?.name || 'Sin cuenta');
+          return `
+            <div class="boss-payment-item">
+              <div class="boss-payment-main">${methodName}: ${money(method.amount)}</div>
+              <div class="boss-item-meta">Cuenta: ${accountName}</div>
+            </div>
+          `;
+        }).join('') : 'Sin métodos registrados'}</div>
         <div class="boss-item-meta" style="margin-top:8px;">Abonos: ${advances.length ? money(advances.reduce((sum, item) => sum + Number(item?.amount || 0), 0)) : '$0'}</div>
       </div>
     </div>
     <div class="boss-detail-box" style="margin-bottom: 14px;">
       <div class="boss-detail-title">Ítems de la orden</div>
       <div class="boss-detail-list">
-        ${items.length ? items.map((item) => `
-          <div class="boss-item-row">
-            <div>
-              <div class="boss-item-name">${escapeHtml(item.name || item.sku || 'Ítem')}</div>
-              <div class="boss-item-meta">${escapeHtml(item.sku || item.source || '')}</div>
-            </div>
-            <div style="text-align:right;">
-              <div class="boss-item-name">${money(item.total || (Number(item.qty || 0) * Number(item.unitPrice || 0)))}</div>
-              <div class="boss-item-meta">Cant. ${escapeHtml(item.qty || 0)} · Unitario ${money(item.unitPrice || 0)}</div>
-            </div>
-          </div>
-        `).join('') : '<div class="boss-item-meta">Sin ítems registrados.</div>'}
+        ${renderBossOrderItems(items)}
       </div>
     </div>
     ${sale?.notes ? `<div class="boss-detail-box"><div class="boss-detail-title">Notas</div><div>${escapeHtml(sale.notes)}</div></div>` : ''}
@@ -545,11 +654,13 @@ function createBossSaleCard(sale, mode = 'open') {
   return wrapper;
 }
 
-async function loadBossOpenSales() {
+async function loadBossOpenSales(silent = false) {
   const list = document.getElementById('bossSalesOpenList');
   const summary = document.getElementById('bossSalesOpenSummary');
   if (!list || !summary) return;
-  list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Ventas abiertas</h3><p class="boss-empty-copy">Cargando ventas abiertas…</p></div>';
+  if (!silent) {
+    list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Ventas abiertas</h3><p class="boss-empty-copy">Cargando ventas abiertas…</p></div>';
+  }
   try {
     const response = await BossAPI.sales.list({ status: 'draft', limit: 100 });
     const items = Array.isArray(response?.items) ? response.items : [];
@@ -565,11 +676,12 @@ async function loadBossOpenSales() {
     list.innerHTML = '';
     items.forEach((sale) => list.appendChild(createBossSaleCard(sale, 'open')));
   } catch (err) {
+    if (silent) return;
     list.innerHTML = `<div class="boss-empty-state"><h3 class="boss-card-title">Error</h3><p class="boss-empty-copy">${escapeHtml(err?.message || 'No se pudo cargar ventas abiertas')}</p></div>`;
   }
 }
 
-async function loadBossHistorySales(reset = false) {
+async function loadBossHistorySales(reset = false, silent = false) {
   if (reset) bossSalesHistoryState.page = 1;
   const list = document.getElementById('bossSalesHistoryList');
   const summary = document.getElementById('bossSalesHistorySummary');
@@ -588,7 +700,9 @@ async function loadBossHistorySales(reset = false) {
     number: document.getElementById('bossSalesHistoryNumber')?.value || ''
   };
 
-  list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Historial</h3><p class="boss-empty-copy">Cargando historial…</p></div>';
+  if (!silent) {
+    list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Historial</h3><p class="boss-empty-copy">Cargando historial…</p></div>';
+  }
   try {
     const response = await BossAPI.sales.list(params);
     const items = Array.isArray(response?.items) ? response.items : [];
@@ -609,6 +723,7 @@ async function loadBossHistorySales(reset = false) {
     prev.disabled = bossSalesHistoryState.page <= 1;
     next.disabled = bossSalesHistoryState.page >= bossSalesHistoryState.pages;
   } catch (err) {
+    if (silent) return;
     list.innerHTML = `<div class="boss-empty-state"><h3 class="boss-card-title">Error</h3><p class="boss-empty-copy">${escapeHtml(err?.message || 'No se pudo cargar historial')}</p></div>`;
     pageInfo.textContent = 'Página —';
   }
@@ -631,8 +746,19 @@ function setBossSalesHistoryPresetState(preset) {
 function bindBossSales() {
   const fromInput = document.getElementById('bossSalesHistoryFrom');
   const toInput = document.getElementById('bossSalesHistoryTo');
+  const toggleFiltersButton = document.getElementById('bossSalesHistoryToggleFilters');
+  const filtersPanel = document.getElementById('bossSalesHistoryFiltersPanel');
   const todayButton = document.getElementById('bossSalesHistoryToday');
   const currentPeriodButton = document.getElementById('bossSalesHistoryCurrentPeriod');
+
+  if (toggleFiltersButton && filtersPanel) {
+    toggleFiltersButton.addEventListener('click', () => {
+      const willOpen = filtersPanel.classList.contains('hidden');
+      filtersPanel.classList.toggle('hidden', !willOpen);
+      toggleFiltersButton.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      toggleFiltersButton.textContent = willOpen ? '✖ Ocultar filtros' : '🔎 Mostrar filtros';
+    });
+  }
 
   if (fromInput && toInput && !fromInput.value && !toInput.value) {
     setBossSalesHistoryRange(getCurrentPeriodRange(new Date()));
@@ -670,40 +796,85 @@ function bindBossSales() {
   });
 }
 
-async function loadBossInventorySuppliers() {
-  const select = document.getElementById('bossInventorySupplier');
-  if (!select) return;
-  try {
-    const response = await BossAPI.inventory.suppliers();
-    const items = Array.isArray(response?.items) ? response.items : [];
-    const current = select.value;
-    select.innerHTML = '<option value="">Todos los proveedores permitidos</option>' + items.map((supplier) => (
-      `<option value="${escapeHtml(supplier._id || '')}">${escapeHtml(supplier.name || 'Proveedor')}</option>`
-    )).join('');
-    if (current) select.value = current;
-  } catch (err) {
-    select.innerHTML = '<option value="">Sin proveedores permitidos</option>';
-    console.warn('No se pudieron cargar proveedores del jefe:', err);
-  }
+function collectBossItemImageUrls(item) {
+  const urls = [];
+  (item?.images || []).forEach((im) => {
+    if (im?.url) urls.push(String(im.url));
+  });
+  (item?.publicImages || []).forEach((im) => {
+    if (im?.url) urls.push(String(im.url));
+  });
+  return [...new Set(urls)];
 }
 
 function getInventoryStatus(item) {
   const stock = Number(item?.stock || 0);
   const minStock = Number(item?.minStock || 0);
-  if (minStock > 0 && stock <= minStock) {
-    const diff = stock - minStock;
+  if (stock === 0) {
     return {
-      label: diff < 0 ? `Debajo por ${Math.abs(diff)}` : 'En mínimo',
-      rowClass: 'boss-low-stock-row'
+      label: 'Sin stock',
+      rowClass: 'boss-inv-row boss-inv-row--out'
     };
   }
-  if (minStock > 0) {
-    return { label: `A ${stock - minStock} del mínimo`, rowClass: '' };
+  if (stock > 0 && stock <= minStock) {
+    if (stock === minStock) {
+      return {
+        label: 'En el mínimo',
+        rowClass: 'boss-inv-row boss-inv-row--warn'
+      };
+    }
+    return {
+      label: `Faltan ${minStock - stock} para el mínimo`,
+      rowClass: 'boss-inv-row boss-inv-row--warn'
+    };
   }
-  return { label: 'Sin mínimo', rowClass: '' };
+  return {
+    label: `${stock - minStock} sobre el mínimo`,
+    rowClass: 'boss-inv-row boss-inv-row--ok'
+  };
 }
 
-async function loadBossInventory(reset = false) {
+function openBossInventoryImageModal(title, urls) {
+  const modal = document.getElementById('bossInventoryImageModal');
+  const titleEl = document.getElementById('bossInventoryImageModalTitle');
+  const body = document.getElementById('bossInventoryImageModalBody');
+  if (!modal || !body || !titleEl) return;
+  titleEl.textContent = title;
+  body.innerHTML = '';
+  if (!urls.length) {
+    const p = document.createElement('p');
+    p.className = 'boss-muted';
+    p.textContent = 'No hay imágenes para este ítem.';
+    body.appendChild(p);
+  } else {
+    urls.forEach((u) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'boss-inv-img-wrap';
+      const img = document.createElement('img');
+      img.src = u;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.className = 'boss-inv-img';
+      wrap.appendChild(img);
+      body.appendChild(wrap);
+    });
+  }
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('boss-inv-modal-open');
+}
+
+function closeBossInventoryImageModal() {
+  const modal = document.getElementById('bossInventoryImageModal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('boss-inv-modal-open');
+}
+
+const bossInventoryImageCache = new Map();
+
+async function loadBossInventory(reset = false, silent = false) {
   if (reset) bossInventoryState.page = 1;
   const rows = document.getElementById('bossInventoryRows');
   const summary = document.getElementById('bossInventorySummary');
@@ -715,32 +886,52 @@ async function loadBossInventory(reset = false) {
   const params = {
     page: bossInventoryState.page,
     limit: bossInventoryState.limit,
-    supplierId: document.getElementById('bossInventorySupplier')?.value || '',
     name: document.getElementById('bossInventorySearch')?.value || ''
   };
 
-  rows.innerHTML = '<tr><td colspan="5">Cargando inventario…</td></tr>';
+  if (!silent) {
+    rows.innerHTML = '<tr><td colspan="6" class="boss-table-cell-span">Cargando inventario…</td></tr>';
+  }
   try {
     const response = await BossAPI.inventory.items(params);
     const items = Array.isArray(response?.items) ? response.items : [];
-    const lowStockCount = items.filter((item) => Number(item?.minStock || 0) > 0 && Number(item?.stock || 0) <= Number(item?.minStock || 0)).length;
+    const totalWithMin = Number(response?.total ?? items.length);
+    const atRisk = Number(response?.atRiskCount ?? 0);
     summary.innerHTML = `
-      <div class="boss-stock-pill ok">Ítems en lista: ${items.length}</div>
-      <div class="boss-stock-pill low">Stock mínimo cercano: ${lowStockCount}</div>
+      <div class="boss-stock-pill ok">Ítems con mínimo: ${escapeHtml(String(totalWithMin))}</div>
+      <div class="boss-stock-pill low">En o bajo mínimo: ${escapeHtml(String(atRisk))}</div>
     `;
+
+    bossInventoryImageCache.clear();
+    items.forEach((item) => {
+      bossInventoryImageCache.set(String(item._id), collectBossItemImageUrls(item));
+    });
 
     rows.innerHTML = items.length ? items.map((item) => {
       const status = getInventoryStatus(item);
+      const imageUrls = bossInventoryImageCache.get(String(item._id)) || [];
+      const hasImages = imageUrls.length > 0;
+      const displayName = String(item.name || 'Ítem').trim() || 'Ítem';
       return `
         <tr class="${status.rowClass}">
-          <td data-label="Ítem" class="strong">${escapeHtml(item.name || 'Ítem')}</td>
-          <td data-label="SKU">${escapeHtml(item.sku || '')}</td>
+          <td data-label="Ítem" class="strong">
+            <div>${escapeHtml(displayName)}</div>
+            <div class="boss-item-meta">${escapeHtml(item.sku || '')}</div>
+          </td>
+          <td data-label="Nombre interno">${escapeHtml(String(item.internalName || '').trim() || '—')}</td>
           <td data-label="Unidades" class="align-right strong">${escapeHtml(item.stock ?? 0)}</td>
-          <td data-label="Stock mínimo" class="align-right">${Number(item?.minStock || 0) > 0 ? escapeHtml(item.minStock) : '—'}</td>
-          <td data-label="Estado" class="align-right">${escapeHtml(status.label)}</td>
+          <td data-label="Stock mín." class="align-right">${escapeHtml(item.minStock)}</td>
+          <td data-label="Estado">${escapeHtml(status.label)}</td>
+          <td data-label="Imágenes" class="boss-inv-cell-images">
+            <button type="button" class="boss-btn boss-btn-secondary boss-inv-img-btn"
+              data-boss-inv-images="${escapeHtml(String(item._id))}"
+              data-boss-item-name="${escapeHtml(displayName)}"
+              ${hasImages ? '' : 'disabled'}
+              title="${hasImages ? 'Ver imágenes' : 'Sin imágenes'}">🖼 Ver</button>
+          </td>
         </tr>
       `;
-    }).join('') : '<tr><td colspan="5">No hay ítems para los filtros actuales</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="boss-table-cell-span">No hay ítems con stock mínimo configurado.</td></tr>';
 
     bossInventoryState.page = Number(response?.page || 1);
     bossInventoryState.pages = Math.max(1, Number(response?.pages || 1));
@@ -748,10 +939,11 @@ async function loadBossInventory(reset = false) {
     prev.disabled = bossInventoryState.page <= 1;
     next.disabled = bossInventoryState.page >= bossInventoryState.pages;
   } catch (err) {
-    rows.innerHTML = `<tr><td colspan="5">${escapeHtml(err?.message || 'No se pudo cargar inventario')}</td></tr>`;
+    if (silent) return;
+    rows.innerHTML = `<tr><td colspan="6" class="boss-table-cell-span">${escapeHtml(err?.message || 'No se pudo cargar inventario')}</td></tr>`;
     summary.innerHTML = `
-      <div class="boss-stock-pill ok">Ítems en lista: —</div>
-      <div class="boss-stock-pill low">Stock mínimo cercano: —</div>
+      <div class="boss-stock-pill ok">Ítems con mínimo: —</div>
+      <div class="boss-stock-pill low">En o bajo mínimo: —</div>
     `;
     pageInfo.textContent = 'Página —';
   }
@@ -759,6 +951,31 @@ async function loadBossInventory(reset = false) {
 
 function bindBossInventory() {
   document.getElementById('bossInventoryApply')?.addEventListener('click', () => loadBossInventory(true));
+  document.getElementById('bossInventorySearch')?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      loadBossInventory(true);
+    }
+  });
+
+  document.getElementById('bossInventoryRows')?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-boss-inv-images]');
+    if (!btn || btn.disabled) return;
+    const id = btn.getAttribute('data-boss-inv-images');
+    const name = btn.getAttribute('data-boss-item-name') || 'Ítem';
+    const urls = bossInventoryImageCache.get(id) || [];
+    openBossInventoryImageModal(name, urls);
+  });
+
+  document.querySelectorAll('[data-boss-inv-modal-close]').forEach((el) => {
+    el.addEventListener('click', () => closeBossInventoryImageModal());
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && document.getElementById('bossInventoryImageModal')?.classList.contains('hidden') === false) {
+      closeBossInventoryImageModal();
+    }
+  });
+
   document.getElementById('bossInventoryPrev')?.addEventListener('click', () => {
     if (bossInventoryState.page > 1) {
       bossInventoryState.page -= 1;
@@ -826,18 +1043,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindBossSales();
     await loadBossOpenSales();
     await loadBossHistorySales(true);
+    startBossAutoRefresh(async () => {
+      await loadBossOpenSales(true);
+      await loadBossHistorySales(false, true);
+    });
   }
   if (page === 'boss-home') {
     await loadBossHomeSummary();
+    startBossAutoRefresh(() => loadBossHomeSummary());
   }
   if (page === 'boss-cashflow') {
     bindBossCashflow();
     await loadBossCashflowAccounts();
     await loadBossCashflowEntries(true);
+    startBossAutoRefresh(async () => {
+      await loadBossCashflowAccounts(true);
+      await loadBossCashflowEntries(false, true);
+    });
   }
   if (page === 'boss-inventory') {
     bindBossInventory();
-    await loadBossInventorySuppliers();
     await loadBossInventory(true);
+    startBossAutoRefresh(() => loadBossInventory(false, true));
   }
 });

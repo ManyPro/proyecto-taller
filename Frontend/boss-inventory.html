@@ -22,7 +22,7 @@
             <div class="boss-brand-copy">
               <div class="boss-brand-kicker">Portal del jefe</div>
               <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
-              <div class="boss-muted">Inventario y stock mínimo</div>
+              <div class="boss-muted">Ítems con stock mínimo</div>
             </div>
           </div>
 
@@ -61,47 +61,42 @@
     </div>
 
     <main class="boss-main">
-      <section class="boss-page-header">
-        <div class="boss-pill">📦 Control de inventario</div>
-        <h2 class="boss-page-title">Inventario del taller</h2>
-        <p class="boss-muted boss-page-copy">Filtra por proveedor autorizado, busca por ítem o SKU y prioriza lo que está más cerca del stock mínimo.</p>
+      <section class="boss-page-header boss-inventory-page-header">
+        <h2 class="boss-page-title">📦 Inventario del taller</h2>
       </section>
 
       <section class="boss-panel">
         <div class="boss-inventory-toolbar">
-          <select id="bossInventorySupplier" class="boss-input">
-            <option value="">Todos los proveedores permitidos</option>
-          </select>
-          <input id="bossInventorySearch" class="boss-input" type="text" placeholder="Buscar por ítem o SKU" />
-          <button id="bossInventoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar filtros</button>
+          <input id="bossInventorySearch" class="boss-input" type="search" autocomplete="off" placeholder="Buscar por ítem, nombre interno o SKU" />
+          <button id="bossInventoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar</button>
         </div>
 
         <div class="boss-inventory-summary" id="bossInventorySummary">
-          <div class="boss-stock-pill ok">Ítems en lista: —</div>
-          <div class="boss-stock-pill low">Stock mínimo cercano: —</div>
+          <div class="boss-stock-pill ok">Ítems con mínimo: —</div>
+          <div class="boss-stock-pill low">En o bajo mínimo: —</div>
         </div>
 
         <div class="boss-section-head boss-section-head-tight">
           <div>
             <div class="boss-section-kicker">📋 Listado</div>
-            <h3 class="boss-section-title">Ítems y estado de stock</h3>
+            <h3 class="boss-section-title">Stock mínimo configurado</h3>
           </div>
-          <div class="boss-table-hint">En celular cada fila se organiza como tarjeta.</div>
         </div>
 
-        <div class="boss-table-wrap">
-          <table class="boss-table boss-table--stacked">
+        <div class="boss-table-wrap boss-table-wrap-wide">
+          <table class="boss-table boss-table--stacked-mobile">
             <thead>
               <tr>
                 <th>Ítem</th>
-                <th>SKU</th>
+                <th>Nombre interno</th>
                 <th class="align-right">Unidades</th>
-                <th class="align-right">Stock mínimo</th>
-                <th class="align-right">Estado</th>
+                <th class="align-right">Stock mín.</th>
+                <th>Estado</th>
+                <th class="boss-inv-col-images">Imágenes</th>
               </tr>
             </thead>
             <tbody id="bossInventoryRows">
-              <tr><td colspan="5">Cargando inventario…</td></tr>
+              <tr><td colspan="6">Cargando inventario…</td></tr>
             </tbody>
           </table>
         </div>
@@ -116,6 +111,18 @@
       </section>
     </main>
   </div>
+
+  <div id="bossInventoryImageModal" class="boss-inv-modal hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="bossInventoryImageModalTitle">
+    <div class="boss-inv-modal-backdrop" data-boss-inv-modal-close></div>
+    <div class="boss-inv-modal-panel">
+      <div class="boss-inv-modal-head">
+        <h3 id="bossInventoryImageModalTitle" class="boss-inv-modal-title">Imágenes</h3>
+        <button type="button" class="boss-inv-modal-x" data-boss-inv-modal-close aria-label="Cerrar">×</button>
+      </div>
+      <div class="boss-inv-modal-body" id="bossInventoryImageModalBody"></div>
+    </div>
+  </div>
+
   <script type="module" src="./assets/js/boss-portal.js"></script>
 </body>
 </html>
