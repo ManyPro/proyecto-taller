@@ -534,11 +534,56 @@ body.theme-light .boss-home-account-empty {
 }
 
 .boss-home-page-header {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  padding: 24px 26px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.7), rgba(30, 41, 59, 0.52), rgba(15, 23, 42, 0.72));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.16);
+}
+
+body.theme-light .boss-home-page-header {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(239, 246, 255, 0.94), rgba(255, 255, 255, 0.88));
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.boss-home-page-header .boss-pill {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.3), rgba(79, 70, 229, 0.24));
+  color: #dbeafe;
+}
+
+body.theme-light .boss-home-page-header .boss-pill {
+  background: linear-gradient(90deg, #dbeafe, #e0e7ff);
+  color: #1d4ed8;
+}
+
+.boss-home-page-header .boss-page-title {
+  margin-top: 12px;
+  font-size: clamp(2.1rem, 4.8vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+body.theme-light .boss-home-page-header .boss-page-title {
+  text-shadow: none;
+}
+
+.boss-home-page-subtitle {
+  margin: 10px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.84);
+}
+
+body.theme-light .boss-home-page-subtitle {
+  color: #475569;
 }
 
 body[data-page="boss-home"] .boss-main {
-  width: min(1120px, calc(100% - 72px));
+  width: min(1040px, calc(100% - 112px));
 }
 
 .boss-card-title {
@@ -1203,6 +1248,19 @@ body.theme-light .boss-item-meta {
 
   body[data-page="boss-home"] .boss-main {
     width: calc(100% - 24px);
+  }
+
+  .boss-home-page-header {
+    padding: 20px 18px;
+    border-radius: 20px;
+  }
+
+  .boss-home-page-header .boss-page-title {
+    font-size: clamp(1.8rem, 8vw, 2.3rem);
+  }
+
+  .boss-home-page-subtitle {
+    font-size: 0.95rem;
   }
 
   .boss-home-stat-value {
