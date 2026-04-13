@@ -11,8 +11,9 @@ function applyTheme(theme) {
   }
   try { localStorage.setItem(THEME_KEY, theme); } catch {}
   document.querySelectorAll('[data-boss-theme-toggle]').forEach((button) => {
-    button.textContent = theme === 'light' ? '🌙' : '🌞';
+    button.textContent = '🌗';
     button.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+    button.setAttribute('aria-label', button.title);
   });
 }
 
@@ -74,6 +75,32 @@ function bindLogout() {
       await BossAPI.logout();
       redirectToLogin();
     });
+  });
+}
+
+function bindHeaderMenu() {
+  const toggle = document.querySelector('[data-boss-menu-toggle]');
+  const menu = document.querySelector('[data-boss-mobile-menu]');
+  if (!toggle || !menu) return;
+
+  const closeMenu = () => {
+    menu.classList.add('hidden');
+    toggle.setAttribute('aria-expanded', 'false');
+  };
+
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.addEventListener('click', () => {
+    const shouldOpen = menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', !shouldOpen);
+    toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+  });
+
+  document.querySelectorAll('[data-boss-mobile-link], [data-boss-logout]').forEach((node) => {
+    node.addEventListener('click', closeMenu);
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768) closeMenu();
   });
 }
 
@@ -147,7 +174,7 @@ async function loadBossHomeSummary() {
   const closedSales = closedSalesResult.status === 'fulfilled' ? closedSalesResult.value : null;
   const inventory = inventoryResult.status === 'fulfilled' ? inventoryResult.value : null;
   const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
-  const lowStockVisible = inventoryItems.filter((item) => {
+  const lowStockCount = inventoryItems.filter((item) => {
     const stock = Number(item?.stock || 0);
     const minStock = Number(item?.minStock || 0);
     return minStock > 0 && stock <= minStock;
@@ -162,17 +189,17 @@ async function loadBossHomeSummary() {
     {
       label: 'Ventas abiertas',
       value: openSales ? formatCount(openSales?.total || 0) : 'No disponible',
-      note: 'Ordenes abiertas visibles'
+      note: 'Órdenes abiertas registradas'
     },
     {
       label: 'Historial',
       value: closedSales ? formatCount(closedSales?.total || 0) : 'No disponible',
-      note: 'Ventas cerradas visibles'
+      note: 'Ventas cerradas registradas'
     },
     {
       label: 'Inventario',
       value: inventory ? formatCount(inventory?.total || inventoryItems.length || 0) : 'No disponible',
-      note: inventory ? `${formatCount(lowStockVisible)} alertas visibles por minimo` : 'Sin acceso al inventario'
+      note: inventory ? `${formatCount(lowStockCount)} alertas por mínimo` : 'Sin acceso al inventario'
     }
   ];
 
@@ -197,9 +224,9 @@ async function loadBossCashflowAccounts() {
     body.innerHTML = balances.length
       ? balances.map((account) => `
         <tr>
-          <td>${escapeHtml(account.name)}</td>
-          <td>${escapeHtml(account.type)}</td>
-          <td class="align-right strong">${money(account.balance)}</td>
+          <td data-label="Cuenta">${escapeHtml(account.name)}</td>
+          <td data-label="Tipo">${escapeHtml(account.type)}</td>
+          <td data-label="Saldo" class="align-right strong">${money(account.balance)}</td>
         </tr>
       `).join('')
       : '<tr><td colspan="3">Sin cuentas disponibles</td></tr>';
@@ -356,20 +383,20 @@ function renderBossSaleDetail(detailNode, sale) {
       </div>
     </div>
     <div class="boss-detail-box" style="margin-bottom: 14px;">
-      <div class="boss-detail-title">Items de la orden</div>
+      <div class="boss-detail-title">Ítems de la orden</div>
       <div class="boss-detail-list">
         ${items.length ? items.map((item) => `
           <div class="boss-item-row">
             <div>
-              <div class="boss-item-name">${escapeHtml(item.name || item.sku || 'Item')}</div>
+              <div class="boss-item-name">${escapeHtml(item.name || item.sku || 'Ítem')}</div>
               <div class="boss-item-meta">${escapeHtml(item.sku || item.source || '')}</div>
             </div>
             <div style="text-align:right;">
               <div class="boss-item-name">${money(item.total || (Number(item.qty || 0) * Number(item.unitPrice || 0)))}</div>
-              <div class="boss-item-meta">Cant. ${escapeHtml(item.qty || 0)} · Unit ${money(item.unitPrice || 0)}</div>
+              <div class="boss-item-meta">Cant. ${escapeHtml(item.qty || 0)} · Unitario ${money(item.unitPrice || 0)}</div>
             </div>
           </div>
-        `).join('') : '<div class="boss-item-meta">Sin items registrados.</div>'}
+        `).join('') : '<div class="boss-item-meta">Sin ítems registrados.</div>'}
       </div>
     </div>
     ${sale?.notes ? `<div class="boss-detail-box"><div class="boss-detail-title">Notas</div><div>${escapeHtml(sale.notes)}</div></div>` : ''}
@@ -463,10 +490,10 @@ async function loadBossOpenSales() {
   try {
     const response = await BossAPI.sales.list({ status: 'draft', limit: 100 });
     const items = Array.isArray(response?.items) ? response.items : [];
-    const totalVisible = items.reduce((sum, sale) => sum + Number(sale?.total || 0), 0);
+    const totalAmount = items.reduce((sum, sale) => sum + Number(sale?.total || 0), 0);
     summary.innerHTML = `
       <div class="boss-summary-chip in">Abiertas: ${items.length}</div>
-      <div class="boss-summary-chip net">Valor visible: ${money(totalVisible)}</div>
+      <div class="boss-summary-chip net">Valor total: ${money(totalAmount)}</div>
     `;
     if (!items.length) {
       list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Sin ventas abiertas</h3><p class="boss-empty-copy">No hay órdenes abiertas en este momento.</p></div>';
@@ -502,10 +529,10 @@ async function loadBossHistorySales(reset = false) {
   try {
     const response = await BossAPI.sales.list(params);
     const items = Array.isArray(response?.items) ? response.items : [];
-    const totalVisible = items.reduce((sum, sale) => sum + Number(sale?.total || 0), 0);
+    const totalAmount = items.reduce((sum, sale) => sum + Number(sale?.total || 0), 0);
     summary.innerHTML = `
       <div class="boss-summary-chip in">Con pago: ${response?.total || items.length}</div>
-      <div class="boss-summary-chip net">Total visible: ${money(totalVisible)}</div>
+      <div class="boss-summary-chip net">Total facturado: ${money(totalAmount)}</div>
     `;
     if (!items.length) {
       list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Sin resultados</h3><p class="boss-empty-copy">No se encontraron ventas con los filtros actuales.</p></div>';
@@ -595,7 +622,7 @@ async function loadBossInventory(reset = false) {
     const items = Array.isArray(response?.items) ? response.items : [];
     const lowStockCount = items.filter((item) => Number(item?.minStock || 0) > 0 && Number(item?.stock || 0) <= Number(item?.minStock || 0)).length;
     summary.innerHTML = `
-      <div class="boss-stock-pill ok">Ítems visibles: ${items.length}</div>
+      <div class="boss-stock-pill ok">Ítems en lista: ${items.length}</div>
       <div class="boss-stock-pill low">Stock mínimo cercano: ${lowStockCount}</div>
     `;
 
@@ -603,11 +630,11 @@ async function loadBossInventory(reset = false) {
       const status = getInventoryStatus(item);
       return `
         <tr class="${status.rowClass}">
-          <td class="strong">${escapeHtml(item.name || 'Ítem')}</td>
-          <td>${escapeHtml(item.sku || '')}</td>
-          <td class="align-right strong">${escapeHtml(item.stock ?? 0)}</td>
-          <td class="align-right">${Number(item?.minStock || 0) > 0 ? escapeHtml(item.minStock) : '—'}</td>
-          <td class="align-right">${escapeHtml(status.label)}</td>
+          <td data-label="Ítem" class="strong">${escapeHtml(item.name || 'Ítem')}</td>
+          <td data-label="SKU">${escapeHtml(item.sku || '')}</td>
+          <td data-label="Unidades" class="align-right strong">${escapeHtml(item.stock ?? 0)}</td>
+          <td data-label="Stock mínimo" class="align-right">${Number(item?.minStock || 0) > 0 ? escapeHtml(item.minStock) : '—'}</td>
+          <td data-label="Estado" class="align-right">${escapeHtml(status.label)}</td>
         </tr>
       `;
     }).join('') : '<tr><td colspan="5">No hay ítems para los filtros actuales</td></tr>';
@@ -620,7 +647,7 @@ async function loadBossInventory(reset = false) {
   } catch (err) {
     rows.innerHTML = `<tr><td colspan="5">${escapeHtml(err?.message || 'No se pudo cargar inventario')}</td></tr>`;
     summary.innerHTML = `
-      <div class="boss-stock-pill ok">Ítems visibles: —</div>
+      <div class="boss-stock-pill ok">Ítems en lista: —</div>
       <div class="boss-stock-pill low">Stock mínimo cercano: —</div>
     `;
     pageInfo.textContent = 'Página —';
@@ -669,7 +696,7 @@ function bindBossLogin() {
       redirectToHome();
     } catch (err) {
       feedback.classList.add('error');
-      feedback.textContent = err?.message || 'No se pudo iniciar sesiÃ³n';
+      feedback.textContent = err?.message || 'No se pudo iniciar sesión';
     } finally {
       loginButton.disabled = false;
     }
@@ -680,6 +707,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (window.MMModal?.init) window.MMModal.init();
   applyTheme(detectTheme());
   bindThemeToggles();
+  bindHeaderMenu();
 
   const page = document.body?.dataset?.page || '';
   if (page === 'boss-login') {

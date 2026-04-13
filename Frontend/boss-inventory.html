@@ -13,49 +13,84 @@
 <body data-page="boss-inventory">
   <div class="boss-shell">
     <div class="boss-auth-bg" aria-hidden="true"></div>
-    <header class="boss-topbar">
-      <div class="boss-topbar-inner">
-        <div>
-          <div class="boss-brand-kicker">Portal jefe del taller</div>
-          <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
-          <div class="boss-muted">Inventario readonly</div>
+
+    <div class="topbar sticky top-0 z-[1000] boss-app-header">
+      <header class="boss-header-shell">
+        <div class="boss-topbar-inner">
+          <div class="boss-header-brand">
+            <img src="assets/lightlogo.png" alt="M&M" class="boss-brand-logo" />
+            <div class="boss-brand-copy">
+              <div class="boss-brand-kicker">Portal del jefe</div>
+              <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+              <div class="boss-muted">Inventario y stock mínimo</div>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center gap-2 boss-header-actions">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-logout class="boss-header-btn boss-header-btn-ghost">Salir</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 boss-header-actions-mobile">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-menu-toggle class="boss-header-btn boss-header-btn-icon" aria-label="Abrir menú">☰</button>
+          </div>
         </div>
-        <div class="boss-actions">
-          <button type="button" data-boss-theme-toggle class="boss-btn boss-btn-secondary">🌞</button>
-          <button type="button" data-boss-logout class="boss-btn boss-btn-secondary">Salir</button>
+
+        <div class="hidden md:block boss-header-nav-row">
+          <div class="boss-header-nav-wrap">
+            <nav class="boss-header-nav">
+              <a href="boss-home.html" class="boss-nav-tab">🏠 Inicio</a>
+              <a href="boss-cashflow.html" class="boss-nav-tab">💰 Caja</a>
+              <a href="boss-sales.html" class="boss-nav-tab">🚗 Ventas</a>
+              <a href="boss-inventory.html" class="boss-nav-tab active">📦 Inventario</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div class="md:hidden hidden boss-header-mobile-drawer" data-boss-mobile-menu>
+        <div class="boss-mobile-nav-list">
+          <a href="boss-home.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🏠 Inicio</a>
+          <a href="boss-cashflow.html" class="boss-mobile-nav-tab" data-boss-mobile-link>💰 Caja</a>
+          <a href="boss-sales.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🚗 Ventas</a>
+          <a href="boss-inventory.html" class="boss-mobile-nav-tab active" data-boss-mobile-link>📦 Inventario</a>
+          <button type="button" data-boss-logout class="boss-mobile-nav-tab boss-mobile-nav-tab-danger">Salir</button>
         </div>
       </div>
-    </header>
+    </div>
+
     <main class="boss-main">
-      <div class="boss-page-header">
-        <div>
-          <div class="boss-pill">Filtro por proveedor preparado</div>
-          <h2 class="boss-page-title" style="font-size: 1.8rem; margin-top: 10px;">Inventario del jefe</h2>
-          <p class="boss-muted">Esta base queda lista para mostrar solo ítems, unidades y el filtro por proveedores permitidos.</p>
-        </div>
-        <nav class="boss-nav">
-          <a href="boss-home.html" class="boss-nav-link">Inicio</a>
-          <a href="boss-cashflow.html" class="boss-nav-link">Caja</a>
-          <a href="boss-sales.html" class="boss-nav-link">Ventas</a>
-          <a href="boss-inventory.html" class="boss-nav-link active">Inventario</a>
-        </nav>
-      </div>
+      <section class="boss-page-header">
+        <div class="boss-pill">📦 Control de inventario</div>
+        <h2 class="boss-page-title">Inventario del taller</h2>
+        <p class="boss-muted boss-page-copy">Filtra por proveedor autorizado, busca por ítem o SKU y prioriza lo que está más cerca del stock mínimo.</p>
+      </section>
+
       <section class="boss-panel">
         <div class="boss-inventory-toolbar">
           <select id="bossInventorySupplier" class="boss-input">
             <option value="">Todos los proveedores permitidos</option>
           </select>
           <input id="bossInventorySearch" class="boss-input" type="text" placeholder="Buscar por ítem o SKU" />
-          <button id="bossInventoryApply" class="boss-btn boss-btn-primary" type="button">Aplicar filtros</button>
+          <button id="bossInventoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar filtros</button>
         </div>
 
         <div class="boss-inventory-summary" id="bossInventorySummary">
-          <div class="boss-stock-pill ok">Ítems visibles: —</div>
+          <div class="boss-stock-pill ok">Ítems en lista: —</div>
           <div class="boss-stock-pill low">Stock mínimo cercano: —</div>
         </div>
 
+        <div class="boss-section-head boss-section-head-tight">
+          <div>
+            <div class="boss-section-kicker">📋 Listado</div>
+            <h3 class="boss-section-title">Ítems y estado de stock</h3>
+          </div>
+          <div class="boss-table-hint">En celular cada fila se organiza como tarjeta.</div>
+        </div>
+
         <div class="boss-table-wrap">
-          <table class="boss-table">
+          <table class="boss-table boss-table--stacked">
             <thead>
               <tr>
                 <th>Ítem</th>
@@ -74,8 +109,8 @@
         <div class="boss-pagination">
           <div class="boss-muted" id="bossInventoryPageInfo">Página 1</div>
           <div class="boss-actions">
-            <button id="bossInventoryPrev" class="boss-btn boss-btn-secondary" type="button">←</button>
-            <button id="bossInventoryNext" class="boss-btn boss-btn-secondary" type="button">→</button>
+            <button id="bossInventoryPrev" class="boss-btn boss-btn-secondary" type="button">← Anterior</button>
+            <button id="bossInventoryNext" class="boss-btn boss-btn-secondary" type="button">Siguiente →</button>
           </div>
         </div>
       </section>

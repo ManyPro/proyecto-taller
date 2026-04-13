@@ -13,33 +13,60 @@
 <body data-page="boss-home">
   <div class="boss-shell">
     <div class="boss-auth-bg" aria-hidden="true"></div>
-    <header class="boss-topbar">
-      <div class="boss-topbar-inner">
-        <div>
-          <div class="boss-brand-kicker">Portal jefe del taller</div>
-          <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
-          <div class="boss-muted">Usuario: <span data-boss-username>—</span></div>
+
+    <div class="topbar sticky top-0 z-[1000] boss-app-header">
+      <header class="boss-header-shell">
+        <div class="boss-topbar-inner">
+          <div class="boss-header-brand">
+            <img src="assets/lightlogo.png" alt="M&M" class="boss-brand-logo" />
+            <div class="boss-brand-copy">
+              <div class="boss-brand-kicker">Portal del jefe</div>
+              <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+              <div class="boss-muted">Usuario: <span data-boss-username>—</span></div>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center gap-2 boss-header-actions">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-logout class="boss-header-btn boss-header-btn-ghost">Salir</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 boss-header-actions-mobile">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-menu-toggle class="boss-header-btn boss-header-btn-icon" aria-label="Abrir menú">☰</button>
+          </div>
         </div>
-        <div class="boss-actions">
-          <button type="button" data-boss-theme-toggle class="boss-btn boss-btn-secondary">🌞</button>
-          <button type="button" data-boss-logout class="boss-btn boss-btn-secondary">Salir</button>
+
+        <div class="hidden md:block boss-header-nav-row">
+          <div class="boss-header-nav-wrap">
+            <nav class="boss-header-nav">
+              <a href="boss-home.html" class="boss-nav-tab active">🏠 Inicio</a>
+              <a href="boss-cashflow.html" class="boss-nav-tab">💰 Caja</a>
+              <a href="boss-sales.html" class="boss-nav-tab">🚗 Ventas</a>
+              <a href="boss-inventory.html" class="boss-nav-tab">📦 Inventario</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div class="md:hidden hidden boss-header-mobile-drawer" data-boss-mobile-menu>
+        <div class="boss-mobile-nav-list">
+          <a href="boss-home.html" class="boss-mobile-nav-tab active" data-boss-mobile-link>🏠 Inicio</a>
+          <a href="boss-cashflow.html" class="boss-mobile-nav-tab" data-boss-mobile-link>💰 Caja</a>
+          <a href="boss-sales.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🚗 Ventas</a>
+          <a href="boss-inventory.html" class="boss-mobile-nav-tab" data-boss-mobile-link>📦 Inventario</a>
+          <button type="button" data-boss-logout class="boss-mobile-nav-tab boss-mobile-nav-tab-danger">Salir</button>
         </div>
       </div>
-    </header>
+    </div>
+
     <main class="boss-main">
-      <div class="boss-page-header">
-        <div>
-          <div class="boss-pill">Portal activo</div>
-          <h2 class="boss-page-title" style="font-size: 1.8rem; margin-top: 10px;">Módulos del jefe</h2>
-          <p class="boss-muted">Resumen rápido y acceso directo a las vistas readonly del sistema.</p>
-        </div>
-        <nav class="boss-nav">
-          <a href="boss-home.html" class="boss-nav-link active">Inicio</a>
-          <a href="boss-cashflow.html" class="boss-nav-link">Caja</a>
-          <a href="boss-sales.html" class="boss-nav-link">Ventas</a>
-          <a href="boss-inventory.html" class="boss-nav-link">Inventario</a>
-        </nav>
-      </div>
+      <section class="boss-page-header">
+        <div class="boss-pill">👨‍🔧 Consulta general</div>
+        <h2 class="boss-page-title">Resumen del taller</h2>
+        <p class="boss-muted boss-page-copy">Revisa los indicadores principales y entra a caja, ventas o inventario desde una sola vista.</p>
+      </section>
+
       <section class="boss-home-stats" id="bossHomeSummary">
         <article class="boss-home-stat">
           <div class="boss-home-stat-label">Caja</div>
@@ -54,29 +81,30 @@
         <article class="boss-home-stat">
           <div class="boss-home-stat-label">Historial</div>
           <div class="boss-home-stat-value">Cargando…</div>
-          <div class="boss-home-stat-note">Ventas cerradas visibles</div>
+          <div class="boss-home-stat-note">Ventas cerradas registradas</div>
         </article>
         <article class="boss-home-stat">
           <div class="boss-home-stat-label">Inventario</div>
           <div class="boss-home-stat-value">Cargando…</div>
-          <div class="boss-home-stat-note">Items y alertas visibles</div>
+          <div class="boss-home-stat-note">Ítems y alertas actuales</div>
         </article>
       </section>
+
       <section class="boss-grid">
-        <a href="boss-cashflow.html" class="boss-card" style="text-decoration:none; color:inherit;">
+        <a href="boss-cashflow.html" class="boss-card boss-card-link">
           <div class="boss-card-icon boss-icon-blue">💰</div>
           <h3 class="boss-card-title">Flujo de caja</h3>
-          <p class="boss-card-copy">Vista completa readonly con cuentas, movimientos, filtros y color por tipo.</p>
+          <p class="boss-card-copy">Consulta saldos, movimientos, filtros y colores por tipo de movimiento.</p>
         </a>
-        <a href="boss-sales.html" class="boss-card" style="text-decoration:none; color:inherit;">
+        <a href="boss-sales.html" class="boss-card boss-card-link">
           <div class="boss-card-icon boss-icon-green">🚗</div>
           <h3 class="boss-card-title">Ventas</h3>
-          <p class="boss-card-copy">Ventas abiertas e historial en solo lectura, con detalle expandible por orden.</p>
+          <p class="boss-card-copy">Consulta ventas abiertas y el historial con detalle expandible por orden.</p>
         </a>
-        <a href="boss-inventory.html" class="boss-card" style="text-decoration:none; color:inherit;">
+        <a href="boss-inventory.html" class="boss-card boss-card-link">
           <div class="boss-card-icon boss-icon-purple">📦</div>
           <h3 class="boss-card-title">Inventario</h3>
-          <p class="boss-card-copy">Filtro por proveedor permitido y prioridad para ítems cercanos al stock mínimo.</p>
+          <p class="boss-card-copy">Filtra por proveedor permitido y prioriza los ítems cercanos al stock mínimo.</p>
         </a>
       </section>
     </main>
