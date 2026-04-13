@@ -1029,6 +1029,21 @@ body.theme-light #tab-home .home-welcome-check {
 
 /* Móvil y menú desplegable: más vidrio, menos bloques opacos */
 @media (max-width: 767.98px) {
+  body:has(#portalSection:not(.hidden)),
+  body.theme-light:has(#portalSection:not(.hidden)) {
+    overflow: auto !important;
+  }
+
+  #portalSection.home-portal {
+    min-height: 100dvh;
+    height: auto;
+    align-items: flex-start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 4.75rem;
+    padding-bottom: 2rem;
+  }
+
   #appHeader .home-header-shell {
     background: linear-gradient(
       125deg,

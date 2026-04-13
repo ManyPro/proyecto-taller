@@ -35,7 +35,7 @@ body.theme-light .boss-auth-bg {
 .boss-main,
 .boss-login-wrap,
 .boss-header-mobile-drawer {
-  width: min(1280px, calc(100% - 32px));
+  width: min(1240px, calc(100% - 48px));
   margin: 0 auto;
   position: relative;
   z-index: 1;
@@ -192,7 +192,7 @@ body.theme-light .boss-header-nav-row {
 }
 
 .boss-header-nav-wrap {
-  width: min(1280px, calc(100% - 32px));
+  width: min(1240px, calc(100% - 48px));
   margin: 0 auto;
   padding: 8px 0 10px;
 }
@@ -389,6 +389,12 @@ body.theme-light .boss-card-link:hover {
   align-items: start;
 }
 
+.boss-cashflow-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
 .boss-home-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -504,6 +510,10 @@ body.theme-light .boss-section-kicker {
 
 .boss-inline-total {
   margin-top: 12px;
+}
+
+.boss-card-section {
+  width: 100%;
 }
 
 .boss-btn {
