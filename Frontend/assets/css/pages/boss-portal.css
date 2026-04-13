@@ -309,6 +309,34 @@ body.theme-light .boss-mobile-nav-tab-danger {
   max-width: 760px;
 }
 
+.boss-cashflow-page-header {
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.54), rgba(15, 23, 42, 0.74));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.14);
+}
+
+body.theme-light .boss-cashflow-page-header {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.9));
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.boss-cashflow-page-header .boss-page-title {
+  margin-top: 0;
+  font-size: clamp(2.05rem, 4.8vw, 2.85rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+body.theme-light .boss-cashflow-page-header .boss-page-title {
+  text-shadow: none;
+}
+
 .boss-pill,
 .boss-summary-chip,
 .boss-stock-pill,
@@ -826,6 +854,31 @@ body.theme-light .boss-stock-pill.low {
   margin-bottom: 18px;
 }
 
+.boss-filter-toolbar {
+  margin-bottom: 14px;
+}
+
+.boss-filter-toggle {
+  min-width: 180px;
+}
+
+.boss-filter-panel.hidden {
+  display: none;
+}
+
+.boss-filter-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+body.theme-light .boss-filter-panel {
+  background: rgba(255, 255, 255, 0.84);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
 .boss-table-wrap {
   overflow: auto;
   border-radius: 18px;
@@ -844,6 +897,10 @@ body.theme-light .boss-table-wrap {
 }
 
 .boss-table--wide {
+  min-width: 760px;
+}
+
+.boss-table--stacked-mobile {
   min-width: 760px;
 }
 
@@ -1346,6 +1403,64 @@ body.theme-light .boss-item-meta {
 
   .boss-table--wide {
     min-width: 680px;
+  }
+
+  .boss-table--stacked-mobile thead {
+    display: none;
+  }
+
+  .boss-table--stacked-mobile,
+  .boss-table--stacked-mobile tbody,
+  .boss-table--stacked-mobile tr,
+  .boss-table--stacked-mobile td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .boss-table--stacked-mobile tr {
+    margin: 10px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(15, 23, 42, 0.26);
+  }
+
+  body.theme-light .boss-table--stacked-mobile tr {
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(15, 23, 42, 0.08);
+  }
+
+  .boss-table--stacked-mobile td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    text-align: right;
+  }
+
+  .boss-table--stacked-mobile td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    text-align: left;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: rgba(148, 163, 184, 0.95);
+  }
+
+  body.theme-light .boss-table--stacked-mobile td::before {
+    color: #64748b;
+  }
+
+  .boss-cashflow-page-header {
+    padding: 20px 18px;
+    border-radius: 20px;
+  }
+
+  .boss-cashflow-page-header .boss-page-title {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
   }
 
   .boss-sale-actions .boss-btn {

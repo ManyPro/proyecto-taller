@@ -272,12 +272,12 @@ async function loadBossCashflowEntries(reset = false) {
       }
       return `
         <tr class="${getBossMovementClass(entry)}">
-          <td>${formatDate(entry.date || entry.createdAt)}</td>
-          <td>${escapeHtml(entry.accountId?.name || entry.accountName || '')}</td>
-          <td>${desc}</td>
-          <td class="align-right ${entry.kind === 'IN' ? 'boss-amount-in strong' : ''}">${entry.kind === 'IN' ? money(entry.amount) : ''}</td>
-          <td class="align-right ${entry.kind === 'OUT' ? 'boss-amount-out strong' : ''}">${entry.kind === 'OUT' ? money(entry.amount) : ''}</td>
-          <td class="align-right strong">${money(entry.balanceAfter || 0)}</td>
+          <td data-label="Fecha">${formatDate(entry.date || entry.createdAt)}</td>
+          <td data-label="Cuenta">${escapeHtml(entry.accountId?.name || entry.accountName || '')}</td>
+          <td data-label="Descripción">${desc}</td>
+          <td data-label="Entrada" class="align-right ${entry.kind === 'IN' ? 'boss-amount-in strong' : ''}">${entry.kind === 'IN' ? money(entry.amount) : '—'}</td>
+          <td data-label="Salida" class="align-right ${entry.kind === 'OUT' ? 'boss-amount-out strong' : ''}">${entry.kind === 'OUT' ? money(entry.amount) : '—'}</td>
+          <td data-label="Saldo" class="align-right strong">${money(entry.balanceAfter || 0)}</td>
         </tr>
       `;
     }).join('') : '<tr><td colspan="6">Sin movimientos para los filtros actuales</td></tr>';
@@ -307,6 +307,18 @@ async function loadBossCashflowEntries(reset = false) {
 }
 
 function bindBossCashflow() {
+  const toggle = document.getElementById('bossCfToggleFilters');
+  const panel = document.getElementById('bossCfFiltersPanel');
+
+  if (toggle && panel) {
+    toggle.addEventListener('click', () => {
+      const willOpen = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !willOpen);
+      toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      toggle.textContent = willOpen ? '✖ Ocultar filtros' : '🔎 Mostrar filtros';
+    });
+  }
+
   document.getElementById('bossCfApply')?.addEventListener('click', () => loadBossCashflowEntries(true));
   document.getElementById('bossCfPrev')?.addEventListener('click', () => {
     if (bossCashflowState.page > 1) {

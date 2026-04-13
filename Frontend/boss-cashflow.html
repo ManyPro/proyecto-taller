@@ -61,10 +61,8 @@
     </div>
 
     <main class="boss-main">
-      <section class="boss-page-header">
-        <div class="boss-pill">💰 Caja del taller</div>
+      <section class="boss-page-header boss-cashflow-page-header">
         <h2 class="boss-page-title">Flujo de caja</h2>
-        <p class="boss-muted boss-page-copy">Consulta saldos por cuenta, movimientos y filtros con una vista ordenada para escritorio y celular.</p>
       </section>
 
       <section class="boss-panel">
@@ -74,26 +72,34 @@
           <div class="boss-summary-chip net">Neto: —</div>
         </div>
 
-        <div class="boss-filter-grid">
-          <select id="bossCfAccount" class="boss-input">
-            <option value="">Todas las cuentas</option>
-          </select>
-          <input id="bossCfFrom" class="boss-input" type="date" />
-          <input id="bossCfTo" class="boss-input" type="date" />
-          <select id="bossCfKind" class="boss-input">
-            <option value="">Entradas o salidas</option>
-            <option value="IN">Entradas</option>
-            <option value="OUT">Salidas</option>
-          </select>
-          <select id="bossCfSource" class="boss-input">
-            <option value="">Fuente</option>
-            <option value="SALE">Venta</option>
-            <option value="MANUAL">Manual</option>
-            <option value="INVESTMENT">Inversión</option>
-            <option value="RECEIVABLE">Cartera</option>
-            <option value="TRANSFER">Transferencia</option>
-          </select>
-          <button id="bossCfApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar filtros</button>
+        <div class="boss-filter-toolbar">
+          <button id="bossCfToggleFilters" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button" aria-expanded="false">
+            🔎 Mostrar filtros
+          </button>
+        </div>
+
+        <div id="bossCfFiltersPanel" class="boss-filter-panel hidden">
+          <div class="boss-filter-grid">
+            <select id="bossCfAccount" class="boss-input">
+              <option value="">Todas las cuentas</option>
+            </select>
+            <input id="bossCfFrom" class="boss-input" type="date" />
+            <input id="bossCfTo" class="boss-input" type="date" />
+            <select id="bossCfKind" class="boss-input">
+              <option value="">Entradas o salidas</option>
+              <option value="IN">Entradas</option>
+              <option value="OUT">Salidas</option>
+            </select>
+            <select id="bossCfSource" class="boss-input">
+              <option value="">Fuente</option>
+              <option value="SALE">Venta</option>
+              <option value="MANUAL">Manual</option>
+              <option value="INVESTMENT">Inversión</option>
+              <option value="RECEIVABLE">Cartera</option>
+              <option value="TRANSFER">Transferencia</option>
+            </select>
+            <button id="bossCfApply" class="boss-btn boss-btn-primary" type="button">Aplicar filtros</button>
+          </div>
         </div>
 
         <div class="boss-cashflow-layout">
@@ -129,7 +135,7 @@
               </div>
             </div>
             <div class="boss-table-wrap boss-table-wrap-wide">
-              <table class="boss-table boss-table--wide">
+              <table class="boss-table boss-table--wide boss-table--stacked-mobile">
                 <thead>
                   <tr>
                     <th>Fecha</th>
