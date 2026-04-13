@@ -41,9 +41,42 @@
         </nav>
       </div>
       <section class="boss-panel">
-        <div class="boss-empty-state">
-          <h3 class="boss-card-title">Próxima conexión</h3>
-          <p class="boss-empty-copy">Aquí conectaremos el filtro por proveedor permitido y el ordenamiento por proximidad al stock mínimo.</p>
+        <div class="boss-inventory-toolbar">
+          <select id="bossInventorySupplier" class="boss-input">
+            <option value="">Todos los proveedores permitidos</option>
+          </select>
+          <input id="bossInventorySearch" class="boss-input" type="text" placeholder="Buscar por ítem o SKU" />
+          <button id="bossInventoryApply" class="boss-btn boss-btn-primary" type="button">Aplicar filtros</button>
+        </div>
+
+        <div class="boss-inventory-summary" id="bossInventorySummary">
+          <div class="boss-stock-pill ok">Ítems visibles: —</div>
+          <div class="boss-stock-pill low">Stock mínimo cercano: —</div>
+        </div>
+
+        <div class="boss-table-wrap">
+          <table class="boss-table">
+            <thead>
+              <tr>
+                <th>Ítem</th>
+                <th>SKU</th>
+                <th class="align-right">Unidades</th>
+                <th class="align-right">Stock mínimo</th>
+                <th class="align-right">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="bossInventoryRows">
+              <tr><td colspan="5">Cargando inventario…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="boss-pagination">
+          <div class="boss-muted" id="bossInventoryPageInfo">Página 1</div>
+          <div class="boss-actions">
+            <button id="bossInventoryPrev" class="boss-btn boss-btn-secondary" type="button">←</button>
+            <button id="bossInventoryNext" class="boss-btn boss-btn-secondary" type="button">→</button>
+          </div>
         </div>
       </section>
     </main>

@@ -117,12 +117,72 @@ function formatDate(value) {
   });
 }
 
+function formatCount(value) {
+  return Math.round(Number(value || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 function getBossMovementClass(entry) {
   const metaType = String(entry?.meta?.type || '').toLowerCase();
   if (metaType === 'employee_loan') return 'boss-movement-row boss-movement-loan';
   if (entry?.source === 'TRANSFER') return 'boss-movement-row boss-movement-transfer';
   if (entry?.kind === 'IN') return 'boss-movement-row boss-movement-in';
   return 'boss-movement-row boss-movement-out';
+}
+
+async function loadBossHomeSummary() {
+  const container = document.getElementById('bossHomeSummary');
+  if (!container) return;
+
+  const [balancesResult, entriesResult, openSalesResult, closedSalesResult, inventoryResult] = await Promise.allSettled([
+    BossAPI.cashflow.balances(),
+    BossAPI.cashflow.entries({ page: 1, limit: 1 }),
+    BossAPI.sales.list({ status: 'draft', page: 1, limit: 1 }),
+    BossAPI.sales.list({ status: 'closed', page: 1, limit: 1 }),
+    BossAPI.inventory.items({ page: 1, limit: 100 })
+  ]);
+
+  const balances = balancesResult.status === 'fulfilled' ? balancesResult.value : null;
+  const entries = entriesResult.status === 'fulfilled' ? entriesResult.value : null;
+  const openSales = openSalesResult.status === 'fulfilled' ? openSalesResult.value : null;
+  const closedSales = closedSalesResult.status === 'fulfilled' ? closedSalesResult.value : null;
+  const inventory = inventoryResult.status === 'fulfilled' ? inventoryResult.value : null;
+  const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
+  const lowStockVisible = inventoryItems.filter((item) => {
+    const stock = Number(item?.stock || 0);
+    const minStock = Number(item?.minStock || 0);
+    return minStock > 0 && stock <= minStock;
+  }).length;
+
+  const cards = [
+    {
+      label: 'Caja',
+      value: balances ? money(balances?.total || 0) : 'No disponible',
+      note: entries ? `${formatCount(entries?.total || 0)} movimientos registrados` : 'Sin acceso al resumen'
+    },
+    {
+      label: 'Ventas abiertas',
+      value: openSales ? formatCount(openSales?.total || 0) : 'No disponible',
+      note: 'Ordenes abiertas visibles'
+    },
+    {
+      label: 'Historial',
+      value: closedSales ? formatCount(closedSales?.total || 0) : 'No disponible',
+      note: 'Ventas cerradas visibles'
+    },
+    {
+      label: 'Inventario',
+      value: inventory ? formatCount(inventory?.total || inventoryItems.length || 0) : 'No disponible',
+      note: inventory ? `${formatCount(lowStockVisible)} alertas visibles por minimo` : 'Sin acceso al inventario'
+    }
+  ];
+
+  container.innerHTML = cards.map((card) => `
+    <article class="boss-home-stat">
+      <div class="boss-home-stat-label">${escapeHtml(card.label)}</div>
+      <div class="boss-home-stat-value">${escapeHtml(card.value)}</div>
+      <div class="boss-home-stat-note">${escapeHtml(card.note)}</div>
+    </article>
+  `).join('');
 }
 
 async function loadBossCashflowAccounts() {
@@ -240,6 +300,349 @@ function bindBossCashflow() {
   });
 }
 
+const bossSalesHistoryState = { page: 1, pages: 1, limit: 12 };
+const bossInventoryState = { page: 1, pages: 1, limit: 25 };
+
+function padSaleNumber(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return String(numeric).padStart(5, '0');
+  return String(value || '—');
+}
+
+function formatVehicle(sale) {
+  const plate = String(sale?.vehicle?.plate || '').toUpperCase();
+  const brand = String(sale?.vehicle?.brand || '').trim();
+  const line = String(sale?.vehicle?.line || '').trim();
+  return [plate, [brand, line].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || 'Sin vehículo';
+}
+
+function formatCustomer(sale) {
+  return String(sale?.customer?.name || '').trim() || 'Sin cliente';
+}
+
+function getPaidAmount(sale) {
+  const paymentMethods = Array.isArray(sale?.paymentMethods)
+    ? sale.paymentMethods.reduce((sum, item) => sum + Number(item?.amount || 0), 0)
+    : 0;
+  const advances = Array.isArray(sale?.advancePayments)
+    ? sale.advancePayments.reduce((sum, item) => sum + Number(item?.amount || 0), 0)
+    : 0;
+  return paymentMethods + advances;
+}
+
+function renderBossSaleDetail(detailNode, sale) {
+  const items = Array.isArray(sale?.items) ? sale.items : [];
+  const paymentMethods = Array.isArray(sale?.paymentMethods) ? sale.paymentMethods : [];
+  const advances = Array.isArray(sale?.advancePayments) ? sale.advancePayments : [];
+
+  detailNode.innerHTML = `
+    <div class="boss-detail-grid">
+      <div class="boss-detail-box">
+        <div class="boss-detail-title">Cliente</div>
+        <div>${escapeHtml(formatCustomer(sale))}</div>
+        <div class="boss-item-meta">${escapeHtml(sale?.customer?.phone || 'Sin teléfono')}</div>
+        <div class="boss-item-meta">${escapeHtml(sale?.customer?.idNumber || 'Sin identificación')}</div>
+      </div>
+      <div class="boss-detail-box">
+        <div class="boss-detail-title">Vehículo</div>
+        <div>${escapeHtml(formatVehicle(sale))}</div>
+        <div class="boss-item-meta">${escapeHtml(sale?.vehicle?.engine || 'Sin motor')}</div>
+        <div class="boss-item-meta">${sale?.vehicle?.mileage ? `${Math.round(Number(sale.vehicle.mileage || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')} km` : 'Sin kilometraje'}</div>
+      </div>
+      <div class="boss-detail-box">
+        <div class="boss-detail-title">Pago</div>
+        <div>${paymentMethods.length ? paymentMethods.map((method) => `${escapeHtml(method.method || 'Método')}: ${money(method.amount)}`).join('<br>') : 'Sin métodos registrados'}</div>
+        <div class="boss-item-meta" style="margin-top:8px;">Abonos: ${advances.length ? money(advances.reduce((sum, item) => sum + Number(item?.amount || 0), 0)) : '$0'}</div>
+      </div>
+    </div>
+    <div class="boss-detail-box" style="margin-bottom: 14px;">
+      <div class="boss-detail-title">Items de la orden</div>
+      <div class="boss-detail-list">
+        ${items.length ? items.map((item) => `
+          <div class="boss-item-row">
+            <div>
+              <div class="boss-item-name">${escapeHtml(item.name || item.sku || 'Item')}</div>
+              <div class="boss-item-meta">${escapeHtml(item.sku || item.source || '')}</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="boss-item-name">${money(item.total || (Number(item.qty || 0) * Number(item.unitPrice || 0)))}</div>
+              <div class="boss-item-meta">Cant. ${escapeHtml(item.qty || 0)} · Unit ${money(item.unitPrice || 0)}</div>
+            </div>
+          </div>
+        `).join('') : '<div class="boss-item-meta">Sin items registrados.</div>'}
+      </div>
+    </div>
+    ${sale?.notes ? `<div class="boss-detail-box"><div class="boss-detail-title">Notas</div><div>${escapeHtml(sale.notes)}</div></div>` : ''}
+  `;
+}
+
+function createBossSaleCard(sale, mode = 'open') {
+  const paidAmount = getPaidAmount(sale);
+  const totalValue = Number(sale?.total || 0);
+  const createdAt = sale?.closedAt || sale?.createdAt;
+  const statusClass = mode === 'history' ? 'green' : 'amber';
+  const statusText = mode === 'history' ? 'Cerrada' : 'Abierta';
+  const wrapper = document.createElement('article');
+  wrapper.className = 'boss-sale-card';
+  wrapper.innerHTML = `
+    <div class="boss-sale-head">
+      <div>
+        <h3 class="boss-card-title">Venta #${escapeHtml(padSaleNumber(sale?.number || sale?._id || '—'))}</h3>
+        <div class="boss-muted">${escapeHtml(formatCustomer(sale))}</div>
+        <div class="boss-sale-meta">
+          <span class="boss-chip ${statusClass}">${statusText}</span>
+          <span class="boss-chip blue">${escapeHtml(formatVehicle(sale))}</span>
+          <span class="boss-chip">${escapeHtml(String(sale?.technician || sale?.closingTechnician || sale?.initialTechnician || 'Sin técnico'))}</span>
+        </div>
+      </div>
+      <div style="min-width: 210px;">
+        <div class="boss-sale-stat">
+          <div class="boss-sale-stat-label">Fecha</div>
+          <div class="boss-sale-stat-value">${escapeHtml(formatDate(createdAt))}</div>
+        </div>
+      </div>
+    </div>
+    <div class="boss-sale-grid">
+      <div class="boss-sale-stat">
+        <div class="boss-sale-stat-label">Cliente</div>
+        <div class="boss-sale-stat-value">${escapeHtml(formatCustomer(sale))}</div>
+      </div>
+      <div class="boss-sale-stat">
+        <div class="boss-sale-stat-label">Vehículo</div>
+        <div class="boss-sale-stat-value">${escapeHtml(String(sale?.vehicle?.plate || 'Sin placa').toUpperCase())}</div>
+      </div>
+      <div class="boss-sale-stat">
+        <div class="boss-sale-stat-label">Valor orden</div>
+        <div class="boss-sale-stat-value">${money(totalValue)}</div>
+      </div>
+      <div class="boss-sale-stat">
+        <div class="boss-sale-stat-label">${mode === 'history' ? 'Valor pagado' : 'Abonos registrados'}</div>
+        <div class="boss-sale-stat-value">${money(paidAmount)}</div>
+      </div>
+    </div>
+    <div class="boss-sale-actions">
+      <button type="button" class="boss-btn boss-btn-secondary" data-boss-sale-toggle="${escapeHtml(sale?._id || '')}">Ver detalle</button>
+    </div>
+    <div class="boss-sale-detail hidden" id="boss-sale-detail-${escapeHtml(sale?._id || '')}"></div>
+  `;
+
+  const button = wrapper.querySelector('[data-boss-sale-toggle]');
+  const detail = wrapper.querySelector('.boss-sale-detail');
+  if (button && detail) {
+    button.addEventListener('click', async () => {
+      const isHidden = detail.classList.contains('hidden');
+      if (!isHidden) {
+        detail.classList.add('hidden');
+        button.textContent = 'Ver detalle';
+        return;
+      }
+      button.disabled = true;
+      button.textContent = 'Cargando…';
+      try {
+        const saleDetail = await BossAPI.sales.get(sale._id);
+        renderBossSaleDetail(detail, saleDetail);
+        detail.classList.remove('hidden');
+        button.textContent = 'Ocultar detalle';
+      } catch (err) {
+        detail.innerHTML = `<div class="boss-item-meta">${escapeHtml(err?.message || 'No se pudo cargar el detalle')}</div>`;
+        detail.classList.remove('hidden');
+        button.textContent = 'Ocultar detalle';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+  return wrapper;
+}
+
+async function loadBossOpenSales() {
+  const list = document.getElementById('bossSalesOpenList');
+  const summary = document.getElementById('bossSalesOpenSummary');
+  if (!list || !summary) return;
+  list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Ventas abiertas</h3><p class="boss-empty-copy">Cargando ventas abiertas…</p></div>';
+  try {
+    const response = await BossAPI.sales.list({ status: 'draft', limit: 100 });
+    const items = Array.isArray(response?.items) ? response.items : [];
+    const totalVisible = items.reduce((sum, sale) => sum + Number(sale?.total || 0), 0);
+    summary.innerHTML = `
+      <div class="boss-summary-chip in">Abiertas: ${items.length}</div>
+      <div class="boss-summary-chip net">Valor visible: ${money(totalVisible)}</div>
+    `;
+    if (!items.length) {
+      list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Sin ventas abiertas</h3><p class="boss-empty-copy">No hay órdenes abiertas en este momento.</p></div>';
+      return;
+    }
+    list.innerHTML = '';
+    items.forEach((sale) => list.appendChild(createBossSaleCard(sale, 'open')));
+  } catch (err) {
+    list.innerHTML = `<div class="boss-empty-state"><h3 class="boss-card-title">Error</h3><p class="boss-empty-copy">${escapeHtml(err?.message || 'No se pudo cargar ventas abiertas')}</p></div>`;
+  }
+}
+
+async function loadBossHistorySales(reset = false) {
+  if (reset) bossSalesHistoryState.page = 1;
+  const list = document.getElementById('bossSalesHistoryList');
+  const summary = document.getElementById('bossSalesHistorySummary');
+  const pageInfo = document.getElementById('bossSalesHistoryPageInfo');
+  const prev = document.getElementById('bossSalesHistoryPrev');
+  const next = document.getElementById('bossSalesHistoryNext');
+  if (!list || !summary || !pageInfo || !prev || !next) return;
+
+  const params = {
+    status: 'closed',
+    page: bossSalesHistoryState.page,
+    limit: bossSalesHistoryState.limit,
+    from: document.getElementById('bossSalesHistoryFrom')?.value || '',
+    to: document.getElementById('bossSalesHistoryTo')?.value || '',
+    plate: document.getElementById('bossSalesHistoryPlate')?.value || '',
+    number: document.getElementById('bossSalesHistoryNumber')?.value || ''
+  };
+
+  list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Historial</h3><p class="boss-empty-copy">Cargando historial…</p></div>';
+  try {
+    const response = await BossAPI.sales.list(params);
+    const items = Array.isArray(response?.items) ? response.items : [];
+    const totalVisible = items.reduce((sum, sale) => sum + Number(sale?.total || 0), 0);
+    summary.innerHTML = `
+      <div class="boss-summary-chip in">Con pago: ${response?.total || items.length}</div>
+      <div class="boss-summary-chip net">Total visible: ${money(totalVisible)}</div>
+    `;
+    if (!items.length) {
+      list.innerHTML = '<div class="boss-empty-state"><h3 class="boss-card-title">Sin resultados</h3><p class="boss-empty-copy">No se encontraron ventas con los filtros actuales.</p></div>';
+    } else {
+      list.innerHTML = '';
+      items.forEach((sale) => list.appendChild(createBossSaleCard(sale, 'history')));
+    }
+    bossSalesHistoryState.page = Number(response?.page || 1);
+    bossSalesHistoryState.pages = Math.max(1, Number(response?.pages || 1));
+    pageInfo.textContent = `Página ${bossSalesHistoryState.page} de ${bossSalesHistoryState.pages}`;
+    prev.disabled = bossSalesHistoryState.page <= 1;
+    next.disabled = bossSalesHistoryState.page >= bossSalesHistoryState.pages;
+  } catch (err) {
+    list.innerHTML = `<div class="boss-empty-state"><h3 class="boss-card-title">Error</h3><p class="boss-empty-copy">${escapeHtml(err?.message || 'No se pudo cargar historial')}</p></div>`;
+    pageInfo.textContent = 'Página —';
+  }
+}
+
+function bindBossSales() {
+  document.getElementById('bossSalesHistoryApply')?.addEventListener('click', () => loadBossHistorySales(true));
+  document.getElementById('bossSalesHistoryPrev')?.addEventListener('click', () => {
+    if (bossSalesHistoryState.page > 1) {
+      bossSalesHistoryState.page -= 1;
+      loadBossHistorySales();
+    }
+  });
+  document.getElementById('bossSalesHistoryNext')?.addEventListener('click', () => {
+    if (bossSalesHistoryState.page < bossSalesHistoryState.pages) {
+      bossSalesHistoryState.page += 1;
+      loadBossHistorySales();
+    }
+  });
+}
+
+async function loadBossInventorySuppliers() {
+  const select = document.getElementById('bossInventorySupplier');
+  if (!select) return;
+  try {
+    const response = await BossAPI.inventory.suppliers();
+    const items = Array.isArray(response?.items) ? response.items : [];
+    const current = select.value;
+    select.innerHTML = '<option value="">Todos los proveedores permitidos</option>' + items.map((supplier) => (
+      `<option value="${escapeHtml(supplier._id || '')}">${escapeHtml(supplier.name || 'Proveedor')}</option>`
+    )).join('');
+    if (current) select.value = current;
+  } catch (err) {
+    select.innerHTML = '<option value="">Sin proveedores permitidos</option>';
+    console.warn('No se pudieron cargar proveedores del jefe:', err);
+  }
+}
+
+function getInventoryStatus(item) {
+  const stock = Number(item?.stock || 0);
+  const minStock = Number(item?.minStock || 0);
+  if (minStock > 0 && stock <= minStock) {
+    const diff = stock - minStock;
+    return {
+      label: diff < 0 ? `Debajo por ${Math.abs(diff)}` : 'En mínimo',
+      rowClass: 'boss-low-stock-row'
+    };
+  }
+  if (minStock > 0) {
+    return { label: `A ${stock - minStock} del mínimo`, rowClass: '' };
+  }
+  return { label: 'Sin mínimo', rowClass: '' };
+}
+
+async function loadBossInventory(reset = false) {
+  if (reset) bossInventoryState.page = 1;
+  const rows = document.getElementById('bossInventoryRows');
+  const summary = document.getElementById('bossInventorySummary');
+  const pageInfo = document.getElementById('bossInventoryPageInfo');
+  const prev = document.getElementById('bossInventoryPrev');
+  const next = document.getElementById('bossInventoryNext');
+  if (!rows || !summary || !pageInfo || !prev || !next) return;
+
+  const params = {
+    page: bossInventoryState.page,
+    limit: bossInventoryState.limit,
+    supplierId: document.getElementById('bossInventorySupplier')?.value || '',
+    name: document.getElementById('bossInventorySearch')?.value || ''
+  };
+
+  rows.innerHTML = '<tr><td colspan="5">Cargando inventario…</td></tr>';
+  try {
+    const response = await BossAPI.inventory.items(params);
+    const items = Array.isArray(response?.items) ? response.items : [];
+    const lowStockCount = items.filter((item) => Number(item?.minStock || 0) > 0 && Number(item?.stock || 0) <= Number(item?.minStock || 0)).length;
+    summary.innerHTML = `
+      <div class="boss-stock-pill ok">Ítems visibles: ${items.length}</div>
+      <div class="boss-stock-pill low">Stock mínimo cercano: ${lowStockCount}</div>
+    `;
+
+    rows.innerHTML = items.length ? items.map((item) => {
+      const status = getInventoryStatus(item);
+      return `
+        <tr class="${status.rowClass}">
+          <td class="strong">${escapeHtml(item.name || 'Ítem')}</td>
+          <td>${escapeHtml(item.sku || '')}</td>
+          <td class="align-right strong">${escapeHtml(item.stock ?? 0)}</td>
+          <td class="align-right">${Number(item?.minStock || 0) > 0 ? escapeHtml(item.minStock) : '—'}</td>
+          <td class="align-right">${escapeHtml(status.label)}</td>
+        </tr>
+      `;
+    }).join('') : '<tr><td colspan="5">No hay ítems para los filtros actuales</td></tr>';
+
+    bossInventoryState.page = Number(response?.page || 1);
+    bossInventoryState.pages = Math.max(1, Number(response?.pages || 1));
+    pageInfo.textContent = `Página ${bossInventoryState.page} de ${bossInventoryState.pages}`;
+    prev.disabled = bossInventoryState.page <= 1;
+    next.disabled = bossInventoryState.page >= bossInventoryState.pages;
+  } catch (err) {
+    rows.innerHTML = `<tr><td colspan="5">${escapeHtml(err?.message || 'No se pudo cargar inventario')}</td></tr>`;
+    summary.innerHTML = `
+      <div class="boss-stock-pill ok">Ítems visibles: —</div>
+      <div class="boss-stock-pill low">Stock mínimo cercano: —</div>
+    `;
+    pageInfo.textContent = 'Página —';
+  }
+}
+
+function bindBossInventory() {
+  document.getElementById('bossInventoryApply')?.addEventListener('click', () => loadBossInventory(true));
+  document.getElementById('bossInventoryPrev')?.addEventListener('click', () => {
+    if (bossInventoryState.page > 1) {
+      bossInventoryState.page -= 1;
+      loadBossInventory();
+    }
+  });
+  document.getElementById('bossInventoryNext')?.addEventListener('click', () => {
+    if (bossInventoryState.page < bossInventoryState.pages) {
+      bossInventoryState.page += 1;
+      loadBossInventory();
+    }
+  });
+}
+
 function bindBossLogin() {
   const form = document.getElementById('bossLoginForm');
   const feedback = document.getElementById('bossLoginFeedback');
@@ -287,10 +690,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindLogout();
   const session = await ensureBossSession();
   if (!session) return;
-  if (page === 'boss-sales') bindSalesSubtabs();
+  if (page === 'boss-sales') {
+    bindSalesSubtabs();
+    bindBossSales();
+    await loadBossOpenSales();
+    await loadBossHistorySales(true);
+  }
+  if (page === 'boss-home') {
+    await loadBossHomeSummary();
+  }
   if (page === 'boss-cashflow') {
     bindBossCashflow();
     await loadBossCashflowAccounts();
     await loadBossCashflowEntries(true);
+  }
+  if (page === 'boss-inventory') {
+    bindBossInventory();
+    await loadBossInventorySuppliers();
+    await loadBossInventory(true);
   }
 });

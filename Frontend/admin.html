@@ -1196,7 +1196,9 @@
       });
       if (suppliersReq.ok) {
         const suppliersData = await suppliersReq.json();
-        suppliersList = Array.isArray(suppliersData?.items) ? suppliersData.items : [];
+        suppliersList = Array.isArray(suppliersData)
+          ? suppliersData
+          : (Array.isArray(suppliersData?.items) ? suppliersData.items : []);
       }
     } catch(e) {
       console.warn('Error cargando proveedores del portal del jefe:', e);

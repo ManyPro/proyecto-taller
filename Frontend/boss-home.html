@@ -29,9 +29,9 @@
     <main class="boss-main">
       <div class="boss-page-header">
         <div>
-          <div class="boss-pill">Base lista</div>
+          <div class="boss-pill">Portal activo</div>
           <h2 class="boss-page-title" style="font-size: 1.8rem; margin-top: 10px;">Módulos del jefe</h2>
-          <p class="boss-muted">Desde aquí vamos a conectar las vistas readonly del sistema.</p>
+          <p class="boss-muted">Resumen rápido y acceso directo a las vistas readonly del sistema.</p>
         </div>
         <nav class="boss-nav">
           <a href="boss-home.html" class="boss-nav-link active">Inicio</a>
@@ -40,21 +40,43 @@
           <a href="boss-inventory.html" class="boss-nav-link">Inventario</a>
         </nav>
       </div>
+      <section class="boss-home-stats" id="bossHomeSummary">
+        <article class="boss-home-stat">
+          <div class="boss-home-stat-label">Caja</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Resumen del flujo actual</div>
+        </article>
+        <article class="boss-home-stat">
+          <div class="boss-home-stat-label">Ventas abiertas</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Órdenes en proceso</div>
+        </article>
+        <article class="boss-home-stat">
+          <div class="boss-home-stat-label">Historial</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Ventas cerradas visibles</div>
+        </article>
+        <article class="boss-home-stat">
+          <div class="boss-home-stat-label">Inventario</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Items y alertas visibles</div>
+        </article>
+      </section>
       <section class="boss-grid">
         <a href="boss-cashflow.html" class="boss-card" style="text-decoration:none; color:inherit;">
           <div class="boss-card-icon boss-icon-blue">💰</div>
           <h3 class="boss-card-title">Flujo de caja</h3>
-          <p class="boss-card-copy">Base separada para conectar la vista completa de movimientos y filtros en modo solo lectura.</p>
+          <p class="boss-card-copy">Vista completa readonly con cuentas, movimientos, filtros y color por tipo.</p>
         </a>
         <a href="boss-sales.html" class="boss-card" style="text-decoration:none; color:inherit;">
           <div class="boss-card-icon boss-icon-green">🚗</div>
           <h3 class="boss-card-title">Ventas</h3>
-          <p class="boss-card-copy">Página independiente para soportar subpestañas de ventas abiertas e historial sin conflictos técnicos.</p>
+          <p class="boss-card-copy">Ventas abiertas e historial en solo lectura, con detalle expandible por orden.</p>
         </a>
         <a href="boss-inventory.html" class="boss-card" style="text-decoration:none; color:inherit;">
           <div class="boss-card-icon boss-icon-purple">📦</div>
           <h3 class="boss-card-title">Inventario</h3>
-          <p class="boss-card-copy">Base lista para filtrar por proveedor permitido y priorizar ítems cercanos al stock mínimo.</p>
+          <p class="boss-card-copy">Filtro por proveedor permitido y prioridad para ítems cercanos al stock mínimo.</p>
         </a>
       </section>
     </main>

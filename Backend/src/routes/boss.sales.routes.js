@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Company from '../models/Company.js';
 import { authBossReadonly } from '../middlewares/auth.js';
-import { getBalances, listEntries } from '../controllers/cashflow.controller.js';
+import { getSale, listSales } from '../controllers/sales.controller.js';
 import { resolveEffectiveCompanyAccess } from '../lib/sharedDatabase.js';
 
 const router = Router();
@@ -13,8 +13,8 @@ router.use(async (req, res, next) => {
   if (company?.bossPortal?.enabled !== true) {
     return res.status(403).json({ error: 'Portal del jefe deshabilitado' });
   }
-  const enabled = company?.features?.cashflow !== false;
-  if (!enabled) return res.status(403).json({ error: 'Funcionalidad deshabilitada: cashflow' });
+  const enabled = company?.features?.ventas !== false;
+  if (!enabled) return res.status(403).json({ error: 'Funcionalidad deshabilitada: ventas' });
   const scope = await resolveEffectiveCompanyAccess(req.company.id);
   req.originalCompanyId = scope.originalCompanyId;
   req.companyId = scope.effectiveCompanyId;
@@ -22,7 +22,7 @@ router.use(async (req, res, next) => {
   next();
 });
 
-router.get('/accounts/balances', getBalances);
-router.get('/entries', listEntries);
+router.get('/', listSales);
+router.get('/:id', getSale);
 
 export default router;

@@ -46,15 +46,41 @@
           <button type="button" class="boss-subtab-btn" data-boss-sales-tab="history">Historial</button>
         </div>
         <div class="boss-subtab-panel" data-boss-sales-panel="open">
-          <div class="boss-empty-state">
-            <h3 class="boss-card-title">Ventas abiertas</h3>
-            <p class="boss-empty-copy">En la siguiente fase conectaremos aquí la réplica readonly de las ventas abiertas, con cliente y vehículo.</p>
+          <div class="boss-summary-row" id="bossSalesOpenSummary">
+            <div class="boss-summary-chip in">Abiertas: —</div>
+            <div class="boss-summary-chip net">Valor visible: —</div>
+          </div>
+          <div id="bossSalesOpenList" class="boss-sales-list">
+            <div class="boss-empty-state">
+              <h3 class="boss-card-title">Ventas abiertas</h3>
+              <p class="boss-empty-copy">Cargando ventas abiertas…</p>
+            </div>
           </div>
         </div>
         <div class="boss-subtab-panel hidden" data-boss-sales-panel="history">
-          <div class="boss-empty-state">
-            <h3 class="boss-card-title">Historial de ventas</h3>
-            <p class="boss-empty-copy">Este bloque alojará el historial con detalle expandible por orden/venta y el valor pagado por cada carro.</p>
+          <div class="boss-filter-grid">
+            <input id="bossSalesHistoryFrom" class="boss-input" type="date" />
+            <input id="bossSalesHistoryTo" class="boss-input" type="date" />
+            <input id="bossSalesHistoryPlate" class="boss-input" type="text" placeholder="Placa" />
+            <input id="bossSalesHistoryNumber" class="boss-input" type="text" placeholder="# Venta" />
+            <button id="bossSalesHistoryApply" class="boss-btn boss-btn-primary" type="button">Aplicar filtros</button>
+          </div>
+          <div class="boss-summary-row" id="bossSalesHistorySummary">
+            <div class="boss-summary-chip in">Con pago: —</div>
+            <div class="boss-summary-chip net">Total visible: —</div>
+          </div>
+          <div id="bossSalesHistoryList" class="boss-sales-list">
+            <div class="boss-empty-state">
+              <h3 class="boss-card-title">Historial de ventas</h3>
+              <p class="boss-empty-copy">Cargando historial…</p>
+            </div>
+          </div>
+          <div class="boss-pagination">
+            <div class="boss-muted" id="bossSalesHistoryPageInfo">Página 1</div>
+            <div class="boss-actions">
+              <button id="bossSalesHistoryPrev" class="boss-btn boss-btn-secondary" type="button">←</button>
+              <button id="bossSalesHistoryNext" class="boss-btn boss-btn-secondary" type="button">→</button>
+            </div>
           </div>
         </div>
       </section>

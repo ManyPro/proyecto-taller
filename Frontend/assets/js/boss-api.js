@@ -162,6 +162,32 @@ export const BossAPI = {
       const query = qs.toString();
       return bossRequest('GET', `/api/v1/boss/cashflow/entries${query ? `?${query}` : ''}`);
     }
+  },
+  sales: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          qs.set(key, value);
+        }
+      });
+      const query = qs.toString();
+      return bossRequest('GET', `/api/v1/boss/sales${query ? `?${query}` : ''}`);
+    },
+    get: (id) => bossRequest('GET', `/api/v1/boss/sales/${encodeURIComponent(id)}`)
+  },
+  inventory: {
+    suppliers: () => bossRequest('GET', '/api/v1/boss/inventory/suppliers'),
+    items: (params = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          qs.set(key, value);
+        }
+      });
+      const query = qs.toString();
+      return bossRequest('GET', `/api/v1/boss/inventory/items${query ? `?${query}` : ''}`);
+    }
   }
 };
 
