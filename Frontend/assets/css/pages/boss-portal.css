@@ -865,6 +865,23 @@ body.theme-light .boss-stock-pill.low {
   min-width: 180px;
 }
 
+.boss-filter-toggle-active {
+  background: linear-gradient(92deg, #2563eb, #1d4ed8);
+  border-color: rgba(147, 197, 253, 0.35);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.24);
+}
+
+body.theme-light .boss-filter-toggle-active {
+  color: #fff;
+}
+
+.boss-history-quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .boss-filter-panel.hidden {
   display: none;
 }
@@ -1479,6 +1496,9 @@ body.theme-light .boss-item-meta {
     overflow-y: visible;
     touch-action: pan-y;
     overscroll-behavior-x: none;
+    width: min(100%, 420px);
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .boss-cashflow-page-header {

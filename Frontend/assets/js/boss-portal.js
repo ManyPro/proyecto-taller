@@ -147,6 +147,46 @@ function formatCount(value) {
   return Math.round(Number(value || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+function formatDateInputValue(date) {
+  const normalized = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const yyyy = normalized.getFullYear();
+  const mm = String(normalized.getMonth() + 1).padStart(2, '0');
+  const dd = String(normalized.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function getTodayRange(baseDate = new Date()) {
+  const value = formatDateInputValue(baseDate);
+  return { from: value, to: value };
+}
+
+function getCurrentPeriodRange(baseDate = new Date()) {
+  const current = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const day = current.getDay();
+
+  let mondayOffset;
+  let saturdayOffset;
+
+  if (day === 0) {
+    // Domingo: usar el lunes y sábado de la semana laboral que acaba de cerrar.
+    mondayOffset = -6;
+    saturdayOffset = -1;
+  } else {
+    mondayOffset = 1 - day;
+    saturdayOffset = 6 - day;
+  }
+
+  const monday = new Date(current);
+  monday.setDate(current.getDate() + mondayOffset);
+  const saturday = new Date(current);
+  saturday.setDate(current.getDate() + saturdayOffset);
+
+  return {
+    from: formatDateInputValue(monday),
+    to: formatDateInputValue(saturday)
+  };
+}
+
 function getBossMovementClass(entry) {
   const metaType = String(entry?.meta?.type || '').toLowerCase();
   if (metaType === 'employee_loan') return 'boss-movement-row boss-movement-loan';
@@ -574,7 +614,47 @@ async function loadBossHistorySales(reset = false) {
   }
 }
 
+function setBossSalesHistoryRange(range) {
+  const fromInput = document.getElementById('bossSalesHistoryFrom');
+  const toInput = document.getElementById('bossSalesHistoryTo');
+  if (fromInput) fromInput.value = range.from || '';
+  if (toInput) toInput.value = range.to || '';
+}
+
+function setBossSalesHistoryPresetState(preset) {
+  const todayButton = document.getElementById('bossSalesHistoryToday');
+  const currentPeriodButton = document.getElementById('bossSalesHistoryCurrentPeriod');
+  todayButton?.classList.toggle('boss-filter-toggle-active', preset === 'today');
+  currentPeriodButton?.classList.toggle('boss-filter-toggle-active', preset === 'current');
+}
+
 function bindBossSales() {
+  const fromInput = document.getElementById('bossSalesHistoryFrom');
+  const toInput = document.getElementById('bossSalesHistoryTo');
+  const todayButton = document.getElementById('bossSalesHistoryToday');
+  const currentPeriodButton = document.getElementById('bossSalesHistoryCurrentPeriod');
+
+  if (fromInput && toInput && !fromInput.value && !toInput.value) {
+    setBossSalesHistoryRange(getCurrentPeriodRange(new Date()));
+    setBossSalesHistoryPresetState('current');
+  }
+
+  todayButton?.addEventListener('click', () => {
+    setBossSalesHistoryRange(getTodayRange(new Date()));
+    setBossSalesHistoryPresetState('today');
+    loadBossHistorySales(true);
+  });
+
+  currentPeriodButton?.addEventListener('click', () => {
+    setBossSalesHistoryRange(getCurrentPeriodRange(new Date()));
+    setBossSalesHistoryPresetState('current');
+    loadBossHistorySales(true);
+  });
+
+  [fromInput, toInput].forEach((input) => {
+    input?.addEventListener('change', () => setBossSalesHistoryPresetState(''));
+  });
+
   document.getElementById('bossSalesHistoryApply')?.addEventListener('click', () => loadBossHistorySales(true));
   document.getElementById('bossSalesHistoryPrev')?.addEventListener('click', () => {
     if (bossSalesHistoryState.page > 1) {
