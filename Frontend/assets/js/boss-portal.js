@@ -159,19 +159,16 @@ async function loadBossHomeSummary() {
   const container = document.getElementById('bossHomeSummary');
   if (!container) return;
 
-  const [balancesResult, entriesResult, openSalesResult, closedSalesResult, inventoryResult] = await Promise.allSettled([
+  const [balancesResult, openSalesResult, inventoryResult] = await Promise.allSettled([
     BossAPI.cashflow.balances(),
-    BossAPI.cashflow.entries({ page: 1, limit: 1 }),
     BossAPI.sales.list({ status: 'draft', page: 1, limit: 1 }),
-    BossAPI.sales.list({ status: 'closed', page: 1, limit: 1 }),
     BossAPI.inventory.items({ page: 1, limit: 100 })
   ]);
 
   const balances = balancesResult.status === 'fulfilled' ? balancesResult.value : null;
-  const entries = entriesResult.status === 'fulfilled' ? entriesResult.value : null;
   const openSales = openSalesResult.status === 'fulfilled' ? openSalesResult.value : null;
-  const closedSales = closedSalesResult.status === 'fulfilled' ? closedSalesResult.value : null;
   const inventory = inventoryResult.status === 'fulfilled' ? inventoryResult.value : null;
+  const balanceItems = Array.isArray(balances?.balances) ? balances.balances : [];
   const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
   const lowStockCount = inventoryItems.filter((item) => {
     const stock = Number(item?.stock || 0);
@@ -179,36 +176,35 @@ async function loadBossHomeSummary() {
     return minStock > 0 && stock <= minStock;
   }).length;
 
-  const cards = [
-    {
-      label: 'Caja',
-      value: balances ? money(balances?.total || 0) : 'No disponible',
-      note: entries ? `${formatCount(entries?.total || 0)} movimientos registrados` : 'Sin acceso al resumen'
-    },
-    {
-      label: 'Ventas abiertas',
-      value: openSales ? formatCount(openSales?.total || 0) : 'No disponible',
-      note: 'Órdenes abiertas registradas'
-    },
-    {
-      label: 'Historial',
-      value: closedSales ? formatCount(closedSales?.total || 0) : 'No disponible',
-      note: 'Ventas cerradas registradas'
-    },
-    {
-      label: 'Inventario',
-      value: inventory ? formatCount(inventory?.total || inventoryItems.length || 0) : 'No disponible',
-      note: inventory ? `${formatCount(lowStockCount)} alertas por mínimo` : 'Sin acceso al inventario'
-    }
-  ];
+  const cashBreakdown = balanceItems.length
+    ? balanceItems
+      .filter((account) => Number(account?.balance || 0) !== 0)
+      .slice(0, 4)
+      .map((account) => `
+        <div class="boss-home-account-pill">
+          <span class="boss-home-account-name">${escapeHtml(account.name || 'Cuenta')}</span>
+          <span class="boss-home-account-value">${escapeHtml(money(account.balance || 0))}</span>
+        </div>
+      `).join('')
+    : '<div class="boss-home-account-empty">Sin cuentas con saldo</div>';
 
-  container.innerHTML = cards.map((card) => `
-    <article class="boss-home-stat">
-      <div class="boss-home-stat-label">${escapeHtml(card.label)}</div>
-      <div class="boss-home-stat-value">${escapeHtml(card.value)}</div>
-      <div class="boss-home-stat-note">${escapeHtml(card.note)}</div>
+  container.innerHTML = `
+    <article class="boss-home-stat boss-home-stat-primary boss-home-stat-cash">
+      <div class="boss-home-stat-label">Caja actual</div>
+      <div class="boss-home-stat-value">${escapeHtml(balances ? money(balances?.total || 0) : 'No disponible')}</div>
+      <div class="boss-home-account-list">${cashBreakdown}</div>
     </article>
-  `).join('');
+    <article class="boss-home-stat boss-home-stat-sales">
+      <div class="boss-home-stat-label">Ventas abiertas</div>
+      <div class="boss-home-stat-value">${escapeHtml(openSales ? formatCount(openSales?.total || 0) : 'No disponible')}</div>
+      <div class="boss-home-stat-note">órdenes abiertas</div>
+    </article>
+    <article class="boss-home-stat boss-home-stat-stock">
+      <div class="boss-home-stat-label">Alertas de stock</div>
+      <div class="boss-home-stat-value">${escapeHtml(inventory ? formatCount(lowStockCount) : 'No disponible')}</div>
+      <div class="boss-home-stat-note">ítems en mínimo o por debajo</div>
+    </article>
+  `;
 }
 
 async function loadBossCashflowAccounts() {

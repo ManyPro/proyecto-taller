@@ -402,6 +402,13 @@ body.theme-light .boss-card-link:hover {
   margin-bottom: 18px;
 }
 
+.boss-home-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.75fr) minmax(220px, 0.75fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
 .boss-home-stat {
   padding: 18px;
   background: linear-gradient(180deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.82));
@@ -412,7 +419,7 @@ body.theme-light .boss-home-stat {
 }
 
 .boss-home-stat-label {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -425,9 +432,10 @@ body.theme-light .boss-home-stat-label {
 
 .boss-home-stat-value {
   margin-top: 8px;
-  font-size: 1.35rem;
+  font-size: 2.1rem;
   font-weight: 800;
   color: #f8fafc;
+  line-height: 1;
 }
 
 body.theme-light .boss-home-stat-value {
@@ -435,13 +443,102 @@ body.theme-light .boss-home-stat-value {
 }
 
 .boss-home-stat-note {
-  margin-top: 6px;
-  font-size: 0.9rem;
+  margin-top: 10px;
+  font-size: 0.92rem;
   color: rgba(203, 213, 225, 0.9);
 }
 
 body.theme-light .boss-home-stat-note {
   color: #475569;
+}
+
+.boss-home-stat-primary {
+  padding: 22px;
+}
+
+.boss-home-stat-cash {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.36), rgba(14, 116, 144, 0.28), rgba(15, 23, 42, 0.86));
+  border-color: rgba(96, 165, 250, 0.26);
+}
+
+.boss-home-stat-sales {
+  background: linear-gradient(160deg, rgba(5, 150, 105, 0.28), rgba(15, 23, 42, 0.86));
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.boss-home-stat-stock {
+  background: linear-gradient(160deg, rgba(217, 119, 6, 0.24), rgba(15, 23, 42, 0.86));
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+body.theme-light .boss-home-stat-cash {
+  background: linear-gradient(135deg, #dbeafe, #e0f2fe, #ffffff);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+
+body.theme-light .boss-home-stat-sales {
+  background: linear-gradient(160deg, #dcfce7, #ffffff);
+  border-color: rgba(22, 163, 74, 0.14);
+}
+
+body.theme-light .boss-home-stat-stock {
+  background: linear-gradient(160deg, #fef3c7, #ffffff);
+  border-color: rgba(217, 119, 6, 0.12);
+}
+
+.boss-home-account-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.boss-home-account-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+body.theme-light .boss-home-account-pill {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.boss-home-account-name {
+  font-weight: 700;
+  color: inherit;
+}
+
+.boss-home-account-value {
+  font-weight: 800;
+  color: #bfdbfe;
+  white-space: nowrap;
+}
+
+body.theme-light .boss-home-account-value {
+  color: #1d4ed8;
+}
+
+.boss-home-account-empty {
+  margin-top: 16px;
+  font-size: 0.92rem;
+  color: rgba(226, 232, 240, 0.82);
+}
+
+body.theme-light .boss-home-account-empty {
+  color: #475569;
+}
+
+.boss-home-page-header {
+  margin-bottom: 18px;
+}
+
+body[data-page="boss-home"] .boss-main {
+  width: min(1120px, calc(100% - 72px));
 }
 
 .boss-card-title {
@@ -1098,9 +1195,23 @@ body.theme-light .boss-item-meta {
   .boss-inventory-toolbar,
   .boss-grid,
   .boss-home-stats,
+  .boss-home-dashboard,
   .boss-sale-grid,
   .boss-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  body[data-page="boss-home"] .boss-main {
+    width: calc(100% - 24px);
+  }
+
+  .boss-home-stat-value {
+    font-size: 1.8rem;
+  }
+
+  .boss-home-account-pill {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .boss-actions,
