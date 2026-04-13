@@ -337,6 +337,34 @@ body.theme-light .boss-cashflow-page-header .boss-page-title {
   text-shadow: none;
 }
 
+.boss-sales-page-header {
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.54), rgba(15, 23, 42, 0.74));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.14);
+}
+
+body.theme-light .boss-sales-page-header {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.9));
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.boss-sales-page-header .boss-page-title {
+  margin-top: 0;
+  font-size: clamp(2.05rem, 4.8vw, 2.85rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+body.theme-light .boss-sales-page-header .boss-page-title {
+  text-shadow: none;
+}
+
 .boss-pill,
 .boss-summary-chip,
 .boss-stock-pill,
@@ -1507,6 +1535,15 @@ body.theme-light .boss-item-meta {
   }
 
   .boss-cashflow-page-header .boss-page-title {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+  }
+
+  .boss-sales-page-header {
+    padding: 20px 18px;
+    border-radius: 20px;
+  }
+
+  .boss-sales-page-header .boss-page-title {
     font-size: clamp(1.75rem, 8vw, 2.25rem);
   }
 
