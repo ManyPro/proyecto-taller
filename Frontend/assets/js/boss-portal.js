@@ -309,6 +309,7 @@ async function loadBossCashflowEntries(reset = false) {
 function bindBossCashflow() {
   const toggle = document.getElementById('bossCfToggleFilters');
   const panel = document.getElementById('bossCfFiltersPanel');
+  const todayButton = document.getElementById('bossCfToday');
 
   if (toggle && panel) {
     toggle.addEventListener('click', () => {
@@ -316,6 +317,21 @@ function bindBossCashflow() {
       panel.classList.toggle('hidden', !willOpen);
       toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
       toggle.textContent = willOpen ? '✖ Ocultar filtros' : '🔎 Mostrar filtros';
+    });
+  }
+
+  if (todayButton) {
+    todayButton.addEventListener('click', () => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const isoDate = `${yyyy}-${mm}-${dd}`;
+      const fromInput = document.getElementById('bossCfFrom');
+      const toInput = document.getElementById('bossCfTo');
+      if (fromInput) fromInput.value = isoDate;
+      if (toInput) toInput.value = isoDate;
+      loadBossCashflowEntries(true);
     });
   }
 

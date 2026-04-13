@@ -1474,6 +1474,13 @@ body.theme-light .boss-item-meta {
     overflow: hidden;
   }
 
+  .boss-table-wrap-stacked {
+    overflow-x: hidden;
+    overflow-y: visible;
+    touch-action: pan-y;
+    overscroll-behavior-x: none;
+  }
+
   .boss-cashflow-page-header {
     padding: 20px 18px;
     border-radius: 20px;
