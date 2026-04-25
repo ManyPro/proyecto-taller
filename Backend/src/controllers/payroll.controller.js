@@ -2256,78 +2256,257 @@ function buildFallbackPayrollHtml({ context }) {
 
 function buildCompactPayrollPdfStyles() {
   return `
-    @page { size: A4; margin: 8mm; }
+    @page { size: Letter; margin: 12mm; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
       font-family: Arial, sans-serif;
       color: #0f172a;
       background: #fff;
-      font-size: 10px;
-      line-height: 1.2;
+      font-size: 10.5px;
+      line-height: 1.32;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     .compact-doc { width: 100%; }
     .head {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 10px;
+      gap: 12px;
       border-bottom: 1px solid #cbd5e1;
-      padding-bottom: 6px;
-      margin-bottom: 8px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
     }
-    .title { margin: 0; font-size: 13px; font-weight: 700; }
-    .subtitle { margin: 2px 0 0 0; color: #475569; font-size: 9px; }
+    .title { margin: 0; font-size: 16px; font-weight: 800; }
+    .subtitle { margin: 3px 0 0 0; color: #475569; font-size: 10px; }
     .pay-card {
       border: 1px solid #94a3b8;
-      border-radius: 6px;
-      padding: 6px 8px;
-      min-width: 180px;
+      border-radius: 10px;
+      padding: 10px 12px;
+      min-width: 220px;
+      text-align: right;
+      background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%);
+    }
+    .pay-card .k { color: #475569; font-size: 10px; margin-bottom: 3px; }
+    .pay-card .v { font-weight: 800; font-size: 18px; color: #065f46; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+    .card-title {
+      margin: 0 0 8px 0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 6px 10px;
+    }
+    .info-label {
+      color: #64748b;
+      font-weight: 700;
+    }
+    .info-value {
+      color: #0f172a;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .totals-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+    .total-row .label {
+      color: #475569;
+      font-weight: 700;
+    }
+    .total-row .value {
+      font-weight: 800;
       text-align: right;
     }
-    .pay-card .k { color: #475569; font-size: 9px; margin-bottom: 2px; }
-    .pay-card .v { font-weight: 800; font-size: 14px; color: #065f46; }
+    .total-row .value.negative { color: #b91c1c; }
+    .total-row.net {
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid #dbe2ea;
+    }
+    .total-row.net .label,
+    .total-row.net .value {
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .total-row.net .value { color: #065f46; }
+    .section {
+      margin-top: 14px;
+    }
+    .section-title {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .vehicle-group {
+      border: 1px solid var(--vehicle-border, #cbd5e1);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      background: #fff;
+    }
+    .vehicle-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 12px;
+      background: linear-gradient(135deg, var(--vehicle-soft, #f8fafc) 0%, #ffffff 100%);
+      border-bottom: 1px solid var(--vehicle-border, #cbd5e1);
+    }
+    .vehicle-title {
+      margin: 0;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .vehicle-meta {
+      margin-top: 4px;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .vehicle-total {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .vehicle-total .label {
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .vehicle-total .value {
+      display: block;
+      margin-top: 2px;
+      color: var(--vehicle-accent, #1d4ed8);
+      font-size: 16px;
+      font-weight: 900;
+    }
     .tbl {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #334155;
-      table-layout: fixed;
-      font-size: 9px;
+      border: 0;
+      font-size: 10px;
     }
     .tbl th {
-      background: #f1f5f9;
-      border: 1px solid #334155;
+      background: #f8fafc;
+      border-bottom: 1px solid #cbd5e1;
       text-align: left;
-      padding: 4px 5px;
-      font-weight: 700;
+      padding: 8px 10px;
+      font-weight: 800;
+      color: #334155;
     }
     .tbl td {
-      border: 1px solid #334155;
-      padding: 4px 5px;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 8px 10px;
       vertical-align: top;
     }
+    .tbl tbody tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+    .tbl tbody tr:last-child td {
+      border-bottom: 0;
+    }
+    .cell-title {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .cell-meta {
+      margin-top: 3px;
+      color: #64748b;
+      font-size: 9px;
+      line-height: 1.3;
+    }
     .right { text-align: right; white-space: nowrap; }
+    .empty-state {
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 14px 12px;
+      text-align: center;
+      color: #64748b;
+      background: #f8fafc;
+    }
     .sign {
-      margin-top: 10px;
+      margin-top: 16px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 12px;
     }
     .sign-box {
       border: 1px dashed #94a3b8;
-      border-radius: 6px;
-      padding: 6px;
-      min-height: 42px;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 60px;
     }
     .sign-line {
       border-top: 1px solid #64748b;
-      margin-top: 16px;
-      padding-top: 3px;
+      margin-top: 28px;
+      padding-top: 5px;
       text-align: center;
       color: #475569;
-      font-size: 8px;
+      font-size: 9px;
+    }
+    .muted-note {
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 9px;
+    }
+    @media print {
+      .vehicle-group,
+      .card,
+      .sign-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+    @media (max-width: 720px) {
+      .summary-grid,
+      .sign {
+        grid-template-columns: 1fr;
+      }
+      .pay-card {
+        width: 100%;
+      }
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+      .vehicle-head,
+      .head {
+        flex-direction: column;
+      }
     }
   `;
 }
@@ -2344,6 +2523,8 @@ function buildCompactPayrollPdfHtml({ context }) {
     ? `${period.formattedStartDate} - ${period.formattedEndDate}`
     : '-';
 
+  const technicianInfo = settlement.technician || {};
+
   const formatServiceDate = (item) => {
     const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
     if (!raw) return '-';
@@ -2352,57 +2533,165 @@ function buildCompactPayrollPdfHtml({ context }) {
     return dt.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const serviceRows = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
-    .filter((it) => it && (it.saleId || it.saleNumber || it.vehiclePlate || it.vehicleLabel || Number(it.base || 0) > 0));
-
-  const rowsHtml = serviceRows.length
-    ? serviceRows.map((it) => {
-        const plate = String(it.vehicleLabel || it.vehiclePlate || '-').trim() || '-';
-        const paidValue = Number(it.value || 0);
-        const laborName = String(it.serviceName || it.laborName || it.name || '-').trim() || '-';
-        return `
-          <tr>
-            <td>${escapeHtml(formatServiceDate(it))}</td>
-            <td>${escapeHtml(plate)}</td>
-            <td>${escapeHtml(laborName)}</td>
-            <td class="right">${escapeHtml(formatMoney(paidValue))}</td>
-          </tr>
-        `;
-      }).join('')
-    : `
-      <tr>
-        <td colspan="4" style="text-align:center;color:#64748b;">Sin líneas de servicio para mostrar</td>
-      </tr>
-    `;
-
   const isLaborLine = (it) => !!(it && (it.saleId || it.saleNumber || it.vehiclePlate || it.vehicleLabel));
+  const laborItems = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
+    .filter((it) => it && isLaborLine(it) && Number(it.value || 0) !== 0);
   const basicIncomeItems = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
     .filter((it) => it && !isLaborLine(it) && Number(it.value || 0) !== 0);
   const deductionItems = (itemsByType.deductions || []).filter((it) => it && Number(it.value || 0) !== 0);
 
-  const hasBasicConcepts = basicIncomeItems.length > 0 || deductionItems.length > 0;
-  const basicConceptsHtml = hasBasicConcepts
+  let daysWorked = '';
+  if (period.startDate && period.endDate) {
+    const start = new Date(period.startDate);
+    const end = new Date(period.endDate);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      const diffTime = Math.abs(end - start);
+      daysWorked = String(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    }
+  }
+
+  const vehiclePalette = [
+    { accent: '#1d4ed8', soft: '#dbeafe', border: '#93c5fd' },
+    { accent: '#047857', soft: '#d1fae5', border: '#86efac' },
+    { accent: '#b45309', soft: '#fef3c7', border: '#fcd34d' },
+    { accent: '#7c3aed', soft: '#ede9fe', border: '#c4b5fd' },
+    { accent: '#be123c', soft: '#ffe4e6', border: '#fda4af' }
+  ];
+
+  const getSortTime = (item) => {
+    const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
+    const dt = raw ? new Date(raw) : null;
+    return dt && !Number.isNaN(dt.getTime()) ? dt.getTime() : 0;
+  };
+
+  const laborGroupsMap = new Map();
+  for (const item of laborItems) {
+    const vehicleName = String(item.vehicleLabel || item.vehiclePlate || '').trim();
+    const groupLabel = vehicleName || 'Sin vehículo asociado';
+    const groupKey = vehicleName || '__NO_VEHICLE__';
+    if (!laborGroupsMap.has(groupKey)) {
+      laborGroupsMap.set(groupKey, { label: groupLabel, items: [] });
+    }
+    laborGroupsMap.get(groupKey).items.push(item);
+  }
+
+  const laborGroups = Array.from(laborGroupsMap.values())
+    .map((group) => ({
+      ...group,
+      items: group.items.sort((a, b) => {
+        const timeDiff = getSortTime(a) - getSortTime(b);
+        if (timeDiff !== 0) return timeDiff;
+        return String(a.serviceName || a.laborName || a.name || '').localeCompare(
+          String(b.serviceName || b.laborName || b.name || ''),
+          'es',
+          { sensitivity: 'base' }
+        );
+      })
+    }))
+    .sort((a, b) => {
+      if (a.label === 'Sin vehículo asociado') return 1;
+      if (b.label === 'Sin vehículo asociado') return -1;
+      return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
+    });
+
+  const laborGroupsHtml = laborGroups.length
+    ? laborGroups.map((group, index) => {
+        const palette = vehiclePalette[index % vehiclePalette.length];
+        const total = group.items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+        const salesCount = new Set(group.items.map((item) => String(item.saleNumber || '').trim()).filter(Boolean)).size;
+        const rows = group.items.map((item) => {
+          const serviceTitle = String(item.serviceName || item.laborName || item.name || '-').trim() || '-';
+          const meta = [];
+          if (item.laborName && item.serviceName && String(item.laborName).trim() !== String(item.serviceName).trim()) {
+            meta.push(`MO: ${String(item.laborName).trim()}`);
+          }
+          if (Number(item.percentValue || 0) > 0) meta.push(`${Number(item.percentValue)}%`);
+          if (item.notes) meta.push(String(item.notes).trim());
+          return `
+            <tr>
+              <td style="width: 16%;">${escapeHtml(formatServiceDate(item))}</td>
+              <td style="width: 14%;">${escapeHtml(item.saleNumber ? `#${item.saleNumber}` : '-')}</td>
+              <td style="width: 50%;">
+                <div class="cell-title">${escapeHtml(serviceTitle)}</div>
+                ${meta.length ? `<div class="cell-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
+              </td>
+              <td class="right" style="width: 20%; font-weight: 800; color: ${palette.accent};">${escapeHtml(formatMoney(item.value || 0))}</td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          <div class="vehicle-group" style="--vehicle-accent:${palette.accent};--vehicle-soft:${palette.soft};--vehicle-border:${palette.border};">
+            <div class="vehicle-head">
+              <div>
+                <div class="vehicle-title">${escapeHtml(group.label)}</div>
+                <div class="vehicle-meta">
+                  ${escapeHtml(`${group.items.length} mano${group.items.length === 1 ? ' de obra' : 's de obra'}${salesCount ? ` · ${salesCount} venta${salesCount === 1 ? '' : 's'}` : ''}`)}
+                </div>
+              </div>
+              <div class="vehicle-total">
+                <div class="label">Total vehículo</div>
+                <span class="value">${escapeHtml(formatMoney(total))}</span>
+              </div>
+            </div>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Día</th>
+                  <th>Venta</th>
+                  <th>Mano de obra</th>
+                  <th class="right">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join('')
+    : `<div class="empty-state">Sin manos de obra para mostrar en esta liquidación.</div>`;
+
+  const extraIncomeHtml = basicIncomeItems.length
     ? `
-      <div class="concepts-section" style="margin-top: 10px;">
-        <div class="concepts-title" style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 6px;">Conceptos básicos</div>
-        <table class="tbl concepts-tbl" style="margin-bottom: 8px;">
+      <div class="section">
+        <h2 class="section-title">Otros ingresos</h2>
+        <table class="tbl">
           <thead>
             <tr>
-              <th style="width: 70%;">Concepto</th>
-              <th class="right" style="width: 30%;">Valor</th>
+              <th style="width: 74%;">Concepto</th>
+              <th class="right" style="width: 26%;">Valor</th>
             </tr>
           </thead>
           <tbody>
             ${basicIncomeItems.map((it) => `
               <tr>
                 <td>${escapeHtml(String(it.name || it.serviceName || it.laborName || 'Ingreso').trim() || 'Ingreso')}</td>
-                <td class="right" style="color: #065f46;">${escapeHtml(formatMoney(it.value || 0))}</td>
+                <td class="right" style="font-weight: 800; color: #065f46;">${escapeHtml(formatMoney(it.value || 0))}</td>
               </tr>
             `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+    : '';
+
+  const deductionsHtml = deductionItems.length
+    ? `
+      <div class="section">
+        <h2 class="section-title">Descuentos</h2>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width: 74%;">Concepto</th>
+              <th class="right" style="width: 26%;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
             ${deductionItems.map((it) => `
               <tr>
                 <td>${escapeHtml(String(it.name || 'Descuento').trim() || 'Descuento')}</td>
-                <td class="right" style="color: #b91c1c;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
+                <td class="right" style="font-weight: 800; color: #b91c1c;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2426,20 +2715,44 @@ function buildCompactPayrollPdfHtml({ context }) {
         </div>
       </div>
 
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th style="width: 17%;">Día del servicio</th>
-            <th style="width: 24%;">Placa del vehículo</th>
-            <th style="width: 39%;">Mano de obra pagada</th>
-            <th class="right" style="width: 20%;">Valor mano de obra</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
-      ${basicConceptsHtml}
+      <div class="summary-grid">
+        <div class="card">
+          <h2 class="card-title">Datos del técnico</h2>
+          <div class="info-grid">
+            <div class="info-label">Técnico</div><div class="info-value">${escapeHtml(technicianName)}</div>
+            <div class="info-label">Identificación</div><div class="info-value">${escapeHtml(String(settlement.technicianIdentification || '-').trim() || '-')}</div>
+            <div class="info-label">Período</div><div class="info-value">${escapeHtml(periodLabel)}</div>
+            <div class="info-label">Días trabajados</div><div class="info-value">${escapeHtml(daysWorked || '-')}</div>
+            ${technicianInfo.contractType ? `<div class="info-label">Tipo contrato</div><div class="info-value">${escapeHtml(technicianInfo.contractType)}</div>` : ''}
+            ${technicianInfo.basicSalary ? `<div class="info-label">Salario básico</div><div class="info-value">${escapeHtml(formatMoney(technicianInfo.basicSalary))}</div>` : ''}
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Resumen</h2>
+          <div class="totals-list">
+            <div class="total-row">
+              <div class="label">Total ingresos</div>
+              <div class="value">${escapeHtml(settlement.formattedGrossTotal || formatMoney(settlement.grossTotal || 0))}</div>
+            </div>
+            <div class="total-row">
+              <div class="label">Total descuentos</div>
+              <div class="value negative">- ${escapeHtml(settlement.formattedDeductionsTotal || formatMoney(settlement.deductionsTotal || 0))}</div>
+            </div>
+            <div class="total-row net">
+              <div class="label">Neto a pagar</div>
+              <div class="value">${escapeHtml(settlement.formattedNetTotal || formatMoney(settlement.netTotal || 0))}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Manos de obra agrupadas por vehículo</h2>
+        ${laborGroupsHtml}
+      </div>
+
+      ${extraIncomeHtml}
+      ${deductionsHtml}
 
       <div class="sign">
         <div class="sign-box">
@@ -2449,6 +2762,7 @@ function buildCompactPayrollPdfHtml({ context }) {
           <div class="sign-line">Firma empresa</div>
         </div>
       </div>
+      <div class="muted-note">Documento generado desde nómina en formato carta para conservar el detalle completo de la liquidación.</div>
     </div>
   `;
 }
@@ -2938,13 +3252,12 @@ export const generateSettlementPdf = async (req, res) => {
 
     try {
       const pdfBuffer = await htmlToPdfBuffer(htmlDoc, {
-        format: 'A4',
+        format: 'Letter',
         preferCSSPageSize: true,
         printBackground: true,
-        // Compactar: menos márgenes + sin header/footer de Puppeteer (ahorra espacio vertical)
-        margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+        margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
         displayHeaderFooter: false,
-        scale: 0.96
+        scale: 1
       });
 
       res.setHeader('Content-Type', 'application/pdf');
