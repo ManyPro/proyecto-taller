@@ -2388,7 +2388,7 @@ function buildCompactPayrollPdfStyles() {
     .vehicle-title {
       margin: 0;
       color: #0f172a;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 800;
     }
     .vehicle-total {
@@ -2404,9 +2404,9 @@ function buildCompactPayrollPdfStyles() {
     }
     .vehicle-total .value {
       display: block;
-      margin-top: 2px;
+      margin-top: 0;
       color: #000;
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 900;
     }
     .tbl {
@@ -2595,7 +2595,6 @@ function buildCompactPayrollPdfHtml({ context }) {
                 <div class="vehicle-title">${escapeHtml(group.label)}</div>
               </div>
               <div class="vehicle-total">
-                <div class="label">Total vehículo</div>
                 <span class="value">${escapeHtml(formatMoney(total))}</span>
               </div>
             </div>
