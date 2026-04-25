@@ -2293,7 +2293,7 @@ function buildCompactPayrollPdfStyles() {
     .pay-card .v { font-weight: 800; font-size: 18px; color: #065f46; }
     .summary-grid {
       display: grid;
-      grid-template-columns: 1.4fr 1fr;
+      grid-template-columns: 1fr;
       gap: 8px;
       margin-bottom: 10px;
     }
@@ -2391,12 +2391,6 @@ function buildCompactPayrollPdfStyles() {
       font-size: 13px;
       font-weight: 800;
     }
-    .vehicle-meta {
-      margin-top: 4px;
-      color: #475569;
-      font-size: 10px;
-      font-weight: 700;
-    }
     .vehicle-total {
       text-align: right;
       white-space: nowrap;
@@ -2440,12 +2434,6 @@ function buildCompactPayrollPdfStyles() {
     .cell-title {
       font-weight: 700;
       color: #0f172a;
-    }
-    .cell-meta {
-      margin-top: 3px;
-      color: #64748b;
-      font-size: 9px;
-      line-height: 1.3;
     }
     .right { text-align: right; white-space: nowrap; }
     .empty-state {
@@ -2586,22 +2574,14 @@ function buildCompactPayrollPdfHtml({ context }) {
   const laborGroupsHtml = laborGroups.length
     ? laborGroups.map((group) => {
         const total = group.items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
-        const salesCount = new Set(group.items.map((item) => String(item.saleNumber || '').trim()).filter(Boolean)).size;
         const rows = group.items.map((item) => {
           const serviceTitle = String(item.serviceName || item.laborName || item.name || '-').trim() || '-';
-          const meta = [];
-          if (item.laborName && item.serviceName && String(item.laborName).trim() !== String(item.serviceName).trim()) {
-            meta.push(`MO: ${String(item.laborName).trim()}`);
-          }
-          if (Number(item.percentValue || 0) > 0) meta.push(`${Number(item.percentValue)}%`);
-          if (item.notes) meta.push(String(item.notes).trim());
           return `
             <tr>
               <td style="width: 16%;">${escapeHtml(formatServiceDate(item))}</td>
               <td style="width: 14%;">${escapeHtml(item.saleNumber ? `#${item.saleNumber}` : '-')}</td>
               <td style="width: 50%;">
                 <div class="cell-title">${escapeHtml(serviceTitle)}</div>
-                ${meta.length ? `<div class="cell-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
               </td>
               <td class="right" style="width: 20%; font-weight: 800;">${escapeHtml(formatMoney(item.value || 0))}</td>
             </tr>
@@ -2613,9 +2593,6 @@ function buildCompactPayrollPdfHtml({ context }) {
             <div class="vehicle-head">
               <div>
                 <div class="vehicle-title">${escapeHtml(group.label)}</div>
-                <div class="vehicle-meta">
-                  ${escapeHtml(`${group.items.length} mano${group.items.length === 1 ? ' de obra' : 's de obra'}${salesCount ? ` · ${salesCount} venta${salesCount === 1 ? '' : 's'}` : ''}`)}
-                </div>
               </div>
               <div class="vehicle-total">
                 <div class="label">Total vehículo</div>
@@ -2704,17 +2681,6 @@ function buildCompactPayrollPdfHtml({ context }) {
       </div>
 
       <div class="summary-grid">
-        <div class="card">
-          <h2 class="card-title">Datos del técnico</h2>
-          <div class="info-grid">
-            <div class="info-label">Técnico</div><div class="info-value">${escapeHtml(technicianName)}</div>
-            <div class="info-label">Identificación</div><div class="info-value">${escapeHtml(String(settlement.technicianIdentification || '-').trim() || '-')}</div>
-            <div class="info-label">Período</div><div class="info-value">${escapeHtml(periodLabel)}</div>
-            <div class="info-label">Días trabajados</div><div class="info-value">${escapeHtml(daysWorked || '-')}</div>
-            ${technicianInfo.contractType ? `<div class="info-label">Tipo contrato</div><div class="info-value">${escapeHtml(technicianInfo.contractType)}</div>` : ''}
-            ${technicianInfo.basicSalary ? `<div class="info-label">Salario básico</div><div class="info-value">${escapeHtml(formatMoney(technicianInfo.basicSalary))}</div>` : ''}
-          </div>
-        </div>
         <div class="card">
           <h2 class="card-title">Resumen</h2>
           <div class="totals-list">
