@@ -2680,28 +2680,7 @@ function buildCompactPayrollPdfHtml({ context }) {
         </div>
       </div>
 
-      <div class="summary-grid">
-        <div class="card">
-          <h2 class="card-title">Resumen</h2>
-          <div class="totals-list">
-            <div class="total-row">
-              <div class="label">Total ingresos</div>
-              <div class="value">${escapeHtml(settlement.formattedGrossTotal || formatMoney(settlement.grossTotal || 0))}</div>
-            </div>
-            <div class="total-row">
-              <div class="label">Total descuentos</div>
-              <div class="value negative">- ${escapeHtml(settlement.formattedDeductionsTotal || formatMoney(settlement.deductionsTotal || 0))}</div>
-            </div>
-            <div class="total-row net">
-              <div class="label">Neto a pagar</div>
-              <div class="value">${escapeHtml(settlement.formattedNetTotal || formatMoney(settlement.netTotal || 0))}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="section">
-        <h2 class="section-title">Manos de obra agrupadas por vehículo</h2>
         ${laborGroupsHtml}
       </div>
 
