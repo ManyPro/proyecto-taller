@@ -2282,25 +2282,25 @@ function buildCompactPayrollPdfStyles() {
     .title { margin: 0; font-size: 16px; font-weight: 800; }
     .subtitle { margin: 3px 0 0 0; color: #475569; font-size: 10px; }
     .pay-card {
-      border: 1px solid #94a3b8;
-      border-radius: 10px;
-      padding: 10px 12px;
-      min-width: 220px;
+      border: 1px solid #111827;
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 200px;
       text-align: right;
-      background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%);
+      background: #fff;
     }
     .pay-card .k { color: #475569; font-size: 10px; margin-bottom: 3px; }
     .pay-card .v { font-weight: 800; font-size: 18px; color: #065f46; }
     .summary-grid {
       display: grid;
       grid-template-columns: 1.4fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
     .card {
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 10px 12px;
+      border: 1px solid #111827;
+      border-radius: 8px;
+      padding: 8px 10px;
       background: #fff;
     }
     .card-title {
@@ -2314,7 +2314,7 @@ function buildCompactPayrollPdfStyles() {
     .info-grid {
       display: grid;
       grid-template-columns: 140px 1fr;
-      gap: 6px 10px;
+      gap: 4px 8px;
     }
     .info-label {
       color: #64748b;
@@ -2328,7 +2328,7 @@ function buildCompactPayrollPdfStyles() {
     .totals-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     .total-row {
       display: flex;
@@ -2344,20 +2344,20 @@ function buildCompactPayrollPdfStyles() {
       font-weight: 800;
       text-align: right;
     }
-    .total-row .value.negative { color: #b91c1c; }
+    .total-row .value.negative { color: #000; }
     .total-row.net {
-      margin-top: 4px;
-      padding-top: 8px;
-      border-top: 1px solid #dbe2ea;
+      margin-top: 2px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
     }
     .total-row.net .label,
     .total-row.net .value {
       font-size: 13px;
       font-weight: 900;
     }
-    .total-row.net .value { color: #065f46; }
+    .total-row.net .value { color: #000; }
     .section {
-      margin-top: 14px;
+      margin-top: 10px;
     }
     .section-title {
       margin: 0 0 8px 0;
@@ -2368,10 +2368,10 @@ function buildCompactPayrollPdfStyles() {
       color: #334155;
     }
     .vehicle-group {
-      border: 1px solid var(--vehicle-border, #cbd5e1);
-      border-radius: 12px;
+      border: 1px solid #111827;
+      border-radius: 8px;
       overflow: hidden;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       break-inside: avoid;
       page-break-inside: avoid;
       background: #fff;
@@ -2380,10 +2380,10 @@ function buildCompactPayrollPdfStyles() {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 12px;
-      padding: 10px 12px;
-      background: linear-gradient(135deg, var(--vehicle-soft, #f8fafc) 0%, #ffffff 100%);
-      border-bottom: 1px solid var(--vehicle-border, #cbd5e1);
+      gap: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border-bottom: 1px solid #111827;
     }
     .vehicle-title {
       margin: 0;
@@ -2411,8 +2411,8 @@ function buildCompactPayrollPdfStyles() {
     .vehicle-total .value {
       display: block;
       margin-top: 2px;
-      color: var(--vehicle-accent, #1d4ed8);
-      font-size: 16px;
+      color: #000;
+      font-size: 15px;
       font-weight: 900;
     }
     .tbl {
@@ -2422,20 +2422,17 @@ function buildCompactPayrollPdfStyles() {
       font-size: 10px;
     }
     .tbl th {
-      background: #f8fafc;
-      border-bottom: 1px solid #cbd5e1;
+      background: #fff;
+      border-bottom: 1px solid #111827;
       text-align: left;
-      padding: 8px 10px;
+      padding: 6px 8px;
       font-weight: 800;
-      color: #334155;
+      color: #111827;
     }
     .tbl td {
-      border-bottom: 1px solid #e2e8f0;
-      padding: 8px 10px;
+      border-bottom: 1px solid #d1d5db;
+      padding: 6px 8px;
       vertical-align: top;
-    }
-    .tbl tbody tr:nth-child(even) td {
-      background: #f8fafc;
     }
     .tbl tbody tr:last-child td {
       border-bottom: 0;
@@ -2452,24 +2449,24 @@ function buildCompactPayrollPdfStyles() {
     }
     .right { text-align: right; white-space: nowrap; }
     .empty-state {
-      border: 1px dashed #cbd5e1;
-      border-radius: 10px;
-      padding: 14px 12px;
+      border: 1px dashed #111827;
+      border-radius: 8px;
+      padding: 10px 8px;
       text-align: center;
       color: #64748b;
-      background: #f8fafc;
+      background: #fff;
     }
     .sign {
-      margin-top: 16px;
+      margin-top: 12px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 8px;
     }
     .sign-box {
-      border: 1px dashed #94a3b8;
-      border-radius: 10px;
-      padding: 10px;
-      min-height: 60px;
+      border: 1px dashed #111827;
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 52px;
     }
     .sign-line {
       border-top: 1px solid #64748b;
@@ -2550,14 +2547,6 @@ function buildCompactPayrollPdfHtml({ context }) {
     }
   }
 
-  const vehiclePalette = [
-    { accent: '#1d4ed8', soft: '#dbeafe', border: '#93c5fd' },
-    { accent: '#047857', soft: '#d1fae5', border: '#86efac' },
-    { accent: '#b45309', soft: '#fef3c7', border: '#fcd34d' },
-    { accent: '#7c3aed', soft: '#ede9fe', border: '#c4b5fd' },
-    { accent: '#be123c', soft: '#ffe4e6', border: '#fda4af' }
-  ];
-
   const getSortTime = (item) => {
     const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
     const dt = raw ? new Date(raw) : null;
@@ -2595,8 +2584,7 @@ function buildCompactPayrollPdfHtml({ context }) {
     });
 
   const laborGroupsHtml = laborGroups.length
-    ? laborGroups.map((group, index) => {
-        const palette = vehiclePalette[index % vehiclePalette.length];
+    ? laborGroups.map((group) => {
         const total = group.items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
         const salesCount = new Set(group.items.map((item) => String(item.saleNumber || '').trim()).filter(Boolean)).size;
         const rows = group.items.map((item) => {
@@ -2615,13 +2603,13 @@ function buildCompactPayrollPdfHtml({ context }) {
                 <div class="cell-title">${escapeHtml(serviceTitle)}</div>
                 ${meta.length ? `<div class="cell-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
               </td>
-              <td class="right" style="width: 20%; font-weight: 800; color: ${palette.accent};">${escapeHtml(formatMoney(item.value || 0))}</td>
+              <td class="right" style="width: 20%; font-weight: 800;">${escapeHtml(formatMoney(item.value || 0))}</td>
             </tr>
           `;
         }).join('');
 
         return `
-          <div class="vehicle-group" style="--vehicle-accent:${palette.accent};--vehicle-soft:${palette.soft};--vehicle-border:${palette.border};">
+          <div class="vehicle-group">
             <div class="vehicle-head">
               <div>
                 <div class="vehicle-title">${escapeHtml(group.label)}</div>
@@ -2667,7 +2655,7 @@ function buildCompactPayrollPdfHtml({ context }) {
             ${basicIncomeItems.map((it) => `
               <tr>
                 <td>${escapeHtml(String(it.name || it.serviceName || it.laborName || 'Ingreso').trim() || 'Ingreso')}</td>
-                <td class="right" style="font-weight: 800; color: #065f46;">${escapeHtml(formatMoney(it.value || 0))}</td>
+                <td class="right" style="font-weight: 800;">${escapeHtml(formatMoney(it.value || 0))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2691,7 +2679,7 @@ function buildCompactPayrollPdfHtml({ context }) {
             ${deductionItems.map((it) => `
               <tr>
                 <td>${escapeHtml(String(it.name || 'Descuento').trim() || 'Descuento')}</td>
-                <td class="right" style="font-weight: 800; color: #b91c1c;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
+                <td class="right" style="font-weight: 800;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
               </tr>
             `).join('')}
           </tbody>
