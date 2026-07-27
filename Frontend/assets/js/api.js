@@ -470,6 +470,12 @@ const API = {
     recomputeBalances: () => http.post('/api/v1/cashflow/recompute-balances', {}),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
+    session: {
+      get: (params = {}) => http.get(`/api/v1/cashflow/session${toQuery(params)}`),
+      open: (payload = {}) => http.post('/api/v1/cashflow/session/open', payload),
+      close: (payload = {}) => http.post('/api/v1/cashflow/session/close', payload),
+      report: (params = {}) => http.get(`/api/v1/cashflow/session/report${toQuery(params)}`)
+    },
     // Préstamos a empleados
     loans: {
       list: (params={}) => http.get(`/api/v1/cashflow/loans${toQuery(params)}`),

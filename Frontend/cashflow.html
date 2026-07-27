@@ -723,6 +723,40 @@
             <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Controla cuentas, movimientos y préstamos con una vista clara y consistente.</p>
           </div>
 
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-4">
+              <div>
+                <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">🧾</span> Caja del día</h3>
+                <p id="cf-session-status" class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 m-0">Sin apertura registrada para hoy.</p>
+                <p id="cf-session-meta" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2 mb-0">Abre la caja para comenzar el control diario.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="cf-session-open" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-600 theme-light:to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Abrir caja</button>
+                <button id="cf-session-close" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-rose-600 to-red-700 dark:from-rose-600 dark:to-red-700 theme-light:from-rose-600 theme-light:to-red-700 hover:from-rose-700 hover:to-red-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Cerrar caja</button>
+                <button id="cf-session-report" class="px-4 py-2 cf-btn-secondary">Ver reporte diario</button>
+              </div>
+            </div>
+
+            <div id="cf-session-empty" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Todavía no hay una sesión diaria de caja abierta.</div>
+
+            <div id="cf-session-report-wrap" class="hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[760px] border-collapse">
+                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+                    <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cuenta</th>
+                      <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Saldo inicial</th>
+                      <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Ingresos</th>
+                      <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Salidas (egresos)</th>
+                      <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Saldo actual</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cf-session-rows" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- Cuentas -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span aria-hidden="true">🏦</span> Cuentas</h3>

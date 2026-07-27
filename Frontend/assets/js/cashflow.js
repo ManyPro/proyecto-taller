@@ -3,6 +3,7 @@ import { dateInputToISO, datetimeLocalToISO } from './dateTime.js';
 
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let cfState = { page:1, pages:1, limit:50 };
+let cfSessionState = { session: null, report: null };
 let cfBound = false;
 
 // Helper para escapar HTML (reutilizable)
@@ -25,6 +26,7 @@ export function initCashFlow(){
     bind();
     cfBound = true;
   }
+  loadCashSession();
   loadAccounts();
   loadMovements(true);
   connectLive(); // Conectar actualizaciones en vivo
@@ -74,6 +76,7 @@ function connectLive() {
       if (eventType === 'cashflow:created' || eventType === 'cashflow:updated' || eventType === 'cashflow:deleted') {
         // Recargar cuentas y movimientos cuando hay cambios
         // Preservar filtros y página actual al recargar
+        loadCashSession();
         loadAccounts();
         loadMovements(false); // false = no resetear página, preservar filtros
       }
@@ -119,6 +122,9 @@ function bind(){
   document.getElementById('cf-new-expense')?.addEventListener('click', ()=> openNewEntryModal('OUT'));
   document.getElementById('cf-new-transfer')?.addEventListener('click', openTransferModal);
   document.getElementById('cf-new-loan')?.addEventListener('click', openNewLoanModal);
+  document.getElementById('cf-session-open')?.addEventListener('click', openCashSession);
+  document.getElementById('cf-session-close')?.addEventListener('click', closeCashSession);
+  document.getElementById('cf-session-report')?.addEventListener('click', loadCashSessionReport);
   document.getElementById('cf-refresh-loans')?.addEventListener('click', ()=> loadLoans(true));
   document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
   document.getElementById('cf-loan-filter-status')?.addEventListener('change', ()=> loadLoans());
@@ -187,6 +193,174 @@ async function loadAccounts(){
   }catch(e){ 
     const body = document.getElementById('cf-acc-body');
     if(body) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-red-400">Error al cargar cuentas</td></tr>';
+  }
+}
+
+function formatSessionDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('es-CO', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function renderCashSession(session, report) {
+  cfSessionState = { session: session || null, report: report || null };
+
+  const statusEl = document.getElementById('cf-session-status');
+  const metaEl = document.getElementById('cf-session-meta');
+  const emptyEl = document.getElementById('cf-session-empty');
+  const wrapEl = document.getElementById('cf-session-report-wrap');
+  const rowsBody = document.getElementById('cf-session-rows');
+  const openBtn = document.getElementById('cf-session-open');
+  const closeBtn = document.getElementById('cf-session-close');
+  const reportBtn = document.getElementById('cf-session-report');
+
+  if (openBtn) openBtn.disabled = !!session;
+  if (closeBtn) closeBtn.disabled = !session || session.status !== 'OPEN';
+  if (reportBtn) reportBtn.disabled = !session;
+
+  if (!session) {
+    if (statusEl) statusEl.textContent = 'Sin apertura registrada para hoy.';
+    if (metaEl) metaEl.textContent = 'Abre la caja para comenzar el control diario.';
+    if (emptyEl) emptyEl.classList.remove('hidden');
+    if (wrapEl) wrapEl.classList.add('hidden');
+    if (rowsBody) {
+      rowsBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay reporte diario disponible.</td></tr>';
+    }
+    return;
+  }
+
+  const statusLabel = session.status === 'OPEN' ? 'Caja abierta' : 'Caja cerrada';
+  const metaParts = [`Apertura: ${formatSessionDateTime(session.openedAt)}`];
+  if (session.closedAt) metaParts.push(`Cierre: ${formatSessionDateTime(session.closedAt)}`);
+  if (statusEl) statusEl.textContent = statusLabel;
+  if (metaEl) metaEl.textContent = metaParts.join(' · ');
+
+  if (emptyEl) emptyEl.classList.add('hidden');
+  if (wrapEl) wrapEl.classList.remove('hidden');
+
+  const rows = Array.isArray(report?.rows) ? report.rows.slice() : [];
+  const totals = report?.totals || null;
+
+  if (rowsBody) {
+    if (!rows.length) {
+      rowsBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay datos para el reporte diario.</td></tr>';
+      return;
+    }
+
+    const totalRow = totals ? {
+      name: 'TOTAL',
+      openingBalance: totals.initialBalance,
+      income: totals.income,
+      expense: totals.expense,
+      currentBalance: totals.currentBalance,
+      isTotal: true
+    } : null;
+
+    const renderRow = (row) => {
+      const trClasses = row.isTotal
+        ? 'bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-sky-100 font-semibold'
+        : 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
+
+      return `<tr class="${trClasses}">
+        <td data-label="Cuenta" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(row.name || '')}</td>
+        <td data-label="Saldo inicial" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(row.openingBalance || 0)}</td>
+        <td data-label="Ingresos" class="px-4 py-3 text-right text-xs text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(row.income || 0)}</td>
+        <td data-label="Salidas (egresos)" class="px-4 py-3 text-right text-xs text-rose-300 dark:text-rose-300 theme-light:text-rose-700 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(row.expense || 0)}</td>
+        <td data-label="Saldo actual" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900">${money(row.currentBalance || 0)}</td>
+      </tr>`;
+    };
+
+    rowsBody.innerHTML = rows.map(renderRow).join('') + (totalRow ? renderRow(totalRow) : '');
+  }
+}
+
+async function loadCashSession() {
+  try {
+    const data = await API.cashflow.session.get();
+    renderCashSession(data?.session || null, data?.report || null);
+  } catch (e) {
+    const statusEl = document.getElementById('cf-session-status');
+    const metaEl = document.getElementById('cf-session-meta');
+    const rowsBody = document.getElementById('cf-session-rows');
+    const wrapEl = document.getElementById('cf-session-report-wrap');
+    const emptyEl = document.getElementById('cf-session-empty');
+    if (statusEl) statusEl.textContent = 'No se pudo cargar la caja diaria.';
+    if (metaEl) metaEl.textContent = e?.message || 'Error consultando el estado de la caja.';
+    if (rowsBody) rowsBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-xs text-red-400">Error al cargar el reporte diario</td></tr>';
+    if (wrapEl) wrapEl.classList.add('hidden');
+    if (emptyEl) emptyEl.classList.remove('hidden');
+  }
+}
+
+async function loadCashSessionReport() {
+  if (!cfSessionState.session) {
+    showError('No hay una caja registrada para hoy');
+    return;
+  }
+
+  try {
+    const report = await API.cashflow.session.report();
+    renderCashSession(cfSessionState.session, report);
+    document.getElementById('cf-session-report-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) {
+    showError(e?.message || 'Error cargando reporte diario');
+  }
+}
+
+async function openCashSession() {
+  const btn = document.getElementById('cf-session-open');
+  const prev = btn?.textContent || 'Abrir caja';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Abriendo...';
+  }
+
+  try {
+    const data = await API.cashflow.session.open();
+    renderCashSession(data?.session || null, data?.report || null);
+    showSuccess('Caja abierta correctamente');
+    await loadAccounts();
+    await loadMovements(false);
+  } catch (e) {
+    showError(e?.message || 'Error abriendo caja');
+  } finally {
+    if (btn) btn.textContent = prev;
+    if (btn && !cfSessionState.session) btn.disabled = false;
+  }
+}
+
+async function closeCashSession() {
+  if (!cfSessionState.session || cfSessionState.session.status !== 'OPEN') {
+    showError('No hay una caja abierta para cerrar');
+    return;
+  }
+  if (!confirm('¿Cerrar la caja del día?')) return;
+
+  const btn = document.getElementById('cf-session-close');
+  const prev = btn?.textContent || 'Cerrar caja';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Cerrando...';
+  }
+
+  try {
+    const data = await API.cashflow.session.close();
+    renderCashSession(data?.session || null, data?.report || null);
+    showSuccess('Caja cerrada correctamente');
+    await loadAccounts();
+    await loadMovements(false);
+  } catch (e) {
+    showError(e?.message || 'Error cerrando caja');
+  } finally {
+    if (btn) btn.textContent = prev;
+    if (btn) btn.disabled = !cfSessionState.session || cfSessionState.session.status !== 'OPEN';
   }
 }
 

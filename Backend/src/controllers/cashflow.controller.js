@@ -1,8 +1,10 @@
 import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
+import CashFlowDeletionLog from '../models/CashFlowDeletionLog.js';
+import CashSession from '../models/CashSession.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
-import { createDateRange, now, localToUTC } from '../lib/dateTime.js';
+import { createDateRange, now, localToUTC, startOfDayUTC } from '../lib/dateTime.js';
 import { publish } from '../lib/live.js';
 
 // Helpers
@@ -15,6 +17,10 @@ export async function ensureDefaultCashAccount(companyId) {
 }
 
 export async function computeBalance(accountId, companyId, options = {}) {
+  return computeBalanceAtDate(accountId, companyId, now(), options);
+}
+
+export async function computeBalanceAtDate(accountId, companyId, balanceDate = now(), options = {}) {
   const { session } = options;
   // Obtener balance inicial de la cuenta
   let accQuery = Account.findOne({ _id: accountId, companyId });
@@ -24,13 +30,12 @@ export async function computeBalance(accountId, companyId, options = {}) {
   
   // Calcular balance usando agregación MongoDB (más eficiente que cargar todas las entradas)
   // Esto asegura que las entradas con fecha futura no afecten el balance actual
-  const currentDate = now();
   let balanceAggQuery = CashFlowEntry.aggregate([
     {
       $match: {
         companyId: new mongoose.Types.ObjectId(companyId),
         accountId: new mongoose.Types.ObjectId(accountId),
-        date: { $lte: currentDate } // Solo entradas hasta la fecha actual
+        date: { $lte: balanceDate } // Solo entradas hasta la fecha solicitada
       }
     },
     {
@@ -56,6 +61,283 @@ export async function computeBalance(accountId, companyId, options = {}) {
   const balance = initialBalance + (totals.totalIn || 0) - (totals.totalOut || 0);
   
   return balance;
+}
+
+function normalizeBusinessDate(dateInput) {
+  return startOfDayUTC(dateInput || now()) || startOfDayUTC(now());
+}
+
+function snapshotToMap(snapshot = []) {
+  const map = new Map();
+  for (const item of snapshot) {
+    if (!item?.accountId) continue;
+    map.set(String(item.accountId), {
+      accountId: item.accountId,
+      name: item.name || '',
+      type: item.type || 'CASH',
+      balance: Number(item.balance || 0)
+    });
+  }
+  return map;
+}
+
+async function buildAccountSnapshot(companyId, balanceDate, options = {}) {
+  const { session } = options;
+  let accountsQuery = Account.find({ companyId }).sort({ createdAt: 1 }).lean();
+  if (session) accountsQuery = accountsQuery.session(session);
+  const accounts = await accountsQuery;
+  const snapshot = await Promise.all(accounts.map(async (acc) => ({
+    accountId: acc._id,
+    name: acc.name || '',
+    type: acc.type || 'CASH',
+    balance: await computeBalanceAtDate(acc._id, companyId, balanceDate, { session })
+  })));
+  return snapshot;
+}
+
+async function aggregateEntriesByAccount(companyId, startDate, endDate, options = {}) {
+  const { session } = options;
+  let query = CashFlowEntry.aggregate([
+    {
+      $match: {
+        companyId: new mongoose.Types.ObjectId(companyId),
+        date: { $gte: startDate, $lte: endDate }
+      }
+    },
+    {
+      $group: {
+        _id: '$accountId',
+        income: { $sum: { $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0] } },
+        expense: { $sum: { $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0] } }
+      }
+    }
+  ]);
+  if (session) query = query.session(session);
+  const rows = await query;
+  return new Map(rows.map((row) => [String(row._id), {
+    income: Number(row.income || 0),
+    expense: Number(row.expense || 0)
+  }]));
+}
+
+async function aggregateDeletionAdjustmentsByAccount(companyId, startDate, endDate, options = {}) {
+  const { session } = options;
+  let query = CashFlowDeletionLog.aggregate([
+    {
+      $match: {
+        companyId: new mongoose.Types.ObjectId(companyId),
+        deletedAt: { $gte: startDate, $lte: endDate }
+      }
+    },
+    {
+      $group: {
+        _id: '$accountId',
+        deletedIncome: {
+          $sum: {
+            $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0]
+          }
+        },
+        deletedExpense: {
+          $sum: {
+            $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0]
+          }
+        }
+      }
+    }
+  ]);
+  if (session) query = query.session(session);
+  const rows = await query;
+  return new Map(rows.map((row) => [String(row._id), {
+    deletedIncome: Number(row.deletedIncome || 0),
+    deletedExpense: Number(row.deletedExpense || 0)
+  }]));
+}
+
+async function buildCashSessionReport(sessionDoc, options = {}) {
+  if (!sessionDoc?.companyId || !sessionDoc?.openedAt) {
+    return { rows: [], totals: { initialBalance: 0, income: 0, expense: 0, currentBalance: 0, deletedIncomeAdjustments: 0, deletedExpenseAdjustments: 0 } };
+  }
+
+  const companyId = String(sessionDoc.companyId);
+  const reportEnd = options.reportEnd || sessionDoc.closedAt || now();
+  const openingSnapshot = Array.isArray(sessionDoc.openingSnapshot) ? sessionDoc.openingSnapshot : [];
+  const closingSnapshot = Array.isArray(options.closingSnapshot) && options.closingSnapshot.length
+    ? options.closingSnapshot
+    : (Array.isArray(sessionDoc.closingSnapshot) && sessionDoc.closingSnapshot.length
+      ? sessionDoc.closingSnapshot
+      : await buildAccountSnapshot(companyId, reportEnd));
+
+  const [movementsByAccount, deletionsByAccount] = await Promise.all([
+    aggregateEntriesByAccount(companyId, sessionDoc.openedAt, reportEnd),
+    aggregateDeletionAdjustmentsByAccount(companyId, sessionDoc.openedAt, reportEnd)
+  ]);
+
+  const openingMap = snapshotToMap(openingSnapshot);
+  const closingMap = snapshotToMap(closingSnapshot);
+  const accountIds = new Set([
+    ...openingMap.keys(),
+    ...closingMap.keys(),
+    ...movementsByAccount.keys(),
+    ...deletionsByAccount.keys()
+  ]);
+
+  const rows = Array.from(accountIds).map((accountId) => {
+    const opening = openingMap.get(accountId) || {};
+    const closing = closingMap.get(accountId) || opening;
+    const movement = movementsByAccount.get(accountId) || { income: 0, expense: 0 };
+    const deletion = deletionsByAccount.get(accountId) || { deletedIncome: 0, deletedExpense: 0 };
+
+    return {
+      accountId: closing.accountId || opening.accountId,
+      name: closing.name || opening.name || 'Cuenta',
+      type: closing.type || opening.type || 'CASH',
+      openingBalance: Number(opening.balance || 0),
+      income: Number(movement.income || 0) - Number(deletion.deletedIncome || 0),
+      expense: Number(movement.expense || 0) - Number(deletion.deletedExpense || 0),
+      currentBalance: Number(closing.balance || 0)
+    };
+  }).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
+
+  const totals = rows.reduce((acc, row) => {
+    acc.initialBalance += Number(row.openingBalance || 0);
+    acc.income += Number(row.income || 0);
+    acc.expense += Number(row.expense || 0);
+    acc.currentBalance += Number(row.currentBalance || 0);
+    return acc;
+  }, {
+    initialBalance: 0,
+    income: 0,
+    expense: 0,
+    currentBalance: 0,
+    deletedIncomeAdjustments: 0,
+    deletedExpenseAdjustments: 0
+  });
+
+  for (const deletion of deletionsByAccount.values()) {
+    totals.deletedIncomeAdjustments += Number(deletion.deletedIncome || 0);
+    totals.deletedExpenseAdjustments += Number(deletion.deletedExpense || 0);
+  }
+
+  return {
+    rows,
+    totals,
+    businessDate: sessionDoc.businessDate,
+    openedAt: sessionDoc.openedAt,
+    closedAt: sessionDoc.closedAt || null,
+    status: sessionDoc.status || 'OPEN'
+  };
+}
+
+async function publishCashSessionUpdate(companyId, payload = {}) {
+  try {
+    await publish(companyId, 'cashflow:updated', { type: 'session', ...payload });
+  } catch (e) {
+    // No fallar si no se puede publicar
+  }
+}
+
+async function recordDeletedEntryAudit(companyId, entry) {
+  if (!entry?._id || !entry?.accountId) return;
+  const deletedAt = now();
+  await CashFlowDeletionLog.create({
+    companyId,
+    entryId: entry._id,
+    accountId: entry.accountId,
+    businessDate: normalizeBusinessDate(deletedAt),
+    entryDate: entry.date || null,
+    deletedAt,
+    kind: entry.kind === 'OUT' ? 'OUT' : 'IN',
+    source: entry.source || 'MANUAL',
+    amount: Math.round(Number(entry.amount || 0)),
+    description: String(entry.description || '')
+  });
+}
+
+export async function getCashSession(req, res) {
+  const businessDate = normalizeBusinessDate(req.query?.date);
+  const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
+  if (!sessionDoc) {
+    return res.json({ session: null, report: null });
+  }
+
+  const report = await buildCashSessionReport(sessionDoc);
+  res.json({ session: sessionDoc, report });
+}
+
+export async function openCashSession(req, res) {
+  const businessDate = normalizeBusinessDate(req.body?.date || req.query?.date);
+  const existing = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
+  if (existing) {
+    return res.status(400).json({ error: existing.status === 'OPEN' ? 'La caja ya está abierta para esta fecha' : 'La caja de esta fecha ya fue cerrada' });
+  }
+
+  const openedAt = now();
+  const openingSnapshot = await buildAccountSnapshot(req.companyId, openedAt);
+  const sessionDoc = await CashSession.create({
+    companyId: req.companyId,
+    businessDate,
+    status: 'OPEN',
+    openedAt,
+    openingSnapshot,
+    closingSnapshot: [],
+    reportRows: [],
+    totals: {
+      initialBalance: openingSnapshot.reduce((sum, row) => sum + Number(row.balance || 0), 0),
+      income: 0,
+      expense: 0,
+      currentBalance: openingSnapshot.reduce((sum, row) => sum + Number(row.balance || 0), 0),
+      deletedIncomeAdjustments: 0,
+      deletedExpenseAdjustments: 0
+    }
+  });
+
+  const report = await buildCashSessionReport(sessionDoc.toObject(), { closingSnapshot: openingSnapshot, reportEnd: openedAt });
+  await publishCashSessionUpdate(req.companyId, { businessDate, status: 'OPEN' });
+  res.json({ ok: true, session: sessionDoc, report });
+}
+
+export async function closeCashSession(req, res) {
+  const businessDate = normalizeBusinessDate(req.body?.date || req.query?.date);
+  const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate });
+  if (!sessionDoc) {
+    return res.status(404).json({ error: 'No hay una apertura de caja para esta fecha' });
+  }
+  if (sessionDoc.status === 'CLOSED') {
+    return res.status(400).json({ error: 'La caja de esta fecha ya fue cerrada' });
+  }
+
+  const closedAt = now();
+  const closingSnapshot = await buildAccountSnapshot(req.companyId, closedAt);
+  const report = await buildCashSessionReport({
+    ...sessionDoc.toObject(),
+    status: 'CLOSED',
+    closedAt,
+    closingSnapshot
+  }, {
+    closingSnapshot,
+    reportEnd: closedAt
+  });
+
+  sessionDoc.status = 'CLOSED';
+  sessionDoc.closedAt = closedAt;
+  sessionDoc.closingSnapshot = closingSnapshot;
+  sessionDoc.reportRows = report.rows;
+  sessionDoc.totals = report.totals;
+  await sessionDoc.save();
+
+  await publishCashSessionUpdate(req.companyId, { businessDate, status: 'CLOSED' });
+  res.json({ ok: true, session: sessionDoc, report });
+}
+
+export async function getCashSessionReport(req, res) {
+  const businessDate = normalizeBusinessDate(req.query?.date);
+  const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
+  if (!sessionDoc) {
+    return res.status(404).json({ error: 'No existe una sesión de caja para esta fecha' });
+  }
+
+  const report = await buildCashSessionReport(sessionDoc);
+  res.json(report);
 }
 
 export async function listAccounts(req, res) {
@@ -443,8 +725,10 @@ export async function deleteEntry(req, res){
     return res.status(400).json({ error: 'Los movimientos de transferencia no se eliminan manualmente' });
   }
   const accId = entry.accountId;
+  await recordDeletedEntryAudit(req.companyId, entry);
   await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
   await recomputeAccountBalances(req.companyId, accId);
+  await publishCashSessionUpdate(req.companyId, { businessDate: normalizeBusinessDate(now()), status: 'UPDATED' });
   
   // Publicar evento de actualización en vivo
   try {
