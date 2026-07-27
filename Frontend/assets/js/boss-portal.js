@@ -1,4 +1,5 @@
 import BossAPI from './boss-api.js';
+import { formatDate as formatUtcDate } from './dateTime.js';
 
 const THEME_KEY = 'app:theme';
 
@@ -155,7 +156,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  return new Date(value || Date.now()).toLocaleString('es-CO', {
+  return formatUtcDate(value || Date.now(), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
