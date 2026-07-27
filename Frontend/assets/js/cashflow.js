@@ -282,7 +282,7 @@ function getCashSessionReportUrl(dateValue) {
     month: '2-digit',
     day: '2-digit'
   }).split('/').reverse().join('-');
-  return `cashflow-daily-report.html?date=${encodeURIComponent(isoDate)}&layoutVersion=20260727b`;
+  return `cashflow-daily-report.html?date=${encodeURIComponent(isoDate)}&layoutVersion=20260727c`;
 }
 
 function openCashSessionReportTab(dateValue, preOpenedWindow = null) {

@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reporte Diario de Caja</title>
-  <link rel="stylesheet" href="./assets/ui.css?v=20260727b" />
-  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260727b" />
+  <link rel="stylesheet" href="./assets/ui.css?v=20260727c" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260727c" />
   <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
   <style>
@@ -24,6 +24,16 @@
       flex-direction: column;
       min-height: max(calc(100vh - 2rem), 1280px) !important;
       background: linear-gradient(180deg, #ffffff 0%, #f8fbff 55%, #eef7ff 100%) !important;
+    }
+
+    .account-report-page .account-metric-card {
+      min-height: 150px;
+    }
+
+    .account-report-page .account-meta-line {
+      display: block;
+      font-size: 1rem;
+      line-height: 1.9;
     }
 
     @media print {
@@ -123,6 +133,6 @@
     <section id="report-accounts" class="space-y-8"></section>
   </main>
 
-  <script type="module" src="./assets/js/cashflow-daily-report.js?v=20260727b" charset="utf-8"></script>
+  <script type="module" src="./assets/js/cashflow-daily-report.js?v=20260727c" charset="utf-8"></script>
 </body>
 </html>

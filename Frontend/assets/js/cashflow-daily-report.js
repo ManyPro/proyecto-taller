@@ -116,49 +116,49 @@ function renderAccounts(report) {
 
   listEl.innerHTML = rows.map((row) => `
     <article class="account-report-page rounded-2xl border border-sky-100 p-6 md:p-8 shadow-2xl overflow-hidden">
-      <div class="flex flex-col gap-5 flex-1">
+      <div class="flex flex-col gap-8 flex-1">
         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.22em] text-sky-700 font-semibold mb-2">Reporte por cuenta</p>
-            <h3 class="text-3xl font-extrabold text-slate-900">${escapeHtml(row.name)}</h3>
-            <p class="mt-2 text-sm uppercase tracking-wide text-slate-500">${escapeHtml(row.type || 'Cuenta')}</p>
+            <h3 class="text-4xl md:text-5xl font-extrabold text-slate-900">${escapeHtml(row.name)}</h3>
+            <p class="mt-3 text-base uppercase tracking-wide text-slate-500">${escapeHtml(row.type || 'Cuenta')}</p>
           </div>
-          <div class="rounded-2xl border border-sky-100 bg-white/90 px-5 py-4 shadow-sm">
-            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Saldo actual</div>
-            <div class="mt-2 text-3xl font-extrabold text-slate-900">${money(row.currentBalance || 0)}</div>
-          </div>
-        </div>
-
-        <div class="rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 shadow-sm">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
-            <p><span class="font-semibold text-slate-800">${companyName}</span></p>
-            <p><span class="font-semibold text-slate-800">Fecha:</span> ${reportDate}</p>
-            <p><span class="font-semibold text-slate-800">Apertura:</span> ${openedAt}</p>
-            <p><span class="font-semibold text-slate-800">Cierre:</span> ${closedAt}</p>
+          <div class="rounded-2xl border border-sky-100 bg-white/90 px-6 py-6 shadow-sm">
+            <div class="text-sm uppercase tracking-wide text-slate-500 font-semibold">Saldo actual</div>
+            <div class="mt-3 text-4xl md:text-5xl font-extrabold text-slate-900">${money(row.currentBalance || 0)}</div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 content-start">
-          <div class="rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
-            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Saldo inicial</div>
-            <div class="mt-3 text-3xl font-extrabold text-slate-900">${money(row.openingBalance || 0)}</div>
-          </div>
-          <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-6 shadow-sm">
-            <div class="text-xs uppercase tracking-wide text-emerald-700 font-semibold">Ingresos</div>
-            <div class="mt-3 text-3xl font-extrabold text-emerald-700">${money(row.income || 0)}</div>
-          </div>
-          <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 shadow-sm">
-            <div class="text-xs uppercase tracking-wide text-rose-700 font-semibold">Salidas (egresos)</div>
-            <div class="mt-3 text-3xl font-extrabold text-rose-700">${money(row.expense || 0)}</div>
-          </div>
-          <div class="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-6 shadow-sm">
-            <div class="text-xs uppercase tracking-wide text-sky-700 font-semibold">Saldo final</div>
-            <div class="mt-3 text-3xl font-extrabold text-sky-700">${money(row.currentBalance || 0)}</div>
+        <div class="rounded-2xl border border-slate-200 bg-white/90 px-6 py-5 shadow-sm">
+          <div class="space-y-1 text-slate-600">
+            <p class="account-meta-line"><span class="font-semibold text-slate-800">${companyName}</span></p>
+            <p class="account-meta-line"><span class="font-semibold text-slate-800">Fecha:</span> ${reportDate}</p>
+            <p class="account-meta-line"><span class="font-semibold text-slate-800">Apertura:</span> ${openedAt}</p>
+            <p class="account-meta-line"><span class="font-semibold text-slate-800">Cierre:</span> ${closedAt}</p>
           </div>
         </div>
 
-        <div class="mt-auto rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 shadow-sm">
-          <p class="text-sm leading-6 text-slate-600">
+        <div class="grid grid-cols-1 gap-5 flex-1 content-start">
+          <div class="account-metric-card rounded-2xl border border-slate-200 bg-white px-6 py-7 shadow-sm flex flex-col justify-center">
+            <div class="text-sm uppercase tracking-wide text-slate-500 font-semibold">Saldo inicial</div>
+            <div class="mt-4 text-4xl md:text-5xl font-extrabold text-slate-900">${money(row.openingBalance || 0)}</div>
+          </div>
+          <div class="account-metric-card rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-7 shadow-sm flex flex-col justify-center">
+            <div class="text-sm uppercase tracking-wide text-emerald-700 font-semibold">Ingresos</div>
+            <div class="mt-4 text-4xl md:text-5xl font-extrabold text-emerald-700">${money(row.income || 0)}</div>
+          </div>
+          <div class="account-metric-card rounded-2xl border border-rose-200 bg-rose-50 px-6 py-7 shadow-sm flex flex-col justify-center">
+            <div class="text-sm uppercase tracking-wide text-rose-700 font-semibold">Salidas (egresos)</div>
+            <div class="mt-4 text-4xl md:text-5xl font-extrabold text-rose-700">${money(row.expense || 0)}</div>
+          </div>
+          <div class="account-metric-card rounded-2xl border border-sky-200 bg-sky-50 px-6 py-7 shadow-sm flex flex-col justify-center">
+            <div class="text-sm uppercase tracking-wide text-sky-700 font-semibold">Saldo final</div>
+            <div class="mt-4 text-4xl md:text-5xl font-extrabold text-sky-700">${money(row.currentBalance || 0)}</div>
+          </div>
+        </div>
+
+        <div class="mt-auto rounded-2xl border border-slate-200 bg-white/90 px-6 py-5 shadow-sm">
+          <p class="text-base leading-7 text-slate-600">
             Este reporte individual resume el comportamiento de la cuenta <span class="font-semibold text-slate-800">${escapeHtml(row.name)}</span> durante el cierre del día, con el mismo criterio de apertura, ingresos, egresos y saldo final del reporte general.
           </p>
         </div>
