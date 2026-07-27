@@ -105,17 +105,7 @@
       color: #ffffff !important;
       border-color: rgba(34, 197, 94, 0.45) !important;
     }
-    body[data-page="cashflow"] #cf-session-open {
-      background: linear-gradient(90deg, #16a34a, #15803d) !important;
-      color: #ffffff !important;
-      border-color: rgba(34, 197, 94, 0.45) !important;
-    }
     body[data-page="cashflow"] #cf-new-expense {
-      background: linear-gradient(90deg, #dc2626, #be123c) !important;
-      color: #ffffff !important;
-      border-color: rgba(244, 63, 94, 0.45) !important;
-    }
-    body[data-page="cashflow"] #cf-session-close {
       background: linear-gradient(90deg, #dc2626, #be123c) !important;
       color: #ffffff !important;
       border-color: rgba(244, 63, 94, 0.45) !important;
@@ -133,9 +123,7 @@
     body[data-page="cashflow"] #cf-add-account,
     body[data-page="cashflow"] #cf-bill-counter,
     body[data-page="cashflow"] #cf-new-entry,
-    body[data-page="cashflow"] #cf-session-open,
     body[data-page="cashflow"] #cf-new-expense,
-    body[data-page="cashflow"] #cf-session-close,
     body[data-page="cashflow"] #cf-new-loan {
       text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
       font-weight: 700 !important;
@@ -143,9 +131,7 @@
     body[data-page="cashflow"] #cf-add-account:disabled,
     body[data-page="cashflow"] #cf-bill-counter:disabled,
     body[data-page="cashflow"] #cf-new-entry:disabled,
-    body[data-page="cashflow"] #cf-session-open:disabled,
     body[data-page="cashflow"] #cf-new-expense:disabled,
-    body[data-page="cashflow"] #cf-session-close:disabled,
     body[data-page="cashflow"] #cf-new-loan:disabled {
       background: linear-gradient(90deg, #475569, #334155) !important;
       color: #e2e8f0 !important;
@@ -163,7 +149,6 @@
     body[data-page="cashflow"] #modal #edit-mov-save,
     body[data-page="cashflow"] #modal #settle-submit,
     body[data-page="cashflow"] #modal #bill-action-save,
-    body[data-page="cashflow"] #modal #cf-close-session-confirm,
     body[data-page="cashflow"] #modal #bill-counter-entry,
     body[data-page="cashflow"] #modal #bill-counter-expense {
       background: linear-gradient(90deg, #2563eb, #1d4ed8) !important;
@@ -178,7 +163,6 @@
     body[data-page="cashflow"] #modal #edit-mov-save:hover,
     body[data-page="cashflow"] #modal #settle-submit:hover,
     body[data-page="cashflow"] #modal #bill-action-save:hover,
-    body[data-page="cashflow"] #modal #cf-close-session-confirm:hover,
     body[data-page="cashflow"] #modal #bill-counter-entry:hover,
     body[data-page="cashflow"] #modal #bill-counter-expense:hover {
       filter: brightness(1.06);
@@ -197,10 +181,6 @@
       background: linear-gradient(90deg, #16a34a, #15803d) !important;
       border-color: rgba(34, 197, 94, 0.45) !important;
     }
-    body[data-page="cashflow"] #modal #cf-close-session-confirm {
-      background: linear-gradient(90deg, #dc2626, #be123c) !important;
-      border-color: rgba(244, 63, 94, 0.45) !important;
-    }
     body[data-page="cashflow"] #modal #nloan-save {
       background: linear-gradient(90deg, #7c3aed, #a21caf) !important;
       border-color: rgba(168, 85, 247, 0.45) !important;
@@ -211,7 +191,6 @@
     body[data-page="cashflow"] #modal #edit-mov-save:disabled,
     body[data-page="cashflow"] #modal #settle-submit:disabled,
     body[data-page="cashflow"] #modal #bill-action-save:disabled,
-    body[data-page="cashflow"] #modal #cf-close-session-confirm:disabled,
     body[data-page="cashflow"] #modal #bill-counter-entry:disabled,
     body[data-page="cashflow"] #modal #bill-counter-expense:disabled {
       background: linear-gradient(90deg, #475569, #334155) !important;
@@ -742,22 +721,6 @@
           <div class="rounded-2xl p-5 mb-6 border border-sky-600/30 dark:border-sky-600/30 theme-light:border-sky-200 bg-gradient-to-br from-sky-950/45 via-slate-900/45 to-indigo-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
             <h2 class="text-2xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span aria-hidden="true">💹</span> Flujo de Caja</h2>
             <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Controla cuentas, movimientos y préstamos con una vista clara y consistente.</p>
-          </div>
-
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-4">
-              <div>
-                <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">🧾</span> Caja del día</h3>
-                <p id="cf-session-status" class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 m-0">Sin apertura registrada para hoy.</p>
-                <p id="cf-session-meta" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2 mb-0">Abre la caja para comenzar el control diario.</p>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button id="cf-session-open" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-600 theme-light:to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Abrir caja</button>
-                <button id="cf-session-close" class="cf-main-btn px-4 py-2 bg-gradient-to-r from-rose-600 to-red-700 dark:from-rose-600 dark:to-red-700 theme-light:from-rose-600 theme-light:to-red-700 hover:from-rose-700 hover:to-red-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Cerrar caja</button>
-              </div>
-            </div>
-
-            <div id="cf-session-empty" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Todavía no hay una sesión diaria de caja abierta.</div>
           </div>
 
           <!-- Cuentas -->

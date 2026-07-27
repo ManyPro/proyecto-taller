@@ -166,31 +166,19 @@ export function formatDate(date, options = {}) {
   
   const dateObj = date instanceof Date ? date : new Date(date);
   if (isNaN(dateObj.getTime())) return '';
-
-  const {
-    locale = 'es-CO',
-    ...formatOptions
-  } = options || {};
-
-  const hasExplicitParts = [
-    'weekday',
-    'year',
-    'month',
-    'day',
-    'hour',
-    'minute',
-    'second'
-  ].some((key) => formatOptions[key] !== undefined);
-
-  if (!formatOptions.timeZone) {
-    formatOptions.timeZone = 'UTC';
-  }
-
-  if (!hasExplicitParts && !formatOptions.dateStyle && !formatOptions.timeStyle) {
-    formatOptions.dateStyle = 'short';
-  }
-
-  return new Intl.DateTimeFormat(locale, formatOptions).format(dateObj);
+  
+  const defaultOptions = {
+    locale: 'es-CO',
+    timeZone: 'UTC',
+    ...options
+  };
+  
+  return new Intl.DateTimeFormat(defaultOptions.locale, {
+    dateStyle: options.dateStyle || 'short',
+    timeStyle: options.timeStyle,
+    timeZone: 'UTC',
+    ...options
+  }).format(dateObj);
 }
 
 /**

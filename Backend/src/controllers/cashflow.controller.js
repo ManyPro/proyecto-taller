@@ -1,11 +1,8 @@
 import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
-import CashFlowDeletionLog from '../models/CashFlowDeletionLog.js';
-import CashSession from '../models/CashSession.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
-import PDFDocument from 'pdfkit';
-import { createDateRange, now, localToUTC, startOfDayUTC } from '../lib/dateTime.js';
+import { createDateRange, now, localToUTC } from '../lib/dateTime.js';
 import { publish } from '../lib/live.js';
 
 // Helpers
@@ -18,10 +15,6 @@ export async function ensureDefaultCashAccount(companyId) {
 }
 
 export async function computeBalance(accountId, companyId, options = {}) {
-  return computeBalanceAtDate(accountId, companyId, now(), options);
-}
-
-export async function computeBalanceAtDate(accountId, companyId, balanceDate = now(), options = {}) {
   const { session } = options;
   // Obtener balance inicial de la cuenta
   let accQuery = Account.findOne({ _id: accountId, companyId });
@@ -31,12 +24,13 @@ export async function computeBalanceAtDate(accountId, companyId, balanceDate = n
   
   // Calcular balance usando agregación MongoDB (más eficiente que cargar todas las entradas)
   // Esto asegura que las entradas con fecha futura no afecten el balance actual
+  const currentDate = now();
   let balanceAggQuery = CashFlowEntry.aggregate([
     {
       $match: {
         companyId: new mongoose.Types.ObjectId(companyId),
         accountId: new mongoose.Types.ObjectId(accountId),
-        date: { $lte: balanceDate } // Solo entradas hasta la fecha solicitada
+        date: { $lte: currentDate } // Solo entradas hasta la fecha actual
       }
     },
     {
@@ -62,409 +56,6 @@ export async function computeBalanceAtDate(accountId, companyId, balanceDate = n
   const balance = initialBalance + (totals.totalIn || 0) - (totals.totalOut || 0);
   
   return balance;
-}
-
-function normalizeBusinessDate(dateInput) {
-  return startOfDayUTC(dateInput || now()) || startOfDayUTC(now());
-}
-
-function snapshotToMap(snapshot = []) {
-  const map = new Map();
-  for (const item of snapshot) {
-    if (!item?.accountId) continue;
-    map.set(String(item.accountId), {
-      accountId: item.accountId,
-      name: item.name || '',
-      type: item.type || 'CASH',
-      balance: Number(item.balance || 0)
-    });
-  }
-  return map;
-}
-
-async function buildAccountSnapshot(companyId, balanceDate, options = {}) {
-  const { session } = options;
-  let accountsQuery = Account.find({ companyId }).sort({ createdAt: 1 }).lean();
-  if (session) accountsQuery = accountsQuery.session(session);
-  const accounts = await accountsQuery;
-  const snapshot = await Promise.all(accounts.map(async (acc) => ({
-    accountId: acc._id,
-    name: acc.name || '',
-    type: acc.type || 'CASH',
-    balance: await computeBalanceAtDate(acc._id, companyId, balanceDate, { session })
-  })));
-  return snapshot;
-}
-
-async function aggregateEntriesByAccount(companyId, startDate, endDate, options = {}) {
-  const { session } = options;
-  let query = CashFlowEntry.aggregate([
-    {
-      $match: {
-        companyId: new mongoose.Types.ObjectId(companyId),
-        date: { $gte: startDate, $lte: endDate }
-      }
-    },
-    {
-      $group: {
-        _id: '$accountId',
-        income: { $sum: { $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0] } },
-        expense: { $sum: { $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0] } }
-      }
-    }
-  ]);
-  if (session) query = query.session(session);
-  const rows = await query;
-  return new Map(rows.map((row) => [String(row._id), {
-    income: Number(row.income || 0),
-    expense: Number(row.expense || 0)
-  }]));
-}
-
-async function aggregateDeletionAdjustmentsByAccount(companyId, startDate, endDate, options = {}) {
-  const { session } = options;
-  let query = CashFlowDeletionLog.aggregate([
-    {
-      $match: {
-        companyId: new mongoose.Types.ObjectId(companyId),
-        deletedAt: { $gte: startDate, $lte: endDate }
-      }
-    },
-    {
-      $group: {
-        _id: '$accountId',
-        deletedIncome: {
-          $sum: {
-            $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0]
-          }
-        },
-        deletedExpense: {
-          $sum: {
-            $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0]
-          }
-        }
-      }
-    }
-  ]);
-  if (session) query = query.session(session);
-  const rows = await query;
-  return new Map(rows.map((row) => [String(row._id), {
-    deletedIncome: Number(row.deletedIncome || 0),
-    deletedExpense: Number(row.deletedExpense || 0)
-  }]));
-}
-
-async function buildCashSessionReport(sessionDoc, options = {}) {
-  if (!sessionDoc?.companyId || !sessionDoc?.openedAt) {
-    return { rows: [], totals: { initialBalance: 0, income: 0, expense: 0, currentBalance: 0, deletedIncomeAdjustments: 0, deletedExpenseAdjustments: 0 } };
-  }
-
-  const companyId = String(sessionDoc.companyId);
-  const reportEnd = options.reportEnd || sessionDoc.closedAt || now();
-  const openingSnapshot = Array.isArray(sessionDoc.openingSnapshot) ? sessionDoc.openingSnapshot : [];
-  const closingSnapshot = Array.isArray(options.closingSnapshot) && options.closingSnapshot.length
-    ? options.closingSnapshot
-    : (Array.isArray(sessionDoc.closingSnapshot) && sessionDoc.closingSnapshot.length
-      ? sessionDoc.closingSnapshot
-      : await buildAccountSnapshot(companyId, reportEnd));
-
-  const [movementsByAccount, deletionsByAccount] = await Promise.all([
-    aggregateEntriesByAccount(companyId, sessionDoc.openedAt, reportEnd),
-    aggregateDeletionAdjustmentsByAccount(companyId, sessionDoc.openedAt, reportEnd)
-  ]);
-
-  const openingMap = snapshotToMap(openingSnapshot);
-  const closingMap = snapshotToMap(closingSnapshot);
-  const accountIds = new Set([
-    ...openingMap.keys(),
-    ...closingMap.keys(),
-    ...movementsByAccount.keys(),
-    ...deletionsByAccount.keys()
-  ]);
-
-  const rows = Array.from(accountIds).map((accountId) => {
-    const opening = openingMap.get(accountId) || {};
-    const closing = closingMap.get(accountId) || opening;
-    const movement = movementsByAccount.get(accountId) || { income: 0, expense: 0 };
-    const deletion = deletionsByAccount.get(accountId) || { deletedIncome: 0, deletedExpense: 0 };
-
-    return {
-      accountId: closing.accountId || opening.accountId,
-      name: closing.name || opening.name || 'Cuenta',
-      type: closing.type || opening.type || 'CASH',
-      openingBalance: Number(opening.balance || 0),
-      income: Number(movement.income || 0) - Number(deletion.deletedIncome || 0),
-      expense: Number(movement.expense || 0) - Number(deletion.deletedExpense || 0),
-      currentBalance: Number(closing.balance || 0)
-    };
-  }).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
-
-  const totals = rows.reduce((acc, row) => {
-    acc.initialBalance += Number(row.openingBalance || 0);
-    acc.income += Number(row.income || 0);
-    acc.expense += Number(row.expense || 0);
-    acc.currentBalance += Number(row.currentBalance || 0);
-    return acc;
-  }, {
-    initialBalance: 0,
-    income: 0,
-    expense: 0,
-    currentBalance: 0,
-    deletedIncomeAdjustments: 0,
-    deletedExpenseAdjustments: 0
-  });
-
-  for (const deletion of deletionsByAccount.values()) {
-    totals.deletedIncomeAdjustments += Number(deletion.deletedIncome || 0);
-    totals.deletedExpenseAdjustments += Number(deletion.deletedExpense || 0);
-  }
-
-  return {
-    rows,
-    totals,
-    businessDate: sessionDoc.businessDate,
-    openedAt: sessionDoc.openedAt,
-    closedAt: sessionDoc.closedAt || null,
-    status: sessionDoc.status || 'OPEN'
-  };
-}
-
-async function publishCashSessionUpdate(companyId, payload = {}) {
-  try {
-    await publish(companyId, 'cashflow:updated', { type: 'session', ...payload });
-  } catch (e) {
-    // No fallar si no se puede publicar
-  }
-}
-
-async function recordDeletedEntryAudit(companyId, entry) {
-  if (!entry?._id || !entry?.accountId) return;
-  const deletedAt = now();
-  await CashFlowDeletionLog.create({
-    companyId,
-    entryId: entry._id,
-    accountId: entry.accountId,
-    businessDate: normalizeBusinessDate(deletedAt),
-    entryDate: entry.date || null,
-    deletedAt,
-    kind: entry.kind === 'OUT' ? 'OUT' : 'IN',
-    source: entry.source || 'MANUAL',
-    amount: Math.round(Number(entry.amount || 0)),
-    description: String(entry.description || '')
-  });
-}
-
-export async function getCashSession(req, res) {
-  const businessDate = normalizeBusinessDate(req.query?.date);
-  const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
-  if (!sessionDoc) {
-    return res.json({ session: null, report: null });
-  }
-
-  const report = await buildCashSessionReport(sessionDoc);
-  res.json({ session: sessionDoc, report });
-}
-
-export async function openCashSession(req, res) {
-  const businessDate = normalizeBusinessDate(req.body?.date || req.query?.date);
-  const existing = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
-  if (existing) {
-    return res.status(400).json({ error: existing.status === 'OPEN' ? 'La caja ya está abierta para esta fecha' : 'La caja de esta fecha ya fue cerrada' });
-  }
-
-  const openedAt = now();
-  const openingSnapshot = await buildAccountSnapshot(req.companyId, openedAt);
-  const sessionDoc = await CashSession.create({
-    companyId: req.companyId,
-    businessDate,
-    status: 'OPEN',
-    openedAt,
-    openingSnapshot,
-    closingSnapshot: [],
-    reportRows: [],
-    totals: {
-      initialBalance: openingSnapshot.reduce((sum, row) => sum + Number(row.balance || 0), 0),
-      income: 0,
-      expense: 0,
-      currentBalance: openingSnapshot.reduce((sum, row) => sum + Number(row.balance || 0), 0),
-      deletedIncomeAdjustments: 0,
-      deletedExpenseAdjustments: 0
-    }
-  });
-
-  const report = await buildCashSessionReport(sessionDoc.toObject(), { closingSnapshot: openingSnapshot, reportEnd: openedAt });
-  await publishCashSessionUpdate(req.companyId, { businessDate, status: 'OPEN' });
-  res.json({ ok: true, session: sessionDoc, report });
-}
-
-export async function closeCashSession(req, res) {
-  const businessDate = normalizeBusinessDate(req.body?.date || req.query?.date);
-  const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate });
-  if (!sessionDoc) {
-    return res.status(404).json({ error: 'No hay una apertura de caja para esta fecha' });
-  }
-  if (sessionDoc.status === 'CLOSED') {
-    return res.status(400).json({ error: 'La caja de esta fecha ya fue cerrada' });
-  }
-
-  const closedAt = now();
-  const closingSnapshot = await buildAccountSnapshot(req.companyId, closedAt);
-  const report = await buildCashSessionReport({
-    ...sessionDoc.toObject(),
-    status: 'CLOSED',
-    closedAt,
-    closingSnapshot
-  }, {
-    closingSnapshot,
-    reportEnd: closedAt
-  });
-
-  sessionDoc.status = 'CLOSED';
-  sessionDoc.closedAt = closedAt;
-  sessionDoc.closingSnapshot = closingSnapshot;
-  sessionDoc.reportRows = report.rows;
-  sessionDoc.totals = report.totals;
-  await sessionDoc.save();
-
-  await publishCashSessionUpdate(req.companyId, { businessDate, status: 'CLOSED' });
-  res.json({ ok: true, session: sessionDoc, report });
-}
-
-export async function getCashSessionReport(req, res) {
-  const businessDate = normalizeBusinessDate(req.query?.date);
-  const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
-  if (!sessionDoc) {
-    return res.status(404).json({ error: 'No existe una sesión de caja para esta fecha' });
-  }
-
-  const report = await buildCashSessionReport(sessionDoc);
-  res.json(report);
-}
-
-function formatCashflowMoney(value) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(Number(value || 0));
-}
-
-function drawCashflowMetricBox(doc, x, y, width, height, label, value, options = {}) {
-  const fillColor = options.fillColor || '#FFFFFF';
-  const valueColor = options.valueColor || '#0F172A';
-  doc.save();
-  doc.fillColor(fillColor).strokeColor('#E2E8F0').roundedRect(x, y, width, height, 8).fillAndStroke();
-  doc.fillColor('#64748B').font('Helvetica-Bold').fontSize(8).text(String(label || '').toUpperCase(), x + 10, y + 8, { width: width - 20 });
-  doc.fillColor(valueColor).font('Helvetica-Bold').fontSize(16).text(String(value || '$0'), x + 10, y + 22, { width: width - 20 });
-  doc.restore();
-}
-
-export async function downloadCashSessionReportPdf(req, res) {
-  try {
-    const businessDate = normalizeBusinessDate(req.query?.date);
-    const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
-    if (!sessionDoc) {
-      return res.status(404).json({ error: 'No existe una sesión de caja para esta fecha' });
-    }
-
-    const [report, company] = await Promise.all([
-      buildCashSessionReport(sessionDoc),
-      Company.findById(req.companyId).select('name').lean()
-    ]);
-
-    const filenameDate = String(businessDate.toISOString()).slice(0, 10);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="reporte-caja-${filenameDate}.pdf"`);
-
-    const doc = new PDFDocument({ size: 'A4', margin: 36 });
-    doc.pipe(res);
-
-    const pageWidth = doc.page.width;
-    const contentWidth = pageWidth - (doc.page.margins.left * 2);
-    const boxGap = 12;
-    const boxWidth = (contentWidth - boxGap) / 2;
-    const left = doc.page.margins.left;
-
-    doc.roundedRect(left, 28, contentWidth, 74, 12).fill('#0F172A');
-    doc.fillColor('#60A5FA').font('Helvetica-Bold').fontSize(9).text('REPORTE DIARIO', left + 18, 42);
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(24).text('Cierre de Caja', left + 18, 56);
-
-    const headerDetail = [
-      company?.name || 'Empresa',
-      `Fecha: ${new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(report.businessDate)}`,
-      `Apertura: ${new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(report.openedAt)}`,
-      report.closedAt ? `Cierre: ${new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(report.closedAt)}` : null
-    ].filter(Boolean).join('  |  ');
-    doc.fillColor('#CBD5E1').font('Helvetica').fontSize(8).text(headerDetail, left + 18, 82, {
-      width: contentWidth - 36
-    });
-
-    drawCashflowMetricBox(doc, left, 122, boxWidth, 48, 'Saldo inicial', formatCashflowMoney(report.totals?.initialBalance || 0));
-    drawCashflowMetricBox(doc, left + boxWidth + boxGap, 122, boxWidth, 48, 'Saldo actual', formatCashflowMoney(report.totals?.currentBalance || 0));
-    drawCashflowMetricBox(doc, left, 182, boxWidth, 48, 'Ingresos', formatCashflowMoney(report.totals?.income || 0), {
-      fillColor: '#ECFDF5',
-      valueColor: '#047857'
-    });
-    drawCashflowMetricBox(doc, left + boxWidth + boxGap, 182, boxWidth, 48, 'Salidas (egresos)', formatCashflowMoney(report.totals?.expense || 0), {
-      fillColor: '#FFF1F2',
-      valueColor: '#BE185D'
-    });
-
-    doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(11).text('Detalle por cuenta', left, 252);
-
-    const columns = [
-      { key: 'name', label: 'Cuenta', width: 120 },
-      { key: 'openingBalance', label: 'Saldo inicial', width: 92 },
-      { key: 'income', label: 'Ingresos', width: 92 },
-      { key: 'expense', label: 'Salidas', width: 92 },
-      { key: 'currentBalance', label: 'Saldo actual', width: 91 }
-    ];
-
-    let cursorY = 266;
-    doc.rect(left, cursorY, contentWidth, 18).fill('#0F172A');
-    let cursorX = left + 8;
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8);
-    for (const column of columns) {
-      doc.text(column.label, cursorX, cursorY + 6, { width: column.width - 8 });
-      cursorX += column.width;
-    }
-    cursorY += 20;
-
-    report.rows.forEach((row, index) => {
-      if (index % 2 === 0) {
-        doc.rect(left, cursorY - 4, contentWidth, 18).fill('#F8FAFC');
-      }
-      let rowX = left + 8;
-      doc.fillColor('#0F172A').font('Helvetica').fontSize(8);
-      doc.text(String(row.name || ''), rowX, cursorY + 1, { width: columns[0].width - 8 });
-      rowX += columns[0].width;
-      doc.text(formatCashflowMoney(row.openingBalance || 0), rowX, cursorY + 1, { width: columns[1].width - 8 });
-      rowX += columns[1].width;
-      doc.text(formatCashflowMoney(row.income || 0), rowX, cursorY + 1, { width: columns[2].width - 8 });
-      rowX += columns[2].width;
-      doc.text(formatCashflowMoney(row.expense || 0), rowX, cursorY + 1, { width: columns[3].width - 8 });
-      rowX += columns[3].width;
-      doc.text(formatCashflowMoney(row.currentBalance || 0), rowX, cursorY + 1, { width: columns[4].width - 8 });
-      cursorY += 18;
-    });
-
-    doc.rect(left, cursorY - 4, contentWidth, 18).fill('#E2E8F0');
-    doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(8);
-    doc.text('TOTAL', left + 8, cursorY + 1);
-    doc.text(formatCashflowMoney(report.totals?.initialBalance || 0), left + 128, cursorY + 1, { width: columns[1].width - 8 });
-    doc.text(formatCashflowMoney(report.totals?.income || 0), left + 220, cursorY + 1, { width: columns[2].width - 8 });
-    doc.text(formatCashflowMoney(report.totals?.expense || 0), left + 312, cursorY + 1, { width: columns[3].width - 8 });
-    doc.text(formatCashflowMoney(report.totals?.currentBalance || 0), left + 404, cursorY + 1, { width: columns[4].width - 8 });
-
-    doc.end();
-  } catch (error) {
-    console.error('[Cashflow PDF] Error generando PDF del reporte:', error);
-    if (!res.headersSent) {
-      return res.status(500).json({ error: 'No se pudo generar el PDF', message: error.message });
-    }
-    res.end();
-  }
 }
 
 export async function listAccounts(req, res) {
@@ -852,10 +443,8 @@ export async function deleteEntry(req, res){
     return res.status(400).json({ error: 'Los movimientos de transferencia no se eliminan manualmente' });
   }
   const accId = entry.accountId;
-  await recordDeletedEntryAudit(req.companyId, entry);
   await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
   await recomputeAccountBalances(req.companyId, accId);
-  await publishCashSessionUpdate(req.companyId, { businessDate: normalizeBusinessDate(now()), status: 'UPDATED' });
   
   // Publicar evento de actualización en vivo
   try {
