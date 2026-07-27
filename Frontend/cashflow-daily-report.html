@@ -14,11 +14,15 @@
     }
 
     .report-page {
-      min-height: calc(100vh - 2rem);
+      display: flex;
+      flex-direction: column;
+      min-height: max(calc(100vh - 2rem), 1040px);
     }
 
     .account-report-page {
-      min-height: calc(100vh - 2rem);
+      display: flex;
+      flex-direction: column;
+      min-height: max(calc(100vh - 2rem), 1040px);
       background: linear-gradient(180deg, #ffffff 0%, #f8fbff 55%, #f1f8ff 100%);
     }
 
@@ -64,7 +68,7 @@
   </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
-  <main class="max-w-[980px] mx-auto px-4 py-4 md:py-6 space-y-8">
+  <main class="max-w-[1180px] mx-auto px-4 py-4 md:py-6 space-y-8">
     <section class="report-page rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-slate-50 to-sky-100 shadow-2xl overflow-hidden">
       <div class="px-5 py-5 md:px-6 md:py-6 border-b border-slate-200">
         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -80,7 +84,7 @@
         </div>
       </div>
 
-      <div class="px-5 py-5 md:px-6 md:py-6 space-y-5">
+      <div class="px-5 py-5 md:px-6 md:py-6 space-y-5 flex-1 flex flex-col">
         <div id="report-error" class="hidden rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm"></div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -102,7 +106,7 @@
           </div>
         </div>
 
-        <section class="space-y-4">
+        <section class="space-y-4 mt-auto">
           <div class="flex items-center justify-between">
             <h2 class="text-lg md:text-xl font-bold text-slate-900">Resumen general</h2>
             <span id="accounts-count" class="text-xs font-medium text-slate-500">0 reportes individuales</span>

@@ -116,7 +116,7 @@ function renderAccounts(report) {
 
   listEl.innerHTML = rows.map((row) => `
     <article class="account-report-page rounded-2xl border border-sky-100 p-6 md:p-8 shadow-2xl overflow-hidden">
-      <div class="flex flex-col gap-5 h-full">
+      <div class="flex flex-col gap-5 flex-1">
         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.22em] text-sky-700 font-semibold mb-2">Reporte por cuenta</p>
