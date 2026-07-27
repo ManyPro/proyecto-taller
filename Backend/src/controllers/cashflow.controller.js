@@ -4,6 +4,7 @@ import CashFlowDeletionLog from '../models/CashFlowDeletionLog.js';
 import CashSession from '../models/CashSession.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
+import PDFDocument from 'pdfkit';
 import { createDateRange, now, localToUTC, startOfDayUTC } from '../lib/dateTime.js';
 import { publish } from '../lib/live.js';
 
@@ -338,6 +339,132 @@ export async function getCashSessionReport(req, res) {
 
   const report = await buildCashSessionReport(sessionDoc);
   res.json(report);
+}
+
+function formatCashflowMoney(value) {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(Number(value || 0));
+}
+
+function drawCashflowMetricBox(doc, x, y, width, height, label, value, options = {}) {
+  const fillColor = options.fillColor || '#FFFFFF';
+  const valueColor = options.valueColor || '#0F172A';
+  doc.save();
+  doc.fillColor(fillColor).strokeColor('#E2E8F0').roundedRect(x, y, width, height, 8).fillAndStroke();
+  doc.fillColor('#64748B').font('Helvetica-Bold').fontSize(8).text(String(label || '').toUpperCase(), x + 10, y + 8, { width: width - 20 });
+  doc.fillColor(valueColor).font('Helvetica-Bold').fontSize(16).text(String(value || '$0'), x + 10, y + 22, { width: width - 20 });
+  doc.restore();
+}
+
+export async function downloadCashSessionReportPdf(req, res) {
+  try {
+    const businessDate = normalizeBusinessDate(req.query?.date);
+    const sessionDoc = await CashSession.findOne({ companyId: req.companyId, businessDate }).lean();
+    if (!sessionDoc) {
+      return res.status(404).json({ error: 'No existe una sesión de caja para esta fecha' });
+    }
+
+    const [report, company] = await Promise.all([
+      buildCashSessionReport(sessionDoc),
+      Company.findById(req.companyId).select('name').lean()
+    ]);
+
+    const filenameDate = String(businessDate.toISOString()).slice(0, 10);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-caja-${filenameDate}.pdf"`);
+
+    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    doc.pipe(res);
+
+    const pageWidth = doc.page.width;
+    const contentWidth = pageWidth - (doc.page.margins.left * 2);
+    const boxGap = 12;
+    const boxWidth = (contentWidth - boxGap) / 2;
+    const left = doc.page.margins.left;
+
+    doc.roundedRect(left, 28, contentWidth, 74, 12).fill('#0F172A');
+    doc.fillColor('#60A5FA').font('Helvetica-Bold').fontSize(9).text('REPORTE DIARIO', left + 18, 42);
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(24).text('Cierre de Caja', left + 18, 56);
+
+    const headerDetail = [
+      company?.name || 'Empresa',
+      `Fecha: ${new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(report.businessDate)}`,
+      `Apertura: ${new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(report.openedAt)}`,
+      report.closedAt ? `Cierre: ${new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(report.closedAt)}` : null
+    ].filter(Boolean).join('  |  ');
+    doc.fillColor('#CBD5E1').font('Helvetica').fontSize(8).text(headerDetail, left + 18, 82, {
+      width: contentWidth - 36
+    });
+
+    drawCashflowMetricBox(doc, left, 122, boxWidth, 48, 'Saldo inicial', formatCashflowMoney(report.totals?.initialBalance || 0));
+    drawCashflowMetricBox(doc, left + boxWidth + boxGap, 122, boxWidth, 48, 'Saldo actual', formatCashflowMoney(report.totals?.currentBalance || 0));
+    drawCashflowMetricBox(doc, left, 182, boxWidth, 48, 'Ingresos', formatCashflowMoney(report.totals?.income || 0), {
+      fillColor: '#ECFDF5',
+      valueColor: '#047857'
+    });
+    drawCashflowMetricBox(doc, left + boxWidth + boxGap, 182, boxWidth, 48, 'Salidas (egresos)', formatCashflowMoney(report.totals?.expense || 0), {
+      fillColor: '#FFF1F2',
+      valueColor: '#BE185D'
+    });
+
+    doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(11).text('Detalle por cuenta', left, 252);
+
+    const columns = [
+      { key: 'name', label: 'Cuenta', width: 120 },
+      { key: 'openingBalance', label: 'Saldo inicial', width: 92 },
+      { key: 'income', label: 'Ingresos', width: 92 },
+      { key: 'expense', label: 'Salidas', width: 92 },
+      { key: 'currentBalance', label: 'Saldo actual', width: 91 }
+    ];
+
+    let cursorY = 266;
+    doc.rect(left, cursorY, contentWidth, 18).fill('#0F172A');
+    let cursorX = left + 8;
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8);
+    for (const column of columns) {
+      doc.text(column.label, cursorX, cursorY + 6, { width: column.width - 8 });
+      cursorX += column.width;
+    }
+    cursorY += 20;
+
+    report.rows.forEach((row, index) => {
+      if (index % 2 === 0) {
+        doc.rect(left, cursorY - 4, contentWidth, 18).fill('#F8FAFC');
+      }
+      let rowX = left + 8;
+      doc.fillColor('#0F172A').font('Helvetica').fontSize(8);
+      doc.text(String(row.name || ''), rowX, cursorY + 1, { width: columns[0].width - 8 });
+      rowX += columns[0].width;
+      doc.text(formatCashflowMoney(row.openingBalance || 0), rowX, cursorY + 1, { width: columns[1].width - 8 });
+      rowX += columns[1].width;
+      doc.text(formatCashflowMoney(row.income || 0), rowX, cursorY + 1, { width: columns[2].width - 8 });
+      rowX += columns[2].width;
+      doc.text(formatCashflowMoney(row.expense || 0), rowX, cursorY + 1, { width: columns[3].width - 8 });
+      rowX += columns[3].width;
+      doc.text(formatCashflowMoney(row.currentBalance || 0), rowX, cursorY + 1, { width: columns[4].width - 8 });
+      cursorY += 18;
+    });
+
+    doc.rect(left, cursorY - 4, contentWidth, 18).fill('#E2E8F0');
+    doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(8);
+    doc.text('TOTAL', left + 8, cursorY + 1);
+    doc.text(formatCashflowMoney(report.totals?.initialBalance || 0), left + 128, cursorY + 1, { width: columns[1].width - 8 });
+    doc.text(formatCashflowMoney(report.totals?.income || 0), left + 220, cursorY + 1, { width: columns[2].width - 8 });
+    doc.text(formatCashflowMoney(report.totals?.expense || 0), left + 312, cursorY + 1, { width: columns[3].width - 8 });
+    doc.text(formatCashflowMoney(report.totals?.currentBalance || 0), left + 404, cursorY + 1, { width: columns[4].width - 8 });
+
+    doc.end();
+  } catch (error) {
+    console.error('[Cashflow PDF] Error generando PDF del reporte:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'No se pudo generar el PDF', message: error.message });
+    }
+    res.end();
+  }
 }
 
 export async function listAccounts(req, res) {

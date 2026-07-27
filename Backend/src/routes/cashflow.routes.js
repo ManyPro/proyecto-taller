@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
-import { listAccounts, createAccount, updateAccount, deleteAccount, getBalances, recomputeAllBalances, getCashSession, openCashSession, closeCashSession, getCashSessionReport, listEntries, createEntry, createTransfer, updateEntry, deleteEntry } from '../controllers/cashflow.controller.js';
+import { listAccounts, createAccount, updateAccount, deleteAccount, getBalances, recomputeAllBalances, getCashSession, openCashSession, closeCashSession, getCashSessionReport, downloadCashSessionReportPdf, listEntries, createEntry, createTransfer, updateEntry, deleteEntry } from '../controllers/cashflow.controller.js';
 import { createLoan, listLoans, getPendingLoans, updateLoan, deleteLoan, settleLoan } from '../controllers/employeeLoan.controller.js';
 
 const router = Router();
@@ -30,6 +30,7 @@ router.get('/session', getCashSession);
 router.post('/session/open', openCashSession);
 router.post('/session/close', closeCashSession);
 router.get('/session/report', getCashSessionReport);
+router.get('/session/report/pdf', downloadCashSessionReportPdf);
 
 // Entries
 router.get('/entries', listEntries);
