@@ -171,6 +171,62 @@ function drawMetricBox(doc, x, y, w, h, label, value, valueColor = [15, 23, 42],
   doc.text(String(value || '$0'), x + 4, y + 14);
 }
 
+function drawFallbackTable(doc, startY, margin, contentWidth, rows, totals) {
+  const columns = [
+    { key: 'name', label: 'Cuenta', width: 44 },
+    { key: 'openingBalance', label: 'Saldo inicial', width: 34 },
+    { key: 'income', label: 'Ingresos', width: 34 },
+    { key: 'expense', label: 'Salidas (egresos)', width: 38 },
+    { key: 'currentBalance', label: 'Saldo actual', width: 36 }
+  ];
+
+  let cursorY = startY;
+  doc.setFillColor(15, 23, 42);
+  doc.rect(margin, cursorY, contentWidth, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+
+  let cursorX = margin + 2;
+  for (const column of columns) {
+    doc.text(column.label, cursorX, cursorY + 5);
+    cursorX += column.width;
+  }
+
+  cursorY += 10;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(15, 23, 42);
+
+  rows.forEach((row, index) => {
+    if (index % 2 === 0) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, cursorY - 2.5, contentWidth, 8, 'F');
+    }
+
+    let rowX = margin + 2;
+    doc.text(String(row.name || ''), rowX, cursorY + 2);
+    rowX += columns[0].width;
+    doc.text(money(row.openingBalance || 0), rowX, cursorY + 2);
+    rowX += columns[1].width;
+    doc.text(money(row.income || 0), rowX, cursorY + 2);
+    rowX += columns[2].width;
+    doc.text(money(row.expense || 0), rowX, cursorY + 2);
+    rowX += columns[3].width;
+    doc.text(money(row.currentBalance || 0), rowX, cursorY + 2);
+
+    cursorY += 8;
+  });
+
+  doc.setFillColor(226, 232, 240);
+  doc.rect(margin, cursorY - 2.5, contentWidth, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL', margin + 2, cursorY + 2);
+  doc.text(money(totals?.initialBalance || 0), margin + 46, cursorY + 2);
+  doc.text(money(totals?.income || 0), margin + 80, cursorY + 2);
+  doc.text(money(totals?.expense || 0), margin + 114, cursorY + 2);
+  doc.text(money(totals?.currentBalance || 0), margin + 152, cursorY + 2);
+}
+
 function generatePdf() {
   const report = reportState.report;
   if (!report) {
@@ -178,98 +234,108 @@ function generatePdf() {
     return;
   }
 
-  const jsPDFCtor = window.jspdf?.jsPDF;
+  const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
   if (!jsPDFCtor) {
     showError('No se pudo cargar la librería de PDF.');
     return;
   }
 
-  const doc = new jsPDFCtor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 12;
-  const contentWidth = pageWidth - (margin * 2);
+  try {
+    hideError();
+    const doc = new jsPDFCtor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 12;
+    const contentWidth = pageWidth - (margin * 2);
 
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(margin, 12, contentWidth, 28, 4, 4, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(96, 165, 250);
-  doc.text('REPORTE DIARIO', margin + 5, 20);
-  doc.setFontSize(20);
-  doc.setTextColor(255, 255, 255);
-  doc.text('Cierre de Caja', margin + 5, 30);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(203, 213, 225);
-  const headerDetail = [
-    reportState.companyName || 'Empresa',
-    `Fecha: ${formatDateLabel(report.businessDate)}`,
-    `Apertura: ${formatDateTimeLabel(report.openedAt)}`,
-    report.closedAt ? `Cierre: ${formatDateTimeLabel(report.closedAt)}` : null
-  ].filter(Boolean).join('  |  ');
-  doc.text(headerDetail, margin + 5, 36);
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(margin, 12, contentWidth, 28, 4, 4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(96, 165, 250);
+    doc.text('REPORTE DIARIO', margin + 5, 20);
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Cierre de Caja', margin + 5, 30);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(203, 213, 225);
+    const headerDetail = [
+      reportState.companyName || 'Empresa',
+      `Fecha: ${formatDateLabel(report.businessDate)}`,
+      `Apertura: ${formatDateTimeLabel(report.openedAt)}`,
+      report.closedAt ? `Cierre: ${formatDateTimeLabel(report.closedAt)}` : null
+    ].filter(Boolean).join('  |  ');
+    doc.text(headerDetail, margin + 5, 36);
 
-  const boxGap = 4;
-  const boxWidth = (contentWidth - boxGap) / 2;
-  drawMetricBox(doc, margin, 48, boxWidth, 20, 'Saldo inicial', money(report.totals?.initialBalance || 0));
-  drawMetricBox(doc, margin + boxWidth + boxGap, 48, boxWidth, 20, 'Saldo actual', money(report.totals?.currentBalance || 0));
-  drawMetricBox(doc, margin, 72, boxWidth, 20, 'Ingresos', money(report.totals?.income || 0), [4, 120, 87], [236, 253, 245]);
-  drawMetricBox(doc, margin + boxWidth + boxGap, 72, boxWidth, 20, 'Salidas (egresos)', money(report.totals?.expense || 0), [190, 24, 93], [255, 241, 242]);
+    const boxGap = 4;
+    const boxWidth = (contentWidth - boxGap) / 2;
+    drawMetricBox(doc, margin, 48, boxWidth, 20, 'Saldo inicial', money(report.totals?.initialBalance || 0));
+    drawMetricBox(doc, margin + boxWidth + boxGap, 48, boxWidth, 20, 'Saldo actual', money(report.totals?.currentBalance || 0));
+    drawMetricBox(doc, margin, 72, boxWidth, 20, 'Ingresos', money(report.totals?.income || 0), [4, 120, 87], [236, 253, 245]);
+    drawMetricBox(doc, margin + boxWidth + boxGap, 72, boxWidth, 20, 'Salidas (egresos)', money(report.totals?.expense || 0), [190, 24, 93], [255, 241, 242]);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Detalle por cuenta', margin, 102);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Detalle por cuenta', margin, 102);
 
-  doc.autoTable({
-    startY: 106,
-    margin: { left: margin, right: margin },
-    tableWidth: contentWidth,
-    styles: {
-      font: 'helvetica',
-      fontSize: 8,
-      cellPadding: 2.5,
-      lineColor: [226, 232, 240],
-      lineWidth: 0.2,
-      textColor: [15, 23, 42]
-    },
-    headStyles: {
-      fillColor: [15, 23, 42],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold'
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252]
-    },
-    body: (report.rows || []).map((row) => ([
-      row.name || '',
-      money(row.openingBalance || 0),
-      money(row.income || 0),
-      money(row.expense || 0),
-      money(row.currentBalance || 0)
-    ])),
-    foot: [[
-      'TOTAL',
-      money(report.totals?.initialBalance || 0),
-      money(report.totals?.income || 0),
-      money(report.totals?.expense || 0),
-      money(report.totals?.currentBalance || 0)
-    ]],
-    footStyles: {
-      fillColor: [226, 232, 240],
-      textColor: [15, 23, 42],
-      fontStyle: 'bold'
-    },
-    head: [[
-      'Cuenta',
-      'Saldo inicial',
-      'Ingresos',
-      'Salidas (egresos)',
-      'Saldo actual'
-    ]]
-  });
+    if (typeof doc.autoTable === 'function') {
+      doc.autoTable({
+        startY: 106,
+        margin: { left: margin, right: margin },
+        tableWidth: contentWidth,
+        styles: {
+          font: 'helvetica',
+          fontSize: 8,
+          cellPadding: 2.5,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.2,
+          textColor: [15, 23, 42]
+        },
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        body: (report.rows || []).map((row) => ([
+          row.name || '',
+          money(row.openingBalance || 0),
+          money(row.income || 0),
+          money(row.expense || 0),
+          money(row.currentBalance || 0)
+        ])),
+        foot: [[
+          'TOTAL',
+          money(report.totals?.initialBalance || 0),
+          money(report.totals?.income || 0),
+          money(report.totals?.expense || 0),
+          money(report.totals?.currentBalance || 0)
+        ]],
+        footStyles: {
+          fillColor: [226, 232, 240],
+          textColor: [15, 23, 42],
+          fontStyle: 'bold'
+        },
+        head: [[
+          'Cuenta',
+          'Saldo inicial',
+          'Ingresos',
+          'Salidas (egresos)',
+          'Saldo actual'
+        ]]
+      });
+    } else {
+      drawFallbackTable(doc, 106, margin, contentWidth, report.rows || [], report.totals || {});
+    }
 
-  doc.save(`reporte-caja-${getRequestedDate()}.pdf`);
+    doc.save(`reporte-caja-${getRequestedDate()}.pdf`);
+  } catch (error) {
+    console.error('[Cashflow PDF] Error generando PDF:', error);
+    showError(error?.message || 'No se pudo generar el PDF del cierre.');
+  }
 }
 
 function bindActions() {
