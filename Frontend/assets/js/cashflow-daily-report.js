@@ -99,10 +99,12 @@ function renderSummary(report, companyName) {
 function renderAccounts(report) {
   const listEl = document.getElementById('report-accounts');
   const countEl = document.getElementById('accounts-count');
+  const countHeroEl = document.getElementById('accounts-count-hero');
   if (!listEl) return;
 
   const rows = Array.isArray(report?.rows) ? report.rows : [];
   if (countEl) countEl.textContent = `${rows.length} reporte${rows.length === 1 ? '' : 's'} individual${rows.length === 1 ? '' : 'es'}`;
+  if (countHeroEl) countHeroEl.textContent = String(rows.length || 0);
 
   if (!rows.length) {
     listEl.innerHTML = '<div class="report-page rounded-2xl border border-slate-200 bg-white px-6 py-8 text-sm text-slate-500 shadow-sm">No hay datos disponibles para este cierre.</div>';

@@ -36,6 +36,10 @@
       line-height: 1.9;
     }
 
+    .summary-metric-card {
+      min-height: 220px;
+    }
+
     @media print {
       body {
         background: #ffffff !important;
@@ -94,37 +98,50 @@
         </div>
       </div>
 
-      <div class="px-5 py-5 md:px-6 md:py-6 space-y-5 flex-1 flex flex-col">
+      <div class="px-5 py-5 md:px-6 md:py-6 gap-5 flex-1 flex flex-col">
         <div id="report-error" class="hidden rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm"></div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-lg">
-            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Saldo inicial</div>
-            <div id="summary-initial" class="mt-2 text-2xl font-extrabold text-slate-900">$0</div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 auto-rows-fr">
+          <div class="summary-metric-card rounded-2xl bg-white border border-slate-200 p-6 shadow-lg flex flex-col justify-between">
+            <div class="text-sm uppercase tracking-wide text-slate-500 font-semibold">Saldo inicial</div>
+            <div id="summary-initial" class="mt-4 text-4xl md:text-5xl font-extrabold text-slate-900">$0</div>
           </div>
-          <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-lg">
-            <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Saldo actual</div>
-            <div id="summary-current" class="mt-2 text-2xl font-extrabold text-slate-900">$0</div>
+          <div class="summary-metric-card rounded-2xl bg-white border border-slate-200 p-6 shadow-lg flex flex-col justify-between">
+            <div class="text-sm uppercase tracking-wide text-slate-500 font-semibold">Saldo actual</div>
+            <div id="summary-current" class="mt-4 text-4xl md:text-5xl font-extrabold text-slate-900">$0</div>
           </div>
-          <div class="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 shadow-lg">
-            <div class="text-xs uppercase tracking-wide text-emerald-700 font-semibold">Ingresos</div>
-            <div id="summary-income" class="mt-2 text-2xl font-extrabold text-emerald-700">$0</div>
+          <div class="summary-metric-card rounded-2xl bg-emerald-50 border border-emerald-200 p-6 shadow-lg flex flex-col justify-between">
+            <div class="text-sm uppercase tracking-wide text-emerald-700 font-semibold">Ingresos</div>
+            <div id="summary-income" class="mt-4 text-4xl md:text-5xl font-extrabold text-emerald-700">$0</div>
           </div>
-          <div class="rounded-2xl bg-rose-50 border border-rose-200 p-4 shadow-lg">
-            <div class="text-xs uppercase tracking-wide text-rose-700 font-semibold">Salidas (egresos)</div>
-            <div id="summary-expense" class="mt-2 text-2xl font-extrabold text-rose-700">$0</div>
+          <div class="summary-metric-card rounded-2xl bg-rose-50 border border-rose-200 p-6 shadow-lg flex flex-col justify-between">
+            <div class="text-sm uppercase tracking-wide text-rose-700 font-semibold">Salidas (egresos)</div>
+            <div id="summary-expense" class="mt-4 text-4xl md:text-5xl font-extrabold text-rose-700">$0</div>
           </div>
         </div>
 
-        <section class="space-y-4 mt-auto">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg md:text-xl font-bold text-slate-900">Resumen general</h2>
-            <span id="accounts-count" class="text-xs font-medium text-slate-500">0 reportes individuales</span>
-          </div>
-          <div class="rounded-2xl border border-slate-200 bg-white/90 px-5 py-5 shadow-sm">
-            <p class="text-sm text-slate-600 leading-6">
-              A continuación encontrarás una página completa para cada cuenta, con sus saldos e indicadores del cierre diario listos para revisar o exportar.
+        <section class="grid grid-cols-1 lg:grid-cols-[1.7fr,1fr] gap-5">
+          <div class="rounded-2xl border border-slate-200 bg-white/90 px-6 py-6 shadow-sm min-h-[220px] flex flex-col justify-center">
+            <h2 class="text-2xl font-bold text-slate-900">Resumen general</h2>
+            <p class="mt-4 text-base text-slate-600 leading-8">
+              Este bloque resume el comportamiento total del cierre del día. Debajo encontrarás una página completa por cada cuenta con sus saldos e indicadores individuales, lista para revisar, presentar o exportar.
             </p>
+          </div>
+          <div class="rounded-2xl border border-sky-100 bg-sky-50/80 px-6 py-6 shadow-sm min-h-[220px] flex flex-col justify-between">
+            <div>
+              <div class="text-sm uppercase tracking-wide text-sky-700 font-semibold">Reportes individuales</div>
+              <div id="accounts-count-hero" class="mt-4 text-4xl md:text-5xl font-extrabold text-slate-900">0</div>
+            </div>
+            <p class="text-base text-slate-600 leading-7">
+              Cada cuenta queda detallada en su propia página para aprovechar mejor el espacio visual del reporte.
+            </p>
+          </div>
+        </section>
+
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg md:text-xl font-bold text-slate-900">Detalle por cuenta</h2>
+            <span id="accounts-count" class="text-xs font-medium text-slate-500">0 reportes individuales</span>
           </div>
         </section>
       </div>
