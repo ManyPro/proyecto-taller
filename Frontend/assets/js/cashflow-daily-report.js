@@ -344,6 +344,8 @@ function bindActions() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  window.generateCashflowPdf = generatePdf;
+  window.closeCashflowReportTab = () => window.close();
   bindActions();
   loadReport();
 });
