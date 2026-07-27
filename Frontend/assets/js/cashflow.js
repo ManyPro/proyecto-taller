@@ -294,6 +294,71 @@ function openCashSessionReportTab(dateValue, preOpenedWindow = null) {
   window.open(targetUrl, '_blank', 'noopener');
 }
 
+function confirmCloseCashSession() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modal');
+    const body = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+
+    if (!modal || !body) {
+      resolve(confirm('¿Cerrar la caja del día?'));
+      return;
+    }
+
+    const cleanup = () => {
+      modal.classList.add('hidden');
+      body.innerHTML = '';
+      if (modalClose) modalClose.onclick = null;
+      modal.onclick = null;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+
+    const cancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    const accept = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') cancel();
+    };
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="space-y-4">
+        <div class="rounded-2xl p-5 border border-rose-500/30 dark:border-rose-500/30 theme-light:border-rose-200 bg-gradient-to-br from-rose-950/35 via-slate-900/45 to-red-950/35 theme-light:from-rose-50 theme-light:via-white theme-light:to-red-50">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cerrar caja del día</h3>
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3 mb-0">Se generará el reporte final y se abrirá en una pestaña nueva lista para imprimir.</p>
+        </div>
+        <div class="rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-50 px-4 py-4">
+          <p class="text-sm text-white dark:text-white theme-light:text-slate-900 m-0">¿Quieres confirmar el cierre de la caja de hoy?</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button id="cf-close-session-confirm" class="cf-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-700 dark:from-rose-600 dark:to-red-700 theme-light:from-rose-600 theme-light:to-red-700 hover:from-rose-700 hover:to-red-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Sí, cerrar caja</button>
+          <button id="cf-close-session-cancel" class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Seguir revisando</button>
+        </div>
+      </div>
+    `;
+
+    body.innerHTML = '';
+    body.appendChild(wrapper);
+    modal.classList.remove('hidden');
+
+    modal.onclick = (event) => {
+      if (event.target === modal) cancel();
+    };
+    if (modalClose) modalClose.onclick = cancel;
+    document.addEventListener('keydown', onKeyDown);
+
+    wrapper.querySelector('#cf-close-session-confirm')?.addEventListener('click', accept);
+    wrapper.querySelector('#cf-close-session-cancel')?.addEventListener('click', cancel);
+  });
+}
+
 async function openCashSession() {
   if (cfSessionState.session) {
     showError('La caja de hoy ya está registrada');
@@ -326,7 +391,7 @@ async function closeCashSession() {
     showError('No hay una caja abierta para cerrar');
     return;
   }
-  if (!confirm('¿Cerrar la caja del día?')) return;
+  if (!(await confirmCloseCashSession())) return;
 
   const reportWindow = window.open('', '_blank', 'noopener');
   if (reportWindow && reportWindow.document) {
