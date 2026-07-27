@@ -207,17 +207,43 @@ function formatSessionDateTime(value) {
   });
 }
 
+function applyButtonVisualState(button, isActive, activeClasses = []) {
+  if (!button) return;
+  const classesToReset = [
+    'opacity-60',
+    'opacity-100',
+    'shadow-xl',
+    'ring-2',
+    'ring-emerald-300/60',
+    'ring-rose-300/60',
+    'animate-pulse'
+  ];
+
+  button.disabled = false;
+  button.classList.remove(...classesToReset);
+  button.classList.add(isActive ? 'opacity-100' : 'opacity-60');
+
+  if (isActive) {
+    button.classList.add('shadow-xl', 'animate-pulse', ...activeClasses);
+  }
+}
+
+function applyCashSessionButtonState(session) {
+  const openBtn = document.getElementById('cf-session-open');
+  const closeBtn = document.getElementById('cf-session-close');
+  const isOpen = !!session && session.status === 'OPEN';
+
+  applyButtonVisualState(openBtn, !isOpen, ['ring-2', 'ring-emerald-300/60']);
+  applyButtonVisualState(closeBtn, isOpen, ['ring-2', 'ring-rose-300/60']);
+}
+
 function renderCashSession(session, report) {
   cfSessionState = { session: session || null, report: report || null };
 
   const statusEl = document.getElementById('cf-session-status');
   const metaEl = document.getElementById('cf-session-meta');
   const emptyEl = document.getElementById('cf-session-empty');
-  const openBtn = document.getElementById('cf-session-open');
-  const closeBtn = document.getElementById('cf-session-close');
-
-  if (openBtn) openBtn.disabled = !!session;
-  if (closeBtn) closeBtn.disabled = !session || session.status !== 'OPEN';
+  applyCashSessionButtonState(session);
 
   if (!session) {
     if (statusEl) statusEl.textContent = 'Sin apertura registrada para hoy.';
@@ -246,6 +272,7 @@ async function loadCashSession() {
     if (statusEl) statusEl.textContent = 'No se pudo cargar la caja diaria.';
     if (metaEl) metaEl.textContent = e?.message || 'Error consultando el estado de la caja.';
     if (emptyEl) emptyEl.classList.remove('hidden');
+    applyCashSessionButtonState(null);
   }
 }
 
@@ -268,6 +295,11 @@ function openCashSessionReportTab(dateValue, preOpenedWindow = null) {
 }
 
 async function openCashSession() {
+  if (cfSessionState.session) {
+    showError('La caja de hoy ya está registrada');
+    return;
+  }
+
   const btn = document.getElementById('cf-session-open');
   const prev = btn?.textContent || 'Abrir caja';
   if (btn) {
@@ -285,7 +317,7 @@ async function openCashSession() {
     showError(e?.message || 'Error abriendo caja');
   } finally {
     if (btn) btn.textContent = prev;
-    if (btn && !cfSessionState.session) btn.disabled = false;
+    applyCashSessionButtonState(cfSessionState.session);
   }
 }
 
@@ -321,7 +353,7 @@ async function closeCashSession() {
     showError(e?.message || 'Error cerrando caja');
   } finally {
     if (btn) btn.textContent = prev;
-    if (btn) btn.disabled = !cfSessionState.session || cfSessionState.session.status !== 'OPEN';
+    applyCashSessionButtonState(cfSessionState.session);
   }
 }
 
