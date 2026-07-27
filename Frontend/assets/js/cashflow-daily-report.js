@@ -12,6 +12,16 @@ function getApiBase() {
   return window.BACKEND_URL || window.API_BASE || '';
 }
 
+function buildPdfUrl(reportDate) {
+  const token = API?.token?.get?.();
+  if (!token) return '';
+  const params = new URLSearchParams({
+    date: reportDate,
+    token
+  });
+  return `${getApiBase()}/api/v1/cashflow/session/report/pdf?${params.toString()}`;
+}
+
 function getRequestedDate() {
   const params = new URLSearchParams(window.location.search);
   return params.get('date') || formatUtcDate(Date.now(), {
@@ -170,8 +180,7 @@ async function generatePdf() {
 
   const button = document.getElementById('report-pdf');
   const reportDate = getRequestedDate();
-  const token = API?.token?.get?.();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const pdfUrl = buildPdfUrl(reportDate);
 
   try {
     hideError();
@@ -181,36 +190,16 @@ async function generatePdf() {
       button.classList.add('opacity-70', 'cursor-wait');
     }
 
-    const response = await fetch(`${getApiBase()}/api/v1/cashflow/session/report/pdf?date=${encodeURIComponent(reportDate)}`, {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-      credentials: 'omit'
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      let message = `HTTP ${response.status}`;
-      try {
-        const body = JSON.parse(text);
-        message = body?.message || body?.error || message;
-      } catch {
-        message = text || message;
-      }
-      throw new Error(message);
+    if (!pdfUrl) {
+      throw new Error('No se encontró la sesión activa para autenticar la descarga del PDF.');
     }
 
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte-caja-${reportDate}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+    const openedWindow = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    if (!openedWindow) {
+      window.location.assign(pdfUrl);
+    }
   } catch (error) {
-    console.error('[Cashflow PDF] Error descargando PDF:', error);
+    console.error('[Cashflow PDF] Error abriendo PDF:', error);
     showError(error?.message || 'No se pudo generar el PDF del cierre.');
   } finally {
     if (button) {

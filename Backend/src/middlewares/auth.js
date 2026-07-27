@@ -7,6 +7,14 @@ function parseBearer(req) {
   return scheme?.toLowerCase() === 'bearer' ? token : null;
 }
 
+function resolveAuthToken(req, options = {}) {
+  const bearerToken = parseBearer(req);
+  if (bearerToken) return bearerToken;
+  if (!options.allowQuery) return null;
+  const queryToken = typeof req.query?.token === 'string' ? req.query.token.trim() : '';
+  return queryToken || null;
+}
+
 export function authUser(req, res, next) {
   try {
     const token = parseBearer(req);
@@ -21,10 +29,11 @@ export function authUser(req, res, next) {
 
 export function authCompany(req, res, next) {
   try {
-    const token = parseBearer(req);
+    const allowQueryToken = req.method === 'GET' && req.path === '/session/report/pdf';
+    const token = resolveAuthToken(req, { allowQuery: allowQueryToken });
     if (!token) {
-      logger.warn('[authCompany] Missing Bearer token', { path: req.path, method: req.method });
-      return res.status(401).json({ error: 'Missing Bearer token' });
+      logger.warn('[authCompany] Missing auth token', { path: req.path, method: req.method });
+      return res.status(401).json({ error: 'Missing auth token' });
     }
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     if (payload?.kind === 'boss') {
