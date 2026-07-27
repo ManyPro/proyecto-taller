@@ -2,6 +2,11 @@ import { API } from './api.esm.js';
 import { formatDate as formatUtcDate } from './dateTime.js';
 
 const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const reportState = {
+  report: null,
+  companyName: '',
+  session: null
+};
 
 function getRequestedDate() {
   const params = new URLSearchParams(window.location.search);
@@ -142,6 +147,9 @@ async function loadReport() {
     }
 
     const companyName = me?.company?.name || me?.name || '';
+    reportState.report = report;
+    reportState.companyName = companyName;
+    reportState.session = session;
     renderSummary(report, companyName);
     renderAccounts(report);
   } catch (error) {
@@ -149,8 +157,123 @@ async function loadReport() {
   }
 }
 
+function drawMetricBox(doc, x, y, w, h, label, value, valueColor = [15, 23, 42], fillColor = [255, 255, 255]) {
+  doc.setFillColor(...fillColor);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(x, y, w, h, 3, 3, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text(String(label || '').toUpperCase(), x + 4, y + 6);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...valueColor);
+  doc.text(String(value || '$0'), x + 4, y + 14);
+}
+
+function generatePdf() {
+  const report = reportState.report;
+  if (!report) {
+    showError('Primero debe cargarse el reporte antes de generar el PDF.');
+    return;
+  }
+
+  const jsPDFCtor = window.jspdf?.jsPDF;
+  if (!jsPDFCtor) {
+    showError('No se pudo cargar la librería de PDF.');
+    return;
+  }
+
+  const doc = new jsPDFCtor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 12;
+  const contentWidth = pageWidth - (margin * 2);
+
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(margin, 12, contentWidth, 28, 4, 4, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(96, 165, 250);
+  doc.text('REPORTE DIARIO', margin + 5, 20);
+  doc.setFontSize(20);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Cierre de Caja', margin + 5, 30);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(203, 213, 225);
+  const headerDetail = [
+    reportState.companyName || 'Empresa',
+    `Fecha: ${formatDateLabel(report.businessDate)}`,
+    `Apertura: ${formatDateTimeLabel(report.openedAt)}`,
+    report.closedAt ? `Cierre: ${formatDateTimeLabel(report.closedAt)}` : null
+  ].filter(Boolean).join('  |  ');
+  doc.text(headerDetail, margin + 5, 36);
+
+  const boxGap = 4;
+  const boxWidth = (contentWidth - boxGap) / 2;
+  drawMetricBox(doc, margin, 48, boxWidth, 20, 'Saldo inicial', money(report.totals?.initialBalance || 0));
+  drawMetricBox(doc, margin + boxWidth + boxGap, 48, boxWidth, 20, 'Saldo actual', money(report.totals?.currentBalance || 0));
+  drawMetricBox(doc, margin, 72, boxWidth, 20, 'Ingresos', money(report.totals?.income || 0), [4, 120, 87], [236, 253, 245]);
+  drawMetricBox(doc, margin + boxWidth + boxGap, 72, boxWidth, 20, 'Salidas (egresos)', money(report.totals?.expense || 0), [190, 24, 93], [255, 241, 242]);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Detalle por cuenta', margin, 102);
+
+  doc.autoTable({
+    startY: 106,
+    margin: { left: margin, right: margin },
+    tableWidth: contentWidth,
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2.5,
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2,
+      textColor: [15, 23, 42]
+    },
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    body: (report.rows || []).map((row) => ([
+      row.name || '',
+      money(row.openingBalance || 0),
+      money(row.income || 0),
+      money(row.expense || 0),
+      money(row.currentBalance || 0)
+    ])),
+    foot: [[
+      'TOTAL',
+      money(report.totals?.initialBalance || 0),
+      money(report.totals?.income || 0),
+      money(report.totals?.expense || 0),
+      money(report.totals?.currentBalance || 0)
+    ]],
+    footStyles: {
+      fillColor: [226, 232, 240],
+      textColor: [15, 23, 42],
+      fontStyle: 'bold'
+    },
+    head: [[
+      'Cuenta',
+      'Saldo inicial',
+      'Ingresos',
+      'Salidas (egresos)',
+      'Saldo actual'
+    ]]
+  });
+
+  doc.save(`reporte-caja-${getRequestedDate()}.pdf`);
+}
+
 function bindActions() {
-  document.getElementById('report-print')?.addEventListener('click', () => window.print());
+  document.getElementById('report-pdf')?.addEventListener('click', generatePdf);
   document.getElementById('report-close')?.addEventListener('click', () => window.close());
 }
 
