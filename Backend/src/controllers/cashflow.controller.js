@@ -200,7 +200,7 @@ export async function listEntries(req, res) {
 }
 
 export async function createEntry(req, res) {
-  const { accountId, kind = 'IN', amount, description = '', date, source = 'MANUAL', meta = {} } = req.body || {};
+  const { accountId, kind = 'IN', amount, description = '', date, source = 'MANUAL', meta = {}, tag } = req.body || {};
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   if (!amount || amount <= 0) return res.status(400).json({ error: 'positive amount required' });
   const normalizedKind = kind === 'OUT' ? 'OUT' : 'IN';
@@ -211,6 +211,20 @@ export async function createEntry(req, res) {
   }
   if (normalizedSource === 'INVESTMENT' && normalizedKind !== 'OUT') {
     return res.status(400).json({ error: 'La inversión manual debe ser una salida (OUT)' });
+  }
+  // Etiqueta de categorización: obligatoria en salidas manuales
+  const OUT_TAGS = new Set(['REPUESTOS', 'SERVICIOS_TALLER', 'INSUMOS_TALLER']);
+  let normalizedTag = tag ? String(tag).toUpperCase() : null;
+  if (normalizedKind === 'OUT') {
+    if (normalizedSource === 'INVESTMENT') {
+      // Pago de inversión = repuestos
+      normalizedTag = 'REPUESTOS';
+    } else {
+      if (!normalizedTag) return res.status(400).json({ error: 'Debes seleccionar una categoría para la salida' });
+      if (!OUT_TAGS.has(normalizedTag)) return res.status(400).json({ error: 'Categoría de salida inválida' });
+    }
+  } else {
+    normalizedTag = null;
   }
   const acc = await Account.findOne({ _id: accountId, companyId: req.companyId });
   if (!acc) return res.status(404).json({ error: 'account not found' });
@@ -224,6 +238,7 @@ export async function createEntry(req, res) {
     amount: amt,
     description,
     source: normalizedSource,
+    tag: normalizedTag,
     date: date ? localToUTC(date) : new Date(),
     balanceAfter: newBal,
     meta: {
@@ -457,7 +472,7 @@ export async function deleteEntry(req, res){
 }
 
 // Utilizada desde cierre de venta
-export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false }) {
+export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false, incomeTag = null }) {
   if (!sale || !sale._id) return [];
   
   // Si ya existen entradas para la venta, devolverlas (idempotencia)
@@ -494,6 +509,11 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
   });
 
   if (!methods.length) return []; // No hay métodos de pago efectivo
+
+  const INCOME_TAGS = new Set(['CAMBIO_ACEITE', 'OTROS_SERVICIOS']);
+  const normalizedIncomeTag = incomeTag && INCOME_TAGS.has(String(incomeTag).toUpperCase())
+    ? String(incomeTag).toUpperCase()
+    : null;
 
   const entries = [];
   // Track balances por cuenta para pagos múltiples a la misma cuenta
@@ -534,6 +554,7 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
       kind: 'IN',
       source: 'SALE',
       sourceRef: sale._id,
+      tag: normalizedIncomeTag,
       description: `Venta #${String(sale.number || '').padStart(5, '0')} (${m.method})`,
       amount,
       balanceAfter: newBal,

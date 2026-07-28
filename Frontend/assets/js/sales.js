@@ -2540,6 +2540,14 @@ function buildCloseModalContent(){
         <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">💳</span> Formas de pago</strong>
         <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
+      <div class="mb-4">
+        <label for="cv-income-tag" class="block text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Tipo de ingreso <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">*</span></label>
+        <select id="cv-income-tag" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Selecciona el tipo de ingreso...</option>
+          <option value="CAMBIO_ACEITE">Cambio de aceite</option>
+          <option value="OTROS_SERVICIOS">Otros servicios</option>
+        </select>
+      </div>
       <table class="w-full text-xs border-collapse" id="cv-payments-table">
         <thead>
           <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
@@ -3761,6 +3769,16 @@ function fillCloseModal(){
         sum: paymentMethodsToSend.reduce((a, p) => a + p.amount, 0)
       });
       
+      // Validar tipo de ingreso (obligatorio para el reporte de caja)
+      const incomeTagSel = document.getElementById('cv-income-tag');
+      const incomeTag = incomeTagSel ? String(incomeTagSel.value || '').trim() : '';
+      if (!incomeTag) {
+        msg.textContent = 'Debes seleccionar el tipo de ingreso (Cambio de aceite u Otros servicios).';
+        msg.className = 'md:col-span-2 mt-2 text-xs text-red-400 dark:text-red-400 theme-light:text-red-600';
+        incomeTagSel?.focus();
+        return;
+      }
+      
       // Obtener valor de inversión
       const investmentInput = document.getElementById('cv-investment-amount');
       const investmentAmount = investmentInput ? Number(investmentInput.value || 0) : 0;
@@ -3780,6 +3798,7 @@ function fillCloseModal(){
       
       const payload = {
         paymentMethods: paymentMethodsToSend,
+        incomeTag,
         technician: techSel.value||'',
         laborValue: laborValueFromSale,
         laborPercent: laborPercentValue,
@@ -13346,6 +13365,14 @@ function buildEditCloseModalContent(sale, total) {
         <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">💳</span> Formas de pago</strong>
         <button id="ecv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
+      <div class="mb-4">
+        <label for="ecv-income-tag" class="block text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Tipo de ingreso</label>
+        <select id="ecv-income-tag" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Mantener el tipo actual</option>
+          <option value="CAMBIO_ACEITE">Cambio de aceite</option>
+          <option value="OTROS_SERVICIOS">Otros servicios</option>
+        </select>
+      </div>
       <table class="w-full text-xs border-collapse" id="ecv-payments-table">
         <thead>
           <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
@@ -13940,10 +13967,12 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
         return methods;
       })();
       
+      const editIncomeTag = String(document.getElementById('ecv-income-tag')?.value || '').trim();
       const payload = {
         paymentMethods: paymentMethodsToSend,
         laborCommissions: comm,
-        paymentReceiptUrl: receiptUrl
+        paymentReceiptUrl: receiptUrl,
+        ...(editIncomeTag ? { incomeTag: editIncomeTag } : {})
       };
 
       await API.sales.updateClose(saleId, payload);

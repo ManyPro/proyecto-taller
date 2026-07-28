@@ -6,6 +6,8 @@ const CashFlowEntrySchema = new mongoose.Schema({
   date: { type: Date, default: Date.now, index: true },
   kind: { type: String, enum: ['IN','OUT'], required: true },
   source: { type: String, enum: ['SALE','MANUAL','RECEIVABLE','INVESTMENT','TRANSFER'], default: 'MANUAL', index: true },
+  // Etiqueta de categorización para reportes de caja
+  tag: { type: String, enum: ['CAMBIO_ACEITE','OTROS_SERVICIOS','REPUESTOS','SERVICIOS_TALLER','INSUMOS_TALLER','SUELDOS', null], default: null, index: true },
   sourceRef: { type: mongoose.Schema.Types.ObjectId },
   description: { type: String, default: '' },
   amount: { type: Number, required: true }, // siempre positivo

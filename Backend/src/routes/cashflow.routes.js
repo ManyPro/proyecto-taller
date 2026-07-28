@@ -3,6 +3,7 @@ import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
 import { listAccounts, createAccount, updateAccount, deleteAccount, getBalances, recomputeAllBalances, listEntries, createEntry, createTransfer, updateEntry, deleteEntry } from '../controllers/cashflow.controller.js';
 import { createLoan, listLoans, getPendingLoans, updateLoan, deleteLoan, settleLoan } from '../controllers/employeeLoan.controller.js';
+import { getCurrentSession, openSession, closeSession, listSessions, generateSessionReportPdf } from '../controllers/cashSessions.controller.js';
 
 const router = Router();
 
@@ -31,6 +32,13 @@ router.post('/entries', createEntry);
 router.post('/transfers', createTransfer);
 router.patch('/entries/:id', updateEntry);
 router.delete('/entries/:id', deleteEntry);
+
+// Sesiones de caja (apertura/cierre y reporte)
+router.get('/cash-sessions/current', getCurrentSession);
+router.post('/cash-sessions/open', openSession);
+router.post('/cash-sessions/close', closeSession);
+router.get('/cash-sessions', listSessions);
+router.get('/cash-sessions/:id/report.pdf', generateSessionReportPdf);
 
 // Employee Loans (Préstamos a empleados)
 router.get('/loans', listLoans);

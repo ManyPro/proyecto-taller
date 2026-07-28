@@ -1789,6 +1789,7 @@ export const paySettlement = async (req, res) => {
         date: entryDate,
       kind: 'OUT',
       source: 'MANUAL',
+      tag: 'SUELDOS',
       sourceRef: settlementId,
         description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}${paymentsToProcess.length > 1 ? ` (Pago parcial ${createdEntries.length + 1}/${paymentsToProcess.length})` : ''}`,
         amount: paymentAmount,

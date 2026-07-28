@@ -1675,6 +1675,13 @@ export const setCustomerVehicle = async (req, res) => {
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   
+  // Etiqueta de ingreso obligatoria para el reporte de caja
+  const INCOME_TAGS = new Set(['CAMBIO_ACEITE', 'OTROS_SERVICIOS']);
+  const incomeTag = req.body?.incomeTag ? String(req.body.incomeTag).toUpperCase() : null;
+  if (!incomeTag || !INCOME_TAGS.has(incomeTag)) {
+    return res.status(400).json({ error: 'Debes seleccionar el tipo de ingreso (Cambio de aceite u Otros servicios)' });
+  }
+  
   const session = await mongoose.startSession();
   try {
     const closeSummaryGeneralMap = new Map();
@@ -2820,7 +2827,7 @@ export const closeSale = async (req, res) => {
       // y solo registra los pagos en efectivo
       try {
         const accountId = req.body?.accountId; // opcional desde frontend
-        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId, incomeTag });
         cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
       } catch(e) { 
         logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); 
@@ -3068,9 +3075,24 @@ export const updateCloseSale = async (req, res) => {
         'meta.isAdvancePayment': { $ne: true }
       }).session(session);
       
+      // Etiqueta de ingreso (opcional en edición): mantener la existente si no viene en el body
+      const INCOME_TAGS = new Set(['CAMBIO_ACEITE', 'OTROS_SERVICIOS']);
+      const rawIncomeTag = req.body?.incomeTag ? String(req.body.incomeTag).toUpperCase() : null;
+      const normalizedIncomeTag = rawIncomeTag && INCOME_TAGS.has(rawIncomeTag) ? rawIncomeTag : null;
+      const effectiveIncomeTag = normalizedIncomeTag || existingEntries[0]?.tag || null;
+      
       // Si cambiaron los métodos de pago O si no hay entradas en el flujo de caja, actualizar/crear
       const paymentMethodsChanged = JSON.stringify(oldPaymentMethods) !== JSON.stringify(sale.paymentMethods);
       const hasNoCashflowEntries = existingEntries.length === 0;
+      
+      if (normalizedIncomeTag && !paymentMethodsChanged && !hasNoCashflowEntries) {
+        // Solo cambió la etiqueta: actualizarla en las entradas existentes
+        await CashFlowEntry.updateMany(
+          { _id: { $in: existingEntries.map(e => e._id) } },
+          { $set: { tag: normalizedIncomeTag } },
+          { session }
+        );
+      }
       
       if (paymentMethodsChanged || hasNoCashflowEntries) {
         
@@ -3126,6 +3148,7 @@ export const updateCloseSale = async (req, res) => {
             if (Math.abs(oldAmount - newAmount) > 0.01) {
               existingEntry.amount = newAmount;
               existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
+              existingEntry.tag = effectiveIncomeTag;
               existingEntry.meta = {
                 saleNumber: sale.number,
                 salePlate: sale.vehicle?.plate || '',
@@ -3137,6 +3160,7 @@ export const updateCloseSale = async (req, res) => {
             } else {
               // Solo actualizar descripción y meta si el monto no cambió
               existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
+              existingEntry.tag = effectiveIncomeTag;
               existingEntry.meta = {
                 saleNumber: sale.number,
                 salePlate: sale.vehicle?.plate || '',
@@ -3160,6 +3184,7 @@ export const updateCloseSale = async (req, res) => {
               kind: 'IN',
               source: 'SALE',
               sourceRef: sale._id,
+              tag: effectiveIncomeTag,
               description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
               amount: Number(m.amount || 0),
               balanceAfter: newBal,

@@ -58,7 +58,7 @@
   // Cache busting: Actualizar este número cuando se desplieguen cambios
   // Formato: YYYYMMDDHHMM (año, mes, día, hora, minuto)
   // Ejemplo: 202501141430 = 14 de enero de 2025, 14:30
-  window.APP_VERSION = window.APP_VERSION || '202602231645';
+  window.APP_VERSION = window.APP_VERSION || '202607272052';
   
   // Función helper para agregar versión a URLs de assets
   window.assetUrl = function(path) {

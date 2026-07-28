@@ -275,6 +275,7 @@ export const payInvestment = async (req, res) => {
           accountId: accountId,
           kind: 'OUT',
           source: 'INVESTMENT',
+          tag: 'REPUESTOS',
           sourceRef: investorId,
           description: trimmedNotes || `Pago de inversión: ${investmentItems.length} item(s)`,
           amount: totalAmount,

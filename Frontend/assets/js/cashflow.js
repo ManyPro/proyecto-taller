@@ -122,7 +122,126 @@ function bind(){
   document.getElementById('cf-refresh-loans')?.addEventListener('click', ()=> loadLoans(true));
   document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
   document.getElementById('cf-loan-filter-status')?.addEventListener('change', ()=> loadLoans());
+  document.getElementById('cf-open-session')?.addEventListener('click', openCashSession);
+  document.getElementById('cf-close-session')?.addEventListener('click', closeCashSession);
+  document.getElementById('cf-session-report')?.addEventListener('click', downloadSessionReport);
   loadLoans();
+  loadCashSessionPanel();
+}
+
+// ===== Sesiones de caja (apertura/cierre y reporte) =====
+
+function fmtSessionDate(d){
+  if(!d) return '';
+  return new Date(d).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+async function loadCashSessionPanel(){
+  const statusEl = document.getElementById('cf-session-status');
+  const openBtn = document.getElementById('cf-open-session');
+  const closeBtn = document.getElementById('cf-close-session');
+  if(!statusEl) return;
+  try{
+    const { session } = await API.cashflow.sessions.current();
+    if(session){
+      statusEl.textContent = `🟢 Caja abierta desde ${fmtSessionDate(session.openedAt)}`;
+      openBtn?.classList.add('hidden');
+      closeBtn?.classList.remove('hidden');
+    } else {
+      statusEl.textContent = '🔴 Caja cerrada';
+      openBtn?.classList.remove('hidden');
+      closeBtn?.classList.add('hidden');
+    }
+  }catch(e){
+    statusEl.textContent = 'No se pudo consultar el estado de la caja';
+  }
+  await loadCashSessionList();
+}
+
+async function loadCashSessionList(){
+  const sel = document.getElementById('cf-session-select');
+  if(!sel) return;
+  try{
+    const { sessions } = await API.cashflow.sessions.list();
+    if(!sessions?.length){
+      sel.innerHTML = `<option value="">-- Sin cierres registrados --</option>`;
+      return;
+    }
+    sel.innerHTML = sessions.map(s =>
+      `<option value="${s._id}">Cierre ${fmtSessionDate(s.closedAt)} (apertura ${fmtSessionDate(s.openedAt)})</option>`
+    ).join('');
+  }catch(e){
+    sel.innerHTML = `<option value="">Error cargando cierres</option>`;
+  }
+}
+
+async function openCashSession(){
+  const msg = document.getElementById('cf-session-msg');
+  const btn = document.getElementById('cf-open-session');
+  if(btn) btn.disabled = true;
+  if(msg) msg.textContent = 'Abriendo caja...';
+  try{
+    await API.cashflow.sessions.open();
+    if(msg) msg.textContent = 'Caja abierta correctamente.';
+    await loadCashSessionPanel();
+  }catch(e){
+    if(msg) msg.textContent = e?.message || 'Error abriendo caja';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function closeCashSession(){
+  if(!confirm('¿Cerrar la caja? Se tomará el saldo actual de todas las cuentas como cierre del periodo.')) return;
+  const msg = document.getElementById('cf-session-msg');
+  const btn = document.getElementById('cf-close-session');
+  if(btn) btn.disabled = true;
+  if(msg) msg.textContent = 'Cerrando caja...';
+  try{
+    await API.cashflow.sessions.close();
+    if(msg) msg.textContent = 'Caja cerrada. Ya puedes generar el reporte del periodo.';
+    await loadCashSessionPanel();
+  }catch(e){
+    if(msg) msg.textContent = e?.message || 'Error cerrando caja';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function downloadSessionReport(){
+  const sel = document.getElementById('cf-session-select');
+  const msg = document.getElementById('cf-session-msg');
+  const btn = document.getElementById('cf-session-report');
+  const sessionId = sel?.value || '';
+  if(!sessionId){
+    if(msg) msg.textContent = 'Selecciona un periodo de caja para generar el reporte.';
+    return;
+  }
+  const originalText = btn?.textContent || '';
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Generando...'; }
+  if(msg) msg.textContent = 'Generando reporte PDF...';
+  try{
+    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+    const token = API.token.get();
+    const response = await fetch(`${apiBase}/api/v1/cashflow/cash-sessions/${sessionId}/report.pdf`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if(!response.ok){
+      let errText = `HTTP ${response.status}`;
+      try{ const body = await response.json(); errText = body?.error || errText; }catch{}
+      throw new Error(errText);
+    }
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+    setTimeout(()=> URL.revokeObjectURL(blobUrl), 60000);
+    if(msg) msg.textContent = 'Reporte generado.';
+  }catch(e){
+    if(msg) msg.textContent = e?.message || 'Error generando el reporte';
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = originalText; }
+  }
 }
 
 async function recomputeBalancesAndReload() {
@@ -865,6 +984,15 @@ function openNewEntryModal(defaultKind='IN'){
         <option value="INVESTMENT">Inversión</option>
       </select>
     </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Categoría <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">*</span></label>
+      <select id='ncf-tag' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60">
+        <option value="">Selecciona una categoría...</option>
+        <option value="REPUESTOS">Repuestos</option>
+        <option value="SERVICIOS_TALLER">Servicios Taller</option>
+        <option value="INSUMOS_TALLER">Insumos Taller</option>
+      </select>
+    </div>
     ` : ''}
     <div class="flex gap-2 mt-4">
       <button id='ncf-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
@@ -875,10 +1003,22 @@ function openNewEntryModal(defaultKind='IN'){
   body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
   const sel = div.querySelector('#ncf-account');
   API.accounts.list().then(list=>{ sel.innerHTML=list.map(a=>`<option value='${a._id}'>${a.name}</option>`).join(''); });
+  // Si la salida es una inversión, la categoría queda fija en Repuestos
+  const sourceSelEl = div.querySelector('#ncf-source');
+  const tagSelEl = div.querySelector('#ncf-tag');
+  if (sourceSelEl && tagSelEl) {
+    sourceSelEl.addEventListener('change', () => {
+      if (sourceSelEl.value === 'INVESTMENT') {
+        tagSelEl.value = 'REPUESTOS';
+        tagSelEl.disabled = true;
+      } else {
+        tagSelEl.disabled = false;
+      }
+    });
+  }
   div.querySelector('#ncf-cancel').onclick=()=> modal.classList.add('hidden');
   div.querySelector('#ncf-save').onclick=async()=>{
     const msg = div.querySelector('#ncf-msg');
-    msg.textContent='Guardando...';
     try{
       const amount = Number(div.querySelector('#ncf-amount').value||0)||0;
       const accountId = sel.value;
@@ -886,8 +1026,15 @@ function openNewEntryModal(defaultKind='IN'){
       const kindSel = (defaultKind==='OUT') ? 'OUT' : 'IN';
       const sourceSel = div.querySelector('#ncf-source');
       const source = kindSel === 'OUT' ? (sourceSel?.value || 'MANUAL') : 'MANUAL';
+      const tag = kindSel === 'OUT' ? (tagSelEl?.value || '') : '';
+      if (kindSel === 'OUT' && !tag) {
+        msg.textContent = 'Debes seleccionar una categoría para la salida.';
+        tagSelEl?.focus();
+        return;
+      }
+      msg.textContent='Guardando...';
       const meta = source === 'INVESTMENT' ? { paymentMode: 'manual', category: 'INVESTMENT' } : { category: 'MANUAL' };
-      await API.cashflow.create({ accountId, kind: kindSel, amount, description, source, meta });
+      await API.cashflow.create({ accountId, kind: kindSel, amount, description, source, meta, ...(tag ? { tag } : {}) });
       msg.textContent='OK';
       setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },400);
     }catch(e){ msg.textContent=e?.message||'Error'; }
