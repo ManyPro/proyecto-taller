@@ -2045,6 +2045,34 @@ function buildPdfPageStyles() {
   `;
 }
 
+function laborItemReceivedAtMs(item) {
+  const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
+  const dt = raw ? new Date(raw) : null;
+  return dt && !Number.isNaN(dt.getTime()) ? dt.getTime() : Number.POSITIVE_INFINITY;
+}
+
+function groupReceivedAtMs(group) {
+  const items = Array.isArray(group?.items) ? group.items : [];
+  if (!items.length) return Number.POSITIVE_INFINITY;
+  return Math.min(...items.map(laborItemReceivedAtMs));
+}
+
+function compareLaborGroupsByReceivedDate(a, b) {
+  const aIsOther = String(a?.label || '') === 'Sin vehículo asociado';
+  const bIsOther = String(b?.label || '') === 'Sin vehículo asociado';
+  if (aIsOther && !bIsOther) return 1;
+  if (!aIsOther && bIsOther) return -1;
+
+  const timeDiff = groupReceivedAtMs(a) - groupReceivedAtMs(b);
+  if (timeDiff !== 0) return timeDiff;
+
+  const saleA = Number(a?.saleNumber || a?.items?.[0]?.saleNumber || 0);
+  const saleB = Number(b?.saleNumber || b?.items?.[0]?.saleNumber || 0);
+  if (saleA !== saleB) return saleA - saleB;
+
+  return String(a?.plate || a?.label || '').localeCompare(String(b?.plate || b?.label || ''), 'es', { sensitivity: 'base' });
+}
+
 function buildFallbackPayrollHtml({ context }) {
   const formatMoney = (val) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
@@ -2104,13 +2132,8 @@ function buildFallbackPayrollHtml({ context }) {
       groups.get(key).items.push(it);
     }
 
-    // Orden: primero por saleNumber desc (num), luego por placa
-    const sortedGroups = Array.from(groups.values()).sort((a, b) => {
-      const an = Number(a.saleNumber || 0);
-      const bn = Number(b.saleNumber || 0);
-      if (bn !== an) return bn - an;
-      return String(a.plate || '').localeCompare(String(b.plate || ''), 'es', { sensitivity: 'base' });
-    });
+    // Orden: fecha en que se recibió el vehículo (apertura de la venta), luego número de venta, luego placa
+    const sortedGroups = Array.from(groups.values()).sort(compareLaborGroupsByReceivedDate);
 
     return { groups: sortedGroups, others };
   };
@@ -2536,12 +2559,6 @@ function buildCompactPayrollPdfHtml({ context }) {
     }
   }
 
-  const getSortTime = (item) => {
-    const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
-    const dt = raw ? new Date(raw) : null;
-    return dt && !Number.isNaN(dt.getTime()) ? dt.getTime() : 0;
-  };
-
   const laborGroupsMap = new Map();
   for (const item of laborItems) {
     const vehicleName = String(item.vehicleLabel || item.vehiclePlate || '').trim();
@@ -2557,8 +2574,11 @@ function buildCompactPayrollPdfHtml({ context }) {
     .map((group) => ({
       ...group,
       items: group.items.sort((a, b) => {
-        const timeDiff = getSortTime(a) - getSortTime(b);
+        const timeDiff = laborItemReceivedAtMs(a) - laborItemReceivedAtMs(b);
         if (timeDiff !== 0) return timeDiff;
+        const saleA = Number(a.saleNumber || 0);
+        const saleB = Number(b.saleNumber || 0);
+        if (saleA !== saleB) return saleA - saleB;
         return String(a.serviceName || a.laborName || a.name || '').localeCompare(
           String(b.serviceName || b.laborName || b.name || ''),
           'es',
@@ -2566,11 +2586,7 @@ function buildCompactPayrollPdfHtml({ context }) {
         );
       })
     }))
-    .sort((a, b) => {
-      if (a.label === 'Sin vehículo asociado') return 1;
-      if (b.label === 'Sin vehículo asociado') return -1;
-      return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
-    });
+    .sort(compareLaborGroupsByReceivedDate);
 
   const laborGroupsHtml = laborGroups.length
     ? laborGroups.map((group) => {
