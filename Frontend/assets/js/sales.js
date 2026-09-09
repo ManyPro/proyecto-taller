@@ -2513,6 +2513,24 @@ async function openMaintenanceServicesModal() {
   });
 }
 
+function getLaborLineItemName(tr) {
+  if (!tr) return '';
+  const el = tr.querySelector('[data-role="item-name"], .ecv-comm-item-name');
+  if (!el) return '';
+  const raw = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ? el.value : el.textContent;
+  const name = String(raw || '').trim();
+  if (!name || name === '-' || name === '—') return '';
+  return name;
+}
+
+function attrEscape(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function buildCloseModalContent(){
   const closeTotals = computeSaleDisplayTotals(current, {
     forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
@@ -2575,12 +2593,13 @@ function buildCloseModalContent(){
         <table class="w-full text-xs border-collapse">
           <thead>
             <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-200">
-              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
-              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
-              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
-              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
-              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
-              <th class="py-3 px-3 w-10"></th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[180px]">Concepto</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[130px]">Técnico</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[100px]">Tipo M.O</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap w-28">Valor</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap w-24">%Técnico</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[110px]">Participación</th>
+              <th class="py-3 px-2 w-10"></th>
             </tr>
           </thead>
           <tbody id="cv-comm-body">
@@ -2849,16 +2868,17 @@ function fillCloseModal(){
       console.log('laborKindsList procesado:', laborKindsList);
       
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
-      const itemName = pref.itemName || '';
+      const itemNameRaw = String(pref.itemName || '').trim();
+      const itemName = (itemNameRaw === '-' || itemNameRaw === '—') ? '' : itemNameRaw;
       tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
       tr.innerHTML = `
-        <td class="py-2.5 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-xs" data-role="item-name">${itemName || '-'}</td>
-        <td class="py-2.5 px-3"><select data-role="tech" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${techOpts}</select></td>
-        <td class="py-2.5 px-3"><select data-role="kind" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${kindOpts}</select></td>
+        <td class="py-2.5 px-3 min-w-[180px]"><input data-role="item-name" type="text" value="${attrEscape(itemName)}" placeholder="Nombre del servicio" class="w-full min-w-[160px] px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></td>
+        <td class="py-2.5 px-3 min-w-[130px]"><select data-role="tech" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${techOpts}</select></td>
+        <td class="py-2.5 px-3 min-w-[100px]"><select data-role="kind" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${kindOpts}</select></td>
         <td class="py-2.5 px-3 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-28 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0"></td>
         <td class="py-2.5 px-3 text-right"><input data-role="pc" type="number" min="0" max="100" step="0.1" value="${Number(pref.percent||0)||0}" class="w-24 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0%"></td>
-        <td class="py-2.5 px-3 text-right text-white dark:text-white theme-light:text-slate-900 font-bold text-sm" data-role="share">$0</td>
-        <td class="py-2.5 px-3 text-center"><button type="button" class="px-3 py-1.5 text-sm bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded-lg transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 font-bold" data-role="del">×</button></td>`;
+        <td class="py-2.5 px-3 text-right text-white dark:text-white theme-light:text-slate-900 font-bold text-sm whitespace-nowrap" data-role="share">$0</td>
+        <td class="py-2.5 px-2 text-center"><button type="button" class="px-2.5 py-1.5 text-sm bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded-lg transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 font-bold" data-role="del">×</button></td>`;
       tbody.appendChild(tr);
       const techSel2 = tr.querySelector('select[data-role=tech]');
       const kindSel2 = tr.querySelector('select[data-role=kind]');
@@ -2999,8 +3019,12 @@ function fillCloseModal(){
         const saleTechnician = (current?.technician || current?.initialTechnician || '').trim().toUpperCase();
         const pref = saleTechnician ? { technician: saleTechnician } : {};
         
-        addLine(pref).then(() => {
+        addLine(pref).then((tr) => {
           updateLaborTotal(); // Actualizar valor MO acumulado después de agregar
+          const nameInp = tr?.querySelector('input[data-role="item-name"]');
+          if (nameInp && !String(nameInp.value || '').trim()) {
+            nameInp.focus();
+          }
         }).catch(err => console.error('Error agregando línea:', err));
       });
     }
@@ -3105,8 +3129,7 @@ function fillCloseModal(){
           
           // Verificar si ya existe una línea para este item (evitar duplicados)
           const existingRows = Array.from(tbody.querySelectorAll('tr')).filter(tr => {
-            const itemNameCell = tr.querySelector('[data-role="item-name"]');
-            return itemNameCell && itemNameCell.textContent.trim() === itemName;
+            return getLaborLineItemName(tr) === itemName;
           });
           
           // Si ya hay líneas para este item, no agregar otra (permitir que el usuario las edite/elimine)
@@ -3680,7 +3703,7 @@ function fillCloseModal(){
           const kind = tr.querySelector('select[data-role=kind]')?.value?.trim().toUpperCase();
           const lv = Number(tr.querySelector('input[data-role=lv]')?.value||0)||0;
           const pc = Number(tr.querySelector('input[data-role=pc]')?.value||0)||0;
-          const itemName = tr.querySelector('[data-role=item-name]')?.textContent?.trim() || '';
+          const itemName = getLaborLineItemName(tr);
           
           // Validar que tenga técnico, tipo, valor y porcentaje
           if(tech && kind && lv>0 && pc>0) {
@@ -13399,13 +13422,13 @@ function buildEditCloseModalContent(sale, total) {
         <table class="w-full text-xs border-collapse">
           <thead>
             <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-200">
-              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Item</th>
-              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
-              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
-              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
-              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
-              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
-              <th class="py-3 px-3 w-10"></th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[180px]">Concepto</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[130px]">Técnico</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[100px]">Tipo M.O</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap w-28">Valor</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap w-24">%Técnico</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold whitespace-nowrap min-w-[110px]">Participación</th>
+              <th class="py-3 px-2 w-10"></th>
             </tr>
           </thead>
           <tbody id="ecv-comm-body">
@@ -13577,29 +13600,32 @@ function renderEditCommissions(commissions) {
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
     const share = c.share || (c.laborValue * c.percent / 100);
-    const itemName = c.itemName || '';
+    const itemNameRaw = String(c.itemName || '').trim();
+    const itemName = (itemNameRaw === '-' || itemNameRaw === '—') ? '' : itemNameRaw;
     tr.innerHTML = `
-      <td class="py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-xs">${itemName || '-'}</td>
-      <td class="py-2 px-3">
+      <td class="py-2 px-3 min-w-[180px]">
+        <input type="text" class="ecv-comm-item-name w-full min-w-[160px] px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" value="${attrEscape(itemName)}" data-idx="${idx}" placeholder="Nombre del servicio" data-role="item-name" />
+      </td>
+      <td class="py-2 px-3 min-w-[130px]">
         <select class="ecv-comm-technician w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
           <option value="">Seleccionar técnico</option>
         </select>
       </td>
-      <td class="py-2 px-3">
+      <td class="py-2 px-3 min-w-[100px]">
         <select class="ecv-comm-kind w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
           <option value="">Seleccionar tipo</option>
         </select>
       </td>
       <td class="py-2 px-3">
-        <input type="number" class="ecv-comm-labor-value w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.laborValue || 0}" data-idx="${idx}" min="0" step="1" />
+        <input type="number" class="ecv-comm-labor-value w-28 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.laborValue || 0}" data-idx="${idx}" min="0" step="1" />
       </td>
       <td class="py-2 px-3">
-        <input type="number" class="ecv-comm-percent w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.percent || 0}" data-idx="${idx}" min="0" max="100" step="0.1" />
+        <input type="number" class="ecv-comm-percent w-24 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.percent || 0}" data-idx="${idx}" min="0" max="100" step="0.1" />
       </td>
-      <td class="py-2 px-3 text-right text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">
+      <td class="py-2 px-3 text-right text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600 whitespace-nowrap">
         <span class="ecv-comm-share">${money(share)}</span>
       </td>
-      <td class="py-2 px-3 text-center">
+      <td class="py-2 px-2 text-center">
         <button type="button" class="ecv-remove-commission px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded" data-idx="${idx}">✕</button>
       </td>
     `;
@@ -13811,9 +13837,11 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
 
   // Agregar comisión
   document.getElementById('ecv-add-commission')?.addEventListener('click', () => {
-    commissions.push({ technician: '', kind: '', laborValue: 0, percent: 0, share: 0 });
+    commissions.push({ technician: '', kind: '', laborValue: 0, percent: 0, share: 0, itemName: '' });
     renderEditCommissions(commissions);
     setupEditCloseModalListeners(sale, payments, commissions);
+    const newNameInp = document.querySelector(`.ecv-comm-item-name[data-idx="${commissions.length - 1}"]`);
+    if (newNameInp) newNameInp.focus();
   });
 
   // Remover comisión
@@ -13827,6 +13855,13 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
   });
 
   // Actualizar comisión
+  document.querySelectorAll('.ecv-comm-item-name').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      if (commissions[idx]) commissions[idx].itemName = input.value;
+    });
+  });
+
   document.querySelectorAll('.ecv-comm-technician, .ecv-comm-kind').forEach(select => {
     select.addEventListener('change', () => {
       const idx = parseInt(select.dataset.idx);
@@ -13926,8 +13961,7 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
           if (techSelect && techSelect.value && (laborValueInput?.value || percentInput?.value)) {
             const laborValue = Number(laborValueInput?.value || 0);
             const percent = Number(percentInput?.value || 0);
-            const itemNameCell = tr.querySelector('td:first-child');
-            const itemName = itemNameCell && !itemNameCell.querySelector('select') ? (itemNameCell.textContent?.trim() || '') : '';
+            const itemName = getLaborLineItemName(tr);
             comm.push({
               technician: techSelect.value,
               kind: kindSelect?.value || '',
