@@ -12,6 +12,7 @@ import {
   closePeriod,
   previewSettlement,
   approveSettlement,
+  unapproveSettlement,
   paySettlement,
   listSettlements,
   generateSettlementPdf,
@@ -47,6 +48,7 @@ router.patch('/periods/:id/close', requireCompanyManager, closePeriod);
 // Settlements
 router.post('/settlements/preview', previewSettlement);
 router.post('/settlements/approve', requireCompanyManager, approveSettlement);
+router.post('/settlements/unapprove', requireCompanyManager, unapproveSettlement);
 router.post('/settlements/pay', requireCompanyManager, paySettlement);
 router.get('/settlements', listSettlements);
 router.get('/settlements/:id/pdf', generateSettlementPdf);

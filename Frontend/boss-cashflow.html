@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Caja Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-cashflow">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+
+    <div class="topbar sticky top-0 z-[1000] boss-app-header">
+      <header class="boss-header-shell">
+        <div class="boss-topbar-inner">
+          <div class="boss-header-brand">
+            <img src="assets/lightlogo.png" alt="M&M" class="boss-brand-logo" />
+            <div class="boss-brand-copy">
+              <div class="boss-brand-kicker">Portal del jefe</div>
+              <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+              <div class="boss-muted">Caja y movimientos</div>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center gap-2 boss-header-actions">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-logout class="boss-header-btn boss-header-btn-ghost">Salir</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 boss-header-actions-mobile">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-menu-toggle class="boss-header-btn boss-header-btn-icon" aria-label="Abrir menú">☰</button>
+          </div>
+        </div>
+
+        <div class="hidden md:block boss-header-nav-row">
+          <div class="boss-header-nav-wrap">
+            <nav class="boss-header-nav">
+              <a href="boss-home.html" class="boss-nav-tab">🏠 Inicio</a>
+              <a href="boss-cashflow.html" class="boss-nav-tab active">💰 Caja</a>
+              <a href="boss-sales.html" class="boss-nav-tab">🚗 Ventas</a>
+              <a href="boss-inventory.html" class="boss-nav-tab">📦 Inventario</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div class="md:hidden hidden boss-header-mobile-drawer" data-boss-mobile-menu>
+        <div class="boss-mobile-nav-list">
+          <a href="boss-home.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🏠 Inicio</a>
+          <a href="boss-cashflow.html" class="boss-mobile-nav-tab active" data-boss-mobile-link>💰 Caja</a>
+          <a href="boss-sales.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🚗 Ventas</a>
+          <a href="boss-inventory.html" class="boss-mobile-nav-tab" data-boss-mobile-link>📦 Inventario</a>
+          <button type="button" data-boss-logout class="boss-mobile-nav-tab boss-mobile-nav-tab-danger">Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="boss-main">
+      <section class="boss-page-header boss-cashflow-page-header">
+        <h2 class="boss-page-title">💰 Flujo de caja</h2>
+      </section>
+
+      <section class="boss-panel">
+        <div class="boss-summary-row" id="bossCashflowSummary">
+          <div class="boss-summary-chip in">Entradas: —</div>
+          <div class="boss-summary-chip out">Salidas: —</div>
+          <div class="boss-summary-chip net">Neto: —</div>
+        </div>
+
+        <div class="boss-filter-toolbar">
+          <button id="bossCfToggleFilters" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button" aria-expanded="false">
+            🔎 Mostrar filtros
+          </button>
+          <button id="bossCfToday" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button">
+            📅 Mostrar hoy
+          </button>
+        </div>
+
+        <div id="bossCfFiltersPanel" class="boss-filter-panel hidden">
+          <div class="boss-filter-grid">
+            <select id="bossCfAccount" class="boss-input">
+              <option value="">Todas las cuentas</option>
+            </select>
+            <input id="bossCfFrom" class="boss-input" type="date" />
+            <input id="bossCfTo" class="boss-input" type="date" />
+            <select id="bossCfKind" class="boss-input">
+              <option value="">Entradas o salidas</option>
+              <option value="IN">Entradas</option>
+              <option value="OUT">Salidas</option>
+            </select>
+            <select id="bossCfSource" class="boss-input">
+              <option value="">Fuente</option>
+              <option value="SALE">Venta</option>
+              <option value="MANUAL">Manual</option>
+              <option value="INVESTMENT">Inversión</option>
+              <option value="RECEIVABLE">Cartera</option>
+              <option value="TRANSFER">Transferencia</option>
+            </select>
+            <button id="bossCfApply" class="boss-btn boss-btn-primary" type="button">Aplicar filtros</button>
+          </div>
+        </div>
+
+        <div class="boss-cashflow-layout">
+          <article class="boss-card boss-card-section">
+            <div class="boss-section-head">
+              <div>
+                <div class="boss-section-kicker">🏦 Saldos</div>
+                <h3 class="boss-section-title">Cuentas y saldo actual</h3>
+              </div>
+            </div>
+            <div class="boss-table-wrap boss-table-wrap-stacked">
+              <table class="boss-table boss-table--stacked">
+                <thead>
+                  <tr>
+                    <th>Cuenta</th>
+                    <th>Tipo</th>
+                    <th class="align-right">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody id="bossCfAccountsBody">
+                  <tr><td colspan="3">Cargando cuentas…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="boss-inline-total boss-muted" id="bossCfAccountsTotal">Total: —</div>
+          </article>
+
+          <article class="boss-card boss-card-section">
+            <div class="boss-section-head">
+              <div>
+                <div class="boss-section-kicker">📘 Movimientos</div>
+                <h3 class="boss-section-title">Detalle del flujo</h3>
+              </div>
+            </div>
+            <div class="boss-table-wrap boss-table-wrap-wide">
+              <table class="boss-table boss-table--wide boss-table--stacked-mobile">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Cuenta</th>
+                    <th>Descripción</th>
+                    <th class="align-right">Entrada</th>
+                    <th class="align-right">Salida</th>
+                    <th class="align-right">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody id="bossCfRows">
+                  <tr><td colspan="6">Cargando movimientos…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="boss-pagination">
+              <div class="boss-muted" id="bossCfPageInfo">Página 1</div>
+              <div class="boss-actions">
+                <button id="bossCfPrev" class="boss-btn boss-btn-secondary" type="button">← Anterior</button>
+                <button id="bossCfNext" class="boss-btn boss-btn-secondary" type="button">Siguiente →</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>

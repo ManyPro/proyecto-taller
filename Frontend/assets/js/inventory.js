@@ -145,6 +145,10 @@ const invAPI = {
     const r = await request(`/api/v1/inventory/items/${id}/stock-entries`);
     return r;
   },
+  deleteItemStockEntry: (itemId, entryId, opts = {}) => {
+    const q = opts.purgeInMoves ? '?purgeInMoves=1' : '';
+    return request(`/api/v1/inventory/items/${itemId}/stock-entries/${entryId}${q}`, { method: 'DELETE' });
+  },
 
   mediaUpload: (files) => API.mediaUpload(files),
   // Import template and upload
@@ -196,6 +200,7 @@ function invOpenModal(innerHTML) {
 
   // Enhanced modal setup
   setTimeout(() => {
+    applyInventoryModalButtonTheme();
     // Check if this is an image modal and force it
     const img = document.getElementById('modal-img');
     if (img) {
@@ -223,6 +228,16 @@ function invOpenModal(innerHTML) {
     if (e.key === "Escape") closeAll();
   }
   document.addEventListener("keydown", escListener, { once: true });
+}
+
+function applyInventoryModalButtonTheme() {
+  const body = document.getElementById("modalBody");
+  if (!body) return;
+  body.querySelectorAll("button").forEach((btn) => {
+    if (!btn.id && !btn.classList.contains("secondary")) return;
+    if (btn.id === "modalClose" || btn.id === "inv-overlay-close") return;
+    btn.classList.add("transition-all", "duration-200");
+  });
 }
 
 function invCloseModal() {
@@ -1184,15 +1199,27 @@ if (__ON_INV_PAGE__) {
     const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
 
-    if (qIntake) {
-      qIntake.innerHTML =
-        `<option value="">Todas las entradas</option>` +
-        state.intakes
-          .map((v) => `<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
-          .join("");
-    }
-
     renderIntakesList();
+  }
+
+  async function refreshSupplierFilter() {
+    if (!qIntake) return;
+    const currentValue = qIntake.value || '';
+    try {
+      const data = await API.purchases.suppliers.list({ active: true, limit: 1000 });
+      const suppliers = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+      qIntake.innerHTML =
+        `<option value="">Todos los proveedores</option>` +
+        suppliers.map((s) => {
+          return `<option value="${s._id}">${escapeHtml((s?.name || 'GENERAL').toUpperCase())}</option>`;
+        }).join('');
+      if (currentValue && suppliers.some((s) => String(s?._id) === String(currentValue))) {
+        qIntake.value = currentValue;
+      }
+    } catch (e) {
+      console.error('No se pudieron cargar proveedores para filtro:', e);
+      qIntake.innerHTML = `<option value="">Todos los proveedores</option>`;
+    }
   }
 
   function renderIntakesList() {
@@ -1627,6 +1654,7 @@ if (__ON_INV_PAGE__) {
         <div class="flex gap-3 mt-6">
           <button id="stk-save" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Agregar</button>
           <button id="stk-generate-stickers" class="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">Agregar y Generar Stickers</button>
+          <button id="stk-generate-stickers-purchase" class="px-6 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors">Agregar y Generar Stickers + Compra</button>
           <button id="stk-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
         </div>
       </div>
@@ -1756,6 +1784,72 @@ if (__ON_INV_PAGE__) {
         }
         } catch (err) {
           hideBusy();
+        alert('Error agregando stock: ' + (err.message || err));
+      }
+    };
+
+    // Botón para agregar stock y generar stickers + compra (2 stickers por unidad)
+    document.getElementById('stk-generate-stickers-purchase').onclick = async () => {
+      const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
+      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const supplierSelect = document.getElementById('stk-supplier');
+      const supplierId = supplierSelect?.value || 'GENERAL';
+      const supplierName = supplierSelect?.selectedOptions?.[0]?.textContent?.trim() || 'GENERAL';
+      const investorId = document.getElementById('stk-investor').value || 'GENERAL';
+      let purchasePrice = document.getElementById('stk-purchase-price').value ? parseFloat(document.getElementById('stk-purchase-price').value) : undefined;
+      const purchaseTotal = document.getElementById('stk-purchase-total').value ? parseFloat(document.getElementById('stk-purchase-total').value) : undefined;
+      const note = document.getElementById('stk-note').value || '';
+      
+      // Si hay precio total, calcular precio unitario
+      if (purchaseTotal && purchaseTotal > 0 && qty > 0) {
+        purchasePrice = purchaseTotal / qty;
+      }
+      
+      try {
+        showBusy('Agregando stock y generando stickers + compra...');
+        
+        const payload = { qty, note };
+        if (supplierId && supplierId !== '') payload.supplierId = supplierId;
+        if (investorId && investorId !== '') payload.investorId = investorId;
+        if (purchasePrice !== undefined) payload.purchasePrice = purchasePrice;
+        
+        const response = await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: payload });
+        showToast('Stock agregado');
+        
+        const purchasesList = document.getElementById('purchases-list');
+        if (purchasesList) {
+          loadPurchasesList();
+        }
+        
+        const itemWithQr = { 
+          ...it, 
+          qrData: response.qrData,
+          stockEntryId: response.stockEntryId,
+          stockEntry: response.stockEntry
+        };
+
+        const purchaseTitle = supplierName.toUpperCase();
+        const list = [{ it: itemWithQr, count: qty }];
+
+        try {
+          const base = it.sku || it._id || 'stickers';
+          await renderStickerPdf(list, `stickers-${base}`, {
+            includePurchaseSticker: true,
+            purchaseTitle,
+            purchaseNote: note
+          });
+          invCloseModal();
+          await refreshItems(state.lastItemsParams);
+          hideBusy();
+          showToast('Stock agregado y stickers + compra generados');
+          return;
+        } catch (err) {
+          hideBusy();
+          alert('Error generando stickers + compra: ' + (err.message || err));
+          return;
+        }
+      } catch (err) {
+        hideBusy();
         alert('Error agregando stock: ' + (err.message || err));
       }
     };
@@ -1897,18 +1991,20 @@ if (__ON_INV_PAGE__) {
             // Información adicional
             const purchaseDate = se.purchaseId?.purchaseDate ? new Date(se.purchaseId.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
             
+            const eid = se._id != null ? String(se._id) : '';
             return `
               <div class="border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg p-4 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50">
-                <div class="flex justify-between items-start mb-2">
-                  <div class="flex-1">
+                <div class="flex justify-between items-start mb-2 gap-3">
+                  <div class="flex-1 min-w-0">
                     <div class="text-sm font-semibold text-white theme-light:text-slate-900 mb-1">${escapeHtml(intakeLabel)}</div>
                     <div class="text-xs text-slate-400 theme-light:text-slate-600">Fecha de entrada: ${entryDate}</div>
                     ${purchaseDate ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Compra: ${purchaseDate}</div>` : ''}
                     ${se.purchaseId?.notes ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 italic mt-1">${escapeHtml(se.purchaseId.notes)}</div>` : ''}
                   </div>
-                  <div class="text-right">
+                  <div class="text-right shrink-0">
                     <div class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${qty} unidades</div>
                     ${entryPrice !== '-' ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Precio: $${entryPrice}</div>` : ''}
+                    ${eid ? `<button type="button" class="inv-del-stock-entry mt-2 px-2 py-1 text-xs rounded-md bg-red-900/40 hover:bg-red-800/50 text-red-200 border border-red-700/50 theme-light:bg-red-50 theme-light:text-red-800 theme-light:border-red-200 theme-light:hover:bg-red-100" data-entry-id="${escapeHtml(eid)}" data-qty="${qty}">Eliminar entrada</button>` : ''}
                   </div>
                 </div>
                 ${se.meta?.note ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 mt-2 italic">Nota: ${escapeHtml(se.meta.note)}</div>` : ''}
@@ -1980,6 +2076,31 @@ if (__ON_INV_PAGE__) {
       `);
       
       document.getElementById('summary-close').onclick = invCloseModal;
+
+      const itemKey = String(item._id || it._id || '');
+      document.querySelectorAll('.inv-del-stock-entry').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const entryId = btn.getAttribute('data-entry-id');
+          const q = btn.getAttribute('data-qty') || '?';
+          if (!entryId || !itemKey) return;
+          const ok = confirm(
+            `¿Eliminar esta entrada de ${q} unidades?\n\nSe revertirá el stock del ítem, se ajustarán compra / inversión si aplica, y se registrará un movimiento de salida. También se intentará eliminar el movimiento de entrada (IN) duplicado del mismo período si existe.`
+          );
+          if (!ok) return;
+          try {
+            showBusy('Eliminando entrada...');
+            await invAPI.deleteItemStockEntry(itemKey, entryId, { purgeInMoves: true });
+            const fresh = await invAPI.getItem(itemKey);
+            if (fresh) state.itemCache.set(itemKey, fresh);
+            hideBusy();
+            invCloseModal();
+            openItemSummaryModal(fresh || { ...item, _id: itemKey });
+          } catch (e) {
+            hideBusy();
+            alert((e && e.message) || 'No se pudo eliminar la entrada');
+          }
+        });
+      });
     } catch (e) {
       hideBusy();
       alert('Error al cargar el resumen: ' + e.message);
@@ -2228,7 +2349,7 @@ if (__ON_INV_PAGE__) {
       sku: qSku?.value.trim() || "",
       brand: qBrand ? qBrand.value.trim() : undefined,
       vehicleTarget: qVehicle ? qVehicle.value.trim() : undefined,
-      vehicleIntakeId: qIntake?.value || undefined,
+      supplierId: qIntake?.value || undefined,
     };
     // When searching, start from first page and keep current limit
     refreshItems({ ...params, page: 1, limit: state.paging?.limit || 15 });
@@ -3748,11 +3869,15 @@ function openMarketplaceHelper(item){
     return html;
   }
 
-  async function renderStickerPdf(list, filenameBase = 'stickers') {
+  async function renderStickerPdf(list, filenameBase = 'stickers', options = {}) {
     // Generación directa con jsPDF (sin html2canvas)
     const jsPDF = await ensureJsPDF();
     const widthMm = 50;
     const heightMm = 30;
+    const includePurchaseSticker = !!options?.includePurchaseSticker;
+    const purchaseTitleText = String(options?.purchaseTitle || 'COMPRA').trim();
+    const purchaseNoteText = String(options?.purchaseNote || '').trim();
+    const purchaseDateText = new Date().toLocaleDateString('es-CO');
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -3782,82 +3907,152 @@ function openMarketplaceHelper(item){
       });
     }
 
+    function fitMultilineTextToBox(text, boxW, boxH, maxFont = 10, minFont = 3.5, lineHeightFactor = 1.18) {
+      const clean = String(text || '').trim();
+      if (!clean) return { lines: [''], fontSize: minFont, lineHeight: minFont * lineHeightFactor };
+      let best = { lines: [clean], fontSize: minFont, lineHeight: minFont * lineHeightFactor };
+      for (let fs = maxFont; fs >= minFont; fs -= 0.2) {
+        doc.setFontSize(fs);
+        const lines = doc.splitTextToSize(clean, Math.max(1, boxW));
+        const lh = fs * lineHeightFactor;
+        const totalH = lines.length * lh;
+        if (totalH <= boxH) {
+          return { lines, fontSize: fs, lineHeight: lh };
+        }
+        best = { lines, fontSize: fs, lineHeight: lh };
+      }
+      return best;
+    }
+
+    function drawPurchaseStickerPage(item) {
+      const itemName = String(item?.name || item?.sku || '').toUpperCase().trim() || 'ITEM';
+      const title = purchaseTitleText ? purchaseTitleText.toUpperCase() : 'COMPRA';
+
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, widthMm, heightMm, 'F');
+
+      // Marco suave para mantener buena lectura en impresora térmica
+      doc.setDrawColor(190, 190, 190);
+      doc.setLineWidth(0.25);
+      doc.roundedRect(1.2, 1.2, widthMm - 2.4, heightMm - 2.4, 1.2, 1.2, 'S');
+
+      // Título de compra
+      const titleBox = { x: 2.4, y: 2.4, w: widthMm - 4.8, h: 8.5 };
+      const titleFit = fitMultilineTextToBox(title, titleBox.w, titleBox.h, 7.4, 4.2, 1.12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(titleFit.fontSize);
+      const titleStartY = titleBox.y + Math.max(titleFit.fontSize, (titleBox.h - titleFit.lines.length * titleFit.lineHeight) / 2 + titleFit.fontSize * 0.85);
+      titleFit.lines.forEach((ln, idx) => {
+        doc.text(ln, titleBox.x + titleBox.w / 2, titleStartY + idx * titleFit.lineHeight, { align: 'center' });
+      });
+
+      // Nombre del item (zona principal con autoajuste fuerte)
+      const itemBox = { x: 2.8, y: 11.4, w: widthMm - 5.6, h: 15.2 };
+      const itemFit = fitMultilineTextToBox(itemName, itemBox.w, itemBox.h, 8.8, 3.1, 1.15);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(itemFit.fontSize);
+      const itemStartY = itemBox.y + Math.max(itemFit.fontSize, (itemBox.h - itemFit.lines.length * itemFit.lineHeight) / 2 + itemFit.fontSize * 0.85);
+      itemFit.lines.forEach((ln, idx) => {
+        doc.text(ln, itemBox.x + itemBox.w / 2, itemStartY + idx * itemFit.lineHeight, { align: 'center' });
+      });
+
+      // Pie opcional de referencia
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(2.9);
+      const footer = purchaseNoteText
+        ? `${purchaseDateText} - ${purchaseNoteText}`.slice(0, 95)
+        : purchaseDateText;
+      doc.text(footer, widthMm / 2, heightMm - 1.2, { align: 'center' });
+    }
+
+    async function drawQrStickerPage(item) {
+      const it = item;
+      // Layout con leve margen interno y proporciones más cercanas al recordatorio
+      const innerMargin = 1; // mm
+      const gap = 1; // mm entre columnas
+      const contentW = widthMm - innerMargin * 2;
+      const contentH = heightMm - innerMargin * 2;
+
+      const leftColW = contentW * 0.47;
+      const rightColW = contentW - leftColW - gap;
+
+      const leftColX = innerMargin;
+      const rightColX = innerMargin + leftColW + gap;
+      const colY = innerMargin;
+      const rightColH = contentH;
+
+      // Logo arriba, centrado en la derecha
+      const logoW = rightColW * 0.8;
+      const logoH = rightColH * 0.18;
+      const logoX = rightColX + (rightColW - logoW) / 2;
+      const logoY = colY;
+
+      // Cargar logo
+      const layout = await getStickerLayoutForCompany();
+      const logoUrl = (layout.elements.find(e => e.id === 'logo') || {}).url || '';
+      let logoDataUrl = '';
+      if (logoUrl) {
+        try { logoDataUrl = await fetchAsDataURL(logoUrl); } catch {}
+      }
+
+      // Generar QR desde backend (ya se usa en HTML)
+      // Si el item tiene stockEntryId, usarlo para generar el QR correcto
+      const stockEntryId = it.stockEntryId || (it.stockEntry && it.stockEntry._id) || null;
+      const qrDataUrl = await generateQRCodeDataURL(it._id, stockEntryId);
+
+      // QR centrado debajo del logo
+      const qrW = rightColW * 0.9;
+      const qrH = Math.min(rightColH - logoH - gap, qrW);
+      const qrX = rightColX + (rightColW - qrW) / 2;
+      const qrY = logoY + logoH + gap;
+
+      // SKU centrado en la izquierda
+      const skuText = String(it.sku || '').toUpperCase();
+      const baseFontSizeMm = 10;
+      const skuBoxW = leftColW;
+      const skuFontSize = calculateOptimalSkuFontSizeMm(skuText, skuBoxW, baseFontSizeMm);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(skuFontSize);
+
+      // Dibujar fondo blanco
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, widthMm, heightMm, 'F');
+
+      // Logo
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
+        } catch {}
+      }
+
+      // QR
+      if (qrDataUrl) {
+        try {
+          doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrW, qrH);
+        } catch {}
+      }
+
+      // SKU
+      const skuBoxH = heightMm * 0.34;
+      const skuBoxY = (heightMm - skuBoxH) / 2;
+      doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
+    }
+
     // Procesar stickers
+    let renderedPages = 0;
+    const appendPage = () => {
+      if (renderedPages > 0) doc.addPage([widthMm, heightMm], 'landscape');
+      renderedPages += 1;
+    };
     for (let page = 0; page < list.length; page++) {
       const { it, count } = list[page];
       for (let c = 0; c < count; c++) {
-        if (page > 0 || c > 0) doc.addPage([widthMm, heightMm], 'landscape');
-
-        // Layout con leve margen interno y proporciones más cercanas al recordatorio
-        const innerMargin = 1; // mm
-        const gap = 1; // mm entre columnas
-        const contentW = widthMm - innerMargin * 2;
-        const contentH = heightMm - innerMargin * 2;
-
-        const leftColW = contentW * 0.47;
-        const rightColW = contentW - leftColW - gap;
-
-        const leftColX = innerMargin;
-        const rightColX = innerMargin + leftColW + gap;
-        const colY = innerMargin;
-        const rightColH = contentH;
-
-        // Logo arriba, centrado en la derecha
-        const logoW = rightColW * 0.8;
-        const logoH = rightColH * 0.18;
-        const logoX = rightColX + (rightColW - logoW) / 2;
-        const logoY = colY;
-
-        // Cargar logo
-        const layout = await getStickerLayoutForCompany();
-        const logoUrl = (layout.elements.find(e => e.id === 'logo') || {}).url || '';
-        let logoDataUrl = '';
-        if (logoUrl) {
-          try { logoDataUrl = await fetchAsDataURL(logoUrl); } catch {}
+        if (includePurchaseSticker) {
+          appendPage();
+          drawPurchaseStickerPage(it);
         }
-
-        // Generar QR desde backend (ya se usa en HTML)
-        // Si el item tiene stockEntryId, usarlo para generar el QR correcto
-        const stockEntryId = it.stockEntryId || (it.stockEntry && it.stockEntry._id) || null;
-        const qrDataUrl = await generateQRCodeDataURL(it._id, stockEntryId);
-
-        // QR centrado debajo del logo
-        const qrW = rightColW * 0.9;
-        const qrH = Math.min(rightColH - logoH - gap, qrW);
-        const qrX = rightColX + (rightColW - qrW) / 2;
-        const qrY = logoY + logoH + gap;
-
-        // SKU centrado en la izquierda
-        const skuText = String(it.sku || '').toUpperCase();
-        // Calcular tamaño de fuente óptimo para que el SKU quepa en una sola línea
-        const baseFontSizeMm = 10;
-        const skuBoxW = leftColW;
-        const skuFontSize = calculateOptimalSkuFontSizeMm(skuText, skuBoxW, baseFontSizeMm);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(skuFontSize);
-
-        // Dibujar fondo blanco
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, widthMm, heightMm, 'F');
-
-        // Logo
-        if (logoDataUrl) {
-          try {
-            doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
-          } catch {}
-        }
-
-        // QR
-        if (qrDataUrl) {
-          try {
-            doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrW, qrH);
-          } catch {}
-        }
-
-        // SKU
-        const skuBoxH = heightMm * 0.34;
-        const skuBoxY = (heightMm - skuBoxH) / 2;
-        doc.text(skuText, leftColX + skuBoxW / 2, skuBoxY + skuBoxH / 2, { align: 'center', baseline: 'middle', maxWidth: skuBoxW });
+        appendPage();
+        await drawQrStickerPage(it);
       }
     }
 
@@ -4033,6 +4228,7 @@ function openMarketplaceHelper(item){
   console.log('🚀 Inicializando inventario...', { paging: state.paging });
   initInternalNavigation();
   refreshIntakes();
+  refreshSupplierFilter();
   // Initial load: page 1, limit per page
   console.log('📞 Llamando refreshItems con:', { page: 1, limit: state.paging?.limit || 15 });
   refreshItems({ page: 1, limit: state.paging?.limit || 15 });
@@ -4061,6 +4257,7 @@ function initInternalNavigation() {
     viewInventario.classList.remove('hidden');
     viewCompras.classList.add('hidden');
     viewInversores.classList.add('hidden');
+    refreshSupplierFilter();
   });
 
   btnCompras.addEventListener('click', () => {
@@ -4414,6 +4611,7 @@ async function loadPurchasesList() {
     // Cargar todas las compras (sin límite o con límite alto)
     const data = await API.purchases.purchases.list({ limit: 1000 });
     container.innerHTML = renderPurchasesList(data.items || []);
+    refreshSupplierFilter();
   } catch (err) {
     console.error('Error cargando compras:', err);
     container.innerHTML = `<p class="text-red-400 text-sm">Error: ${err.message || 'Error desconocido'}</p>`;
@@ -5036,21 +5234,21 @@ async function loadInversoresContent() {
           </div>
           
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-            <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 rounded-lg p-3 border border-green-500/30">
-              <p class="text-xs text-green-400 theme-light:text-green-600 mb-1">✅ Disponible</p>
-              <p class="text-sm font-semibold text-green-300 theme-light:text-green-700">${availableVal}</p>
+            <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-100 rounded-lg p-3 border border-green-500/30 theme-light:border-green-300">
+              <p class="text-xs text-green-400 theme-light:text-green-800 font-bold mb-1">✅ Disponible</p>
+              <p class="text-sm font-bold text-green-300 theme-light:text-green-800">${availableVal}</p>
             </div>
-            <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 rounded-lg p-3 border border-yellow-500/30">
-              <p class="text-xs text-yellow-400 theme-light:text-yellow-600 mb-1">🛒 Vendido</p>
-              <p class="text-sm font-semibold text-yellow-300 theme-light:text-yellow-700">${soldVal}</p>
+            <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-amber-100 rounded-lg p-3 border border-yellow-500/30 theme-light:border-amber-300">
+              <p class="text-xs text-yellow-400 theme-light:text-amber-800 font-bold mb-1">🛒 Vendido</p>
+              <p class="text-sm font-bold text-yellow-300 theme-light:text-amber-800">${soldVal}</p>
             </div>
-            <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-3 border border-blue-500/30">
-              <p class="text-xs text-blue-400 theme-light:text-blue-600 mb-1">💵 Pagado</p>
-              <p class="text-sm font-semibold text-blue-300 theme-light:text-blue-700">${paidVal}</p>
+            <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-100 rounded-lg p-3 border border-blue-500/30 theme-light:border-blue-300">
+              <p class="text-xs text-blue-400 theme-light:text-blue-800 font-bold mb-1">💵 Pagado</p>
+              <p class="text-sm font-bold text-blue-300 theme-light:text-blue-800">${paidVal}</p>
             </div>
-            <div class="bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-50 rounded-lg p-3 border border-orange-500/30">
-              <p class="text-xs text-orange-400 theme-light:text-orange-600 mb-1">⏳ Pendiente</p>
-              <p class="text-sm font-semibold text-orange-300 theme-light:text-orange-700">${pendingVal}</p>
+            <div class="bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-100 rounded-lg p-3 border border-orange-500/30 theme-light:border-orange-300">
+              <p class="text-xs text-orange-400 theme-light:text-orange-800 font-bold mb-1">⏳ Pendiente</p>
+              <p class="text-sm font-bold text-orange-300 theme-light:text-orange-800">${pendingVal}</p>
             </div>
           </div>
         </div>
@@ -5165,21 +5363,21 @@ async function openInvestorDetailView(investorId) {
                 </div>
               </div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 rounded-lg p-2 border border-blue-500/30">
-                  <p class="text-xs text-blue-400 theme-light:text-blue-600 mb-1">📦 Stock Total</p>
-                  <p class="text-sm font-semibold text-blue-300 theme-light:text-blue-700">${item.itemStock}</p>
+                <div class="bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-100 rounded-lg p-2 border border-blue-500/30 theme-light:border-blue-300">
+                  <p class="text-xs text-blue-400 theme-light:text-blue-800 font-bold mb-1">📦 Stock Total</p>
+                  <p class="text-sm font-bold text-blue-300 theme-light:text-blue-800">${item.itemStock}</p>
                 </div>
-                <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 rounded-lg p-2 border border-green-500/30">
-                  <p class="text-xs text-green-400 theme-light:text-green-600 mb-1">✅ Del Inversor</p>
-                  <p class="text-sm font-semibold text-green-300 theme-light:text-green-700">${item.totalQty}</p>
+                <div class="bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-100 rounded-lg p-2 border border-green-500/30 theme-light:border-green-300">
+                  <p class="text-xs text-green-400 theme-light:text-green-800 font-bold mb-1">✅ Del Inversor</p>
+                  <p class="text-sm font-bold text-green-300 theme-light:text-green-800">${item.totalQty}</p>
                 </div>
-                <div class="bg-purple-500/20 dark:bg-purple-500/20 theme-light:bg-purple-50 rounded-lg p-2 border border-purple-500/30">
-                  <p class="text-xs text-purple-400 theme-light:text-purple-600 mb-1">💰 Precio Promedio</p>
-                  <p class="text-sm font-semibold text-purple-300 theme-light:text-purple-700">${money(item.weightedPrice)}</p>
+                <div class="bg-purple-500/20 dark:bg-purple-500/20 theme-light:bg-purple-100 rounded-lg p-2 border border-purple-500/30 theme-light:border-purple-300">
+                  <p class="text-xs text-purple-400 theme-light:text-purple-800 font-bold mb-1">💰 Precio Promedio</p>
+                  <p class="text-sm font-bold text-purple-300 theme-light:text-purple-800">${money(item.weightedPrice)}</p>
                 </div>
-                <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 rounded-lg p-2 border border-yellow-500/30">
-                  <p class="text-xs text-yellow-400 theme-light:text-yellow-600 mb-1">💵 Valor Total</p>
-                  <p class="text-sm font-semibold text-yellow-300 theme-light:text-yellow-700">${money(item.totalValue)}</p>
+                <div class="bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-amber-100 rounded-lg p-2 border border-yellow-500/30 theme-light:border-amber-300">
+                  <p class="text-xs text-yellow-400 theme-light:text-amber-800 font-bold mb-1">💵 Valor Total</p>
+                  <p class="text-sm font-bold text-yellow-300 theme-light:text-amber-800">${money(item.totalValue)}</p>
                 </div>
               </div>
             </div>
@@ -5320,25 +5518,25 @@ async function openInvestorDetailView(investorId) {
           
           <!-- Resumen financiero -->
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-              <p class="text-xs text-purple-100 mb-1">Total Inversión</p>
-              <p class="text-xl font-bold text-white">${money(summary.totalInvestment || 0)}</p>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 theme-light:bg-white theme-light:border-purple-200">
+              <p class="text-xs text-purple-100 theme-light:text-purple-700 mb-1">Total Inversión</p>
+              <p class="text-xl font-bold text-white theme-light:text-slate-900">${money(summary.totalInvestment || 0)}</p>
             </div>
-            <div class="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-400/30">
-              <p class="text-xs text-green-100 mb-1">✅ Disponible</p>
-              <p class="text-xl font-bold text-green-300">${money(summary.availableValue || 0)}</p>
+            <div class="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-400/30 theme-light:bg-green-100 theme-light:border-green-300">
+              <p class="text-xs text-green-100 theme-light:text-green-800 mb-1">✅ Disponible</p>
+              <p class="text-xl font-bold text-green-300 theme-light:text-green-700">${money(summary.availableValue || 0)}</p>
             </div>
-            <div class="bg-yellow-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/30">
-              <p class="text-xs text-yellow-100 mb-1">🛒 Vendido</p>
-              <p class="text-xl font-bold text-yellow-300">${money(summary.soldValue || 0)}</p>
+            <div class="bg-yellow-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/30 theme-light:bg-amber-100 theme-light:border-amber-300">
+              <p class="text-xs text-yellow-100 theme-light:text-amber-800 mb-1">🛒 Vendido</p>
+              <p class="text-xl font-bold text-yellow-300 theme-light:text-amber-700">${money(summary.soldValue || 0)}</p>
             </div>
-            <div class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-400/30">
-              <p class="text-xs text-blue-100 mb-1">💵 Pagado</p>
-              <p class="text-xl font-bold text-blue-300">${money(summary.paidValue || 0)}</p>
+            <div class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-400/30 theme-light:bg-blue-100 theme-light:border-blue-300">
+              <p class="text-xs text-blue-100 theme-light:text-blue-800 mb-1">💵 Pagado</p>
+              <p class="text-xl font-bold text-blue-300 theme-light:text-blue-700">${money(summary.paidValue || 0)}</p>
             </div>
-            <div class="bg-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-orange-400/30">
-              <p class="text-xs text-orange-100 mb-1">⏳ Pendiente</p>
-              <p class="text-xl font-bold text-orange-300">${money(Math.max(0, summary.pendingPayment || 0))}</p>
+            <div class="bg-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-orange-400/30 theme-light:bg-orange-100 theme-light:border-orange-300">
+              <p class="text-xs text-orange-100 theme-light:text-orange-800 mb-1">⏳ Pendiente</p>
+              <p class="text-xl font-bold text-orange-300 theme-light:text-orange-700">${money(Math.max(0, summary.pendingPayment || 0))}</p>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import Account from '../models/Account.js';
+import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
@@ -14,15 +14,18 @@ export async function ensureDefaultCashAccount(companyId) {
   return acc;
 }
 
-export async function computeBalance(accountId, companyId) {
+export async function computeBalance(accountId, companyId, options = {}) {
+  const { session } = options;
   // Obtener balance inicial de la cuenta
-  const acc = await Account.findOne({ _id: accountId, companyId });
+  let accQuery = Account.findOne({ _id: accountId, companyId });
+  if (session) accQuery = accQuery.session(session);
+  const acc = await accQuery;
   const initialBalance = acc ? (acc.initialBalance || 0) : 0;
   
   // Calcular balance usando agregación MongoDB (más eficiente que cargar todas las entradas)
   // Esto asegura que las entradas con fecha futura no afecten el balance actual
   const currentDate = now();
-  const result = await CashFlowEntry.aggregate([
+  let balanceAggQuery = CashFlowEntry.aggregate([
     {
       $match: {
         companyId: new mongoose.Types.ObjectId(companyId),
@@ -46,6 +49,8 @@ export async function computeBalance(accountId, companyId) {
       }
     }
   ]);
+  if (session) balanceAggQuery = balanceAggQuery.session(session);
+  const result = await balanceAggQuery;
   
   const totals = result[0] || { totalIn: 0, totalOut: 0 };
   const balance = initialBalance + (totals.totalIn || 0) - (totals.totalOut || 0);
@@ -114,6 +119,21 @@ export async function getBalances(req, res) {
   res.json({ balances, total });
 }
 
+// POST /cashflow/recompute-balances
+export async function recomputeAllBalances(req, res) {
+  const companyId = req.companyId;
+  const accounts = await Account.find({ companyId }).select('_id');
+  for (const acc of accounts) {
+    await recomputeAccountBalances(companyId, acc._id);
+  }
+  const refreshed = [];
+  for (const acc of accounts) {
+    const bal = await computeBalance(acc._id, companyId);
+    refreshed.push({ accountId: acc._id, balance: bal });
+  }
+  return res.json({ ok: true, recomputedAccounts: accounts.length, balances: refreshed });
+}
+
 export async function listEntries(req, res) {
   const { accountId, from, to, kind, source, page = 1, limit = 50 } = req.query || {};
   const pg = Math.max(1, parseInt(page));
@@ -180,23 +200,51 @@ export async function listEntries(req, res) {
 }
 
 export async function createEntry(req, res) {
-  const { accountId, kind = 'IN', amount, description = '', date } = req.body || {};
+  const { accountId, kind = 'IN', amount, description = '', date, source = 'MANUAL', meta = {}, tag } = req.body || {};
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
   if (!amount || amount <= 0) return res.status(400).json({ error: 'positive amount required' });
+  const normalizedKind = kind === 'OUT' ? 'OUT' : 'IN';
+  const allowedSources = new Set(['MANUAL', 'INVESTMENT']);
+  const normalizedSource = String(source || 'MANUAL').toUpperCase();
+  if (!allowedSources.has(normalizedSource)) {
+    return res.status(400).json({ error: 'source inválido para creación manual' });
+  }
+  if (normalizedSource === 'INVESTMENT' && normalizedKind !== 'OUT') {
+    return res.status(400).json({ error: 'La inversión manual debe ser una salida (OUT)' });
+  }
+  // Etiqueta de categorización: obligatoria en salidas manuales
+  const OUT_TAGS = new Set(['REPUESTOS', 'SERVICIOS_TALLER', 'INSUMOS_TALLER']);
+  let normalizedTag = tag ? String(tag).toUpperCase() : null;
+  if (normalizedKind === 'OUT') {
+    if (normalizedSource === 'INVESTMENT') {
+      // Pago de inversión = repuestos
+      normalizedTag = 'REPUESTOS';
+    } else {
+      if (!normalizedTag) return res.status(400).json({ error: 'Debes seleccionar una categoría para la salida' });
+      if (!OUT_TAGS.has(normalizedTag)) return res.status(400).json({ error: 'Categoría de salida inválida' });
+    }
+  } else {
+    normalizedTag = null;
+  }
   const acc = await Account.findOne({ _id: accountId, companyId: req.companyId });
   if (!acc) return res.status(404).json({ error: 'account not found' });
   const amt = Math.round(Number(amount));
   const prevBal = await computeBalance(acc._id, req.companyId);
-  const newBal = kind === 'IN' ? prevBal + amt : prevBal - amt;
+  const newBal = normalizedKind === 'IN' ? prevBal + amt : prevBal - amt;
   const entry = await CashFlowEntry.create({
     companyId: req.companyId,
     accountId: acc._id,
-    kind,
+    kind: normalizedKind,
     amount: amt,
     description,
-    source: 'MANUAL',
+    source: normalizedSource,
+    tag: normalizedTag,
     date: date ? localToUTC(date) : new Date(),
-    balanceAfter: newBal
+    balanceAfter: newBal,
+    meta: {
+      ...(meta && typeof meta === 'object' ? meta : {}),
+      category: normalizedSource === 'INVESTMENT' ? 'INVESTMENT' : (meta?.category || 'MANUAL')
+    }
   });
   
   // Publicar evento de actualización en vivo
@@ -207,6 +255,113 @@ export async function createEntry(req, res) {
   }
   
   res.json(entry);
+}
+
+// POST /cashflow/transfers
+export async function createTransfer(req, res) {
+  const { fromAccountId, toAccountId, amount, description = '', date } = req.body || {};
+  if (!fromAccountId || !toAccountId) return res.status(400).json({ error: 'fromAccountId y toAccountId son requeridos' });
+  if (String(fromAccountId) === String(toAccountId)) return res.status(400).json({ error: 'Las cuentas deben ser diferentes' });
+  const amt = Math.round(Number(amount || 0));
+  if (!amt || amt <= 0) return res.status(400).json({ error: 'Monto inválido' });
+
+  const session = await mongoose.startSession();
+  let outEntry = null;
+  let inEntry = null;
+  try {
+    await session.withTransaction(async () => {
+      const [fromAcc, toAcc] = await Promise.all([
+        Account.findOne({ _id: fromAccountId, companyId: req.companyId }).session(session),
+        Account.findOne({ _id: toAccountId, companyId: req.companyId }).session(session)
+      ]);
+
+      if (!fromAcc || !toAcc) {
+        throw new Error('Cuenta origen o destino no encontrada');
+      }
+
+      const [fromBalance, toBalance] = await Promise.all([
+        computeBalance(fromAcc._id, req.companyId, { session }),
+        computeBalance(toAcc._id, req.companyId, { session })
+      ]);
+
+      if (fromBalance < amt) {
+        throw new Error(`Saldo insuficiente en cuenta origen (${fromAcc.name})`);
+      }
+
+      const transferId = new mongoose.Types.ObjectId().toString();
+      const transferDate = date ? localToUTC(date) : new Date();
+
+      const created = await CashFlowEntry.insertMany([{
+        companyId: req.companyId,
+        accountId: fromAcc._id,
+        kind: 'OUT',
+        source: 'TRANSFER',
+        description: description || `Transferencia a ${toAcc.name}`,
+        amount: amt,
+        date: transferDate,
+        balanceAfter: fromBalance - amt,
+        meta: {
+          category: 'TRANSFER',
+          transferId,
+          fromAccountId: fromAcc._id,
+          toAccountId: toAcc._id,
+          transferDirection: 'OUTGOING'
+        }
+      }, {
+        companyId: req.companyId,
+        accountId: toAcc._id,
+        kind: 'IN',
+        source: 'TRANSFER',
+        description: description || `Transferencia desde ${fromAcc.name}`,
+        amount: amt,
+        date: transferDate,
+        balanceAfter: toBalance + amt,
+        meta: {
+          category: 'TRANSFER',
+          transferId,
+          fromAccountId: fromAcc._id,
+          toAccountId: toAcc._id,
+          transferDirection: 'INCOMING'
+        }
+      }], { session, ordered: true });
+
+      outEntry = created[0];
+      inEntry = created[1];
+
+      // Vincular ambos movimientos entre sí
+      await CashFlowEntry.updateOne(
+        { _id: outEntry._id, companyId: req.companyId },
+        { $set: { 'meta.pairedEntryId': inEntry._id } },
+        { session }
+      );
+      await CashFlowEntry.updateOne(
+        { _id: inEntry._id, companyId: req.companyId },
+        { $set: { 'meta.pairedEntryId': outEntry._id } },
+        { session }
+      );
+    });
+
+    await recomputeAccountBalances(req.companyId, outEntry.accountId);
+    await recomputeAccountBalances(req.companyId, inEntry.accountId);
+
+    try {
+      await publish(req.companyId, 'cashflow:created', { id: outEntry._id, accountId: outEntry.accountId });
+      await publish(req.companyId, 'cashflow:created', { id: inEntry._id, accountId: inEntry.accountId });
+    } catch (e) {
+      // No fallar si no se puede publicar
+    }
+
+    return res.json({
+      ok: true,
+      transferId: outEntry?.meta?.transferId,
+      fromEntry: outEntry,
+      toEntry: inEntry
+    });
+  } catch (e) {
+    return res.status(400).json({ error: e.message || 'No se pudo crear la transferencia' });
+  } finally {
+    session.endSession();
+  }
 }
 
 // --- Recalcular balances secuenciales de una cuenta ---
@@ -247,6 +402,9 @@ export async function updateEntry(req, res){
   const { amount, description, date, kind } = req.body || {};
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
+  if (entry.source === 'TRANSFER') {
+    return res.status(400).json({ error: 'Los movimientos de transferencia no se editan manualmente' });
+  }
   
   // Opcional: restringir edición de movimientos generados por venta a sólo descripción
   // Permitimos edición completa para correcciones manuales.
@@ -296,6 +454,9 @@ export async function deleteEntry(req, res){
   const { id } = req.params;
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
+  if (entry.source === 'TRANSFER') {
+    return res.status(400).json({ error: 'Los movimientos de transferencia no se eliminan manualmente' });
+  }
   const accId = entry.accountId;
   await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
   await recomputeAccountBalances(req.companyId, accId);
@@ -311,7 +472,7 @@ export async function deleteEntry(req, res){
 }
 
 // Utilizada desde cierre de venta
-export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false }) {
+export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false, incomeTag = null }) {
   if (!sale || !sale._id) return [];
   
   // Si ya existen entradas para la venta, devolverlas (idempotencia)
@@ -320,7 +481,9 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
     const existing = await CashFlowEntry.find({ 
       companyId, 
       source: 'SALE', 
-      sourceRef: sale._id 
+      sourceRef: sale._id,
+      // Ignorar abonos: solo validar pagos de cierre/edición de cierre
+      'meta.isAdvancePayment': { $ne: true }
     }).lean();
     if (existing.length) return existing;
   }
@@ -346,6 +509,11 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
   });
 
   if (!methods.length) return []; // No hay métodos de pago efectivo
+
+  const INCOME_TAGS = new Set(['CAMBIO_ACEITE', 'OTROS_SERVICIOS']);
+  const normalizedIncomeTag = incomeTag && INCOME_TAGS.has(String(incomeTag).toUpperCase())
+    ? String(incomeTag).toUpperCase()
+    : null;
 
   const entries = [];
   // Track balances por cuenta para pagos múltiples a la misma cuenta
@@ -386,6 +554,7 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
       kind: 'IN',
       source: 'SALE',
       sourceRef: sale._id,
+      tag: normalizedIncomeTag,
       description: `Venta #${String(sale.number || '').padStart(5, '0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
@@ -393,7 +562,9 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
       meta: { 
         saleNumber: sale.number, 
         salePlate: sale.vehicle?.plate || '',
-        paymentMethod: m.method 
+        paymentMethod: m.method,
+        isAdvancePayment: false,
+        isSaleClosePayment: true
       }
     });
   }

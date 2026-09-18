@@ -15,6 +15,7 @@ import {
   addItemStock,
   addItemsStockBulk,
   getItemStockEntries,
+  deleteItemStockEntry,
   syncStockEntries,
   bulkPublishItems,
   downloadImportTemplate,
@@ -50,5 +51,6 @@ router.post('/items/maintenance/sync-stock-entries', syncStockEntries);
 
 router.get('/items/:id/qr.png', itemQrPng);
 router.get('/items/:id/stock-entries', getItemStockEntries);
+router.delete('/items/:id/stock-entries/:entryId', deleteItemStockEntry);
 
 export default router;

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Inicio Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-home">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+
+    <div class="topbar sticky top-0 z-[1000] boss-app-header">
+      <header class="boss-header-shell">
+        <div class="boss-topbar-inner">
+          <div class="boss-header-brand">
+            <img src="assets/lightlogo.png" alt="M&M" class="boss-brand-logo" />
+            <div class="boss-brand-copy">
+              <div class="boss-brand-kicker">Portal del jefe</div>
+              <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+              <div class="boss-muted">Usuario: <span data-boss-username>—</span></div>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center gap-2 boss-header-actions">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-logout class="boss-header-btn boss-header-btn-ghost">Salir</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 boss-header-actions-mobile">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-menu-toggle class="boss-header-btn boss-header-btn-icon" aria-label="Abrir menú">☰</button>
+          </div>
+        </div>
+
+        <div class="hidden md:block boss-header-nav-row">
+          <div class="boss-header-nav-wrap">
+            <nav class="boss-header-nav">
+              <a href="boss-home.html" class="boss-nav-tab active">🏠 Inicio</a>
+              <a href="boss-cashflow.html" class="boss-nav-tab">💰 Caja</a>
+              <a href="boss-sales.html" class="boss-nav-tab">🚗 Ventas</a>
+              <a href="boss-inventory.html" class="boss-nav-tab">📦 Inventario</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div class="md:hidden hidden boss-header-mobile-drawer" data-boss-mobile-menu>
+        <div class="boss-mobile-nav-list">
+          <a href="boss-home.html" class="boss-mobile-nav-tab active" data-boss-mobile-link>🏠 Inicio</a>
+          <a href="boss-cashflow.html" class="boss-mobile-nav-tab" data-boss-mobile-link>💰 Caja</a>
+          <a href="boss-sales.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🚗 Ventas</a>
+          <a href="boss-inventory.html" class="boss-mobile-nav-tab" data-boss-mobile-link>📦 Inventario</a>
+          <button type="button" data-boss-logout class="boss-mobile-nav-tab boss-mobile-nav-tab-danger">Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="boss-main">
+      <section class="boss-page-header boss-home-page-header">
+        <div class="boss-pill">Resumen del taller</div>
+        <h2 class="boss-page-title">Datos del momento</h2>
+      </section>
+
+      <section class="boss-home-dashboard" id="bossHomeSummary">
+        <article class="boss-home-stat boss-home-stat-primary">
+          <div class="boss-home-stat-label">Caja actual</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Cuentas cargando…</div>
+        </article>
+        <article class="boss-home-stat">
+          <div class="boss-home-stat-label">Ventas abiertas</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Dato actual</div>
+        </article>
+        <article class="boss-home-stat">
+          <div class="boss-home-stat-label">Alertas de stock</div>
+          <div class="boss-home-stat-value">Cargando…</div>
+          <div class="boss-home-stat-note">Dato actual</div>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>

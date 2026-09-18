@@ -11,9 +11,9 @@ import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
 import { htmlToPdfBuffer } from '../lib/htmlToPdf.js';
-import { computeBalance } from './cashflow.controller.js';
+import { computeBalance, recomputeAccountBalances } from './cashflow.controller.js';
 import mongoose from 'mongoose';
-import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC } from '../lib/dateTime.js';
+import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC, now as utcNow } from '../lib/dateTime.js';
 import { publish } from '../lib/live.js';
 
 export const listConcepts = async (req, res) => {
@@ -454,6 +454,18 @@ function normalizeTechName(name) {
   return String(name || '').trim().toUpperCase();
 }
 
+function technicianReceivesLaborCommission(companyDoc, techNameUpper) {
+  const tech = normalizeTechName(techNameUpper);
+  if (!tech || !companyDoc) return true;
+  const technicians = Array.isArray(companyDoc.technicians) ? companyDoc.technicians : [];
+  const record = technicians.find((t) => {
+    const name = typeof t === 'string' ? t : t?.name;
+    return normalizeTechName(name) === tech;
+  });
+  if (!record || typeof record === 'string') return true;
+  return record.receivesLaborCommission !== false;
+}
+
 function buildVehicleLabelFromSale(sale) {
   const plate = String(sale?.vehicle?.plate || '').trim();
   const brand = String(sale?.vehicle?.brand || '').trim();
@@ -717,9 +729,85 @@ async function collectCommissionDetailsForSales({ sales, techNameUpper, startDat
   return { commissionDetails, commission };
 }
 
+/**
+ * Distribuye el pago de préstamos entre préstamos pendientes.
+ * loanPayments puede ser:
+ * - [{ loanId, amount }, ...] montos explícitos por préstamo (cada uno acotado al pendiente)
+ * - [{ technicianName, totalAmount }] reparto proporcional del total
+ * - [] usar total pendiente y reparto proporcional
+ */
+function computeLoanPaymentDistribution(pendingLoans, loanPayments = []) {
+  const perLoan = [];
+  if (!pendingLoans.length) {
+    return { totalLoanPayment: 0, perLoan: [] };
+  }
+
+  const totalPendingAll = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
+  if (totalPendingAll <= 0) {
+    return { totalLoanPayment: 0, perLoan: [] };
+  }
+
+  const hasExplicit = Array.isArray(loanPayments) && loanPayments.some(
+    p => p && p.loanId != null && p.amount !== undefined && p.amount !== null
+  );
+
+  if (hasExplicit) {
+    const byId = new Map();
+    for (const p of loanPayments) {
+      if (!p || p.loanId == null || p.amount == null) continue;
+      const loan = pendingLoans.find(l => String(l._id) === String(p.loanId));
+      if (!loan) continue;
+      const pend = loan.amount - (loan.paidAmount || 0);
+      const amt = Math.max(0, Math.round(Number(p.amount) || 0));
+      const applied = Math.min(amt, pend);
+      if (applied > 0) {
+        byId.set(String(loan._id), (byId.get(String(loan._id)) || 0) + applied);
+      }
+    }
+    let totalLoanPayment = 0;
+    for (const loan of pendingLoans) {
+      const pay = byId.get(String(loan._id)) || 0;
+      if (pay > 0) {
+        perLoan.push({ loan, paymentAmount: pay });
+        totalLoanPayment += pay;
+      }
+    }
+    return { totalLoanPayment, perLoan };
+  }
+
+  let totalLoanPayment = 0;
+  if (loanPayments.length > 0 && loanPayments[0].totalAmount != null && loanPayments[0].totalAmount !== '') {
+    totalLoanPayment = Math.max(0, Math.round(Number(loanPayments[0].totalAmount) || 0));
+  } else {
+    totalLoanPayment = totalPendingAll;
+  }
+
+  totalLoanPayment = Math.min(totalLoanPayment, totalPendingAll);
+  if (totalLoanPayment <= 0) {
+    return { totalLoanPayment: 0, perLoan: [] };
+  }
+
+  let remaining = totalLoanPayment;
+  pendingLoans.forEach((loan, idx) => {
+    if (remaining <= 0) return;
+    const pending = loan.amount - (loan.paidAmount || 0);
+    if (pending > 0) {
+      const paymentAmount = idx === pendingLoans.length - 1
+        ? remaining
+        : Math.min(remaining, Math.round((totalLoanPayment * pending / totalPendingAll)));
+      if (paymentAmount > 0) {
+        perLoan.push({ loan, paymentAmount });
+        remaining -= paymentAmount;
+      }
+    }
+  });
+
+  return { totalLoanPayment, perLoan };
+}
+
 export const previewSettlement = async (req, res) => {
   try {
-    const { periodId, technicianId, technicianName, selectedConceptIds = [] } = req.body;
+    const { periodId, technicianId, technicianName, selectedConceptIds = [], loanPayments = [] } = req.body;
     
     // Validaciones
     if (!periodId) {
@@ -754,11 +842,16 @@ export const previewSettlement = async (req, res) => {
     const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
     const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
 
+    const companyDoc = await Company.findById(req.companyId).select({ technicians: 1 }).lean();
+    const technicianEligibleForLaborCommission = technicianReceivesLaborCommission(companyDoc, techNameUpper);
     const laborConcept = await ensureLaborConcept(req.companyId);
     const includeCommission =
-      specialConcepts.includes('COMMISSION') || // compat legacy
-      selectedConceptIds.length === 0 ||        // modo "solo cálculo" desde frontend
-      normalConceptIds.some(id => String(id) === String(laborConcept?._id));
+      technicianEligibleForLaborCommission &&
+      (
+        specialConcepts.includes('COMMISSION') || // compat legacy
+        selectedConceptIds.length === 0 ||        // modo "solo cálculo" desde frontend
+        normalConceptIds.some(id => String(id) === String(laborConcept?._id))
+      );
     
     // Buscar conceptos asignados que el usuario seleccionó (debe estar en ambos arrays)
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -782,45 +875,49 @@ export const previewSettlement = async (req, res) => {
     // Ajustar endDate para incluir todo el día (hasta 23:59:59.999)
     endDate.setHours(23, 59, 59, 999);
     
-    const sales = await Sale.find({
-      companyId: req.companyId,
-      status: 'closed',
-      closedAt: { 
-        $ne: null,  // Excluir ventas sin fecha de cierre
-        $gte: startDate, 
-        $lte: endDate 
-      },
-      $or: [
-        { 'laborCommissions.technician': techNameUpper },
-        { 'laborCommissions.technicianName': techNameUpper },
-        { closingTechnician: techNameUpper },
-        { technician: techNameUpper },
-        { initialTechnician: techNameUpper }
-      ]
-    }).sort({ createdAt: 1 }).select({
-      laborCommissions: 1,
-      laborValue: 1,
-      laborPercent: 1,
-      laborShare: 1,
-      technician: 1,
-      initialTechnician: 1,
-      closingTechnician: 1,
-      closedAt: 1,
-      createdAt: 1,
-      number: 1,
-      vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
-      items: 1
-    });
-    
-    // Recolectar detalles de comisiones con porcentajes
-    // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
-    const { commissionDetails, commission } = await collectCommissionDetailsForSales({
-      sales,
-      techNameUpper,
-      startDate,
-      endDate,
-      companyId: req.companyId
-    });
+    let commissionDetails = [];
+    let commission = 0;
+    if (includeCommission) {
+      const sales = await Sale.find({
+        companyId: req.companyId,
+        status: 'closed',
+        closedAt: {
+          $ne: null,  // Excluir ventas sin fecha de cierre
+          $gte: startDate,
+          $lte: endDate
+        },
+        $or: [
+          { 'laborCommissions.technician': techNameUpper },
+          { 'laborCommissions.technicianName': techNameUpper },
+          { closingTechnician: techNameUpper },
+          { technician: techNameUpper },
+          { initialTechnician: techNameUpper }
+        ]
+      }).sort({ createdAt: 1 }).select({
+        laborCommissions: 1,
+        laborValue: 1,
+        laborPercent: 1,
+        laborShare: 1,
+        technician: 1,
+        initialTechnician: 1,
+        closingTechnician: 1,
+        closedAt: 1,
+        createdAt: 1,
+        number: 1,
+        vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
+        items: 1
+      });
+
+      // Recolectar detalles de comisiones con porcentajes
+      // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
+      ({ commissionDetails, commission } = await collectCommissionDetailsForSales({
+        sales,
+        techNameUpper,
+        startDate,
+        endDate,
+        companyId: req.companyId
+      }));
+    }
     
     const commissionRounded = Math.round(commission * 100) / 100;
     
@@ -975,8 +1072,7 @@ export const previewSettlement = async (req, res) => {
     
     // AGREGAR PRÉSTAMOS PENDIENTES del empleado (solo si están seleccionados)
     const includeLoans = specialConcepts.includes('LOAN_PAYMENT');
-    const { loanPayments = [] } = req.body;
-    let loansInfo = []; // Inicializar loansInfo
+    let loansInfo = [];
     
     if (includeLoans) {
       const pendingLoans = await EmployeeLoan.find({
@@ -986,19 +1082,8 @@ export const previewSettlement = async (req, res) => {
       }).sort({ loanDate: 1 });
       
       if (pendingLoans.length > 0) {
-        // Asegurar que el concepto PAGO_PRESTAMOS existe
         const loanConcept = await ensureLoanConcept(req.companyId);
         
-        // Obtener monto total a pagar (desde configuración inicial o desde loanPayments)
-        let totalLoanPayment = 0;
-        if (loanPayments.length > 0 && loanPayments[0].totalAmount) {
-          totalLoanPayment = Math.max(0, Number(loanPayments[0].totalAmount) || 0);
-        } else {
-          // Si no hay monto específico, usar el total pendiente
-          totalLoanPayment = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
-        }
-        
-        // Construir información detallada de préstamos
         loansInfo = pendingLoans.map(loan => ({
           loanId: String(loan._id),
           amount: loan.amount,
@@ -1008,18 +1093,23 @@ export const previewSettlement = async (req, res) => {
           loanDate: loan.loanDate
         }));
         
+        const { totalLoanPayment, perLoan } = computeLoanPaymentDistribution(pendingLoans, loanPayments);
+        
         if (totalLoanPayment > 0) {
-          // Agregar como un solo item de préstamos (no individual)
-          // Usar un ID único para identificar préstamos y excluirlos del cálculo del concepto variable
-          items.push({
-            conceptId: loanConcept._id,
-            name: 'Pago préstamos',
-            type: 'deduction',
-            base: pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0),
-            value: totalLoanPayment,
-            calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
-            notes: `${pendingLoans.length} préstamo(s) pendiente(s)`
-          });
+          for (const { loan, paymentAmount } of perLoan) {
+            if (paymentAmount <= 0) continue;
+            const pending = loan.amount - (loan.paidAmount || 0);
+            items.push({
+              conceptId: loanConcept._id,
+              name: `Préstamo ${loan.description ? `(${loan.description})` : ''} - ${new Date(loan.loanDate).toLocaleDateString('es-CO')}`,
+              type: 'deduction',
+              base: pending,
+              value: paymentAmount,
+              calcRule: 'LOAN_PAYMENT_DEDUCTION',
+              loanId: loan._id,
+              notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
+            });
+          }
         }
       }
     }
@@ -1103,45 +1193,59 @@ export const approveSettlement = async (req, res) => {
     // Ajustar endDate para incluir todo el día (hasta 23:59:59.999)
     endDate.setHours(23, 59, 59, 999);
     
-    const sales = await Sale.find({
-      companyId: req.companyId,
-      status: 'closed',
-      closedAt: { 
-        $ne: null,  // Excluir ventas sin fecha de cierre
-        $gte: startDate, 
-        $lte: endDate 
-      },
-      $or: [
-        { 'laborCommissions.technician': techNameUpper },
-        { 'laborCommissions.technicianName': techNameUpper },
-        { closingTechnician: techNameUpper },
-        { technician: techNameUpper },
-        { initialTechnician: techNameUpper }
-      ]
-    }).sort({ createdAt: 1 }).select({
-      laborCommissions: 1,
-      laborValue: 1,
-      laborPercent: 1,
-      laborShare: 1,
-      technician: 1,
-      initialTechnician: 1,
-      closingTechnician: 1,
-      closedAt: 1,
-      createdAt: 1,
-      number: 1,
-      vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
-      items: 1
-    });
-    
-    // Recolectar detalles de comisiones con porcentajes
-    // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
-    const { commissionDetails, commission } = await collectCommissionDetailsForSales({
-      sales,
-      techNameUpper,
-      startDate,
-      endDate,
-      companyId: req.companyId
-    });
+    const companyDoc = await Company.findById(req.companyId).select({ technicians: 1 }).lean();
+    const technicianEligibleForLaborCommission = technicianReceivesLaborCommission(companyDoc, techNameUpper);
+    const laborConcept = await ensureLaborConcept(req.companyId);
+    const includeCommission =
+      technicianEligibleForLaborCommission &&
+      (
+        specialConcepts.includes('COMMISSION') || // compat legacy
+        normalConceptIds.some(id => String(id) === String(laborConcept?._id))
+      );
+
+    let commissionDetails = [];
+    let commission = 0;
+    if (includeCommission) {
+      const sales = await Sale.find({
+        companyId: req.companyId,
+        status: 'closed',
+        closedAt: {
+          $ne: null,  // Excluir ventas sin fecha de cierre
+          $gte: startDate,
+          $lte: endDate
+        },
+        $or: [
+          { 'laborCommissions.technician': techNameUpper },
+          { 'laborCommissions.technicianName': techNameUpper },
+          { closingTechnician: techNameUpper },
+          { technician: techNameUpper },
+          { initialTechnician: techNameUpper }
+        ]
+      }).sort({ createdAt: 1 }).select({
+        laborCommissions: 1,
+        laborValue: 1,
+        laborPercent: 1,
+        laborShare: 1,
+        technician: 1,
+        initialTechnician: 1,
+        closingTechnician: 1,
+        closedAt: 1,
+        createdAt: 1,
+        number: 1,
+        vehicle: 1, // incluye plate/brand/line/engine/year para vehicleLabel
+        items: 1
+      });
+
+      // Recolectar detalles de comisiones con porcentajes
+      // IMPORTANTE: Solo incluir comisiones del técnico específico dentro del período
+      ({ commissionDetails, commission } = await collectCommissionDetailsForSales({
+        sales,
+        techNameUpper,
+        startDate,
+        endDate,
+        companyId: req.companyId
+      }));
+    }
     
     const commissionRounded = Math.round(commission * 100) / 100;
     
@@ -1160,11 +1264,6 @@ export const approveSettlement = async (req, res) => {
     
     // PRIMERO agregar las comisiones de ventas (solo si están seleccionadas)
     const items = [];
-    const laborConcept = await ensureLaborConcept(req.companyId);
-    const includeCommission =
-      specialConcepts.includes('COMMISSION') || // compat legacy
-      normalConceptIds.some(id => String(id) === String(laborConcept?._id));
-    
     if (includeCommission && commissionRounded > 0) {
       // Usar monto editado si existe, sino usar el calculado
       const finalCommissionAmount = commissionAmount !== undefined && commissionAmount !== null 
@@ -1319,59 +1418,35 @@ export const approveSettlement = async (req, res) => {
       }).sort({ loanDate: 1 });
       
       if (pendingLoans.length > 0) {
-        // Asegurar que el concepto PAGO_PRESTAMOS existe
         const loanConcept = await ensureLoanConcept(req.companyId);
         
-        // Obtener monto total a pagar (desde configuración inicial)
-        let totalLoanPayment = 0;
-        if (loanPayments.length > 0 && loanPayments[0].totalAmount) {
-          totalLoanPayment = Math.max(0, Number(loanPayments[0].totalAmount) || 0);
-        } else {
-          // Si no hay monto específico, usar el total pendiente
-          totalLoanPayment = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
-        }
+        const { totalLoanPayment, perLoan } = computeLoanPaymentDistribution(pendingLoans, loanPayments);
         
         if (totalLoanPayment > 0) {
-          // Distribuir el monto total proporcionalmente entre los préstamos
-          const totalPending = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
-          let remaining = Math.min(totalLoanPayment, totalPending);
-          
-          pendingLoans.forEach((loan, idx) => {
-            if (remaining <= 0) return;
+          for (const { loan, paymentAmount } of perLoan) {
+            if (paymentAmount <= 0) continue;
             const pending = loan.amount - (loan.paidAmount || 0);
-            if (pending > 0) {
-              const paymentAmount = idx === pendingLoans.length - 1 
-                ? remaining // El último préstamo recibe el resto
-                : Math.min(remaining, Math.round((totalLoanPayment * pending / totalPending)));
-              
-              if (paymentAmount > 0) {
-                // Agregar item individual para este préstamo
-                items.push({
-                  conceptId: loanConcept._id,
-                  name: `Préstamo ${loan.description ? `(${loan.description})` : ''} - ${new Date(loan.loanDate).toLocaleDateString('es-CO')}`,
-                  type: 'deduction',
-                  base: pending,
-                  value: paymentAmount,
-                  calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
-                  loanId: String(loan._id),
-                  notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
-                });
-                
-                // Preparar actualización del préstamo
-                const newPaidAmount = (loan.paidAmount || 0) + paymentAmount;
-                const newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
-                
-                loanUpdates.push({
-                  loanId: loan._id,
-                  paymentAmount,
-                  newPaidAmount,
-                  newStatus
-                });
-                
-                remaining -= paymentAmount;
-              }
-            }
-          });
+            items.push({
+              conceptId: loanConcept._id,
+              name: `Préstamo ${loan.description ? `(${loan.description})` : ''} - ${new Date(loan.loanDate).toLocaleDateString('es-CO')}`,
+              type: 'deduction',
+              base: pending,
+              value: paymentAmount,
+              calcRule: 'LOAN_PAYMENT_DEDUCTION',
+              loanId: loan._id,
+              notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
+            });
+            
+            const newPaidAmount = (loan.paidAmount || 0) + paymentAmount;
+            const newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
+            
+            loanUpdates.push({
+              loanId: loan._id,
+              paymentAmount,
+              newPaidAmount,
+              newStatus
+            });
+          }
         }
       }
     }
@@ -1495,6 +1570,108 @@ export const approveSettlement = async (req, res) => {
   }
 };
 
+/** Líneas de descuento por préstamo en liquidación aprobada */
+function settlementLoanDeductionItems(items = []) {
+  return (items || []).filter(i => {
+    const r = i?.calcRule || '';
+    return r === 'LOAN_PAYMENT_DEDUCTION' || r === 'employee_loans' || r === 'employee_loan';
+  });
+}
+
+/**
+ * Anula la aprobación: vuelve a borrador conservando ítems y montos.
+ * Revierte abonos a préstamos vinculados a esta liquidación.
+ * No permitido si ya hubo pago (paid / partially_paid).
+ */
+export const unapproveSettlement = async (req, res) => {
+  try {
+    const { settlementId } = req.body || {};
+    if (!settlementId || !mongoose.Types.ObjectId.isValid(String(settlementId))) {
+      return res.status(400).json({ error: 'settlementId válido requerido' });
+    }
+
+    const st = await PayrollSettlement.findOne({ _id: settlementId, companyId: req.companyId });
+    if (!st) {
+      return res.status(404).json({ error: 'Liquidación no encontrada' });
+    }
+    if (st.status === 'paid' || st.status === 'partially_paid') {
+      return res.status(400).json({
+        error: 'No se puede anular: esta liquidación ya tiene pagos registrados. Solo aplica a liquidaciones aprobadas sin pago.'
+      });
+    }
+    if (st.status !== 'approved') {
+      return res.status(400).json({ error: 'Solo se puede anular una liquidación en estado aprobada' });
+    }
+
+    const loanItems = settlementLoanDeductionItems(st.items);
+    const loansLinked = await EmployeeLoan.find({
+      companyId: req.companyId,
+      settlementIds: st._id
+    }).sort({ loanDate: 1 });
+
+    const usedLoanIds = new Set();
+
+    for (const item of loanItems) {
+      const paymentAmount = Math.round(Number(item.value) || 0);
+      if (paymentAmount <= 0) continue;
+
+      let loan = null;
+      const lid = item.loanId;
+      if (lid && mongoose.Types.ObjectId.isValid(String(lid))) {
+        loan = await EmployeeLoan.findOne({ _id: lid, companyId: req.companyId });
+        if (loan && !(loan.settlementIds || []).some(id => String(id) === String(st._id))) {
+          loan = null;
+        }
+      }
+      if (!loan) {
+        loan = loansLinked.find(l => !usedLoanIds.has(String(l._id)));
+      }
+
+      if (!loan) {
+        return res.status(400).json({
+          error: 'No se pudo asociar una línea de préstamo de la liquidación con un préstamo en el sistema. Revisá los datos o contactá soporte.'
+        });
+      }
+
+      usedLoanIds.add(String(loan._id));
+
+      const newPaidAmount = Math.max(0, (loan.paidAmount || 0) - paymentAmount);
+      let newStatus = 'pending';
+      if (newPaidAmount > 0) {
+        newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
+      }
+
+      await EmployeeLoan.findByIdAndUpdate(loan._id, {
+        paidAmount: newPaidAmount,
+        status: newStatus,
+        $pull: { settlementIds: st._id }
+      });
+    }
+
+    const leftover = loansLinked.filter(l => !usedLoanIds.has(String(l._id)));
+    if (leftover.length > 0) {
+      return res.status(400).json({
+        error:
+          'Hay préstamos vinculados a esta liquidación sin líneas de descuento reconocibles. No se anuló la aprobación para evitar inconsistencias. Contactá soporte.'
+      });
+    }
+
+    st.status = 'draft';
+    st.approvedBy = null;
+    st.approvedAt = null;
+    await st.save();
+
+    res.json({
+      ok: true,
+      settlement: st,
+      message: 'Aprobación anulada. La liquidación quedó en borrador; podés volver a previsualizar y aprobar.'
+    });
+  } catch (err) {
+    console.error('Error in unapproveSettlement:', err);
+    res.status(500).json({ error: 'Error al anular aprobación', message: err.message });
+  }
+};
+
 export const paySettlement = async (req, res) => {
   try {
     // Soporte para pagos parciales: payments es un array de { accountId, amount, date?, notes? }
@@ -1547,7 +1724,10 @@ export const paySettlement = async (req, res) => {
     
     // Procesar cada pago
     const createdEntries = [];
-    const paymentDate = date ? localToUTC(date) : new Date();
+    const paymentDateRaw = date ? localToUTC(date) : new Date();
+    const currentNow = utcNow();
+    // Evita desbalances por fechas futuras accidentales (timezone/UI)
+    const paymentDate = (paymentDateRaw && paymentDateRaw > currentNow) ? currentNow : paymentDateRaw;
     // Rastrear balances por cuenta para pagos múltiples a la misma cuenta
     const accountBalances = new Map();
     
@@ -1601,24 +1781,28 @@ export const paySettlement = async (req, res) => {
       accountBalances.set(payAccountId, newBalance);
       
       // Crear entrada de CashFlow para este pago parcial
+      const entryDateRaw = payDate ? localToUTC(payDate) : paymentDate;
+      const entryDate = (entryDateRaw && entryDateRaw > currentNow) ? currentNow : entryDateRaw;
     const entry = await CashFlowEntry.create({
       companyId: req.companyId,
         accountId: payAccountId,
-        date: payDate ? localToUTC(payDate) : paymentDate,
+        date: entryDate,
       kind: 'OUT',
       source: 'MANUAL',
+      tag: 'SUELDOS',
       sourceRef: settlementId,
         description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}${paymentsToProcess.length > 1 ? ` (Pago parcial ${createdEntries.length + 1}/${paymentsToProcess.length})` : ''}`,
         amount: paymentAmount,
         balanceAfter: newBalance,
-        notes: payNotes || notes || '',
       meta: { 
         type: 'PAYROLL', 
+        category: 'PAYROLL',
         technicianId: st.technicianId, 
         technicianName: st.technicianName,
           settlementId,
           paymentIndex: createdEntries.length + 1,
-          totalPayments: paymentsToProcess.length
+          totalPayments: paymentsToProcess.length,
+          notes: payNotes || notes || ''
         }
       });
       
@@ -1644,6 +1828,16 @@ export const paySettlement = async (req, res) => {
     }
     
     await st.save();
+
+    // Recalcular balances secuenciales por cuenta afectada para mantener consistencia del libro
+    const affectedAccountIds = [...new Set(createdEntries.map(e => String(e.accountId || '')).filter(Boolean))];
+    for (const accId of affectedAccountIds) {
+      try {
+        await recomputeAccountBalances(req.companyId, accId);
+      } catch (errRecompute) {
+        console.error('[paySettlement] Error recalculando balance de cuenta', { accountId: accId, error: errRecompute?.message });
+      }
+    }
 
     // Publicar eventos de actualización en vivo para cada cuenta afectada
     // Agrupar por accountId para evitar múltiples eventos innecesarios
@@ -1851,6 +2045,34 @@ function buildPdfPageStyles() {
   `;
 }
 
+function laborItemReceivedAtMs(item) {
+  const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
+  const dt = raw ? new Date(raw) : null;
+  return dt && !Number.isNaN(dt.getTime()) ? dt.getTime() : Number.POSITIVE_INFINITY;
+}
+
+function groupReceivedAtMs(group) {
+  const items = Array.isArray(group?.items) ? group.items : [];
+  if (!items.length) return Number.POSITIVE_INFINITY;
+  return Math.min(...items.map(laborItemReceivedAtMs));
+}
+
+function compareLaborGroupsByReceivedDate(a, b) {
+  const aIsOther = String(a?.label || '') === 'Sin vehículo asociado';
+  const bIsOther = String(b?.label || '') === 'Sin vehículo asociado';
+  if (aIsOther && !bIsOther) return 1;
+  if (!aIsOther && bIsOther) return -1;
+
+  const timeDiff = groupReceivedAtMs(a) - groupReceivedAtMs(b);
+  if (timeDiff !== 0) return timeDiff;
+
+  const saleA = Number(a?.saleNumber || a?.items?.[0]?.saleNumber || 0);
+  const saleB = Number(b?.saleNumber || b?.items?.[0]?.saleNumber || 0);
+  if (saleA !== saleB) return saleA - saleB;
+
+  return String(a?.plate || a?.label || '').localeCompare(String(b?.plate || b?.label || ''), 'es', { sensitivity: 'base' });
+}
+
 function buildFallbackPayrollHtml({ context }) {
   const formatMoney = (val) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
@@ -1910,13 +2132,8 @@ function buildFallbackPayrollHtml({ context }) {
       groups.get(key).items.push(it);
     }
 
-    // Orden: primero por saleNumber desc (num), luego por placa
-    const sortedGroups = Array.from(groups.values()).sort((a, b) => {
-      const an = Number(a.saleNumber || 0);
-      const bn = Number(b.saleNumber || 0);
-      if (bn !== an) return bn - an;
-      return String(a.plate || '').localeCompare(String(b.plate || ''), 'es', { sensitivity: 'base' });
-    });
+    // Orden: fecha en que se recibió el vehículo (apertura de la venta), luego número de venta, luego placa
+    const sortedGroups = Array.from(groups.values()).sort(compareLaborGroupsByReceivedDate);
 
     return { groups: sortedGroups, others };
   };
@@ -2063,78 +2280,242 @@ function buildFallbackPayrollHtml({ context }) {
 
 function buildCompactPayrollPdfStyles() {
   return `
-    @page { size: A4; margin: 8mm; }
+    @page { size: Letter; margin: 12mm; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
       font-family: Arial, sans-serif;
       color: #0f172a;
       background: #fff;
-      font-size: 10px;
-      line-height: 1.2;
+      font-size: 10.5px;
+      line-height: 1.32;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     .compact-doc { width: 100%; }
     .head {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 10px;
+      gap: 12px;
       border-bottom: 1px solid #cbd5e1;
-      padding-bottom: 6px;
-      margin-bottom: 8px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
     }
-    .title { margin: 0; font-size: 13px; font-weight: 700; }
-    .subtitle { margin: 2px 0 0 0; color: #475569; font-size: 9px; }
+    .title { margin: 0; font-size: 16px; font-weight: 800; }
+    .subtitle { margin: 3px 0 0 0; color: #475569; font-size: 10px; }
     .pay-card {
-      border: 1px solid #94a3b8;
-      border-radius: 6px;
-      padding: 6px 8px;
-      min-width: 180px;
+      border: 1px solid #111827;
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 200px;
+      text-align: right;
+      background: #fff;
+    }
+    .pay-card .k { color: #475569; font-size: 10px; margin-bottom: 3px; }
+    .pay-card .v { font-weight: 800; font-size: 18px; color: #065f46; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .card {
+      border: 1px solid #111827;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    .card-title {
+      margin: 0 0 8px 0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 4px 8px;
+    }
+    .info-label {
+      color: #64748b;
+      font-weight: 700;
+    }
+    .info-value {
+      color: #0f172a;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .totals-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+    .total-row .label {
+      color: #475569;
+      font-weight: 700;
+    }
+    .total-row .value {
+      font-weight: 800;
       text-align: right;
     }
-    .pay-card .k { color: #475569; font-size: 9px; margin-bottom: 2px; }
-    .pay-card .v { font-weight: 800; font-size: 14px; color: #065f46; }
+    .total-row .value.negative { color: #000; }
+    .total-row.net {
+      margin-top: 2px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+    }
+    .total-row.net .label,
+    .total-row.net .value {
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .total-row.net .value { color: #000; }
+    .section {
+      margin-top: 10px;
+    }
+    .section-title {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .vehicle-group {
+      border: 1px solid #111827;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      background: #fff;
+    }
+    .vehicle-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border-bottom: 1px solid #111827;
+    }
+    .vehicle-title {
+      margin: 0;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .vehicle-total {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .vehicle-total .label {
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .vehicle-total .value {
+      display: block;
+      margin-top: 0;
+      color: #000;
+      font-size: 13px;
+      font-weight: 900;
+    }
     .tbl {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #334155;
-      table-layout: fixed;
-      font-size: 9px;
+      border: 0;
+      font-size: 10px;
     }
     .tbl th {
-      background: #f1f5f9;
-      border: 1px solid #334155;
+      background: #fff;
+      border-bottom: 1px solid #111827;
       text-align: left;
-      padding: 4px 5px;
-      font-weight: 700;
+      padding: 6px 8px;
+      font-weight: 800;
+      color: #111827;
     }
     .tbl td {
-      border: 1px solid #334155;
-      padding: 4px 5px;
+      border-bottom: 1px solid #d1d5db;
+      padding: 6px 8px;
       vertical-align: top;
     }
+    .tbl tbody tr:last-child td {
+      border-bottom: 0;
+    }
+    .cell-title {
+      font-weight: 700;
+      color: #0f172a;
+    }
     .right { text-align: right; white-space: nowrap; }
+    .empty-state {
+      border: 1px dashed #111827;
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      color: #64748b;
+      background: #fff;
+    }
     .sign {
-      margin-top: 10px;
+      margin-top: 12px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
     .sign-box {
-      border: 1px dashed #94a3b8;
-      border-radius: 6px;
-      padding: 6px;
-      min-height: 42px;
+      border: 1px dashed #111827;
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 52px;
     }
     .sign-line {
       border-top: 1px solid #64748b;
-      margin-top: 16px;
-      padding-top: 3px;
+      margin-top: 28px;
+      padding-top: 5px;
       text-align: center;
       color: #475569;
-      font-size: 8px;
+      font-size: 9px;
+    }
+    .muted-note {
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 9px;
+    }
+    @media print {
+      .vehicle-group,
+      .card,
+      .sign-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+    @media (max-width: 720px) {
+      .summary-grid,
+      .sign {
+        grid-template-columns: 1fr;
+      }
+      .pay-card {
+        width: 100%;
+      }
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+      .vehicle-head,
+      .head {
+        flex-direction: column;
+      }
     }
   `;
 }
@@ -2151,6 +2532,8 @@ function buildCompactPayrollPdfHtml({ context }) {
     ? `${period.formattedStartDate} - ${period.formattedEndDate}`
     : '-';
 
+  const technicianInfo = settlement.technician || {};
+
   const formatServiceDate = (item) => {
     const raw = item?.saleOpenedAt || item?.serviceDate || item?.createdAt || null;
     if (!raw) return '-';
@@ -2159,57 +2542,137 @@ function buildCompactPayrollPdfHtml({ context }) {
     return dt.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const serviceRows = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
-    .filter((it) => it && (it.saleId || it.saleNumber || it.vehiclePlate || it.vehicleLabel || Number(it.base || 0) > 0));
-
-  const rowsHtml = serviceRows.length
-    ? serviceRows.map((it) => {
-        const plate = String(it.vehicleLabel || it.vehiclePlate || '-').trim() || '-';
-        const paidValue = Number(it.value || 0);
-        const laborName = String(it.serviceName || it.laborName || it.name || '-').trim() || '-';
-        return `
-          <tr>
-            <td>${escapeHtml(formatServiceDate(it))}</td>
-            <td>${escapeHtml(plate)}</td>
-            <td>${escapeHtml(laborName)}</td>
-            <td class="right">${escapeHtml(formatMoney(paidValue))}</td>
-          </tr>
-        `;
-      }).join('')
-    : `
-      <tr>
-        <td colspan="4" style="text-align:center;color:#64748b;">Sin líneas de servicio para mostrar</td>
-      </tr>
-    `;
-
   const isLaborLine = (it) => !!(it && (it.saleId || it.saleNumber || it.vehiclePlate || it.vehicleLabel));
+  const laborItems = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
+    .filter((it) => it && isLaborLine(it) && Number(it.value || 0) !== 0);
   const basicIncomeItems = [...(itemsByType.earnings || []), ...(itemsByType.surcharges || [])]
     .filter((it) => it && !isLaborLine(it) && Number(it.value || 0) !== 0);
   const deductionItems = (itemsByType.deductions || []).filter((it) => it && Number(it.value || 0) !== 0);
 
-  const hasBasicConcepts = basicIncomeItems.length > 0 || deductionItems.length > 0;
-  const basicConceptsHtml = hasBasicConcepts
+  let daysWorked = '';
+  if (period.startDate && period.endDate) {
+    const start = new Date(period.startDate);
+    const end = new Date(period.endDate);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      const diffTime = Math.abs(end - start);
+      daysWorked = String(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    }
+  }
+
+  const laborGroupsMap = new Map();
+  for (const item of laborItems) {
+    const vehicleName = String(item.vehicleLabel || item.vehiclePlate || '').trim();
+    const groupLabel = vehicleName || 'Sin vehículo asociado';
+    const groupKey = vehicleName || '__NO_VEHICLE__';
+    if (!laborGroupsMap.has(groupKey)) {
+      laborGroupsMap.set(groupKey, { label: groupLabel, items: [] });
+    }
+    laborGroupsMap.get(groupKey).items.push(item);
+  }
+
+  const laborGroups = Array.from(laborGroupsMap.values())
+    .map((group) => ({
+      ...group,
+      items: group.items.sort((a, b) => {
+        const timeDiff = laborItemReceivedAtMs(a) - laborItemReceivedAtMs(b);
+        if (timeDiff !== 0) return timeDiff;
+        const saleA = Number(a.saleNumber || 0);
+        const saleB = Number(b.saleNumber || 0);
+        if (saleA !== saleB) return saleA - saleB;
+        return String(a.serviceName || a.laborName || a.name || '').localeCompare(
+          String(b.serviceName || b.laborName || b.name || ''),
+          'es',
+          { sensitivity: 'base' }
+        );
+      })
+    }))
+    .sort(compareLaborGroupsByReceivedDate);
+
+  const laborGroupsHtml = laborGroups.length
+    ? laborGroups.map((group) => {
+        const total = group.items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+        const rows = group.items.map((item) => {
+          const serviceTitle = String(item.serviceName || item.laborName || item.name || '-').trim() || '-';
+          return `
+            <tr>
+              <td style="width: 16%;">${escapeHtml(formatServiceDate(item))}</td>
+              <td style="width: 14%;">${escapeHtml(item.saleNumber ? `#${item.saleNumber}` : '-')}</td>
+              <td style="width: 50%;">
+                <div class="cell-title">${escapeHtml(serviceTitle)}</div>
+              </td>
+              <td class="right" style="width: 20%; font-weight: 800;">${escapeHtml(formatMoney(item.value || 0))}</td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          <div class="vehicle-group">
+            <div class="vehicle-head">
+              <div>
+                <div class="vehicle-title">${escapeHtml(group.label)}</div>
+              </div>
+              <div class="vehicle-total">
+                <span class="value">${escapeHtml(formatMoney(total))}</span>
+              </div>
+            </div>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Día</th>
+                  <th>Venta</th>
+                  <th>Mano de obra</th>
+                  <th class="right">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join('')
+    : `<div class="empty-state">Sin manos de obra para mostrar en esta liquidación.</div>`;
+
+  const extraIncomeHtml = basicIncomeItems.length
     ? `
-      <div class="concepts-section" style="margin-top: 10px;">
-        <div class="concepts-title" style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 6px;">Conceptos básicos</div>
-        <table class="tbl concepts-tbl" style="margin-bottom: 8px;">
+      <div class="section">
+        <h2 class="section-title">Otros ingresos</h2>
+        <table class="tbl">
           <thead>
             <tr>
-              <th style="width: 70%;">Concepto</th>
-              <th class="right" style="width: 30%;">Valor</th>
+              <th style="width: 74%;">Concepto</th>
+              <th class="right" style="width: 26%;">Valor</th>
             </tr>
           </thead>
           <tbody>
             ${basicIncomeItems.map((it) => `
               <tr>
                 <td>${escapeHtml(String(it.name || it.serviceName || it.laborName || 'Ingreso').trim() || 'Ingreso')}</td>
-                <td class="right" style="color: #065f46;">${escapeHtml(formatMoney(it.value || 0))}</td>
+                <td class="right" style="font-weight: 800;">${escapeHtml(formatMoney(it.value || 0))}</td>
               </tr>
             `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+    : '';
+
+  const deductionsHtml = deductionItems.length
+    ? `
+      <div class="section">
+        <h2 class="section-title">Descuentos</h2>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width: 74%;">Concepto</th>
+              <th class="right" style="width: 26%;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
             ${deductionItems.map((it) => `
               <tr>
                 <td>${escapeHtml(String(it.name || 'Descuento').trim() || 'Descuento')}</td>
-                <td class="right" style="color: #b91c1c;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
+                <td class="right" style="font-weight: 800;">- ${escapeHtml(formatMoney(it.value || 0))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2233,20 +2696,12 @@ function buildCompactPayrollPdfHtml({ context }) {
         </div>
       </div>
 
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th style="width: 17%;">Día del servicio</th>
-            <th style="width: 24%;">Placa del vehículo</th>
-            <th style="width: 39%;">Mano de obra pagada</th>
-            <th class="right" style="width: 20%;">Valor mano de obra</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
-      ${basicConceptsHtml}
+      <div class="section">
+        ${laborGroupsHtml}
+      </div>
+
+      ${extraIncomeHtml}
+      ${deductionsHtml}
 
       <div class="sign">
         <div class="sign-box">
@@ -2256,6 +2711,7 @@ function buildCompactPayrollPdfHtml({ context }) {
           <div class="sign-line">Firma empresa</div>
         </div>
       </div>
+      <div class="muted-note">Documento generado desde nómina en formato carta para conservar el detalle completo de la liquidación.</div>
     </div>
   `;
 }
@@ -2745,13 +3201,12 @@ export const generateSettlementPdf = async (req, res) => {
 
     try {
       const pdfBuffer = await htmlToPdfBuffer(htmlDoc, {
-        format: 'A4',
+        format: 'Letter',
         preferCSSPageSize: true,
         printBackground: true,
-        // Compactar: menos márgenes + sin header/footer de Puppeteer (ahorra espacio vertical)
-        margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+        margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
         displayHeaderFooter: false,
-        scale: 0.96
+        scale: 1
       });
 
       res.setHeader('Content-Type', 'application/pdf');

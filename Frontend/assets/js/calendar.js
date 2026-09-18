@@ -16,6 +16,22 @@ function htmlEscape(text) {
 const formatDate = formatDateUtil;
 const formatDateTime = formatDateTimeForInput;
 
+async function fetchAppointmentTechnicians() {
+  const r = await API.get('/api/v1/company/technicians');
+  const techs = Array.isArray(r?.technicians) ? r.technicians : [];
+  const withName = techs.filter(
+    t => t && typeof t === 'object' && String(t.name || '').trim()
+  );
+  const flagged = withName.filter(t => t.isAppointmentTechnician === true);
+  const source = flagged.length ? flagged : withName;
+  return source.map(t => ({
+    name: String(t.name || '').trim().toUpperCase(),
+    appointmentColor: /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(t.appointmentColor || '').trim())
+      ? String(t.appointmentColor).trim().toUpperCase()
+      : '#2563EB'
+  }));
+}
+
 function getEventsForDate(date) {
   const dateStr = formatDate(date);
   return events.filter(event => {
@@ -71,9 +87,11 @@ function renderCalendar() {
     daysContainer.appendChild(dayEl);
   }
   
-  // Días del mes siguiente (para completar la última semana)
+  // Completar solo las filas necesarias (evita una fila vacía extra y reduce scroll en Notas)
   const totalCells = daysContainer.children.length;
-  const remainingCells = 42 - totalCells; // 6 semanas * 7 días
+  const rowsNeeded = Math.ceil(totalCells / 7);
+  const targetCells = rowsNeeded * 7;
+  const remainingCells = targetCells - totalCells;
   for (let day = 1; day <= remainingCells; day++) {
     const dayEl = createDayElement(day, true, null);
     daysContainer.appendChild(dayEl);
@@ -82,11 +100,10 @@ function renderCalendar() {
 
 function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = []) {
   const dayEl = document.createElement('div');
-  // Responsive: altura mínima más pequeña en móvil
-  dayEl.className = `min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded ${
-    isOtherMonth ? 'bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-100/50' : 'bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-50'
+  dayEl.className = `notes-cal-day-cell min-h-[2.25rem] sm:min-h-[3rem] md:min-h-[3.25rem] p-0.5 sm:p-0.5 border border-slate-600/25 dark:border-slate-600/25 theme-light:border-slate-300/70 rounded-lg ${
+    isOtherMonth ? 'notes-cal-day--other bg-slate-950/25 dark:bg-slate-950/25 theme-light:bg-slate-200/40' : 'bg-slate-800/35 dark:bg-slate-800/35 theme-light:bg-white/70 backdrop-blur-sm'
   } ${
-    isToday ? 'ring-1 sm:ring-2 ring-blue-500' : ''
+    isToday ? 'ring-1 sm:ring-2 ring-blue-500 ring-offset-0 sm:ring-offset-1 ring-offset-slate-900/80 dark:ring-offset-slate-900/80 theme-light:ring-offset-sky-50' : ''
   }`;
   
   const dayNumber = document.createElement('div');
@@ -261,15 +278,11 @@ function openNewEventModal(date = null) {
         </div>
         
         <div class="mb-3">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Color</label>
-          <select id="event-color" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="#3b82f6">Azul</option>
-            <option value="#10b981">Verde</option>
-            <option value="#f59e0b">Amarillo</option>
-            <option value="#ef4444">Rojo</option>
-            <option value="#8b5cf6">Morado</option>
-            <option value="#ec4899">Rosa</option>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Quién agenda <span class="text-red-400">*</span></label>
+          <select id="event-scheduler" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Seleccione persona...</option>
           </select>
+          <div id="event-scheduler-color-preview" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
         </div>
         
         <div class="flex items-center gap-2">
@@ -284,7 +297,7 @@ function openNewEventModal(date = null) {
       </div>
       
       <div class="flex gap-2 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-        <button id="event-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+        <button type="button" id="event-save" class="mm-btn-primary flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
         <button id="event-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
       </div>
     </div>
@@ -306,7 +319,8 @@ function openNewEventModal(date = null) {
   const startDateEl = document.getElementById('event-start-date');
   const startTimeEl = document.getElementById('event-start-time');
   const endEl = document.getElementById('event-end');
-  const colorEl = document.getElementById('event-color');
+  const schedulerEl = document.getElementById('event-scheduler');
+  const schedulerColorPreviewEl = document.getElementById('event-scheduler-color-preview');
   const notificationEl = document.getElementById('event-notification');
   const notificationTimeEl = document.getElementById('event-notification-time');
   const notificationAtEl = document.getElementById('event-notification-at');
@@ -318,6 +332,32 @@ function openNewEventModal(date = null) {
   let selectedVehicle = null;
   let vehicleSearchTimeout = null;
   let quotesCache = [];
+  let appointmentTechs = [];
+
+  (async () => {
+    try {
+      appointmentTechs = await fetchAppointmentTechnicians();
+      schedulerEl.innerHTML = '<option value="">Seleccione persona...</option>' +
+        appointmentTechs.map(t => `<option value="${htmlEscape(t.name)}" data-color="${htmlEscape(t.appointmentColor)}">${htmlEscape(t.name)}</option>`).join('');
+      if (appointmentTechs.length === 0) {
+        schedulerColorPreviewEl.classList.remove('hidden');
+        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos cargados en la empresa. Pide a un administrador que los dé de alta (Nómina o configuración de la empresa principal si comparten base).</span>';
+      }
+    } catch (err) {
+      console.error('Error loading appointment technicians:', err);
+    }
+  })();
+
+  schedulerEl.addEventListener('change', () => {
+    const selected = appointmentTechs.find(t => t.name === schedulerEl.value);
+    if (!selected) {
+      schedulerColorPreviewEl.classList.add('hidden');
+      schedulerColorPreviewEl.textContent = '';
+      return;
+    }
+    schedulerColorPreviewEl.classList.remove('hidden');
+    schedulerColorPreviewEl.innerHTML = `Color asignado: <span class="inline-block w-3 h-3 rounded-full align-middle ml-1 mr-1" style="background:${selected.appointmentColor}"></span>${selected.appointmentColor}`;
+  });
   
   // Autocompletar título con nombre del cliente
   customerNameEl.addEventListener('input', () => {
@@ -607,6 +647,9 @@ function openNewEventModal(date = null) {
       if (!startDate || !startTime) {
         return alert("La fecha y hora son obligatorias");
       }
+      if (!schedulerEl.value) {
+        return alert("Debes seleccionar quién agenda la cita");
+      }
       
       // Usar función helper para evitar problemas de zona horaria
       const startDateTimeISO = localDateTimeToISO(startDate, startTime);
@@ -618,7 +661,7 @@ function openNewEventModal(date = null) {
         description: descriptionEl.value.trim(),
         startDate: startDateTimeISO,
         endDate: endDateTimeISO || undefined,
-        color: colorEl.value,
+        scheduledByTechnician: schedulerEl.value,
         hasNotification: notificationEl.checked,
         notificationAt: notificationAtISO || undefined,
         plate,
@@ -659,6 +702,7 @@ function openEventModal(event) {
       <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">${htmlEscape(event.title)}</h3>
       
       ${event.description ? `<div class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-3">${htmlEscape(event.description)}</div>` : ''}
+      ${event.scheduledByTechnician ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Agendado por: <strong>${htmlEscape(event.scheduledByTechnician)}</strong></div>` : ''}
       
       ${hasCustomerData ? `
         <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pt-4">
@@ -977,15 +1021,11 @@ function openEditEventModal(event) {
         </div>
         
         <div class="mb-3">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Color</label>
-          <select id="event-edit-color" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="#3b82f6" ${event.color === '#3b82f6' ? 'selected' : ''}>Azul</option>
-            <option value="#10b981" ${event.color === '#10b981' ? 'selected' : ''}>Verde</option>
-            <option value="#f59e0b" ${event.color === '#f59e0b' ? 'selected' : ''}>Amarillo</option>
-            <option value="#ef4444" ${event.color === '#ef4444' ? 'selected' : ''}>Rojo</option>
-            <option value="#8b5cf6" ${event.color === '#8b5cf6' ? 'selected' : ''}>Morado</option>
-            <option value="#ec4899" ${event.color === '#ec4899' ? 'selected' : ''}>Rosa</option>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Quién agenda <span class="text-red-400">*</span></label>
+          <select id="event-edit-scheduler" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Seleccione persona...</option>
           </select>
+          <div id="event-edit-scheduler-color-preview" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
         </div>
         
         <div class="flex items-center gap-2">
@@ -1000,7 +1040,7 @@ function openEditEventModal(event) {
       </div>
       
       <div class="flex gap-2 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-        <button id="event-edit-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+        <button type="button" id="event-edit-save" class="mm-btn-primary flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
         <button id="event-edit-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
       </div>
     </div>
@@ -1013,7 +1053,8 @@ function openEditEventModal(event) {
   const startDateEl = document.getElementById('event-edit-start-date');
   const startTimeEl = document.getElementById('event-edit-start-time');
   const endEl = document.getElementById('event-edit-end');
-  const colorEl = document.getElementById('event-edit-color');
+  const schedulerEl = document.getElementById('event-edit-scheduler');
+  const schedulerColorPreviewEl = document.getElementById('event-edit-scheduler-color-preview');
   const notificationEl = document.getElementById('event-edit-notification');
   const notificationTimeEl = document.getElementById('event-edit-notification-time');
   const notificationAtEl = document.getElementById('event-edit-notification-at');
@@ -1029,6 +1070,38 @@ function openEditEventModal(event) {
   
   let selectedVehicle = null;
   let vehicleSearchTimeout = null;
+  let appointmentTechs = [];
+
+  (async () => {
+    try {
+      appointmentTechs = await fetchAppointmentTechnicians();
+      schedulerEl.innerHTML = '<option value="">Seleccione persona...</option>' +
+        appointmentTechs.map(t => `<option value="${htmlEscape(t.name)}" data-color="${htmlEscape(t.appointmentColor)}" ${t.name === String(event.scheduledByTechnician || '').toUpperCase() ? 'selected' : ''}>${htmlEscape(t.name)}</option>`).join('');
+      if (appointmentTechs.length === 0) {
+        schedulerColorPreviewEl.classList.remove('hidden');
+        schedulerColorPreviewEl.innerHTML = '<span class="text-red-400">No hay técnicos cargados en la empresa. Pide a un administrador que los dé de alta (Nómina o configuración de la empresa principal si comparten base).</span>';
+        return;
+      }
+      const selected = appointmentTechs.find(t => t.name === schedulerEl.value);
+      if (selected) {
+        schedulerColorPreviewEl.classList.remove('hidden');
+        schedulerColorPreviewEl.innerHTML = `Color asignado: <span class="inline-block w-3 h-3 rounded-full align-middle ml-1 mr-1" style="background:${selected.appointmentColor}"></span>${selected.appointmentColor}`;
+      }
+    } catch (err) {
+      console.error('Error loading appointment technicians:', err);
+    }
+  })();
+
+  schedulerEl.addEventListener('change', () => {
+    const selected = appointmentTechs.find(t => t.name === schedulerEl.value);
+    if (!selected) {
+      schedulerColorPreviewEl.classList.add('hidden');
+      schedulerColorPreviewEl.textContent = '';
+      return;
+    }
+    schedulerColorPreviewEl.classList.remove('hidden');
+    schedulerColorPreviewEl.innerHTML = `Color asignado: <span class="inline-block w-3 h-3 rounded-full align-middle ml-1 mr-1" style="background:${selected.appointmentColor}"></span>${selected.appointmentColor}`;
+  });
   
   // Cargar vehículo si existe
   if (event.vehicleId) {
@@ -1176,6 +1249,9 @@ function openEditEventModal(event) {
       if (!titleEl.value.trim()) {
         return alert("El título es obligatorio");
       }
+      if (!schedulerEl.value) {
+        return alert("Debes seleccionar quién agenda la cita");
+      }
       
       // Obtener valores de los nuevos campos si existen
       const plateEl = document.getElementById('event-edit-plate');
@@ -1196,7 +1272,7 @@ function openEditEventModal(event) {
         description: descriptionEl.value.trim(),
         startDate: startDateTimeISO,
         endDate: endDateTimeISO,
-        color: colorEl.value,
+        scheduledByTechnician: schedulerEl.value,
         hasNotification: notificationEl.checked,
         notificationAt: notificationAtISO,
         plate: plateEl.value.trim().toUpperCase() || '',
@@ -1315,11 +1391,16 @@ async function loadEvents() {
 async function syncReminders() {
   try {
     await API.calendar.syncNoteReminders();
+    const agendaRes = await API.calendar.syncAgendaColors();
     await loadEvents();
     renderCalendar();
-    alert("Recordatorios sincronizados correctamente");
+    const extra =
+      typeof agendaRes?.updated === "number" && agendaRes.updated > 0
+        ? `\nCitas alineadas con técnico/color: ${agendaRes.updated}.`
+        : "";
+    alert("Recordatorios y agendas sincronizados correctamente." + extra);
   } catch (e) {
-    alert("Error al sincronizar recordatorios: " + e.message);
+    alert("Error al sincronizar: " + (e.message || e));
   }
 }
 
@@ -1606,7 +1687,7 @@ function openCalendarSettings() {
       </div>
       
       <div class="flex gap-2 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-        <button id="calendar-settings-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+        <button type="button" id="calendar-settings-save" class="mm-btn-primary flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
         <button id="calendar-settings-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
       </div>
     </div>

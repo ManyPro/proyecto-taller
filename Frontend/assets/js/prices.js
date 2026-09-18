@@ -4,6 +4,38 @@ import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './n
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
+
+function formatPriceRow(tr) {
+  const input = tr.querySelector('input[data-price]');
+  const fmt = tr.querySelector('[data-price-formatted]');
+  if (!input || !fmt) return;
+  fmt.textContent = money(normalizeNumber(input.value));
+}
+
+function bindPriceFormattedSync(tr) {
+  const input = tr.querySelector('input[data-price]');
+  if (!input) return;
+  const onInput = () => formatPriceRow(tr);
+  input.addEventListener('input', onInput);
+}
+
+/** Paginación reutilizable (precios general / inversión / vehicular) */
+function renderPricesPaginationMount(mountEl, { page, pages, total, prevId, nextId, onPrev, onNext }) {
+  if (!mountEl) return;
+  if (pages <= 1) {
+    mountEl.innerHTML = '';
+    return;
+  }
+  mountEl.innerHTML = `
+    <div class="pr-pagination">
+      <button type="button" class="pr-btn-secondary px-3 py-2 text-sm" id="${prevId}" ${page <= 1 ? 'disabled' : ''}>← Anterior</button>
+      <span translate="no" class="pr-pagination__meta">Página ${page} de ${pages} (${total} total)</span>
+      <button type="button" class="pr-btn-secondary px-3 py-2 text-sm" id="${nextId}" ${page >= pages ? 'disabled' : ''}>Siguiente →</button>
+    </div>
+  `;
+  $(`#${prevId}`)?.addEventListener('click', onPrev);
+  $(`#${nextId}`)?.addEventListener('click', onNext);
+}
 function openModal(node){
   const modal = document.getElementById('modal'), slot = document.getElementById('modalBody'), x = document.getElementById('modalClose');
   if (!modal||!slot||!x) return;
@@ -38,6 +70,13 @@ const clone=(id)=>document.getElementById(id)?.content?.firstElementChild?.clone
 
 function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='number') return v; const s=String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'); const n=Number(s); return Number.isFinite(n)?n:0; }
 
+function escapeHtml(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
 export function openQRForItem() {
   return new Promise(async (resolve, reject) => {
     const qrModal = document.createElement('div');
@@ -45,21 +84,25 @@ export function openQRForItem() {
     qrModal.id = 'qr-modal-item-scanner';
     
     const qrContent = document.createElement('div');
-    qrContent.style.cssText = 'background:var(--card);border-radius:12px;padding:24px;max-width:90vw;max-height:90vh;width:600px;position:relative;z-index:100000;';
+    qrContent.className = 'relative z-[100000] w-full max-w-[600px] max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 shadow-2xl bg-slate-900 dark:bg-slate-900 theme-light:bg-white p-0';
     qrContent.innerHTML = `
-      <button class="close" style="position:absolute;top:8px;right:8px;font-size:24px;background:none;border:none;color:var(--text);cursor:pointer;padding:4px 12px;">&times;</button>
-      <h3 style="margin-top:0;margin-bottom:16px;">Escanear código QR</h3>
-      <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;min-height:300px;">
-        <video id="qr-video-single" playsinline muted autoplay style="width:100%;height:auto;display:block;object-fit:contain;"></video>
-        <canvas id="qr-canvas-single" style="display:none;"></canvas>
+      <div class="relative px-5 py-3 rounded-t-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+        <button type="button" class="close absolute top-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-lg bg-red-600 hover:bg-red-700 text-white text-xl font-bold shadow" title="Cerrar">&times;</button>
+        <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Lista de precios</p>
+        <h3 class="text-lg font-bold pr-10">📷 Escanear código QR</h3>
       </div>
-      <div style="margin-bottom:12px;">
-        <input id="qr-manual-single" placeholder="O ingresa el código manualmente" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-      </div>
-      <div id="qr-msg-single" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
-      <div style="display:flex;gap:8px;">
-        <button id="qr-start-camera-single" class="primary" style="flex:1;padding:10px;display:none;">▶ Iniciar cámara</button>
-        <button id="qr-cancel-single" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      <div class="p-5 pt-4">
+        <div class="relative w-full bg-black rounded-xl overflow-hidden mb-3 min-h-[280px] border border-slate-700">
+          <video id="qr-video-single" playsinline muted autoplay class="w-full h-auto block object-contain max-h-[50vh]"></video>
+          <canvas id="qr-canvas-single" class="hidden"></canvas>
+        </div>
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Código manual</label>
+        <input id="qr-manual-single" placeholder="Pegar o escribir código…" class="w-full px-3 py-2 mb-2 rounded-lg border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 bg-slate-800/80 dark:bg-slate-800/80 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 text-sm" />
+        <div id="qr-msg-single" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3 min-h-[1rem]"></div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" id="qr-start-camera-single" class="pr-main-btn flex-1 min-w-[120px] px-3 py-2 text-sm hidden">▶ Iniciar cámara</button>
+          <button type="button" id="qr-cancel-single" class="pr-btn-secondary flex-1 min-w-[120px] px-3 py-2 text-sm">Cancelar</button>
+        </div>
       </div>
     `;
     
@@ -476,9 +519,6 @@ export function initPrices(){
     document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
       const isActive = b.dataset.subtab === name;
       b.classList.toggle('active', isActive);
-      b.classList.toggle('bg-blue-600', isActive);
-      b.classList.toggle('text-white', isActive);
-      b.classList.toggle('bg-slate-700/50', !isActive);
     });
     document.querySelectorAll('[data-subsection]').forEach(sec => {
       sec.classList.toggle('hidden', sec.dataset.subsection !== name);
@@ -573,7 +613,7 @@ export function initPrices(){
     if (!tr) {
       console.error('Template no encontrado:', rowTemplateId);
       const fallback = document.createElement('tr');
-      fallback.innerHTML = `<td colspan="4">Error: Template no disponible</td>`;
+      fallback.innerHTML = `<td colspan="5">Error: Template no disponible</td>`;
       return fallback;
     }
     
@@ -608,27 +648,29 @@ export function initPrices(){
     if (itemInfoCell) {
       if (r.type === 'combo' && Array.isArray(r.comboProducts) && r.comboProducts.length > 0) {
         const productsList = r.comboProducts.map(cp => {
-          const linked = cp.itemId ? `✓ ${cp.itemId.name || cp.itemId.sku}` : cp.name;
-          return `<div style="font-size:10px;margin:2px 0;">• ${linked} (x${cp.qty || 1})</div>`;
+          const linked = cp.itemId ? `✓ ${escapeHtml(cp.itemId.name || cp.itemId.sku)}` : escapeHtml(cp.name || '');
+          return `<div class="pr-iteminfo-line">• ${linked} (x${cp.qty || 1})</div>`;
         }).join('');
         itemInfoCell.innerHTML = `
-          <div style="color:#9333ea;font-weight:600;margin-bottom:4px;">${r.comboProducts.length} producto(s)</div>
+          <div class="pr-iteminfo-title">${r.comboProducts.length} producto(s)</div>
           ${productsList}
         `;
       } else if (r.type === 'product' && r.itemId) {
         itemInfoCell.innerHTML = `
-          <div style="color:var(--success, #10b981);">✓ ${r.itemId.name || r.itemId.sku}</div>
-          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
+          <div class="pr-iteminfo-title">✓ ${escapeHtml(r.itemId.name || r.itemId.sku)}</div>
+          <div class="pr-iteminfo-muted"><span class="font-semibold">SKU:</span> ${escapeHtml(r.itemId.sku)} · Stock: ${r.itemId.stock || 0}</div>
         `;
       } else if (r.type === 'product') {
-        itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">Sin vincular</span>';
+        itemInfoCell.innerHTML = '<span class="pr-iteminfo-muted">Sin vincular</span>';
       } else {
-        itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">-</span>';
+        itemInfoCell.innerHTML = '<span class="pr-iteminfo-muted">-</span>';
       }
     }
     
-    const inPrice=tr.querySelector('input[data-price]'); 
+    const inPrice = tr.querySelector('input[data-price]');
     if (inPrice) inPrice.value = r.total || r.price || 0;
+    formatPriceRow(tr);
+    bindPriceFormattedSync(tr);
 
     const editBtn = tr.querySelector('button.edit');
     if (editBtn) {
@@ -683,31 +725,23 @@ export function initPrices(){
 
   function renderPagination() {
     const paginationEl = $('#pe-pagination');
-    if (!paginationEl) return;
-    // Mostrar paginación incluso si no hay vehículo seleccionado (para precios generales)
-    
-    if (paging.pages <= 1) {
-      paginationEl.innerHTML = '';
-      return;
-    }
-    
-    let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
-    html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev">← Anterior</button>`;
-    html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
-    html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next">Siguiente →</button>`;
-    html += '</div>';
-    paginationEl.innerHTML = html;
-    
-    $('#pe-prev')?.addEventListener('click', () => {
-      if (paging.page > 1) {
-        currentPage = paging.page - 1;
-        loadPrices();
-      }
-    });
-    $('#pe-next')?.addEventListener('click', () => {
-      if (paging.page < paging.pages) {
-        currentPage = paging.page + 1;
-        loadPrices();
+    renderPricesPaginationMount(paginationEl, {
+      page: paging.page,
+      pages: paging.pages,
+      total: paging.total,
+      prevId: 'pe-prev',
+      nextId: 'pe-next',
+      onPrev: () => {
+        if (paging.page > 1) {
+          currentPage = paging.page - 1;
+          loadPrices();
+        }
+      },
+      onNext: () => {
+        if (paging.page < paging.pages) {
+          currentPage = paging.page + 1;
+          loadPrices();
+        }
       }
     });
   }
@@ -744,7 +778,7 @@ export function initPrices(){
       // Renderizar header en tabla de inversión
       if (headInversion && bodyInversion) {
         const tr = document.createElement('tr');
-        ['Nombre', 'Precio', 'Acciones'].forEach(txt => {
+        ['Tipo', 'Nombre', 'Detalle', 'Precio', 'Acciones'].forEach(txt => {
           const th = document.createElement('th');
           th.textContent = txt;
           tr.appendChild(th);
@@ -754,9 +788,9 @@ export function initPrices(){
         if (rows.length === 0) {
           bodyInversion.replaceChildren();
           const emptyRow = document.createElement('tr');
-          emptyRow.innerHTML = `<td colspan="3" style="text-align:center;padding:24px;color:var(--muted);">
-            <div style="margin-bottom:8px;">💼 No hay precios de inversión disponibles</div>
-            <div style="font-size:12px;">Usa el botón de arriba para crear precios de inversión</div>
+          emptyRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--empty">
+            <div class="font-semibold mb-2">💼 No hay precios de inversión disponibles</div>
+            <div class="text-sm opacity-90">Usa el botón de arriba para crear precios de inversión</div>
           </td>`;
           bodyInversion.appendChild(emptyRow);
         } else {
@@ -764,7 +798,7 @@ export function initPrices(){
             const tr = clone(rowTemplateId);
             if (!tr) {
               const fallback = document.createElement('tr');
-              fallback.innerHTML = `<td colspan="3">Error: Template no disponible</td>`;
+              fallback.innerHTML = `<td colspan="5">Error: Template no disponible</td>`;
               return fallback;
             }
             
@@ -772,11 +806,10 @@ export function initPrices(){
             const nameCell = tr.querySelector('[data-name]');
             if (nameCell) nameCell.textContent = r.name || '';
             
-            const priceCell = tr.querySelector('[data-price]');
-            if (priceCell) {
-              const priceInput = priceCell.querySelector('input');
-              if (priceInput) priceInput.value = r.total || 0;
-            }
+            const priceInput = tr.querySelector('input[data-price]');
+            if (priceInput) priceInput.value = r.total || 0;
+            formatPriceRow(tr);
+            bindPriceFormattedSync(tr);
             
             // Ocultar celdas que no aplican para inversión
             const vehicleCell = tr.querySelector('[data-vehicle]');
@@ -847,38 +880,31 @@ export function initPrices(){
         }
       }
       
-      // Renderizar paginación de inversión
       const paginationInversion = $('#pe-pagination-inversion');
-      if (paginationInversion) {
-        if (paging.pages <= 1) {
-          paginationInversion.innerHTML = '';
-        } else {
-          let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
-          html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev-inversion">← Anterior</button>`;
-          html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
-          html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next-inversion">Siguiente →</button>`;
-          html += '</div>';
-          paginationInversion.innerHTML = html;
-          
-          $('#pe-prev-inversion')?.addEventListener('click', () => {
-            if (paging.page > 1) {
-              currentPage = paging.page - 1;
-              loadInversionPrices();
-            }
-          });
-          $('#pe-next-inversion')?.addEventListener('click', () => {
-            if (paging.page < paging.pages) {
-              currentPage = paging.page + 1;
-              loadInversionPrices();
-            }
-          });
+      renderPricesPaginationMount(paginationInversion, {
+        page: paging.page,
+        pages: paging.pages,
+        total: paging.total,
+        prevId: 'pe-prev-inversion',
+        nextId: 'pe-next-inversion',
+        onPrev: () => {
+          if (paging.page > 1) {
+            currentPage = paging.page - 1;
+            loadInversionPrices();
+          }
+        },
+        onNext: () => {
+          if (paging.page < paging.pages) {
+            currentPage = paging.page + 1;
+            loadInversionPrices();
+          }
         }
-      }
+      });
     } catch (err) {
       console.error('Error loading inversion prices:', err);
       if (headInversion && bodyInversion) {
         const tr = document.createElement('tr');
-        ['Nombre', 'Precio', 'Acciones'].forEach(txt => {
+        ['Tipo', 'Nombre', 'Detalle', 'Precio', 'Acciones'].forEach(txt => {
           const th = document.createElement('th');
           th.textContent = txt;
           tr.appendChild(th);
@@ -886,7 +912,7 @@ export function initPrices(){
         headInversion.replaceChildren(tr);
         bodyInversion.replaceChildren();
         const errorRow = document.createElement('tr');
-        errorRow.innerHTML = `<td colspan="3" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+        errorRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--error">Error al cargar precios: ${escapeHtml(err?.message || 'Error desconocido')}</td>`;
         bodyInversion.appendChild(errorRow);
       }
     }
@@ -938,9 +964,9 @@ export function initPrices(){
         if (rows.length === 0) {
           bodyGeneral.replaceChildren();
           const emptyRow = document.createElement('tr');
-          emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">
-            <div style="margin-bottom:8px;">🌐 No hay precios generales disponibles</div>
-            <div style="font-size:12px;">Usa los botones de arriba para crear precios generales</div>
+          emptyRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--empty">
+            <div class="font-semibold mb-2">🌐 No hay precios generales disponibles</div>
+            <div class="text-sm opacity-90">Usa los botones de arriba para crear precios generales</div>
           </td>`;
           bodyGeneral.appendChild(emptyRow);
         } else {
@@ -948,33 +974,26 @@ export function initPrices(){
         }
       }
       
-      // Renderizar paginación general
       const paginationGeneral = $('#pe-pagination-general');
-      if (paginationGeneral) {
-        if (paging.pages <= 1) {
-          paginationGeneral.innerHTML = '';
-        } else {
-          let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
-          html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev-general">← Anterior</button>`;
-          html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
-          html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next-general">Siguiente →</button>`;
-          html += '</div>';
-          paginationGeneral.innerHTML = html;
-          
-          $('#pe-prev-general')?.addEventListener('click', () => {
-            if (paging.page > 1) {
-              currentPage = paging.page - 1;
-              loadGeneralPrices();
-            }
-          });
-          $('#pe-next-general')?.addEventListener('click', () => {
-            if (paging.page < paging.pages) {
-              currentPage = paging.page + 1;
-              loadGeneralPrices();
-            }
-          });
+      renderPricesPaginationMount(paginationGeneral, {
+        page: paging.page,
+        pages: paging.pages,
+        total: paging.total,
+        prevId: 'pe-prev-general',
+        nextId: 'pe-next-general',
+        onPrev: () => {
+          if (paging.page > 1) {
+            currentPage = paging.page - 1;
+            loadGeneralPrices();
+          }
+        },
+        onNext: () => {
+          if (paging.page < paging.pages) {
+            currentPage = paging.page + 1;
+            loadGeneralPrices();
+          }
         }
-      }
+      });
     } catch (err) {
       console.error('Error loading general prices:', err);
       if (headGeneral && bodyGeneral) {
@@ -987,7 +1006,7 @@ export function initPrices(){
         headGeneral.replaceChildren(tr);
         bodyGeneral.replaceChildren();
         const errorRow = document.createElement('tr');
-        errorRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+        errorRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--error">Error al cargar precios: ${escapeHtml(err?.message || 'Error desconocido')}</td>`;
         bodyGeneral.appendChild(errorRow);
       }
     }
@@ -1039,15 +1058,15 @@ export function initPrices(){
       if (rows.length === 0 && !selectedVehicle && selectedVehicles.length === 0) {
         body.replaceChildren();
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">
-          <div style="margin-bottom:8px;">🌐 No hay precios generales disponibles</div>
-          <div style="font-size:12px;">Usa los botones de arriba para crear precios generales (🌐 Servicio general, 🌐 Producto general, 🌐 Combo general)</div>
+        emptyRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--empty">
+          <div class="font-semibold mb-2">🌐 No hay precios generales disponibles</div>
+          <div class="text-sm opacity-90">Usa los botones de arriba para crear precios generales (🌐 Servicio general, 🌐 Producto general, 🌐 Combo general)</div>
         </td>`;
         body.appendChild(emptyRow);
       } else if (rows.length === 0) {
         body.replaceChildren();
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</td>`;
+        emptyRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--empty">No hay precios que coincidan con los filtros.</td>`;
         body.appendChild(emptyRow);
       } else {
         body.replaceChildren(...rows.map(rowToNode));
@@ -1059,7 +1078,7 @@ export function initPrices(){
       renderTableHeader();
       body.replaceChildren();
       const errorRow = document.createElement('tr');
-      errorRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+      errorRow.innerHTML = `<td colspan="5" class="pr-table-msg pr-table-msg--error">Error al cargar precios: ${escapeHtml(err?.message || 'Error desconocido')}</td>`;
       body.appendChild(errorRow);
     }
   }
@@ -1508,31 +1527,35 @@ export function initPrices(){
   // Mostrar selector de vehículo cuando hay múltiples variantes (con selección múltiple)
   function showVehicleSelector(vehicles, line, displacement) {
     const node = document.createElement('div');
-    node.className = 'card';
-    node.style.cssText = 'max-width:600px;margin:0 auto;';
+    node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/95 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 overflow-hidden max-w-[600px] w-full mx-auto';
     node.innerHTML = `
-      <h3 style="margin-top:0;margin-bottom:16px;">Seleccionar variantes</h3>
-      <p class="muted" style="margin-bottom:16px;">${line} - ${displacement}</p>
-      <p class="muted" style="margin-bottom:16px;font-size:12px;">Puedes seleccionar múltiples vehículos para crear precios en bulk</p>
-      <div style="display:grid;gap:8px;margin-bottom:16px;">
+      <div class="px-5 py-3 bg-gradient-to-r from-sky-600 to-indigo-600 text-white">
+        <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Vehículos</p>
+        <h3 class="text-lg font-bold">🚗 Seleccionar variantes</h3>
+        <p class="text-sm text-white/90 mt-1">${escapeHtml(line)} · ${escapeHtml(displacement)}</p>
+      </div>
+      <div class="p-5">
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Puedes elegir varios para crear precios en bulk.</p>
+        <div class="grid gap-2 mb-4">
         ${vehicles.map(v => {
           const isSelected = selectedVehicles.some(sv => sv._id === v._id);
           return `
-          <div class="vehicle-variant-card" data-vehicle-id="${v._id}" style="padding:12px;background:var(--card-alt);border:2px solid ${isSelected ? 'var(--primary, #3b82f6)' : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:12px;">
-            <input type="checkbox" class="vehicle-checkbox" data-vehicle-id="${v._id}" ${isSelected ? 'checked' : ''} style="width:20px;height:20px;cursor:pointer;flex-shrink:0;" />
-            <div style="flex:1;">
-              <div style="font-weight:600;">${v.line} ${v.displacement}</div>
-              ${v.modelYear ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Modelo: ${v.modelYear}</div>` : ''}
+          <div class="vehicle-variant-card flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50' : 'border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50'}" data-vehicle-id="${v._id}">
+            <input type="checkbox" class="vehicle-checkbox w-5 h-5 shrink-0 cursor-pointer accent-blue-600" data-vehicle-id="${v._id}" ${isSelected ? 'checked' : ''} />
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(v.line)} ${escapeHtml(v.displacement)}</div>
+              ${v.modelYear ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">Modelo: ${escapeHtml(v.modelYear)}</div>` : ''}
             </div>
           </div>
         `;
         }).join('')}
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button id="variant-select-all" class="secondary" style="padding:8px 16px;">Seleccionar todos</button>
-        <button id="variant-deselect-all" class="secondary" style="padding:8px 16px;">Deseleccionar todos</button>
-        <button id="variant-confirm" class="primary" style="padding:8px 24px;">Confirmar (${selectedVehicles.length})</button>
-        <button id="variant-cancel" class="secondary" style="padding:8px 24px;">Cancelar</button>
+        </div>
+        <div class="flex flex-wrap gap-2 justify-end">
+          <button type="button" id="variant-select-all" class="pr-btn-secondary px-3 py-2 text-sm">Seleccionar todos</button>
+          <button type="button" id="variant-deselect-all" class="pr-btn-secondary px-3 py-2 text-sm">Deseleccionar</button>
+          <button type="button" id="variant-confirm" class="pr-main-btn px-4 py-2 text-sm">Confirmar (${selectedVehicles.length})</button>
+          <button type="button" id="variant-cancel" class="pr-btn-secondary px-3 py-2 text-sm">Cancelar</button>
+        </div>
       </div>
     `;
     
@@ -2008,8 +2031,12 @@ export function initPrices(){
     
     const node = document.createElement('div');
     node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
+    const modalTitleKind = isInversionPrice ? 'precio de inversión' : (type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto'));
     node.innerHTML = `
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">${isEdit ? 'Editar' : 'Nuevo'} ${isInversionPrice ? 'Precio de Inversión' : (type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto'))}</h3>
+      <div class="-mx-6 -mt-6 mb-6 px-5 py-4 rounded-t-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 text-white shadow-lg border-b border-white/10">
+        <p class="text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">💰 Lista de precios</p>
+        <h3 class="text-xl font-bold">${isEdit ? '✏️ Editar' : '✨ Crear'} ${modalTitleKind}</h3>
+      </div>
       ${isInversionPrice ? `
       <div class="mb-4 p-3 bg-orange-500/10 dark:bg-orange-500/10 theme-light:bg-orange-50 rounded-lg border-2 border-orange-500 dark:border-orange-500 theme-light:border-orange-400">
         <div class="text-sm font-semibold text-orange-400 dark:text-orange-400 theme-light:text-orange-700 mb-2">💼 Precio de Inversión</div>
@@ -2113,7 +2140,7 @@ export function initPrices(){
             </div>
           `).join('')}
         </div>
-        <button id="pe-modal-add-combo-product" class="w-full px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">➕ Agregar producto</button>
+        <button type="button" id="pe-modal-add-combo-product" class="pr-btn-secondary w-full px-4 py-2.5 text-sm">➕ Agregar producto</button>
       </div>
       ` : ''}
       ${isProduct ? `
@@ -2188,9 +2215,9 @@ export function initPrices(){
         </div>
       </div>
       <div id="pe-modal-msg" class="mb-4 text-sm text-white dark:text-white theme-light:text-slate-900"></div>
-      <div class="flex gap-2">
-        <button id="pe-modal-save" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 ${isEdit ? 'Actualizar' : (isBulkCreation ? `Guardar para ${vehiclesForCreation.length} vehículos` : 'Guardar')}</button>
-        <button id="pe-modal-cancel" class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+      <div class="flex flex-wrap gap-2 pt-2">
+        <button type="button" id="pe-modal-save" class="pr-main-btn flex-1 min-w-[140px] px-4 py-2.5 text-sm">💾 ${isEdit ? 'Actualizar' : (isBulkCreation ? `Guardar para ${vehiclesForCreation.length} vehículos` : 'Guardar')}</button>
+        <button type="button" id="pe-modal-cancel" class="pr-btn-secondary flex-1 min-w-[120px] px-4 py-2.5 text-sm">Cancelar</button>
       </div>
     `;
     openModal(node);
@@ -3391,21 +3418,26 @@ export function initPrices(){
       body.replaceChildren();
       
       const node = document.createElement('div');
-      node.className = 'card';
+      node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/95 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 overflow-hidden';
       node.innerHTML = `
-        <h3>Importar precios</h3>
-        <p class="muted" style="margin-bottom:16px;font-size:13px;">
-          Vehículo: <strong>${vehicleToUse.make} ${vehicleToUse.line}</strong>
-        </p>
-        <div style="margin-bottom:16px;">
-          <button id="pe-download-template" class="secondary" style="width:100%;padding:10px;margin-bottom:8px;">📥 Descargar plantilla</button>
-          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Seleccionar archivo Excel (.xlsx)</label>
-          <input type="file" id="pe-import-file" accept=".xlsx" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        <div class="px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+          <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Lista de precios</p>
+          <h3 class="text-lg font-bold">📥 Importar precios</h3>
         </div>
-        <div id="pe-import-msg" style="margin-bottom:16px;font-size:13px;"></div>
-        <div class="row" style="gap:8px;">
-          <button id="pe-import-run" style="flex:1;padding:10px;">📥 Importar</button>
-          <button id="pe-import-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+        <div class="p-5">
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+            Vehículo: <strong class="text-white dark:text-white theme-light:text-slate-900">${escapeHtml(vehicleToUse.make)} ${escapeHtml(vehicleToUse.line)}</strong>
+          </p>
+          <div class="mb-4 space-y-2">
+            <button type="button" id="pe-download-template" class="pr-btn-secondary w-full px-4 py-2.5 text-sm">📥 Descargar plantilla</button>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Archivo Excel (.xlsx)</label>
+            <input type="file" id="pe-import-file" accept=".xlsx" class="w-full px-3 py-2 rounded-lg border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-sm text-white dark:text-white theme-light:text-slate-900" />
+          </div>
+          <div id="pe-import-msg" class="mb-4 text-sm min-h-[1.25rem]"></div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="pe-import-run" class="pr-main-btn flex-1 min-w-[140px] px-4 py-2.5 text-sm">📥 Importar</button>
+            <button type="button" id="pe-import-cancel" class="pr-btn-secondary flex-1 min-w-[120px] px-4 py-2.5 text-sm">Cancelar</button>
+          </div>
         </div>
       `;
       openModal(node);

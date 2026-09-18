@@ -1,4 +1,4 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 
 const CompanySchema = new mongoose.Schema(
   {
@@ -41,6 +41,16 @@ const CompanySchema = new mongoose.Schema(
       default: {}
     },
 
+    bossPortal: {
+      enabled: { type: Boolean, default: false },
+      username: { type: String, default: '', trim: true, lowercase: true },
+      passwordHash: { type: String, default: '' },
+      allowedSupplierIds: {
+        type: [String],
+        default: []
+      }
+    },
+
     // Compartir base de datos: desde la empresa principal, se pueden agregar múltiples empresas secundarias
     // Cuando se comparte BD, se comparte TODA la data (ventas, calendario, inventario, clientes, etc.)
     sharedDatabaseConfig: {
@@ -71,7 +81,10 @@ const CompanySchema = new mongoose.Schema(
         basicSalary: { type: Number, default: null }, // Salario básico mensual
         workHoursPerMonth: { type: Number, default: null }, // Horas de trabajo por mes
         basicSalaryPerDay: { type: Number, default: null }, // Salario básico por día
-        contractType: { type: String, default: '', trim: true } // Tipo de contrato
+        contractType: { type: String, default: '', trim: true }, // Tipo de contrato
+        receivesLaborCommission: { type: Boolean, default: true }, // Si gana % de mano de obra
+        isAppointmentTechnician: { type: Boolean, default: false }, // Solo agenda citas
+        appointmentColor: { type: String, default: '#2563EB', trim: true } // Color fijo para agenda
       }],
       default: []
     },

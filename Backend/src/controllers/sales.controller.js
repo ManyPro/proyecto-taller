@@ -12,6 +12,9 @@ import InvestmentItem from '../models/InvestmentItem.js';
 import Investor from '../models/Investor.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
+import Account from '../models/Account.js';
+import CalendarEvent from '../models/CalendarEvent.js';
+import VehicleIntake from '../models/VehicleIntake.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
 import { createDateRange } from '../lib/dateTime.js';
@@ -412,6 +415,16 @@ export const getSale = async (req, res) => {
   }
   
   const saleObj = sale.toObject();
+  const priceRefIds = [...new Set((saleObj.items || [])
+    .filter(item => item?.refId)
+    .map(item => String(item.refId)))];
+  const priceEntries = priceRefIds.length
+    ? await PriceEntry.find({ _id: { $in: priceRefIds } }).select('_id type comboProducts').lean()
+    : [];
+  const priceEntryMap = {};
+  priceEntries.forEach(entry => {
+    priceEntryMap[String(entry._id)] = entry;
+  });
   
   // Enriquecer items con información de StockEntry si están linkeados
   const Account = (await import('../models/Account.js')).default;
@@ -470,7 +483,61 @@ export const getSale = async (req, res) => {
     return item;
   }));
   
-  saleObj.items = enrichedItems;
+  let activeComboContext = null;
+  saleObj.items = enrichedItems.map((item) => {
+    const refId = item?.refId ? String(item.refId) : null;
+    const priceEntry = refId ? priceEntryMap[refId] : null;
+    const skuUpper = String(item?.sku || '').trim().toUpperCase();
+    const nameUpper = String(item?.name || '').trim().toUpperCase();
+    const enrichedItem = {
+      ...item,
+      refId,
+      displayType: 'product',
+      nestedUnderCombo: false,
+      comboParentRefId: null
+    };
+
+    if (activeComboContext) {
+      const matchesComboChild = skuUpper.startsWith('CP-')
+        || (refId && activeComboContext.productRefIds.has(refId))
+        || (nameUpper && activeComboContext.productNames.has(nameUpper) && Number(item?.unitPrice || 0) === 0);
+
+      if (matchesComboChild) {
+        enrichedItem.displayType = item?.source === 'service' ? 'service' : 'product';
+        enrichedItem.nestedUnderCombo = true;
+        enrichedItem.comboParentRefId = activeComboContext.refId;
+        return enrichedItem;
+      }
+
+      activeComboContext = null;
+    }
+
+    if (item?.source === 'service' || priceEntry?.type === 'service') {
+      enrichedItem.displayType = 'service';
+      return enrichedItem;
+    }
+
+    if (item?.source === 'inventory' || priceEntry?.type === 'product' || skuUpper.startsWith('CP-')) {
+      enrichedItem.displayType = 'product';
+      return enrichedItem;
+    }
+
+    if (priceEntry?.type === 'combo' || item?.source === 'price') {
+      enrichedItem.displayType = 'combo';
+      activeComboContext = {
+        refId: String(item?._id || refId || ''),
+        productRefIds: new Set((priceEntry?.comboProducts || [])
+          .map(cp => cp?.itemId ? String(cp.itemId) : null)
+          .filter(Boolean)),
+        productNames: new Set((priceEntry?.comboProducts || [])
+          .map(cp => String(cp?.name || '').trim().toUpperCase())
+          .filter(Boolean))
+      };
+      return enrichedItem;
+    }
+
+    return enrichedItem;
+  });
   
   // Normalizar openSlots para asegurar que comboPriceId y completedItemId sean strings
   if (saleObj.openSlots && Array.isArray(saleObj.openSlots)) {
@@ -1607,6 +1674,13 @@ export const setCustomerVehicle = async (req, res) => {
 // ===== Cierre: descuenta inventario con transacciÃ³n =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
+  
+  // Etiqueta de ingreso obligatoria para el reporte de caja
+  const INCOME_TAGS = new Set(['CAMBIO_ACEITE', 'OTROS_SERVICIOS']);
+  const incomeTag = req.body?.incomeTag ? String(req.body.incomeTag).toUpperCase() : null;
+  if (!incomeTag || !INCOME_TAGS.has(incomeTag)) {
+    return res.status(400).json({ error: 'Debes seleccionar el tipo de ingreso (Cambio de aceite u Otros servicios)' });
+  }
   
   const session = await mongoose.startSession();
   try {
@@ -2753,7 +2827,7 @@ export const closeSale = async (req, res) => {
       // y solo registra los pagos en efectivo
       try {
         const accountId = req.body?.accountId; // opcional desde frontend
-        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId, incomeTag });
         cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
       } catch(e) { 
         logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); 
@@ -2996,12 +3070,29 @@ export const updateCloseSale = async (req, res) => {
       const existingEntries = await CashFlowEntry.find({ 
         companyId: req.companyId, 
         source: 'SALE', 
-        sourceRef: sale._id 
+        sourceRef: sale._id,
+        // CRÍTICO: solo pagos de cierre; nunca tocar abonos
+        'meta.isAdvancePayment': { $ne: true }
       }).session(session);
+      
+      // Etiqueta de ingreso (opcional en edición): mantener la existente si no viene en el body
+      const INCOME_TAGS = new Set(['CAMBIO_ACEITE', 'OTROS_SERVICIOS']);
+      const rawIncomeTag = req.body?.incomeTag ? String(req.body.incomeTag).toUpperCase() : null;
+      const normalizedIncomeTag = rawIncomeTag && INCOME_TAGS.has(rawIncomeTag) ? rawIncomeTag : null;
+      const effectiveIncomeTag = normalizedIncomeTag || existingEntries[0]?.tag || null;
       
       // Si cambiaron los métodos de pago O si no hay entradas en el flujo de caja, actualizar/crear
       const paymentMethodsChanged = JSON.stringify(oldPaymentMethods) !== JSON.stringify(sale.paymentMethods);
       const hasNoCashflowEntries = existingEntries.length === 0;
+      
+      if (normalizedIncomeTag && !paymentMethodsChanged && !hasNoCashflowEntries) {
+        // Solo cambió la etiqueta: actualizarla en las entradas existentes
+        await CashFlowEntry.updateMany(
+          { _id: { $in: existingEntries.map(e => e._id) } },
+          { $set: { tag: normalizedIncomeTag } },
+          { session }
+        );
+      }
       
       if (paymentMethodsChanged || hasNoCashflowEntries) {
         
@@ -3057,12 +3148,26 @@ export const updateCloseSale = async (req, res) => {
             if (Math.abs(oldAmount - newAmount) > 0.01) {
               existingEntry.amount = newAmount;
               existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
-              existingEntry.meta = { saleNumber: sale.number, paymentMethod: m.method };
+              existingEntry.tag = effectiveIncomeTag;
+              existingEntry.meta = {
+                saleNumber: sale.number,
+                salePlate: sale.vehicle?.plate || '',
+                paymentMethod: m.method,
+                isAdvancePayment: false,
+                isSaleClosePayment: true
+              };
               await existingEntry.save({ session });
             } else {
               // Solo actualizar descripción y meta si el monto no cambió
               existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
-              existingEntry.meta = { saleNumber: sale.number, paymentMethod: m.method };
+              existingEntry.tag = effectiveIncomeTag;
+              existingEntry.meta = {
+                saleNumber: sale.number,
+                salePlate: sale.vehicle?.plate || '',
+                paymentMethod: m.method,
+                isAdvancePayment: false,
+                isSaleClosePayment: true
+              };
               await existingEntry.save({ session });
             }
           } else {
@@ -3079,11 +3184,18 @@ export const updateCloseSale = async (req, res) => {
               kind: 'IN',
               source: 'SALE',
               sourceRef: sale._id,
+              tag: effectiveIncomeTag,
               description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
               amount: Number(m.amount || 0),
               balanceAfter: newBal,
               date: saleDate,
-              meta: { saleNumber: sale.number, paymentMethod: m.method }
+              meta: {
+                saleNumber: sale.number,
+                salePlate: sale.vehicle?.plate || '',
+                paymentMethod: m.method,
+                isAdvancePayment: false,
+                isSaleClosePayment: true
+              }
             }], { session });
           }
         }
@@ -3329,7 +3441,9 @@ export const registerSaleCashflow = async (req, res) => {
     const existingEntries = await CashFlowEntry.find({ 
       companyId: req.companyId, 
       source: 'SALE', 
-      sourceRef: sale._id 
+      sourceRef: sale._id,
+      // Si solo hay abonos, aún debemos crear el flujo del cierre
+      'meta.isAdvancePayment': { $ne: true }
     });
     
     if (existingEntries.length > 0) {
@@ -4364,6 +4478,344 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
+};
+
+// GET /api/v1/sales/special-report
+export const specialSalesReport = async (req, res) => {
+  try {
+    const { from, to } = req.query || {};
+    const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+    const companyIdsToSearch = await getAllSharedCompanyIdsHelper(originalCompanyId);
+    const companyObjectIds = (companyIdsToSearch || [])
+      .map((id) => {
+        try { return new mongoose.Types.ObjectId(String(id)); }
+        catch { return null; }
+      })
+      .filter(Boolean);
+    if (!companyObjectIds.length) {
+      return res.json({
+        period: { from: from || null, to: to || null },
+        kpis: {
+          carrosCerrados: 0,
+          carrosIngresadosAgenda: 0,
+          carrosIngresadosTaller: 0,
+          dineroEntrado: 0,
+          totalFacturado: 0,
+          promedioPorVehiculo: 0
+        },
+        salidas: { total: 0, operativas: 0, inversion: 0, transferencias: 0 },
+        cuentasDestino: [],
+        cajaActual: { total: 0, cuentas: [] }
+      });
+    }
+    const companyMatcher = companyObjectIds.length === 1 ? companyObjectIds[0] : { $in: companyObjectIds };
+    const dateRange = createDateRange(from, to);
+    const fromDate = dateRange.from || null;
+    const toDate = dateRange.to || null;
+
+    const salesDateConditions = [];
+    if (fromDate && toDate) {
+      salesDateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      salesDateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    } else if (fromDate) {
+      salesDateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] }
+        ]
+      });
+      salesDateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] }
+        ]
+      });
+    } else if (toDate) {
+      salesDateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      salesDateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    }
+
+    const salesPipeline = [
+      { $match: { companyId: companyMatcher, status: 'closed' } },
+      ...(salesDateConditions.length ? [{ $match: { $expr: { $or: salesDateConditions } } }] : []),
+      {
+        $project: {
+          total: { $ifNull: ['$total', 0] },
+          plate: {
+            $toUpper: {
+              $trim: { input: { $ifNull: ['$vehicle.plate', ''] } }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalVentas: { $sum: 1 },
+          totalFacturado: { $sum: '$total' },
+          placas: { $addToSet: '$plate' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalVentas: 1,
+          totalFacturado: 1,
+          carrosCerrados: {
+            $size: {
+              $filter: {
+                input: '$placas',
+                as: 'p',
+                cond: { $ne: ['$$p', ''] }
+              }
+            }
+          }
+        }
+      }
+    ];
+
+    const cashQuery = { companyId: companyMatcher };
+    if (fromDate || toDate) {
+      cashQuery.date = {};
+      if (fromDate) cashQuery.date.$gte = fromDate;
+      if (toDate) cashQuery.date.$lte = toDate;
+    }
+
+    const nonTransferInExpr = {
+      $and: [
+        { $eq: ['$kind', 'IN'] },
+        {
+          $not: {
+            $or: [
+              { $eq: ['$source', 'TRANSFER'] },
+              { $ne: [{ $ifNull: ['$meta.transferId', null] }, null] }
+            ]
+          }
+        }
+      ]
+    };
+
+    const [salesAggRows, cashTotalsRows, incomeByAccountRows, calendarRows, intakeRows, accounts] = await Promise.all([
+      Sale.aggregate(salesPipeline),
+      CashFlowEntry.aggregate([
+        { $match: cashQuery },
+        {
+          $group: {
+            _id: null,
+            dineroEntrado: { $sum: { $cond: [nonTransferInExpr, '$amount', 0] } },
+            salidasTotales: { $sum: { $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0] } },
+            salidasTransferencias: {
+              $sum: {
+                $cond: [{
+                  $and: [
+                    { $eq: ['$kind', 'OUT'] },
+                    {
+                      $or: [
+                        { $eq: ['$source', 'TRANSFER'] },
+                        { $ne: [{ $ifNull: ['$meta.transferId', null] }, null] }
+                      ]
+                    }
+                  ]
+                }, '$amount', 0]
+              }
+            },
+            salidasInversion: {
+              $sum: {
+                $cond: [{
+                  $and: [
+                    { $eq: ['$kind', 'OUT'] },
+                    {
+                      $or: [
+                        { $eq: ['$source', 'INVESTMENT'] },
+                        { $eq: ['$meta.category', 'INVESTMENT'] }
+                      ]
+                    }
+                  ]
+                }, '$amount', 0]
+              }
+            }
+          }
+        }
+      ]),
+      CashFlowEntry.aggregate([
+        {
+          $match: {
+            ...cashQuery,
+            kind: 'IN',
+            $or: [
+              { source: { $ne: 'TRANSFER' } },
+              { source: { $exists: false } }
+            ]
+          }
+        },
+        { $match: { 'meta.transferId': { $exists: false } } },
+        { $group: { _id: '$accountId', amount: { $sum: '$amount' } } },
+        {
+          $lookup: {
+            from: 'accounts',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'account'
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            accountId: '$_id',
+            accountName: { $ifNull: [{ $arrayElemAt: ['$account.name', 0] }, 'Sin cuenta'] },
+            amount: 1
+          }
+        },
+        { $sort: { amount: -1 } }
+      ]),
+      CalendarEvent.aggregate([
+        {
+          $match: {
+            companyId: companyMatcher,
+            eventType: 'event',
+            ...(fromDate || toDate ? {
+              startDate: {
+                ...(fromDate ? { $gte: fromDate } : {}),
+                ...(toDate ? { $lte: toDate } : {})
+              }
+            } : {})
+          }
+        },
+        {
+          $project: {
+            plate: { $toUpper: { $trim: { input: { $ifNull: ['$plate', ''] } } } }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalCitas: { $sum: 1 },
+            plates: { $addToSet: '$plate' }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            totalCitas: 1,
+            carrosIngresadosAgenda: {
+              $size: {
+                $filter: {
+                  input: '$plates',
+                  as: 'p',
+                  cond: { $ne: ['$$p', ''] }
+                }
+              }
+            }
+          }
+        }
+      ]),
+      VehicleIntake.aggregate([
+        {
+          $match: {
+            companyId: companyMatcher,
+            intakeKind: 'vehicle',
+            ...(fromDate || toDate ? {
+              intakeDate: {
+                ...(fromDate ? { $gte: fromDate } : {}),
+                ...(toDate ? { $lte: toDate } : {})
+              }
+            } : {})
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            ingresosTaller: { $sum: 1 }
+          }
+        },
+        { $project: { _id: 0, ingresosTaller: 1 } }
+      ]),
+      Account.find({ companyId: companyMatcher, active: { $ne: false } }).select('_id companyId name type').lean()
+    ]);
+
+    const salesAgg = salesAggRows[0] || { totalVentas: 0, totalFacturado: 0, carrosCerrados: 0 };
+    const cashAgg = cashTotalsRows[0] || { dineroEntrado: 0, salidasTotales: 0, salidasTransferencias: 0, salidasInversion: 0 };
+    const calendarAgg = calendarRows[0] || { totalCitas: 0, carrosIngresadosAgenda: 0 };
+    const intakeAgg = intakeRows[0] || { ingresosTaller: 0 };
+    const salidasOperativas = Math.max(
+      0,
+      (cashAgg.salidasTotales || 0) - (cashAgg.salidasTransferencias || 0) - (cashAgg.salidasInversion || 0)
+    );
+    const salidasReales = Math.max(0, salidasOperativas + (cashAgg.salidasInversion || 0));
+    const netoPeriodo = Math.round((cashAgg.dineroEntrado || 0) - salidasReales);
+    const promedioPorVehiculo = salesAgg.carrosCerrados > 0
+      ? Math.round((salesAgg.totalFacturado || 0) / salesAgg.carrosCerrados)
+      : 0;
+    const cajaActualCuentas = await Promise.all(
+      (accounts || []).map(async (acc) => {
+        const bal = await computeBalance(acc._id, acc.companyId);
+        return {
+          accountId: acc._id,
+          accountName: acc.name || 'Sin cuenta',
+          accountType: acc.type || 'CASH',
+          balance: Number(bal || 0)
+        };
+      })
+    );
+    const cajaActualTotal = cajaActualCuentas.reduce((sum, c) => sum + (Number(c.balance) || 0), 0);
+
+    return res.json({
+      period: {
+        from: from || null,
+        to: to || null
+      },
+      periodApplied: {
+        from: fromDate ? fromDate.toISOString() : null,
+        to: toDate ? toDate.toISOString() : null
+      },
+      kpis: {
+        carrosCerrados: salesAgg.carrosCerrados || 0,
+        carrosIngresadosAgenda: calendarAgg.carrosIngresadosAgenda || 0,
+        carrosIngresadosTaller: intakeAgg.ingresosTaller || 0,
+        dineroEntrado: cashAgg.dineroEntrado || 0,
+        totalFacturado: salesAgg.totalFacturado || 0,
+        promedioPorVehiculo,
+        netoPeriodo
+      },
+      salidas: {
+        total: cashAgg.salidasTotales || 0,
+        operativas: salidasOperativas,
+        inversion: cashAgg.salidasInversion || 0,
+        transferencias: cashAgg.salidasTransferencias || 0,
+        reales: salidasReales
+      },
+      cuentasDestino: incomeByAccountRows || [],
+      cajaActual: {
+        total: cajaActualTotal,
+        cuentas: cajaActualCuentas
+      }
+    });
+  } catch (err) {
+    logger.error('specialSalesReport error', { error: err?.message, stack: err?.stack });
+    return res.status(500).json({ error: 'Error generando reporte especial' });
+  }
 };
 
 // ===== Reporte tÃ©cnico (laborShare) =====

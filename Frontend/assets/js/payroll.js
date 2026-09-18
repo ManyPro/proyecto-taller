@@ -72,28 +72,28 @@ async function loadConcepts(){
         ? `${c.defaultValue}%` 
         : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(c.defaultValue || 0);
       const systemBadge = isSystemConcept(c)
-        ? '<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300">Automático</span>'
+        ? '<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-semibold py-badge-auto">Automático</span>'
         : '';
       
-      return `<div class="concept-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+      return `<div class="concept-row py-card-row p-3 rounded-lg mb-2 transition-all duration-200">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             <span class="concept-badge px-2.5 py-1 rounded-md text-xs font-semibold uppercase" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
               ${htmlEscape(typeInfo.label)}
             </span>
             <div class="flex-1">
-              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
-                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-xs mr-1.5">${htmlEscape(c.code)}</span>
+              <div class="font-semibold py-text mb-0.5">
+                <span class="py-muted text-xs mr-1.5">${htmlEscape(c.code)}</span>
                 ${htmlEscape(c.name)}
                 ${systemBadge}
               </div>
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-                ${amountLabel}: <strong class="text-white dark:text-white theme-light:text-slate-900">${valueDisplay}</strong>
+              <div class="text-xs py-muted">
+                ${amountLabel}: <strong class="py-text">${valueDisplay}</strong>
               </div>
             </div>
           </div>
           <div class="flex gap-1.5 items-center">
-            ${isSystemConcept(c) ? '' : `<button data-id="${c._id}" class="x-del px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300" title="Eliminar concepto">
+            ${isSystemConcept(c) ? '' : `<button type="button" data-id="${c._id}" class="x-del py-btn-danger-soft px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200" title="Eliminar concepto">
               🗑️ Eliminar
             </button>`}
           </div>
@@ -105,7 +105,7 @@ async function loadConcepts(){
     if (!container) return;
     
     if (list.length === 0) {
-      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay conceptos configurados. Crea el primero arriba.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed py-dashed rounded-lg py-muted">No hay conceptos configurados. Crea el primero arriba.</div>';
     } else {
       container.innerHTML = rows.join('');
       // Agregar event listeners para eliminar
@@ -133,7 +133,7 @@ async function loadConcepts(){
     console.error('Error loading concepts:', err);
     const container = el('pc-list');
     if (container) {
-      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600">
+      container.innerHTML = `<div class="p-3 py-alert-error rounded-lg">
         ❌ Error al cargar conceptos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -363,6 +363,9 @@ async function loadTechnicians(){
       let workHoursPerMonth = null;
       let basicSalaryPerDay = null;
       let contractType = '';
+      let receivesLaborCommission = true;
+      let isAppointmentTechnician = false;
+      let appointmentColor = '#2563EB';
       
       if (t && typeof t === 'object') {
         identification = String(t.identification || '').trim();
@@ -370,6 +373,11 @@ async function loadTechnicians(){
         workHoursPerMonth = (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null;
         basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
         contractType = String(t.contractType || '').trim();
+        receivesLaborCommission = t.receivesLaborCommission !== false;
+        isAppointmentTechnician = t.isAppointmentTechnician === true;
+        appointmentColor = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(String(t.appointmentColor || '').trim())
+          ? String(t.appointmentColor).trim().toUpperCase()
+          : '#2563EB';
       }
       
       // Retornar objeto normalizado con nombre SIEMPRE como string
@@ -379,11 +387,15 @@ async function loadTechnicians(){
         basicSalary: basicSalary,
         workHoursPerMonth: workHoursPerMonth,
         basicSalaryPerDay: basicSalaryPerDay,
-        contractType: contractType
+        contractType: contractType,
+        receivesLaborCommission,
+        isAppointmentTechnician,
+        appointmentColor
       };
     });
-    const names = normalizedTechs.map(t => t.name);
-    const opts = normalizedTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
+    const payrollTechs = normalizedTechs.filter(t => t.isAppointmentTechnician !== true);
+    const names = payrollTechs.map(t => t.name);
+    const opts = payrollTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
     
     // Actualizar selects de técnicos
     const techSel = document.getElementById('pl-technicianSel');
@@ -402,23 +414,32 @@ async function loadTechnicians(){
     const listEl = document.getElementById('tk-list');
     if (listEl) {
       if (normalizedTechs.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-3 px-3 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay técnicos registrados. Crea el primero arriba.</div>';
+        listEl.innerHTML = '<div class="text-center py-3 px-3 text-sm py-muted">No hay técnicos registrados. Crea el primero arriba.</div>';
       } else {
         listEl.innerHTML = normalizedTechs.map(t => {
-          const identificationText = t.identification ? ` <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(t.identification)})</span>` : '';
-          return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
-            <span>👤 ${htmlEscape(t.name)}${identificationText}</span>
-            <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" 
+          const identificationText = t.identification ? ` <span class="text-xs py-muted">(${htmlEscape(t.identification)})</span>` : '';
+          const laborText = t.receivesLaborCommission !== false
+            ? '<span class="text-[11px] px-1.5 py-0.5 rounded py-pill-mo">MO %</span>'
+            : '<span class="text-[11px] px-1.5 py-0.5 rounded py-pill-sin">Sin MO %</span>';
+          const appointmentText = t.isAppointmentTechnician === true
+            ? `<span class="text-[11px] px-1.5 py-0.5 rounded border border-indigo-600/40" style="background:${htmlEscape(t.appointmentColor)}22;color:${htmlEscape(t.appointmentColor)}">Agenda</span>`
+            : '';
+          return `<div class="technician-chip py-technician-chip inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium">
+            <span>👤 ${htmlEscape(t.name)}${identificationText} ${laborText} ${appointmentText}</span>
+            <button type="button" class="x-edit py-btn-blue-soft px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" 
               data-name="${htmlEscape(t.name)}" 
               data-identification="${htmlEscape(t.identification || '')}"
               data-basic-salary="${t.basicSalary !== null && t.basicSalary !== undefined ? t.basicSalary : ''}"
               data-work-hours="${t.workHoursPerMonth !== null && t.workHoursPerMonth !== undefined ? t.workHoursPerMonth : ''}"
               data-salary-per-day="${t.basicSalaryPerDay !== null && t.basicSalaryPerDay !== undefined ? t.basicSalaryPerDay : ''}"
               data-contract-type="${htmlEscape(t.contractType || '')}"
+              data-receives-labor-commission="${t.receivesLaborCommission !== false ? '1' : '0'}"
+              data-is-appointment-technician="${t.isAppointmentTechnician === true ? '1' : '0'}"
+              data-appointment-color="${htmlEscape(t.appointmentColor || '#2563EB')}"
               title="Editar técnico">
               ✏️ Editar
             </button>
-            <button class="x-del bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/30 dark:hover:bg-red-600/30 theme-light:bg-red-50 theme-light:hover:bg-red-100 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 text-red-400 dark:text-red-400 theme-light:text-red-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" title="Eliminar técnico">
+            <button type="button" class="x-del py-btn-danger-soft px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" title="Eliminar técnico">
               🗑️ Eliminar
             </button>
           </div>`;
@@ -433,10 +454,13 @@ async function loadTechnicians(){
             const workHoursPerMonth = btn.getAttribute('data-work-hours') || '';
             const basicSalaryPerDay = btn.getAttribute('data-salary-per-day') || '';
             const contractType = btn.getAttribute('data-contract-type') || '';
+            const receivesLaborCommission = btn.getAttribute('data-receives-labor-commission') !== '0';
+            const isAppointmentTechnician = btn.getAttribute('data-is-appointment-technician') === '1';
+            const appointmentColor = btn.getAttribute('data-appointment-color') || '#2563EB';
             if (!name) return;
             
             // Mostrar modal para editar
-            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission, isAppointmentTechnician, appointmentColor);
           });
         });
         
@@ -460,7 +484,7 @@ async function loadTechnicians(){
               const techSel2 = document.getElementById('pa-technicianSel');
               if (techSel2 && techSel2.value === name) {
                 techSel2.value = '';
-                el('pa-list').innerHTML = '<div class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
+                el('pa-list').innerHTML = '<div class="p-4 text-center border border-dashed py-dashed rounded-lg text-sm py-muted">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
               }
               
               // Limpiar también el selector de liquidaciones si está seleccionado
@@ -469,7 +493,7 @@ async function loadTechnicians(){
                 techSel3.value = '';
                 const conceptsContainer = document.getElementById('pl-concepts-container');
                 if (conceptsContainer) {
-                  conceptsContainer.innerHTML = '<div class="w-full text-center text-xs py-2 px-2 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona período y técnico primero</div>';
+                  conceptsContainer.innerHTML = '<div class="w-full text-center text-xs py-2 px-2 py-muted">Selecciona período y técnico primero</div>';
                 }
               }
               
@@ -517,18 +541,18 @@ async function loadTechnicians(){
         
         if (hasCorruptTechs) {
           const cleanupBtn = document.createElement('div');
-          cleanupBtn.className = 'mt-3 p-3 bg-yellow-600/20 dark:bg-yellow-600/20 theme-light:bg-yellow-50 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:border-yellow-300 rounded-lg';
+          cleanupBtn.className = 'mt-3 p-3 py-alert-warn rounded-lg';
           cleanupBtn.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex-1">
-                <p class="text-sm font-semibold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-700 mb-1">
+                <p class="text-sm font-semibold py-text mb-1">
                   ⚠️ Técnicos corruptos detectados
                 </p>
-                <p class="text-xs text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-600">
+                <p class="text-xs py-muted">
                   Hay técnicos con nombres vacíos o corruptos que no se pueden editar ni eliminar individualmente.
                 </p>
               </div>
-              <button id="cleanup-corrupt-techs-btn" class="ml-3 bg-yellow-600/30 dark:bg-yellow-600/30 hover:bg-yellow-600/40 dark:hover:bg-yellow-600/40 theme-light:bg-yellow-100 theme-light:hover:bg-yellow-200 border border-yellow-600/50 dark:border-yellow-600/50 theme-light:border-yellow-400 text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-700 px-3 py-2 rounded text-xs font-semibold transition-all duration-200 cursor-pointer">
+              <button type="button" id="cleanup-corrupt-techs-btn" class="py-btn-warn ml-3 px-3 py-2 rounded text-xs font-semibold transition-all duration-200 cursor-pointer">
                 🧹 Limpiar técnicos corruptos
               </button>
             </div>
@@ -562,7 +586,7 @@ async function loadTechnicians(){
     console.error('Error loading technicians:', err);
     const listEl = document.getElementById('tk-list');
     if (listEl) {
-      listEl.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
+      listEl.innerHTML = `<div class="p-3 py-alert-error rounded-lg text-sm">
         ❌ Error al cargar técnicos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -610,7 +634,7 @@ async function loadAllPeriods(){
     if (!container) return;
     
     if (!list || list.length === 0) {
-      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay períodos creados. Crea el primero arriba.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed py-dashed rounded-lg py-muted">No hay períodos creados. Crea el primero arriba.</div>';
       return;
     }
     
@@ -633,24 +657,24 @@ async function loadAllPeriods(){
         ? '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);">Abierto</span>'
         : '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(107,114,128,0.1);color:#6b7280;border:1px solid rgba(107,114,128,0.3);">Cerrado</span>';
       
-      return `<div class="period-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+      return `<div class="period-row py-card-row p-3 rounded-lg mb-2 transition-all duration-200">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             ${statusBadge}
             <div class="flex-1">
-              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
+              <div class="font-semibold py-text mb-0.5">
                 ${typeInfo.icon} ${htmlEscape(typeInfo.label)} · ${days} días
               </div>
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              <div class="text-xs py-muted">
                 ${startStr} → ${endStr}
               </div>
             </div>
           </div>
           <div class="flex gap-2 items-center">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-              ID: <code class="text-xs bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 px-1.5 py-0.5 rounded text-white dark:text-white theme-light:text-slate-900">${String(p._id).slice(-8)}</code>
+            <div class="text-xs py-muted">
+              ID: <code class="text-xs py-code-inline px-1.5 py-0.5 rounded">${String(p._id).slice(-8)}</code>
             </div>
-            ${p.status === 'open' ? `<button class="x-close-period px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 cursor-pointer" data-id="${p._id}" title="Cerrar período">🔒 Cerrar</button>` : ''}
+            ${p.status === 'open' ? `<button type="button" class="x-close-period py-btn-danger-soft px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer" data-id="${p._id}" title="Cerrar período">🔒 Cerrar</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -693,7 +717,7 @@ async function loadAllPeriods(){
     console.error('Error loading periods:', err);
     const container = document.getElementById('ppd-list');
     if (container) {
-      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
+      container.innerHTML = `<div class="p-3 py-alert-error rounded-lg text-sm">
         ❌ Error al cargar períodos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -704,7 +728,7 @@ async function loadAssignments(){
   try {
     const techName = document.getElementById('pa-technicianSel')?.value;
     if (!techName) {
-      el('pa-list').innerHTML = '<div class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
+      el('pa-list').innerHTML = '<div class="p-4 text-center border border-dashed py-dashed rounded-lg text-sm py-muted">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
       return;
     }
     
@@ -721,8 +745,8 @@ async function loadAssignments(){
     if (!container) return;
     
     if (!assignments || assignments.length === 0) {
-      container.innerHTML = `<div class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-        <strong class="text-white dark:text-white theme-light:text-slate-900">${htmlEscape(techName)}</strong> no tiene asignaciones personalizadas.<br/>
+      container.innerHTML = `<div class="p-4 text-center border border-dashed py-dashed rounded-lg text-sm py-muted">
+        <strong class="py-text">${htmlEscape(techName)}</strong> no tiene asignaciones personalizadas.<br/>
         <span class="text-xs">Usará los valores por defecto de los conceptos.</span>
       </div>`;
       return;
@@ -766,28 +790,28 @@ async function loadAssignments(){
         }
       }
       
-      return `<div class="assignment-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+      return `<div class="assignment-row py-card-row p-3 rounded-lg mb-2 transition-all duration-200">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             <span class="concept-badge px-2.5 py-1 rounded-md text-xs font-semibold uppercase" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
               ${htmlEscape(typeInfo.label)}
             </span>
             <div class="flex-1">
-              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
-                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-xs mr-1.5">${htmlEscape(conceptCode)}</span>
+              <div class="font-semibold py-text mb-0.5">
+                <span class="py-muted text-xs mr-1.5">${htmlEscape(conceptCode)}</span>
                 ${htmlEscape(conceptName)}
               </div>
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-                Valor por defecto: <strong class="text-white dark:text-white theme-light:text-slate-900">${defaultDisplay}</strong>
+              <div class="text-xs py-muted">
+                Valor por defecto: <strong class="py-text">${defaultDisplay}</strong>
               </div>
             </div>
           </div>
           <div class="flex gap-4 items-center">
             <div class="text-right">
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-0.5">Valor personalizado:</div>
-              <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${valueDisplay}</div>
+              <div class="text-xs py-muted mb-0.5">Valor personalizado:</div>
+              <div class="text-base font-semibold py-text">${valueDisplay}</div>
             </div>
-            <button class="x-del-assignment px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 cursor-pointer" data-id="${a._id}" data-concept-id="${a.conceptId}" title="Eliminar asignación">
+            <button type="button" class="x-del-assignment py-btn-danger-soft px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer" data-id="${a._id}" data-concept-id="${a.conceptId}" title="Eliminar asignación">
               🗑️
             </button>
           </div>
@@ -797,8 +821,8 @@ async function loadAssignments(){
     
     container.innerHTML = `
       <div class="mb-2">
-        <h4 class="m-0 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Asignaciones de <strong>${htmlEscape(techName)}</strong></h4>
-        <p class="m-1 mt-0 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${assignments.length} asignación(es) personalizada(s)</p>
+        <h4 class="m-0 text-sm font-semibold py-text">Asignaciones de <strong>${htmlEscape(techName)}</strong></h4>
+        <p class="m-1 mt-0 text-xs py-muted">${assignments.length} asignación(es) personalizada(s)</p>
       </div>
       ${rows}
     `;
@@ -840,7 +864,7 @@ async function loadAssignments(){
     console.error('Error loading assignments:', err);
     const container = el('pa-list');
     if (container) {
-      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
+      container.innerHTML = `<div class="p-3 py-alert-error rounded-lg text-sm">
         ❌ Error al cargar asignaciones: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -927,6 +951,8 @@ async function saveAssignment(){
 
 // Variable global para almacenar valores editados de préstamos
 let editedLoanPayments = {};
+// Montos por préstamo cuando hay varios: { [technicianName]: { [loanId]: number } }
+let editedLoanPaymentsByLoan = {};
 
 // Variable global para almacenar comisiones calculadas
 let calculatedCommissions = {};
@@ -940,7 +966,7 @@ async function loadConceptsForTechnician(){
     if (!container) return;
     
     if (!technicianName || !periodId) {
-      container.innerHTML = '<div class="grid-column-[1/-1] text-center text-xs py-4 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona período y técnico primero</div>';
+      container.innerHTML = '<div class="grid-column-[1/-1] text-center text-xs py-4 px-4 border border-dashed py-dashed rounded-lg py-muted">Selecciona período y técnico primero</div>';
       return;
     }
     
@@ -999,7 +1025,7 @@ async function loadConceptsForTechnician(){
     
     // Si no hay conceptos, préstamos ni comisiones
     if (assignedConcepts.length === 0 && pendingLoans.length === 0 && commissionTotal === 0) {
-      container.innerHTML = '<div class="grid-column-[1/-1] text-center text-xs py-4 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Este técnico no tiene conceptos asignados, préstamos pendientes ni comisiones en el período.</div>';
+      container.innerHTML = '<div class="grid-column-[1/-1] text-center text-xs py-4 px-4 border border-dashed py-dashed rounded-lg py-muted">Este técnico no tiene conceptos asignados, préstamos pendientes ni comisiones en el período.</div>';
       return;
     }
     
@@ -1014,18 +1040,18 @@ async function loadConceptsForTechnician(){
     
     // Renderizar MANO_OBRA (automático) como concepto seleccionable
     if (laborConcept && commissionTotal > 0) {
-      html += `<div class="concept-card labor-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200">
+      html += `<div class="concept-card labor-card p-3 border-2 border-blue-500 dark:border-blue-500 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 transition-all duration-200">
         <label class="flex items-center gap-2.5 cursor-pointer mb-2.5">
           <input type="checkbox" value="${laborConcept._id}" data-labor-concept="true" class="cursor-pointer w-[18px] h-[18px] m-0" checked />
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-1.5">
-              <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 text-green-500 dark:text-green-400 theme-light:text-green-700 border border-green-500 dark:border-green-500 theme-light:border-green-300">
+              <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-500/10 dark:bg-green-500/10 text-green-500 dark:text-green-400 border border-green-500 dark:border-green-500">
                 Ingreso
               </span>
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">🔧 Mano de obra</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500 dark:border-blue-500">🔧 Mano de obra</span>
             </div>
-            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">${htmlEscape(laborConcept.name || 'Mano de obra')}</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${commissionDetails.length} participación(es) · Total: <strong>${formatMoney(commissionTotal)}</strong></div>
+            <div class="font-semibold py-text text-sm mb-0.5">${htmlEscape(laborConcept.name || 'Mano de obra')}</div>
+            <div class="text-xs py-muted mb-2">${commissionDetails.length} participación(es) · Total: <strong>${formatMoney(commissionTotal)}</strong></div>
           </div>
         </label>
       </div>`;
@@ -1052,7 +1078,7 @@ async function loadConceptsForTechnician(){
       
       // Los conceptos variables no se pueden editar desde la liquidación, solo se muestran
       
-      html += `<div class="concept-card ${isVariable ? 'variable-concept-card' : ''} p-3 border-2 ${isVariable ? 'border-purple-500/30 dark:border-purple-500/30 theme-light:border-purple-300' : 'border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300'} rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 theme-light:hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-lg">
+      html += `<div class="concept-card ${isVariable ? 'variable-concept-card' : ''} p-3 border-2 ${isVariable ? 'border-purple-500/30 dark:border-purple-500/30' : 'border-slate-700/50 dark:border-slate-700/50'} rounded-lg bg-slate-800/30 dark:bg-slate-800/30 transition-all duration-200 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:-translate-y-0.5 hover:shadow-lg">
         <label class="flex items-center gap-2.5 cursor-pointer m-0">
           <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" data-is-variable="${isVariable}" class="cursor-pointer w-[18px] h-[18px] m-0" />
           <div class="flex-1">
@@ -1063,8 +1089,8 @@ async function loadConceptsForTechnician(){
         ${overrideBadge}
               ${variableBadge}
             </div>
-            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${displayValue}${isVariable ? ` · Completa hasta ${formatMoney(c.variableFixedAmount || 0)}` : ''}</div>
+            <div class="font-semibold py-text text-sm mb-0.5">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
+            <div class="text-xs py-muted">${displayValue}${isVariable ? ` · Completa hasta ${formatMoney(c.variableFixedAmount || 0)}` : ''}</div>
           </div>
         </label>
       </div>`;
@@ -1074,36 +1100,81 @@ async function loadConceptsForTechnician(){
     if (pendingLoans.length > 0) {
       const totalPending = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
       const loanCardId = 'loan-payment-card';
-      const storedValue = editedLoanPayments[technicianName] || totalPending;
+      const storedTotal = editedLoanPayments[technicianName] ?? totalPending;
+      const byLoan = editedLoanPaymentsByLoan[technicianName] || {};
       
-      html += `<div class="concept-card loan-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200" id="${loanCardId}">
+      const loanRowsHtml = pendingLoans.map(loan => {
+        const pend = loan.amount - (loan.paidAmount || 0);
+        const dateStr = new Date(loan.loanDate).toLocaleDateString('es-CO');
+        const desc = (loan.description || '').trim() || 'Sin descripción';
+        const lid = String(loan._id);
+        const stored = byLoan[lid];
+        const val = stored !== undefined && stored !== null ? stored : pend;
+        return `
+        <div class="pl-3 border-l-2 border-blue-500/40 dark:border-blue-500/40 mb-3 last:mb-0">
+          <div class="text-xs font-medium py-text mb-0.5">${htmlEscape(desc)}</div>
+          <div class="text-[11px] py-muted mb-1.5">📅 ${dateStr} · Saldo pendiente: <strong>${formatMoney(pend)}</strong></div>
+          <div class="flex gap-2 items-center flex-wrap">
+            <label class="text-xs py-muted whitespace-nowrap">Descontar en nómina:</label>
+            <input type="number"
+                   class="loan-payment-input py-field-input w-[128px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   data-loan-id="${lid}"
+                   data-tech-name="${htmlEscape(technicianName)}"
+                   data-max="${pend}"
+                   min="0"
+                   max="${pend}"
+                   step="1"
+                   value="${val}"
+                   onchange="saveLoanPaymentByLoan(this)" />
+            <span class="text-[11px] text-slate-500">Máx. ${formatMoney(pend)}</span>
+          </div>
+        </div>`;
+      }).join('');
+      
+      const oneLoan = pendingLoans[0];
+      const onePend = oneLoan ? oneLoan.amount - (oneLoan.paidAmount || 0) : 0;
+      const oneDateStr = oneLoan ? new Date(oneLoan.loanDate).toLocaleDateString('es-CO') : '';
+      const oneDesc = oneLoan ? ((oneLoan.description || '').trim() || 'Sin descripción') : '';
+      
+      const singleLoanBlock = pendingLoans.length === 1 ? `
+        <div class="pl-3 border-l-2 border-blue-500/40 dark:border-blue-500/40 mb-2">
+          <div class="text-xs font-medium py-text mb-0.5">${htmlEscape(oneDesc)}</div>
+          <div class="text-[11px] py-muted mb-2">📅 ${oneDateStr} · Saldo pendiente: <strong>${formatMoney(onePend)}</strong></div>
+        </div>
+        <div class="flex gap-2 items-center flex-wrap">
+          <label class="text-xs py-muted whitespace-nowrap">Monto a descontar:</label>
+          <input type="number"
+                 id="loan-payment-amount"
+                 data-technician="${htmlEscape(technicianName)}"
+                 data-max="${totalPending}"
+                 min="0"
+                 max="${totalPending}"
+                 step="1"
+                 value="${storedTotal}"
+                 class="py-field-input w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 onchange="saveLoanPaymentAmount('${htmlEscape(technicianName)}')" />
+          <span class="text-xs py-muted whitespace-nowrap">Máx: ${formatMoney(totalPending)}</span>
+        </div>` : `
+        <div class="mt-1">${loanRowsHtml}</div>
+        <p class="text-[11px] py-muted mt-2 mb-0">
+          Indicá cuánto descontar de <strong>cada</strong> préstamo. La vista previa y la liquidación mostrarán una línea por préstamo.
+        </p>`;
+      
+      html += `<div class="concept-card loan-card p-3 border-2 border-blue-500 dark:border-blue-500 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 transition-all duration-200" id="${loanCardId}">
         <label class="flex items-center gap-2.5 cursor-pointer mb-2.5 m-0">
           <input type="checkbox" value="LOAN_PAYMENT" data-loan-concept="true" class="cursor-pointer w-[18px] h-[18px] m-0" />
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-1.5">
-              <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-500/10 dark:bg-red-500/10 theme-light:bg-red-50 text-red-500 dark:text-red-400 theme-light:text-red-700 border border-red-500 dark:border-red-500 theme-light:border-red-300">
+              <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-500/10 dark:bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500 dark:border-red-500">
                 Descuento
               </span>
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">💰 Préstamos</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500 dark:border-blue-500">💰 Préstamos</span>
             </div>
-            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">Pago préstamos</div>
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${pendingLoans.length} préstamo(s) pendiente(s) · Total pendiente: ${formatMoney(totalPending)}</div>
+            <div class="font-semibold py-text text-sm mb-0.5">Pago préstamos</div>
+            <div class="text-xs py-muted mb-2">${pendingLoans.length} préstamo(s) · Total pendiente: ${formatMoney(totalPending)}</div>
           </div>
         </label>
-        <div class="flex gap-2 items-center flex-wrap">
-          <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Monto a pagar:</label>
-          <input type="number" 
-                 id="loan-payment-amount" 
-                 data-technician="${technicianName}"
-                 data-max="${totalPending}"
-                 min="0" 
-                 max="${totalPending}" 
-                 step="1" 
-                 value="${storedValue}"
-                 class="w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                 onchange="saveLoanPaymentAmount('${technicianName}')" />
-          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Máx: ${formatMoney(totalPending)}</span>
-        </div>
+        ${singleLoanBlock}
       </div>`;
     }
     
@@ -1119,7 +1190,7 @@ async function loadConceptsForTechnician(){
     console.error('Error loading assigned concepts:', err);
     const container = document.getElementById('pl-concepts-container');
     if (container) {
-      container.innerHTML = '<div class="text-red-500 dark:text-red-400 theme-light:text-red-600 text-xs py-2 px-2 grid-column-[1/-1]">Error al cargar conceptos asignados</div>';
+      container.innerHTML = '<div class="text-red-500 dark:text-red-400 text-xs py-2 px-2 grid-column-[1/-1]">Error al cargar conceptos asignados</div>';
     }
   }
 }
@@ -1139,6 +1210,24 @@ window.saveLoanPaymentAmount = function(technicianName) {
     card.style.borderColor = '#10b981';
     setTimeout(() => {
     card.style.borderColor = '#3b82f6';
+    }, 1000);
+  }
+};
+
+window.saveLoanPaymentByLoan = function(input) {
+  if (!input) return;
+  const technicianName = input.dataset.techName;
+  const loanId = input.dataset.loanId;
+  const max = Number(input.dataset.max) || 0;
+  const amount = Math.max(0, Math.min(Math.round(Number(input.value) || 0), max));
+  input.value = amount;
+  if (!editedLoanPaymentsByLoan[technicianName]) editedLoanPaymentsByLoan[technicianName] = {};
+  editedLoanPaymentsByLoan[technicianName][loanId] = amount;
+  const card = input.closest('.loan-card');
+  if (card) {
+    card.style.borderColor = '#10b981';
+    setTimeout(() => {
+      card.style.borderColor = '#3b82f6';
     }, 1000);
   }
 };
@@ -1193,14 +1282,24 @@ function getLoanPaymentsForTechnician(technicianName) {
     return [];
   }
   
-  // Obtener el monto editado o usar el máximo disponible
+  const perLoanInputs = document.querySelectorAll('input.loan-payment-input[data-loan-id]');
+  if (perLoanInputs.length > 0) {
+    const arr = [];
+    perLoanInputs.forEach(inp => {
+      const loanId = inp.dataset.loanId;
+      const max = Number(inp.dataset.max) || 0;
+      const amt = Math.max(0, Math.round(Math.min(Number(inp.value) || 0, max)));
+      if (amt > 0) arr.push({ loanId, amount: amt });
+    });
+    return arr;
+  }
+  
   const input = document.getElementById('loan-payment-amount');
   if (!input) return [];
   
-  const amount = editedLoanPayments[technicianName] || Number(input.value) || 0;
+  const amount = editedLoanPayments[technicianName] ?? (Number(input.value) || 0);
   if (amount <= 0) return [];
   
-  // Retornar un array especial que el backend procesará
   return [{ technicianName, totalAmount: amount }];
 }
 
@@ -1235,13 +1334,23 @@ async function preview(){
     // Mano de obra se envía como conceptId MANO_OBRA seleccionado (no requiere strings especiales)
     if (loanSelected) {
       selectedConceptIds.push('LOAN_PAYMENT');
-      // Asegurar que el valor editado del préstamo se guarde antes de hacer preview
       const loanInput = document.getElementById('loan-payment-amount');
       if (loanInput) {
         const amount = Math.max(0, Math.min(Number(loanInput.value) || 0, Number(loanInput.dataset.max) || 0));
         loanInput.value = amount;
         editedLoanPayments[technicianName] = amount;
       }
+      document.querySelectorAll('input.loan-payment-input[data-loan-id]').forEach(inp => {
+        const max = Number(inp.dataset.max) || 0;
+        const amt = Math.max(0, Math.min(Math.round(Number(inp.value) || 0), max));
+        inp.value = amt;
+        const tid = inp.dataset.techName;
+        const lid = inp.dataset.loanId;
+        if (tid && lid) {
+          if (!editedLoanPaymentsByLoan[tid]) editedLoanPaymentsByLoan[tid] = {};
+          editedLoanPaymentsByLoan[tid][lid] = amt;
+        }
+      });
     }
     
     const payload = {
@@ -1324,31 +1433,31 @@ async function preview(){
           if (isCommissionItem) {
             const parts = [];
             const blueText = serviceName || laborName;
-            if (blueText) parts.push(`<span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${htmlEscape(blueText)}</span>`);
-            if (serviceName && laborName) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">MO: ${htmlEscape(laborName)}</span>`);
-            if (vehicleLabel) parts.push(`<span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-600">🚗 ${htmlEscape(vehicleLabel)}</span>`);
-            if (saleNumber) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">Venta ${saleNumber}</span>`);
-            if (openedAtText) parts.push(`<span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-500">🕒 Apertura ${htmlEscape(openedAtText)}</span>`);
-            friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="text-slate-500 mx-1">•</span>')}</div>` : '';
+            if (blueText) parts.push(`<span class="font-semibold py-link">${htmlEscape(blueText)}</span>`);
+            if (serviceName && laborName) parts.push(`<span class="py-muted">MO: ${htmlEscape(laborName)}</span>`);
+            if (vehicleLabel) parts.push(`<span class="py-muted">🚗 ${htmlEscape(vehicleLabel)}</span>`);
+            if (saleNumber) parts.push(`<span class="py-muted">Venta ${saleNumber}</span>`);
+            if (openedAtText) parts.push(`<span class="py-muted">🕒 Apertura ${htmlEscape(openedAtText)}</span>`);
+            friendlyDescription = parts.length > 0 ? `<div class="flex items-center gap-2 flex-wrap mt-2 text-sm">${parts.join('<span class="py-muted mx-1">•</span>')}</div>` : '';
           }
 
           // Título principal del item
           let mainTitle = htmlEscape(i.name);
           if (isCommissionItem) mainTitle = 'Participación';
 
-          return `<div class="flex items-start justify-between p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-white hover:bg-slate-800/60 dark:hover:bg-slate-800/60 theme-light:hover:bg-slate-50 transition-all duration-200 shadow-sm">
+          return `<div class="flex items-start justify-between p-4 py-card-row rounded-lg transition-all duration-200 shadow-sm">
             <div class="flex-1 min-w-0">
               <div class="flex gap-2.5 items-center mb-2 flex-wrap">
                 <span class="px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
                   ${htmlEscape(typeInfo.label)}
                 </span>
-                <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${mainTitle}</span>
+                <span class="font-semibold py-text text-sm">${mainTitle}</span>
               </div>
               ${friendlyDescription}
-              ${!isCommissionItem && i.notes ? `<div class="text-xs mt-1.5 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(i.notes)}</div>` : ''}
+              ${!isCommissionItem && i.notes ? `<div class="text-xs mt-1.5 py-muted">${htmlEscape(i.notes)}</div>` : ''}
             </div>
             <div class="ml-4 flex-shrink-0">
-              <div class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg">
+              <div class="font-bold py-text text-lg">
                 ${formatMoney(i.value)}
               </div>
             </div>
@@ -1388,15 +1497,15 @@ async function preview(){
           const openedAtLabel = formatSaleOpenedAt(g.saleOpenedAt);
 
           renderedBlocks.push(`
-            <div class="mb-3 p-3 rounded-xl border-2 border-indigo-500/40 dark:border-indigo-500/40 theme-light:border-indigo-400 bg-indigo-500/10 dark:bg-indigo-500/10 theme-light:bg-indigo-50">
+            <div class="mb-3 p-3 rounded-xl py-commission-box">
               <div class="flex items-center justify-between gap-3 mb-3">
-                <div class="text-sm font-semibold text-indigo-200 dark:text-indigo-200 theme-light:text-indigo-700">
+                <div class="text-sm font-semibold py-commission-title">
                   <div>
-                    <span class="mr-2">🧾</span>${saleLabel}${plateLabel ? ` <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 font-normal">· ${plateLabel}</span>` : ''}
+                    <span class="mr-2">🧾</span>${saleLabel}${plateLabel ? ` <span class="py-muted font-normal">· ${plateLabel}</span>` : ''}
                   </div>
-                  ${openedAtLabel ? `<div class="text-xs font-normal text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">🕒 Apertura: ${htmlEscape(openedAtLabel)}</div>` : ''}
+                  ${openedAtLabel ? `<div class="text-xs font-normal py-muted mt-1">🕒 Apertura: ${htmlEscape(openedAtLabel)}</div>` : ''}
                 </div>
-                <div class="text-sm font-bold text-indigo-200 dark:text-indigo-200 theme-light:text-indigo-700">
+                <div class="text-sm font-bold py-commission-title">
                   ${formatMoney(groupTotal)}
                 </div>
               </div>
@@ -1421,7 +1530,7 @@ async function preview(){
 
         return `
           <div class="mb-4">
-            <h4 class="m-0 mb-3 text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">${title}</h4>
+            <h4 class="m-0 mb-3 text-sm font-semibold py-muted uppercase tracking-wide">${title}</h4>
             ${renderedBlocks.join('')}
           </div>`;
       };
@@ -1460,23 +1569,23 @@ async function preview(){
       };
       
       el('pl-result').innerHTML = `
-        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl p-5 shadow-lg">
-          <div class="mb-5 pb-4 border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-            <h4 class="m-0 mb-3 text-lg font-bold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+        <div class="py-panel border rounded-xl p-5 shadow-lg">
+          <div class="mb-5 pb-4 border-b-2 py-sep-border">
+            <h4 class="m-0 mb-3 text-lg font-bold py-text flex items-center gap-2">
               <span class="text-2xl">📋</span>
               Vista previa de liquidación
             </h4>
             <div class="flex gap-6 flex-wrap">
               <div class="flex items-center gap-2 text-sm">
-                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">👤</span>
-                <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
-                  <strong class="text-white dark:text-white theme-light:text-slate-900">Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
+                <span class="py-muted">👤</span>
+                <span class="py-muted">
+                  <strong class="py-text">Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
                 </span>
               </div>
               <div class="flex items-center gap-2 text-sm">
-                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">📅</span>
-                <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
-                  <strong class="text-white dark:text-white theme-light:text-slate-900">Período:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
+                <span class="py-muted">📅</span>
+                <span class="py-muted">
+                  <strong class="py-text">Período:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
                 </span>
               </div>
             </div>
@@ -1486,21 +1595,21 @@ async function preview(){
           ${renderItems(surcharges, 'Recargos')}
           ${renderItems(deductions, 'Descuentos')}
           
-          <div class="mt-6 pt-4 border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <div class="mt-6 pt-4 border-t-2 py-sep-border">
             <div class="flex items-center justify-between mb-3 py-2">
-              <span class="font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-sm">Total bruto:</span>
-              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-base" data-total="gross">${formatMoney(r.grossTotal)}</span>
+              <span class="font-semibold py-muted text-sm">Total bruto:</span>
+              <span class="font-semibold py-text text-base" data-total="gross">${formatMoney(r.grossTotal)}</span>
             </div>
             <div class="flex items-center justify-between mb-3 py-2">
-              <span class="font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 text-sm">Total descuentos:</span>
-              <span class="font-semibold text-red-500 dark:text-red-400 theme-light:text-red-600 text-base" data-total="deductions">-${formatMoney(r.deductionsTotal)}</span>
+              <span class="font-semibold py-muted text-sm">Total descuentos:</span>
+              <span class="font-semibold py-money-neg text-base" data-total="deductions">-${formatMoney(r.deductionsTotal)}</span>
             </div>
-            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/20 to-green-500/20 dark:from-blue-500/20 dark:to-green-500/20 theme-light:from-blue-100 theme-light:to-green-100 rounded-lg mt-3 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300">
-              <span class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg flex items-center gap-2">
+            <div class="flex items-center justify-between p-4 py-net-highlight rounded-lg mt-3">
+              <span class="font-bold py-text text-lg flex items-center gap-2">
                 <span>💰</span>
                 Neto a pagar:
               </span>
-              <span class="font-bold text-green-400 dark:text-green-400 theme-light:text-green-600 text-2xl" data-total="net">${formatMoney(r.netTotal)}</span>
+              <span class="font-bold py-money-pos text-2xl" data-total="net">${formatMoney(r.netTotal)}</span>
             </div>
           </div>
         </div>
@@ -1552,15 +1661,16 @@ async function approve(){
       return;
     }
     
-    // Recolectar pagos de préstamos desde la configuración inicial
-    const loanPayments = [];
-    
-    // Obtener préstamos desde la lista de conceptos
+    let loanPayments = [];
     const loanCheckbox = document.querySelector('input[data-loan-concept="true"]');
     if (loanCheckbox && loanCheckbox.checked) {
       const loanConfig = getLoanPaymentsForTechnician(technicianName);
-      if (loanConfig.length > 0 && loanConfig[0].totalAmount > 0) {
-        loanPayments.push({ technicianName, totalAmount: loanConfig[0].totalAmount });
+      if (loanConfig.length > 0) {
+        if (loanConfig[0].loanId != null) {
+          loanPayments = loanConfig;
+        } else if (loanConfig[0].totalAmount > 0) {
+          loanPayments = [{ technicianName, totalAmount: loanConfig[0].totalAmount }];
+        }
       }
     }
     
@@ -1578,7 +1688,7 @@ async function approve(){
       periodId,
       technicianName,
       selectedConceptIds,
-      loanPayments // Array de { technicianName, totalAmount } para préstamos
+      loanPayments // [{ technicianName, totalAmount }] o [{ loanId, amount }, ...]
     };
     
     // Deshabilitar botones durante la petición
@@ -1597,22 +1707,22 @@ async function approve(){
       const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
       
       el('pl-result').innerHTML = `
-        <div class="p-4 bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 border border-green-500 dark:border-green-500 theme-light:border-green-300 rounded-lg mb-4">
+        <div class="p-4 bg-green-500/10 dark:bg-green-500/10 border border-green-500 dark:border-green-500 rounded-lg mb-4">
           <div class="flex items-center gap-2 mb-2">
             <span class="text-2xl">✓</span>
-            <h4 class="m-0 text-base font-semibold text-green-500 dark:text-green-400 theme-light:text-green-600">Liquidación aprobada</h4>
+            <h4 class="m-0 text-base font-semibold text-green-500 dark:text-green-400">Liquidación aprobada</h4>
           </div>
-          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
+          <div class="text-sm py-text mb-1">
             <strong>Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
           </div>
-          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
+          <div class="text-sm py-text mb-1">
             <strong>Período:</strong> ${periodText}
           </div>
-          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
+          <div class="text-sm py-text mb-1">
             <strong>Neto a pagar:</strong> ${formatMoney(r.netTotal || 0)}
           </div>
-          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">
-            ID: <code class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 px-1.5 py-0.5 rounded text-xs text-white dark:text-white theme-light:text-slate-900">${String(r._id).slice(-8)}</code>
+          <div class="text-xs py-muted mt-2">
+            ID: <code class="py-code-inline px-1.5 py-0.5 rounded text-xs">${String(r._id).slice(-8)}</code>
           </div>
         </div>
       `;
@@ -1652,7 +1762,7 @@ async function loadPendingSettlements(){
     if (!container || !select) return;
     
     if (items.length === 0) {
-      container.innerHTML = '<div class="text-center py-4 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay liquidaciones pendientes de pago.</div>';
+      container.innerHTML = '<div class="text-center py-4 px-4 border border-dashed py-dashed rounded-lg text-sm py-muted">No hay liquidaciones pendientes de pago.</div>';
       select.innerHTML = '<option value="">No hay liquidaciones pendientes</option>';
       return;
     }
@@ -1662,22 +1772,22 @@ async function loadPendingSettlements(){
     // Renderizar listado
     const rows = items.map(s => {
       const createdAt = new Date(s.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      return `<div class="pending-settlement-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white cursor-pointer transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50" data-id="${s._id}" onclick="selectSettlementForPayment('${s._id}')">
+      return `<div class="pending-settlement-row py-card-row p-3 rounded-lg mb-2 cursor-pointer transition-all duration-200" data-id="${s._id}" onclick="selectSettlementForPayment('${s._id}')">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             <div class="flex-1">
-              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
+              <div class="font-semibold py-text mb-0.5">
                 👤 ${htmlEscape(s.technicianName||'Sin nombre')}
               </div>
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              <div class="text-xs py-muted">
                 Aprobada: ${createdAt}
               </div>
             </div>
           </div>
-          <div class="text-right text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-            <div>Bruto: <strong class="text-white dark:text-white theme-light:text-slate-900">${formatMoney(s.grossTotal)}</strong></div>
-            <div>Desc: <strong class="text-red-500 dark:text-red-400 theme-light:text-red-600">-${formatMoney(s.deductionsTotal)}</strong></div>
-            <div class="mt-1 text-base font-bold text-green-500 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
+          <div class="text-right text-xs py-muted">
+            <div>Bruto: <strong class="py-text">${formatMoney(s.grossTotal)}</strong></div>
+            <div>Desc: <strong class="py-money-neg">-${formatMoney(s.deductionsTotal)}</strong></div>
+            <div class="mt-1 text-base font-bold py-money-pos">Neto: ${formatMoney(s.netTotal)}</div>
           </div>
         </div>
       </div>`;
@@ -1795,11 +1905,11 @@ function updateSettlementInfo(){
     <div class="flex items-center gap-2">
       <span class="text-xl">💰</span>
       <div class="flex-1">
-        <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">Liquidación seleccionada</div>
-        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-          Monto total: <strong class="text-green-500 dark:text-green-400 theme-light:text-green-600 text-sm">${formatMoney(netTotal)}</strong>
+        <div class="font-semibold py-text mb-0.5">Liquidación seleccionada</div>
+        <div class="text-xs py-muted">
+          Monto total: <strong class="text-green-500 dark:text-green-400 text-sm">${formatMoney(netTotal)}</strong>
           ${paidAmount > 0 ? ` · Pagado: ${formatMoney(paidAmount)}` : ''}
-          ${remainingAmount > 0 ? ` · Restante: <strong class="text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600">${formatMoney(remainingAmount)}</strong>` : ''}
+          ${remainingAmount > 0 ? ` · Restante: <strong class="text-yellow-500 dark:text-yellow-400">${formatMoney(remainingAmount)}</strong>` : ''}
         </div>
       </div>
     </div>
@@ -1855,7 +1965,7 @@ async function updatePaymentsList() {
   const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
   
   if (partialPayments.length === 0) {
-    listContainer.innerHTML = '<div class="text-center py-3 px-3 text-xs border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-md text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay pagos agregados. Haz clic en "Agregar pago" para comenzar.</div>';
+    listContainer.innerHTML = '<div class="text-center py-3 px-3 text-xs border border-dashed py-dashed rounded-md py-muted">No hay pagos agregados. Haz clic en "Agregar pago" para comenzar.</div>';
     return;
   }
   
@@ -1875,12 +1985,12 @@ async function updatePaymentsList() {
     }).join('');
     
     return `
-      <div class="payment-row p-3 border-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white" data-payment-id="${payment.id}">
+      <div class="payment-row py-card-row p-3 border-2 rounded-lg" data-payment-id="${payment.id}">
         <div class="flex gap-3 items-end flex-wrap">
           <div class="flex-1 min-w-[200px]">
-            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Cuenta ${index + 1}</label>
+            <label class="block text-xs py-label mb-1 font-medium">Cuenta ${index + 1}</label>
             <select 
-              class="payment-account w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              class="payment-account py-field-input w-full px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
               data-payment-id="${payment.id}"
               onchange="updatePayment('${payment.id}', 'accountId', this.value)">
               <option value="">Seleccione cuenta…</option>
@@ -1888,10 +1998,10 @@ async function updatePaymentsList() {
             </select>
           </div>
           <div class="flex-1 min-w-[150px]">
-            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Monto</label>
+            <label class="block text-xs py-label mb-1 font-medium">Monto</label>
             <input 
               type="number" 
-              class="payment-amount w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              class="payment-amount py-field-input w-full px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
               data-payment-id="${payment.id}"
               min="0" 
               step="1"
@@ -1903,7 +2013,7 @@ async function updatePaymentsList() {
           <div class="min-w-[80px]">
             <label class="block text-xs text-transparent mb-1">&nbsp;</label>
             <button 
-              class="w-full px-2 py-2 text-xs font-semibold bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 rounded-md transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300"
+              class="py-btn-danger-soft w-full px-2 py-2 text-xs font-semibold rounded-md transition-all duration-200"
               onclick="removePayment('${payment.id}')">
               ✕ Eliminar
             </button>
@@ -1934,35 +2044,35 @@ function updatePaymentsSummary() {
   summaryContainer.innerHTML = `
     <div class="flex justify-between items-center flex-wrap gap-3">
       <div class="flex-1 min-w-[200px]">
-        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total de pagos configurados</div>
-        <div class="text-lg font-bold ${totalPayments > remainingAmount ? 'text-red-500 dark:text-red-400 theme-light:text-red-600' : 'text-green-500 dark:text-green-400 theme-light:text-green-600'}">${formatMoney(totalPayments)}</div>
+        <div class="text-xs py-muted mb-1">Total de pagos configurados</div>
+        <div class="text-lg font-bold ${totalPayments > remainingAmount ? 'py-money-neg' : 'py-money-pos'}">${formatMoney(totalPayments)}</div>
       </div>
       <div class="flex-1 min-w-[200px]">
-        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Monto restante a pagar</div>
-        <div class="text-lg font-bold text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600">${formatMoney(remainingAmount)}</div>
+        <div class="text-xs py-muted mb-1">Monto restante a pagar</div>
+        <div class="text-lg font-bold py-amount-warn">${formatMoney(remainingAmount)}</div>
       </div>
       <div class="flex-1 min-w-[200px]">
-        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Después de estos pagos</div>
-        <div class="text-lg font-bold ${remainingAfterPayments < 0 ? 'text-red-500 dark:text-red-400 theme-light:text-red-600' : remainingAfterPayments === 0 ? 'text-green-500 dark:text-green-400 theme-light:text-green-600' : 'text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600'}">
+        <div class="text-xs py-muted mb-1">Después de estos pagos</div>
+        <div class="text-lg font-bold ${remainingAfterPayments < 0 ? 'py-money-neg' : remainingAfterPayments === 0 ? 'py-money-pos' : 'py-amount-warn'}">
           ${formatMoney(Math.max(0, remainingAfterPayments))}
         </div>
       </div>
     </div>
     ${totalPayments > remainingAmount ? `
-      <div class="mt-3 p-2 bg-red-500/10 dark:bg-red-500/10 theme-light:bg-red-50 border border-red-500 dark:border-red-500 theme-light:border-red-300 rounded-md text-red-500 dark:text-red-400 theme-light:text-red-600 text-xs">
+      <div class="py-hint-strip py-hint-strip--error">
         ⚠️ El total de los pagos excede el monto restante por ${formatMoney(totalPayments - remainingAmount)}
       </div>
     ` : ''}
     ${remainingAfterPayments < 0 ? `
-      <div class="mt-2 p-2 bg-red-500/10 dark:bg-red-500/10 theme-light:bg-red-50 border border-red-500 dark:border-red-500 theme-light:border-red-300 rounded-md text-red-500 dark:text-red-400 theme-light:text-red-600 text-xs">
+      <div class="py-hint-strip py-hint-strip--error">
         ⚠️ El total de los pagos excede el monto a pagar. Ajusta los montos.
       </div>
     ` : remainingAfterPayments === 0 ? `
-      <div class="mt-2 p-2 bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 border border-green-500 dark:border-green-500 theme-light:border-green-300 rounded-md text-green-500 dark:text-green-400 theme-light:text-green-600 text-xs">
+      <div class="py-hint-strip py-hint-strip--ok">
         ✓ El pago está completo. Puedes proceder a registrar los pagos.
       </div>
     ` : `
-      <div class="mt-2 p-2 bg-yellow-500/10 dark:bg-yellow-500/10 theme-light:bg-yellow-50 border border-yellow-500 dark:border-yellow-500 theme-light:border-yellow-300 rounded-md text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600 text-xs">
+      <div class="py-hint-strip py-hint-strip--info">
         ℹ️ Quedarán ${formatMoney(remainingAfterPayments)} pendientes después de estos pagos.
       </div>
     `}
@@ -1990,9 +2100,9 @@ async function pay(){
     
     // La fecha se autocompleta automáticamente, usar la fecha actual si no está definida
     let date = null;
-    if (dateInput && dateInput.value) {
+    if (dateInput) {
       // Convertir datetime-local a ISO string en UTC
-      date = datetimeLocalToISO(dateInput.value);
+      date = datetimeLocalToISO(dateInput);
       if (!date) {
         // Si la fecha es inválida, usar la fecha actual
         date = new Date().toISOString();
@@ -2065,23 +2175,23 @@ async function pay(){
         : `Pago: ${formatMoney(r.cashflow.amount)}`;
       
       el('pp-result').innerHTML = `
-        <div class="p-4 bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 border border-green-500 dark:border-green-500 theme-light:border-green-300 rounded-lg mb-4">
+        <div class="p-4 bg-green-500/10 dark:bg-green-500/10 border border-green-500 dark:border-green-500 rounded-lg mb-4">
           <div class="flex items-center gap-2 mb-2">
             <span class="text-2xl">✓</span>
-            <h4 class="m-0 text-base font-semibold text-green-500 dark:text-green-400 theme-light:text-green-600">${r.isFullyPaid ? 'Pago completo registrado exitosamente' : 'Pago(s) parcial(es) registrado(s) exitosamente'}</h4>
+            <h4 class="m-0 text-base font-semibold text-green-500 dark:text-green-400">${r.isFullyPaid ? 'Pago completo registrado exitosamente' : 'Pago(s) parcial(es) registrado(s) exitosamente'}</h4>
           </div>
-          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
+          <div class="text-sm py-text mb-1">
             <strong>Técnico:</strong> ${htmlEscape(technicianName)}
           </div>
-          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
+          <div class="text-sm py-text mb-1">
             <strong>Total pagado:</strong> ${formatMoney(r.totalPaid || totalPayments)}
           </div>
           ${r.remaining > 0 ? `
-            <div class="text-sm text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600 mb-1">
+            <div class="text-sm text-yellow-500 dark:text-yellow-400 mb-1">
               <strong>Restante:</strong> ${formatMoney(r.remaining)}
             </div>
           ` : ''}
-          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">
+          <div class="text-xs py-muted mt-2">
             ${paymentsInfo}
           </div>
         </div>
@@ -2109,7 +2219,7 @@ async function pay(){
       }
       
       el('pp-result').innerHTML = `
-        <div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
+        <div class="p-3 py-alert-error rounded-lg text-sm">
           ${userMsg}
         </div>`;
       
@@ -2121,6 +2231,31 @@ async function pay(){
   } catch (err) {
     console.error('Error in pay:', err);
     alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
+  }
+}
+
+async function unapproveSettlementAction(settlementId, technicianLabel) {
+  if (!settlementId) return;
+  const label = technicianLabel || 'este técnico';
+  if (!confirm(
+    `¿Anular la aprobación de la liquidación de ${label}?\n\n` +
+    'La liquidación volverá a estado borrador: se conservan los datos y montos guardados. ' +
+    'Si hubo descuentos por préstamos, se revierten en los préstamos.\n\n' +
+    'No podés usar esto si ya registraste pagos de nómina a esta liquidación.'
+  )) {
+    return;
+  }
+  try {
+    await api.post('/api/v1/payroll/settlements/unapprove', { settlementId });
+    alert('✓ Aprobación anulada. Podés corregir en vista previa y volver a aprobar.');
+    await loadSettlements();
+    const techSel = document.getElementById('pl-technicianSel');
+    if (techSel?.value) {
+      await loadConceptsForTechnician();
+    }
+  } catch (err) {
+    const msg = err?.message || err?.error || 'Error desconocido';
+    alert('❌ No se pudo anular: ' + msg);
   }
 }
 
@@ -2138,7 +2273,8 @@ async function loadSettlements(){
     const statusLabels = {
       'draft': { label: 'Borrador', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
       'approved': { label: 'Aprobada', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-      'paid': { label: 'Pagada', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' }
+      'paid': { label: 'Pagada', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
+      'partially_paid': { label: 'Pago parcial', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' }
     };
     
     const rows = items.map(s => {
@@ -2150,32 +2286,35 @@ async function loadSettlements(){
       const printUrl = `${apiBase}/api/v1/payroll/settlements/${s._id}/print`;
       const settlementId = s._id;
       
-      return `<div class="p-3 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50 transition-all duration-200">
+      return `<div class="p-3 py-card-row rounded-lg mb-2 transition-all duration-200">
         <div class="flex items-center justify-between flex-wrap gap-3">
           <div class="flex items-center gap-3 flex-1 min-w-[200px]">
-            <span class="px-2.5 py-1 rounded-md text-xs font-semibold uppercase ${s.status === 'approved' ? 'bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 text-green-500 dark:text-green-400 theme-light:text-green-700 border border-green-500/20 dark:border-green-500/20 theme-light:border-green-200' : s.status === 'paid' ? 'bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500/20 dark:border-blue-500/20 theme-light:border-blue-200' : 'bg-slate-500/10 dark:bg-slate-500/10 theme-light:bg-slate-100 text-slate-500 dark:text-slate-400 theme-light:text-slate-600 border border-slate-500/20 dark:border-slate-500/20 theme-light:border-slate-300'}">
+            <span class="px-2.5 py-1 rounded-md text-xs font-semibold uppercase ${s.status === 'approved' ? 'bg-green-500/10 dark:bg-green-500/10 text-green-500 dark:text-green-400 border border-green-500/20 dark:border-green-500/20' : s.status === 'paid' ? 'bg-blue-500/10 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/20 dark:border-blue-500/20' : 'bg-slate-500/10 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-500/20 dark:border-slate-500/20'}">
               ${htmlEscape(statusInfo.label)}
             </span>
             <div class="flex-1">
-              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
+              <div class="font-semibold py-text mb-0.5">
                 👤 ${htmlEscape(s.technicianName||'Sin nombre')}
               </div>
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              <div class="text-xs py-muted">
                 ${createdAt}
               </div>
             </div>
           </div>
           <div class="flex items-center gap-4 flex-wrap">
-            <div class="text-right text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-              <div>Bruto: <strong class="text-white dark:text-white theme-light:text-slate-900">${formatMoney(s.grossTotal)}</strong></div>
-              <div>Desc: <strong class="text-red-400 dark:text-red-400 theme-light:text-red-600">-${formatMoney(s.deductionsTotal)}</strong></div>
-              <div class="mt-1 text-sm font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
+            <div class="text-right text-xs py-muted">
+              <div>Bruto: <strong class="py-text">${formatMoney(s.grossTotal)}</strong></div>
+              <div>Desc: <strong class="py-money-neg">-${formatMoney(s.deductionsTotal)}</strong></div>
+              <div class="mt-1 text-sm font-semibold py-money-pos">Neto: ${formatMoney(s.netTotal)}</div>
             </div>
-            <div class="flex items-center gap-2">
-              <button data-settlement-id="${settlementId}" class="print-settlement-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 transition-all duration-200" title="Imprimir con template configurado">
+            <div class="flex items-center gap-2 flex-wrap">
+              ${s.status === 'approved' ? `<button type="button" data-settlement-id="${settlementId}" data-tech-name="${htmlEscape(s.technicianName || '')}" class="unapprove-settlement-btn px-3 py-1.5 text-xs border border-amber-600/40 dark:border-amber-600/40 rounded-md bg-amber-500/10 dark:bg-amber-500/10 text-amber-200 dark:text-amber-200 hover:bg-amber-500/20 transition-all duration-200" title="Vuelve a borrador sin borrar datos; podés corregir y volver a aprobar">
+                ↩ Anular aprobación
+              </button>` : ''}
+              <button type="button" data-settlement-id="${settlementId}" class="print-settlement-btn py-btn-secondary px-3 py-1.5 text-xs rounded-md transition-all duration-200" title="Imprimir con template configurado">
                 🖨️ Imprimir
               </button>
-              <button data-settlement-id="${settlementId}" class="pdf-download-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-red-500/20 dark:hover:bg-red-500/20 theme-light:hover:bg-red-50 transition-all duration-200" title="Descargar PDF">
+              <button type="button" data-settlement-id="${settlementId}" class="pdf-download-btn py-btn-secondary px-3 py-1.5 text-xs rounded-md transition-all duration-200" title="Descargar PDF">
                 📄 PDF
               </button>
             </div>
@@ -2189,29 +2328,29 @@ async function loadSettlements(){
     if (!container) return;
     
     // Preservar el preview si existe
-    const existingPreview = container.querySelector('.bg-slate-800\\/30');
+    const existingPreview = container.querySelector('.py-panel');
     const previewHtml = existingPreview ? existingPreview.outerHTML : '';
     
     if (items.length === 0 && !previewHtml) {
-      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay liquidaciones aprobadas para este período.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed py-dashed rounded-lg py-muted">No hay liquidaciones aprobadas para este período.</div>';
       return;
     }
     
     const summaryHtml = items.length > 0 ? `
-      <div class="mt-4 pt-4 border-t-2 border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-        <h4 class="m-0 mb-3 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Resumen del período</h4>
+      <div class="mt-4 pt-4 border-t-2 py-sep-border">
+        <h4 class="m-0 mb-3 text-sm font-semibold py-text">Resumen del período</h4>
         <div class="flex gap-6 flex-wrap justify-end">
           <div class="text-right">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Bruto</div>
-            <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${formatMoney(summary.grossTotal)}</div>
+            <div class="text-xs py-muted mb-1">Total Bruto</div>
+            <div class="text-base font-semibold py-text">${formatMoney(summary.grossTotal)}</div>
           </div>
           <div class="text-right">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Descuentos</div>
-            <div class="text-base font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600">-${formatMoney(summary.deductionsTotal)}</div>
+            <div class="text-xs py-muted mb-1">Total Descuentos</div>
+            <div class="text-base font-semibold py-money-neg">-${formatMoney(summary.deductionsTotal)}</div>
           </div>
           <div class="text-right">
-            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Neto</div>
-            <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${formatMoney(summary.netTotal)}</div>
+            <div class="text-xs py-muted mb-1">Total Neto</div>
+            <div class="text-lg font-bold py-money-pos">${formatMoney(summary.netTotal)}</div>
           </div>
         </div>
       </div>
@@ -2221,7 +2360,7 @@ async function loadSettlements(){
       ${previewHtml}
       ${items.length > 0 ? `
         <div class="${previewHtml ? 'mt-4' : ''}">
-          <h4 class="m-0 mb-3 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Liquidaciones aprobadas</h4>
+          <h4 class="m-0 mb-3 text-sm font-semibold py-text">Liquidaciones aprobadas</h4>
           <div>${rows}</div>
           ${summaryHtml}
         </div>
@@ -2925,6 +3064,17 @@ function init(){
   
   // Event delegation para botones de PDF e Imprimir (se crean dinámicamente)
   document.addEventListener('click', async (e) => {
+    const unapproveBtn = e.target.closest('.unapprove-settlement-btn');
+    if (unapproveBtn) {
+      const settlementId = unapproveBtn.getAttribute('data-settlement-id');
+      const techName = unapproveBtn.getAttribute('data-tech-name') || '';
+      if (settlementId) {
+        e.preventDefault();
+        await unapproveSettlementAction(settlementId, techName);
+      }
+      return;
+    }
+
     const pdfBtn = e.target.closest('.pdf-download-btn');
     if (pdfBtn) {
       const settlementId = pdfBtn.getAttribute('data-settlement-id');
@@ -2962,14 +3112,8 @@ function init(){
 }
 
 function switchTab(name){
-  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b=> {
-    if(b.dataset.subtab===name){
-      b.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'border', 'border-slate-600/50', 'dark:border-slate-600/50', 'theme-light:border-slate-300', 'theme-light:bg-slate-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
-      b.classList.add('bg-blue-600', 'text-white');
-    } else {
-      b.classList.remove('bg-blue-600', 'text-white');
-      b.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'border', 'border-slate-600/50', 'dark:border-slate-600/50', 'theme-light:border-slate-300', 'theme-light:bg-slate-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
-    }
+  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.subtab === name);
   });
   document.querySelectorAll('[data-subsection]').forEach(sec=> sec.classList.toggle('hidden', sec.dataset.subsection!==name));
   
@@ -2990,6 +3134,9 @@ async function createTechnician(){
     const workHoursInput = document.getElementById('tk-add-work-hours');
     const salaryPerDayInput = document.getElementById('tk-add-salary-per-day');
     const contractTypeInput = document.getElementById('tk-add-contract-type');
+    const receivesLaborCommissionInput = document.getElementById('tk-add-receives-labor-commission');
+    const isAppointmentTechnicianInput = document.getElementById('tk-add-is-appointment-technician');
+    const appointmentColorInput = document.getElementById('tk-add-appointment-color');
     
     const name = (nameInput?.value || '').trim();
     const identification = (identificationInput?.value || '').trim();
@@ -2997,6 +3144,9 @@ async function createTechnician(){
     const workHoursStr = (workHoursInput?.value || '').trim();
     const basicSalaryPerDayStr = (salaryPerDayInput?.value || '').trim();
     const contractType = (contractTypeInput?.value || '').trim();
+    const receivesLaborCommission = receivesLaborCommissionInput?.checked !== false;
+    const isAppointmentTechnician = isAppointmentTechnicianInput?.checked === true;
+    const appointmentColor = (appointmentColorInput?.value || '#2563EB').trim() || '#2563EB';
     
     // Convertir valores numéricos
     const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
@@ -3050,7 +3200,10 @@ async function createTechnician(){
         basicSalary,
         workHoursPerMonth,
         basicSalaryPerDay,
-        contractType
+        contractType,
+        receivesLaborCommission,
+        isAppointmentTechnician,
+        appointmentColor
       );
       
       // Limpiar campos
@@ -3060,6 +3213,9 @@ async function createTechnician(){
       if (workHoursInput) workHoursInput.value = '';
       if (salaryPerDayInput) salaryPerDayInput.value = '';
       if (contractTypeInput) contractTypeInput.value = '';
+      if (receivesLaborCommissionInput) receivesLaborCommissionInput.checked = true;
+      if (isAppointmentTechnicianInput) isAppointmentTechnicianInput.checked = false;
+      if (appointmentColorInput) appointmentColorInput.value = '#2563EB';
       
       // Recargar lista de técnicos
       await loadTechnicians();
@@ -3093,7 +3249,7 @@ async function createTechnician(){
   }
 }
 
-function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') {
   const modal = document.getElementById('modal');
   const modalBody = document.getElementById('modalBody');
   const modalClose = document.getElementById('modalClose');
@@ -3106,11 +3262,11 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
   // Crear contenido del modal
   modalBody.innerHTML = `
     <div class="p-6">
-      <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Editar Técnico</h3>
+      <h3 class="text-2xl font-bold py-text mb-4">Editar Técnico</h3>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+          <label class="block text-sm font-medium py-muted mb-2">
             Nombre del técnico
           </label>
           <input 
@@ -3118,13 +3274,13 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             type="text" 
             value="${htmlEscape(oldName)}" 
             maxlength="100"
-            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-4 py-2 py-field-input rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: Juan Pérez"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+          <label class="block text-sm font-medium py-muted mb-2">
             Número de identificación
           </label>
           <input 
@@ -3132,13 +3288,13 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             type="text" 
             value="${htmlEscape(currentIdentification)}" 
             maxlength="20"
-            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-4 py-2 py-field-input rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: 1234567890"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+          <label class="block text-sm font-medium py-muted mb-2">
             Salario Básico ($/MES)
           </label>
           <input 
@@ -3147,13 +3303,13 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             step="0.01"
             min="0"
             value="${basicSalary || ''}" 
-            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-4 py-2 py-field-input rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: 1000000"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+          <label class="block text-sm font-medium py-muted mb-2">
             Horas Trabajo MES
           </label>
           <input 
@@ -3162,13 +3318,13 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             step="1"
             min="0"
             value="${workHoursPerMonth || ''}" 
-            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-4 py-2 py-field-input rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: 240"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+          <label class="block text-sm font-medium py-muted mb-2">
             Salario Básico (DÍA)
           </label>
           <input 
@@ -3177,13 +3333,13 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             step="0.01"
             min="0"
             value="${basicSalaryPerDay || ''}" 
-            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-4 py-2 py-field-input rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: 33333.33"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+          <label class="block text-sm font-medium py-muted mb-2">
             Tipo Contrato
           </label>
           <input 
@@ -3191,22 +3347,57 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
             type="text" 
             value="${htmlEscape(contractType)}" 
             maxlength="50"
-            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-4 py-2 py-field-input rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: Término Indefinido"
           />
+        </div>
+        
+        <label class="inline-flex items-center gap-2 text-sm py-muted">
+          <input 
+            id="edit-tech-receives-labor-commission" 
+            type="checkbox" 
+            class="w-4 h-4"
+            ${receivesLaborCommission !== false ? 'checked' : ''}
+          />
+          Cobra porcentaje de mano de obra
+        </label>
+
+        <label class="inline-flex items-center gap-2 text-sm py-muted">
+          <input 
+            id="edit-tech-is-appointment-technician" 
+            type="checkbox" 
+            class="w-4 h-4"
+            ${isAppointmentTechnician ? 'checked' : ''}
+          />
+          Solo agenda citas
+        </label>
+
+        <div>
+          <label class="block text-sm font-medium py-muted mb-2">
+            Color de agenda (fijo)
+          </label>
+          <input 
+            type="color" 
+            value="${htmlEscape(appointmentColor || '#2563EB')}"
+            disabled
+            class="w-16 h-10 p-1 rounded border border-slate-600/50 bg-slate-900/30 cursor-not-allowed"
+          />
+          <p class="text-xs py-muted mt-1">Este color solo se define al crear el técnico.</p>
         </div>
       </div>
       
       <div class="flex gap-3 mt-6">
         <button 
+          type="button"
           id="edit-tech-save" 
-          class="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+          class="py-btn-green flex-1 px-4 py-2 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
         >
           💾 Guardar cambios
         </button>
         <button 
+          type="button"
           id="edit-tech-cancel" 
-          class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900"
+          class="py-btn-secondary px-4 py-2 font-semibold rounded-lg transition-all duration-200"
         >
           Cancelar
         </button>
@@ -3240,6 +3431,8 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       const workHoursStr = document.getElementById('edit-tech-work-hours')?.value?.trim() || '';
       const basicSalaryPerDayStr = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
       const contractType = document.getElementById('edit-tech-contract-type')?.value?.trim() || '';
+      const receivesLaborCommission = document.getElementById('edit-tech-receives-labor-commission')?.checked !== false;
+      const isAppointmentTechnician = document.getElementById('edit-tech-is-appointment-technician')?.checked === true;
       
       // Convertir valores numéricos
       const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
@@ -3268,7 +3461,7 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
           throw new Error('API no disponible. Por favor recarga la página.');
         }
         
-        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission, isAppointmentTechnician, appointmentColor);
         await loadTechnicians();
         closeModal();
       } catch (err) {
@@ -3299,12 +3492,12 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
   document.addEventListener('keydown', escHandler);
 }
 
-async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') {
   if (!name) {
     throw new Error('Nombre de técnico requerido');
   }
   
-  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission, isAppointmentTechnician, appointmentColor);
   await loadTechnicians();
 }
 
@@ -3319,7 +3512,7 @@ async function loadLaborKinds(){
     if (!container) return;
     
     if (laborKinds.length === 0) {
-      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay tipos de mano de obra configurados. Crea el primero arriba.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed py-dashed rounded-lg py-muted">No hay tipos de mano de obra configurados. Crea el primero arriba.</div>';
       return;
     }
     
@@ -3327,20 +3520,20 @@ async function loadLaborKinds(){
       const name = typeof k === 'string' ? k : (k?.name || '');
       const defaultPercent = typeof k === 'object' && k?.defaultPercent !== undefined ? k.defaultPercent : 0;
       
-      return `<div class="concept-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+      return `<div class="concept-row py-card-row p-3 rounded-lg mb-2 transition-all duration-200">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             <div class="flex-1">
-              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
+              <div class="font-semibold py-text mb-0.5">
                 ${htmlEscape(name)}
               </div>
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-                % Predeterminado: <strong class="text-white dark:text-white theme-light:text-slate-900">${defaultPercent}%</strong>
+              <div class="text-xs py-muted">
+                % Predeterminado: <strong class="py-text">${defaultPercent}%</strong>
               </div>
             </div>
           </div>
           <div class="flex gap-1.5 items-center">
-            <button data-name="${htmlEscape(name)}" class="x-del-lk px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300" title="Eliminar tipo">
+            <button type="button" data-name="${htmlEscape(name)}" class="x-del-lk py-btn-danger-soft px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200" title="Eliminar tipo">
               🗑️ Eliminar
             </button>
           </div>
@@ -3382,7 +3575,7 @@ async function loadLaborKinds(){
     console.error('Error loading labor kinds:', err);
     const container = el('lk-list');
     if (container) {
-      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
+      container.innerHTML = `<div class="p-3 py-alert-error rounded-lg text-sm">
         ❌ Error al cargar tipos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }

@@ -3,6 +3,49 @@
 // (principal + todas las secundarias)
 import Company from '../models/Company.js';
 
+export async function resolveEffectiveCompanyAccess(originalCompanyId) {
+  const fallback = {
+    originalCompanyId: originalCompanyId ? String(originalCompanyId) : '',
+    effectiveCompanyId: originalCompanyId ? String(originalCompanyId) : '',
+    hasSharedDatabase: false
+  };
+
+  if (!originalCompanyId) {
+    return fallback;
+  }
+
+  try {
+    const companyDoc = await Company.findById(String(originalCompanyId))
+      .select('sharedDatabaseId sharedDatabaseConfig')
+      .lean();
+
+    if (!companyDoc) {
+      return fallback;
+    }
+
+    if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+      return {
+        originalCompanyId: String(originalCompanyId),
+        effectiveCompanyId: String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId),
+        hasSharedDatabase: true
+      };
+    }
+
+    if (companyDoc?.sharedDatabaseId) {
+      return {
+        originalCompanyId: String(originalCompanyId),
+        effectiveCompanyId: String(companyDoc.sharedDatabaseId),
+        hasSharedDatabase: true
+      };
+    }
+
+    return fallback;
+  } catch (err) {
+    console.error('[resolveEffectiveCompanyAccess] Error resolviendo empresa efectiva:', err);
+    return fallback;
+  }
+}
+
 export async function getAllSharedCompanyIds(originalCompanyId) {
   // Si no hay originalCompanyId, retornar array vacío
   if (!originalCompanyId) {

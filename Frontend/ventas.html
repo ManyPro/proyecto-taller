@@ -4,48 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Ventas</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Suprimir warning de producción para Tailwind CDN (usado intencionalmente)
-    if(typeof console !== 'undefined' && console.warn) {
-      const originalWarn = console.warn;
-      console.warn = function(...args) {
-        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
-          return; // Suprimir warning de Tailwind CDN
-        }
-        originalWarn.apply(console, args);
-      };
-    }
-    tailwind.config = {
-      darkMode: ['class', '.theme-light'],
-      theme: {
-        extend: {
-          colors: {
-            'dark-bg': '#0f172a',
-            'dark-card': '#111827',
-            'dark-card-alt': '#0b1220',
-            'dark-text': '#e5e7eb',
-            'dark-muted': '#9ca3af',
-            'dark-border': '#1f2937',
-          }
-        }
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260406" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
   <style>
-    /* Zoom global del 85% para toda la página */
-    html {
-      zoom: 0.85;
-      -moz-transform: scale(0.85);
-      -moz-transform-origin: 0 0;
-    }
-    @media screen and (-webkit-min-device-pixel-ratio: 0) {
-      html {
-        zoom: 0.85;
-      }
-    }
-    
     /* Estilos para navegación interna y vistas */
     .sales-view {
       display: block;
@@ -64,6 +27,55 @@
     .sales-nav-btn:not(.active):hover {
       background: rgba(51, 65, 85, 0.7) !important;
     }
+    /* Botones principales con brillo tipo espejo */
+    .sales-main-btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .sales-main-btn::before {
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -35%;
+      width: 42%;
+      height: 300%;
+      transform: rotate(22deg);
+      background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.38) 45%,
+        rgba(255, 255, 255, 0.08) 100%
+      );
+      pointer-events: none;
+      transition: left 0.5s ease;
+      z-index: 1;
+    }
+    .sales-main-btn:hover::before {
+      left: 110%;
+    }
+    .sales-main-btn > * {
+      position: relative;
+      z-index: 2;
+    }
+    body.theme-light .sales-main-btn,
+    body.theme-light .sales-main-btn * {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    /* Paleta forzada por acción (evita que todos se vean azules) */
+    #sales-start { background: linear-gradient(90deg, #2563eb, #1d4ed8) !important; }
+    #sales-start-qr { background: linear-gradient(90deg, #7c3aed, #6d28d9) !important; }
+    #sales-add-unified { background: linear-gradient(90deg, #059669, #047857) !important; }
+    #sales-print, #sv-print-wo { background: linear-gradient(90deg, #4f46e5, #4338ca) !important; }
+    #sales-iva-toggle { background: linear-gradient(90deg, #d97706, #c2410c) !important; }
+    #sales-maintenance-services { background: linear-gradient(90deg, #9333ea, #7e22ce) !important; }
+    #sales-special-notes { background: linear-gradient(90deg, #0891b2, #0e7490) !important; }
+    #sales-close { background: linear-gradient(90deg, #dc2626, #be123c) !important; }
+    #sales-configure-post-service, #sales-btn-set-discount { background: linear-gradient(90deg, #c026d3, #7e22ce) !important; }
+    #sv-edit-cv { background: linear-gradient(90deg, #0d9488, #0e7490) !important; }
+    #sales-btn-add-advance { background: linear-gradient(90deg, #059669, #166534) !important; }
     /* Estilos para cards de historial */
     .historial-sale-card {
       transition: all 0.2s ease;
@@ -141,7 +153,7 @@
     body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
       background-color: #e0f2fe !important;
     }
-    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
+    body.theme-light .text-white:not(.sales-main-btn):not([class*="bg-gradient"]):not([class*="from-"]):not([class*="via-"]):not([class*="to-"]):not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
       color: #000000 !important;
     }
     body.theme-light .text-slate-300 {
@@ -163,8 +175,10 @@
       color: #000000 !important;
     }
     /* Mejorar contraste en modales - Forzar texto negro */
-    body.theme-light #modal,
-    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
+    body.theme-light #modal {
+      color: #000000 !important;
+    }
+    body.theme-light #modal *:not(button):not(button *):not(a):not(a *):not([role="button"]):not([role="button"] *):not(.sales-main-btn):not(.sales-main-btn *):not([class*="bg-gradient"]):not([class*="from-"]):not([class*="via-"]):not([class*="to-"]):not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
       color: #000000 !important;
     }
     /* Asegurar fondos claros en modal para evitar negro sobre negro */
@@ -197,6 +211,66 @@
     body.theme-light #modal span,
     body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
       color: #000000 !important;
+    }
+    /* Spans/SVG dentro de botones: heredan color del botón (evita negro sobre gradientes) */
+    body.theme-light #modal button span,
+    body.theme-light #modal button svg {
+      color: inherit !important;
+    }
+    /* Insignias COMBO / GENERAL / tipo en lista de precios (fondo intenso → texto blanco) */
+    body.theme-light #modal span.bg-violet-600,
+    body.theme-light #modal span.bg-cyan-600,
+    body.theme-light #modal span.bg-emerald-600,
+    body.theme-light #modal span.bg-blue-600,
+    body.theme-light #modal span[class*="bg-violet-600"],
+    body.theme-light #modal span[class*="bg-cyan-600"],
+    body.theme-light #modal span[class*="bg-emerald-600"],
+    body.theme-light #modal span[class*="bg-blue-600"] {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.25);
+    }
+    /* Pisa la regla anterior: spans dentro de botones gradiente (.sales-main-btn) deben ir en blanco */
+    body.theme-light #modal .sales-main-btn,
+    body.theme-light #modal .sales-main-btn * {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    /* Lector QR: el label del botón es texto directo (no span); máxima especificidad */
+    body.theme-light #modal button#qr-add-manual,
+    body.theme-light #modal button#qr-capture-plate,
+    body.theme-light #modal button#qr-confirm-plate,
+    body.theme-light #modal button#qr-finish-multi {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    /* Primarios en modal (tema claro): gradiente o fondo intenso → texto e iconos blancos */
+    body.theme-light #modal button[class*="bg-gradient-to-r"],
+    body.theme-light #modal button[class*="bg-gradient-to-br"] {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    body.theme-light #modal button[class*="bg-gradient-to-r"] *,
+    body.theme-light #modal button[class*="bg-gradient-to-br"] * {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.3);
+    }
+    body.theme-light #modal button[class*="bg-blue-600"],
+    body.theme-light #modal button[class*="bg-blue-700"],
+    body.theme-light #modal button[class*="bg-emerald-600"],
+    body.theme-light #modal button[class*="bg-emerald-700"],
+    body.theme-light #modal button[class*="bg-green-600"],
+    body.theme-light #modal button[class*="bg-green-700"],
+    body.theme-light #modal button[class*="bg-violet-600"],
+    body.theme-light #modal button[class*="bg-violet-700"],
+    body.theme-light #modal button[class*="bg-purple-600"],
+    body.theme-light #modal button[class*="bg-indigo-600"],
+    body.theme-light #modal button[class*="bg-orange-600"],
+    body.theme-light #modal button[class*="bg-amber-600"],
+    body.theme-light #modal button[class*="bg-red-600"],
+    body.theme-light #modal button[class*="bg-cyan-600"],
+    body.theme-light #modal button[class*="bg-teal-600"] {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.3);
     }
     /* Mejorar contraste en selects y dropdowns */
     body.theme-light select,
@@ -276,6 +350,40 @@
     }
     body.theme-light #sv-quote-mini tbody tr:hover {
       background-color: #e2e8f0 !important;
+    }
+    body.theme-light #sv-quote-mini tbody td {
+      color: #0f172a !important;
+      font-weight: 500;
+    }
+    body.theme-light #sv-quote-mini tbody td:nth-child(4),
+    body.theme-light #sv-quote-mini tbody td:nth-child(5) {
+      color: #1e293b !important;
+      font-weight: 700;
+    }
+    body.theme-light #sv-loadQuote,
+    body.theme-light #sv-applyQuoteCV,
+    body.theme-light #sv-q-to-sale {
+      color: #ffffff !important;
+      text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+      font-weight: 700 !important;
+    }
+    body.theme-light #sv-loadQuote {
+      background-color: #2563eb !important;
+      border-color: #1d4ed8 !important;
+    }
+    body.theme-light #sv-applyQuoteCV {
+      background-color: #0891b2 !important;
+      border-color: #0e7490 !important;
+    }
+    body.theme-light #sv-q-to-sale {
+      background-color: #059669 !important;
+      border-color: #047857 !important;
+    }
+    body.theme-light #sales-finance-summary .text-violet-200 {
+      color: #6d28d9 !important;
+    }
+    body.theme-light #sales-finance-summary .text-slate-300 {
+      color: #334155 !important;
     }
     /* Cambiar fondos grises de formularios a blanco/celeste claro */
     body.theme-light input[class*="bg-slate-900"],
@@ -361,6 +469,32 @@
     body.theme-light {
       background-color: #e0f2fe;
     }
+    /* Tipografía coherente con el resto del hub */
+    #tab-ventas {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", "Source Sans 3", sans-serif;
+    }
+    body[data-page="ventas"] #modalBody {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", "Source Sans 3", sans-serif;
+    }
+    /* Pestañas internas Ventas / Historial en modo claro */
+    body.theme-light .sales-nav-btn:not(.active) {
+      background: rgba(255, 255, 255, 0.95) !important;
+      color: #0f172a !important;
+      border: 1px solid rgba(203, 213, 225, 0.95) !important;
+    }
+    body.theme-light .sales-nav-btn:not(.active):hover {
+      background: #e2e8f0 !important;
+    }
+    #tab-ventas input[type="date"],
+    #tab-ventas input[type="datetime-local"] {
+      color-scheme: dark;
+    }
+    body.theme-light #tab-ventas input[type="date"],
+    body.theme-light #tab-ventas input[type="datetime-local"] {
+      color-scheme: light;
+    }
     #modal.hidden {
       display: none !important;
     }
@@ -376,6 +510,15 @@
     #modal > div {
       pointer-events: auto;
       touch-action: pan-y;
+      min-width: 0;
+    }
+    /* Resumen post-cierre: sin scroll horizontal; cabe en el panel del modal */
+    body[data-page="ventas"] #modal:not(.hidden) > div.relative:has(.close-sale-summary-root) {
+      max-width: min(96vw, 64rem);
+    }
+    body[data-page="ventas"] #modalBody:has(.close-sale-summary-root) {
+      overflow-x: hidden;
+      min-width: 0;
     }
     /* Mejorar experiencia táctil en móviles */
     #modal button,
@@ -429,16 +572,44 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
-    /* Mejorar contrastes de barras de navegación en modo claro */
+    /* Agregar manual + listas en modal: scrollbar más integrada */
+    #modal .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(96, 165, 250, 0.45) transparent;
+    }
+    #modal .custom-scrollbar::-webkit-scrollbar {
+      width: 9px;
+      height: 9px;
+    }
+    #modal .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(96, 165, 250, 0.55), rgba(59, 130, 246, 0.45));
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    #modal .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.75), rgba(37, 99, 235, 0.6));
+      border-radius: 999px;
+    }
+    body.theme-light #modal .custom-scrollbar {
+      scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
+    }
+    body.theme-light #modal .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.35), rgba(37, 99, 235, 0.28));
+    }
+    body.theme-light #modal .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.55), rgba(29, 78, 216, 0.45));
+    }
+    /* Barras de navegación hub — mismo criterio que Notas */
     body.theme-light .nav-tab:not(.active),
     body.theme-light .mobile-nav-tab:not(.active) {
-      color: #475569 !important;
+      color: #000000 !important;
       background-color: transparent !important;
     }
     body.theme-light .nav-tab:not(.active):hover,
     body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #0f172a !important;
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      color: #000000 !important;
+      background-color: rgba(186, 230, 253, 0.7) !important;
     }
     body.theme-light .nav-tab.active,
     body.theme-light .mobile-nav-tab.active {
@@ -522,6 +693,26 @@
       background: #fecaca;
       color: #b91c1c;
     }
+    /* Ítem venta: Editar nombre (evitar verde claro sobre verde pálido en modo claro) */
+    #sales-body td:last-child button.sale-item-btn-edit-name {
+      background: rgba(34, 197, 94, 0.35);
+      color: #bbf7d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    #sales-body td:last-child button.sale-item-btn-edit-name:hover {
+      background: rgba(34, 197, 94, 0.5);
+      color: #ffffff;
+    }
+    body.theme-light #sales-body td:last-child button.sale-item-btn-edit-name {
+      background: #dcfce7;
+      color: #14532d;
+      border: 1px solid #86efac;
+    }
+    body.theme-light #sales-body td:last-child button.sale-item-btn-edit-name:hover {
+      background: #bbf7d0;
+      color: #052e16;
+      border-color: #4ade80;
+    }
     /* Estilos para la orden de trabajo */
     #sv-wo-body tr.wo-section-header td {
       font-weight: 600;
@@ -602,41 +793,37 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <script src="./assets/js/cache-buster.js"></script>
-  <link rel="stylesheet" href="assets/styles.css?v=20251010" />
+  <link rel="stylesheet" href="assets/styles.css?v=20260406" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
 </head>
 <body data-page="ventas">
   <!-- ========== APP HEADER ========== -->
   <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-    <!-- Top Bar - Header Principal -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+    <div class="home-header-shell shadow-lg">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16 md:h-20">
-          <!-- Logo y Nombre de Empresa -->
-          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
             <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
             <div class="hidden sm:flex flex-col">
-              <span class="text-xs text-slate-400 font-medium">Empresa</span>
-              <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+              <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+              <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
             </div>
-            <div class="sm:hidden text-white font-semibold text-sm">
+            <div class="sm:hidden text-white font-semibold text-sm home-header-company">
               <span id="companyNameMobile">-</span>
             </div>
           </div>
 
-          <!-- Botones de Acción (Desktop) -->
-          <div class="hidden md:flex items-center gap-2">
-            <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+          <div class="hidden md:flex items-center gap-2 home-header-actions">
+            <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+            <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
           </div>
 
-          <!-- Menú Hamburguesa (Mobile) -->
-          <div class="md:hidden flex items-center gap-2">
-            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-            <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+          <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+            <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
               </svg>
@@ -645,44 +832,42 @@
         </div>
       </div>
 
-      <!-- Navegación Principal (Desktop) -->
-      <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-            <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Clientes</button>
+      <div class="hidden md:block home-header-nav-row">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+          <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+            <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Clientes</button>
           </nav>
         </div>
       </div>
     </div>
 
-    <!-- Menú Móvil (Mobile Menu) -->
-    <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+    <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
       <div class="px-4 py-3 space-y-1">
-        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
-        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Ventas</button>
-        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cartera</button>
-        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-        <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Clientes</button>
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+        <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Clientes</button>
         <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
       </div>
     </div>
@@ -695,7 +880,7 @@
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
         <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
           <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
-          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh]">
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
             <div id="modal-img-wrap" class="hidden">
               <img id="modal-img" src="" alt="Vista previa" class="w-full h-auto rounded-lg" />
               <div class="flex gap-2 mt-4 justify-center">
@@ -709,8 +894,8 @@
       </div>
 
   <!-- ========== VENTAS ========== -->
-  <section id="tab-ventas" class="tab active w-full">
-    <div class="w-full max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <section id="tab-ventas" class="tab active w-full min-w-0">
+    <div class="w-full max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 min-w-0">
       <!-- Barra de navegación interna -->
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 mb-4">
         <div class="flex gap-2 p-2">
@@ -730,8 +915,8 @@
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div id="sales-capsules" class="flex flex-wrap gap-2 flex-1"></div>
           <div class="flex flex-wrap gap-2">
-            <button id="sales-start" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Nueva venta</button>
-            <button id="sales-start-qr" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📷 Nueva venta con placa</button>
+            <button id="sales-start" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-600 theme-light:to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-700 theme-light:hover:to-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Nueva venta</button>
+            <button id="sales-start-qr" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-600 theme-light:to-purple-700 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-700 theme-light:hover:to-purple-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📷 Nueva venta con placa</button>
           </div>
         </div>
       </div>
@@ -739,13 +924,14 @@
       <!-- Barra de acciones -->
       <div id="sales-actions-bar" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-3 sm:p-4 mb-6">
         <div class="flex flex-col sm:flex-row flex-wrap gap-2">
-          <button id="sales-add-unified" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
-          <button id="sales-print" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">IMPRIMIR</button>
-          <button id="sales-iva-toggle" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">IVA</button>
-          <button id="sales-maintenance-services" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🔧 Servicios de mantenimiento</button>
-          <button id="sales-special-notes" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📝 Notas especiales</button>
-          <button id="sales-close" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Cerrar</button>
-          <button id="sales-configure-post-service" class="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">⚙️ Configurar mensaje post-servicio</button>
+          <button id="sales-add-unified" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-emerald-600 to-green-700 dark:from-emerald-600 dark:to-green-700 theme-light:from-emerald-600 theme-light:to-green-700 hover:from-emerald-700 hover:to-green-800 dark:hover:from-emerald-700 dark:hover:to-green-800 theme-light:hover:from-emerald-700 theme-light:hover:to-green-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
+          <button id="sales-print" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-blue-700 dark:from-indigo-600 dark:to-blue-700 theme-light:from-indigo-600 theme-light:to-blue-700 hover:from-indigo-700 hover:to-blue-800 dark:hover:from-indigo-700 dark:hover:to-blue-800 theme-light:hover:from-indigo-700 theme-light:hover:to-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🖨️ Imprimir</button>
+          <button id="sales-iva-toggle" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-orange-600 dark:from-amber-500 dark:to-orange-600 theme-light:from-amber-600 theme-light:to-orange-700 hover:from-amber-600 hover:to-orange-700 dark:hover:from-amber-600 dark:hover:to-orange-700 theme-light:hover:from-amber-700 theme-light:hover:to-orange-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💸 IVA</button>
+          <button id="sales-maintenance-services" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-violet-600 to-purple-700 dark:from-violet-600 dark:to-purple-700 theme-light:from-violet-600 theme-light:to-purple-700 hover:from-violet-700 hover:to-purple-800 dark:hover:from-violet-700 dark:hover:to-purple-800 theme-light:hover:from-violet-700 theme-light:hover:to-purple-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🔧 Servicios de mantenimiento</button>
+          <button id="sales-special-notes" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-cyan-600 to-sky-700 dark:from-cyan-600 dark:to-sky-700 theme-light:from-cyan-600 theme-light:to-sky-700 hover:from-cyan-700 hover:to-sky-800 dark:hover:from-cyan-700 dark:hover:to-sky-800 theme-light:hover:from-cyan-700 theme-light:hover:to-sky-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📝 Notas especiales</button>
+          <button id="sales-card-toggle" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 dark:hover:from-blue-700 dark:hover:to-indigo-800 theme-light:hover:from-blue-700 theme-light:hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💳 TARJETA</button>
+          <button id="sales-close" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-red-600 to-rose-700 dark:from-red-600 dark:to-rose-700 theme-light:from-red-600 theme-light:to-rose-700 hover:from-red-700 hover:to-rose-800 dark:hover:from-red-700 dark:hover:to-rose-800 theme-light:hover:from-red-700 theme-light:hover:to-rose-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Cerrar</button>
+          <button id="sales-configure-post-service" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2 text-sm bg-gradient-to-r from-fuchsia-600 to-violet-700 dark:from-fuchsia-600 dark:to-violet-700 theme-light:from-fuchsia-600 theme-light:to-violet-700 hover:from-fuchsia-700 hover:to-violet-800 dark:hover:from-fuchsia-700 dark:hover:to-violet-800 theme-light:hover:from-fuchsia-700 theme-light:hover:to-violet-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">⚙️ Configurar mensaje post-servicio</button>
         </div>
       </div>
 
@@ -757,9 +943,9 @@
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
               <h3 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cotizaciones</h3>
               <div class="flex flex-wrap gap-1">
-                <button id="sv-loadQuote" class="px-1.5 py-0.5 text-[10px] bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Usar cotización</button>
-                <button id="sv-applyQuoteCV" class="px-1.5 py-0.5 text-[10px] bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Aplicar datos</button>
-                <button id="sv-q-to-sale" class="px-1.5 py-0.5 text-[10px] bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Agregar todos los ítems">Agregar todo</button>
+                <button id="sv-loadQuote" class="px-2.5 py-1 text-xs bg-blue-600/40 dark:bg-blue-600/40 hover:bg-blue-600/65 dark:hover:bg-blue-600/65 text-blue-50 dark:text-blue-50 theme-light:text-blue-700 font-bold rounded-lg transition-all duration-200 whitespace-nowrap border border-blue-500/50 dark:border-blue-500/50 theme-light:border-blue-300 shadow-sm">📄 Usar cotización</button>
+                <button id="sv-applyQuoteCV" class="px-2.5 py-1 text-xs bg-cyan-600/40 dark:bg-cyan-600/40 hover:bg-cyan-600/65 dark:hover:bg-cyan-600/65 text-cyan-50 dark:text-cyan-50 theme-light:text-cyan-700 font-bold rounded-lg transition-all duration-200 whitespace-nowrap border border-cyan-500/50 dark:border-cyan-500/50 theme-light:border-cyan-300 shadow-sm">🧩 Aplicar datos</button>
+                <button id="sv-q-to-sale" class="px-2.5 py-1 text-xs bg-emerald-600/40 dark:bg-emerald-600/40 hover:bg-emerald-600/65 dark:hover:bg-emerald-600/65 text-emerald-50 dark:text-emerald-50 theme-light:text-emerald-700 font-bold rounded-lg transition-all duration-200 whitespace-nowrap border border-emerald-500/50 dark:border-emerald-500/50 theme-light:border-emerald-300 shadow-sm" title="Agregar todos los ítems">✅ Agregar todo</button>
               </div>
             </div>
             <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2" id="sv-q-header">— ninguna cotización cargada —</div>
@@ -773,17 +959,17 @@
                   <col style="width: 16%;">
                   <col style="width: 9%;">
                 </colgroup>
-                <thead class="sticky top-0 bg-white dark:bg-white theme-light:bg-white z-10">
-                  <tr class="border-b-2 border-slate-300 dark:border-slate-300 theme-light:border-slate-300">
-                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300">Tipo</th>
-                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300">Descripción</th>
-                    <th class="text-center py-1 px-0.5 text-[10px] font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300">Cant.</th>
-                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 whitespace-nowrap">Unit</th>
-                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-900 dark:text-slate-900 theme-light:text-slate-900 border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 whitespace-nowrap">Total</th>
+                <thead class="sticky top-0 bg-slate-900/80 dark:bg-slate-900/80 theme-light:bg-white z-10 backdrop-blur">
+                  <tr class="border-b-2 border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">
+                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">Tipo</th>
+                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">Descripción</th>
+                    <th class="text-center py-1 px-0.5 text-[10px] font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300">Cant.</th>
+                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 whitespace-nowrap">Unit</th>
+                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 border-r border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 whitespace-nowrap">Total</th>
                     <th class="text-center py-1 px-0.5"></th>
                   </tr>
                 </thead>
-                <tbody id="sv-q-body" class="bg-white dark:bg-white theme-light:bg-white text-slate-900 dark:text-slate-900 theme-light:text-slate-900"></tbody>
+                <tbody id="sv-q-body" class="bg-slate-900/35 dark:bg-slate-900/35 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900"></tbody>
               </table>
             </div>
           </div>
@@ -792,7 +978,7 @@
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-2" id="sv-wo-card">
             <div class="flex items-center justify-between mb-2">
               <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Orden de trabajo</h3>
-              <button id="sv-print-wo" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir OT</button>
+              <button id="sv-print-wo" class="px-2 py-1 text-xs bg-gradient-to-r from-indigo-600/85 to-indigo-700/85 dark:from-indigo-600/85 dark:to-indigo-700/85 theme-light:from-indigo-500 theme-light:to-indigo-600 hover:from-indigo-700 hover:to-indigo-800 text-white font-medium rounded-lg transition-all duration-200 border border-indigo-500/45 shadow-sm">🖨️ Imprimir OT</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -828,7 +1014,7 @@
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <select id="sales-technician" class="hidden px-3 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 min-w-[170px]" title="Técnico"></select>
-                <button id="sv-edit-cv" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Editar datos…</button>
+                <button id="sv-edit-cv" class="sales-main-btn px-4 py-2 text-sm bg-gradient-to-r from-teal-600 to-cyan-700 dark:from-teal-600 dark:to-cyan-700 theme-light:from-teal-600 theme-light:to-cyan-700 hover:from-teal-700 hover:to-cyan-800 dark:hover:from-teal-700 dark:hover:to-cyan-800 theme-light:hover:from-teal-700 theme-light:hover:to-cyan-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">✏️ Editar datos…</button>
               </div>
             </div>
           </div>
@@ -843,10 +1029,10 @@
                   <div id="sales-finance-summary" class="rounded-xl bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 p-4"></div>
                 </div>
                 <div class="flex flex-col sm:flex-row lg:flex-col gap-2">
-                  <button id="sales-btn-add-advance" class="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-600 dark:to-emerald-700 theme-light:from-emerald-500 theme-light:to-emerald-600 hover:from-emerald-700 hover:to-emerald-800 dark:hover:from-emerald-700 dark:hover:to-emerald-800 theme-light:hover:from-emerald-600 theme-light:hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                  <button id="sales-btn-add-advance" class="sales-main-btn w-full px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-700 dark:from-emerald-600 dark:to-green-700 theme-light:from-emerald-600 theme-light:to-green-700 hover:from-emerald-700 hover:to-green-800 dark:hover:from-emerald-700 dark:hover:to-green-800 theme-light:hover:from-emerald-700 theme-light:hover:to-green-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
                     ➕ Agregar abono
                   </button>
-                  <button id="sales-btn-set-discount" class="w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-600 dark:to-violet-700 theme-light:from-violet-500 theme-light:to-violet-600 hover:from-violet-700 hover:to-violet-800 dark:hover:from-violet-700 dark:hover:to-violet-800 theme-light:hover:from-violet-600 theme-light:hover:to-violet-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                  <button id="sales-btn-set-discount" class="sales-main-btn w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-700 dark:from-violet-600 dark:to-fuchsia-700 theme-light:from-violet-600 theme-light:to-fuchsia-700 hover:from-violet-700 hover:to-fuchsia-800 dark:hover:from-violet-700 dark:hover:to-fuchsia-800 theme-light:hover:from-violet-700 theme-light:hover:to-fuchsia-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
                     🏷️ Descuento
                   </button>
                 </div>
@@ -870,6 +1056,11 @@
                   <tr id="sales-iva-row" class="hidden border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
                     <td colspan="4" class="text-right py-2 px-3 text-sm text-white dark:text-white theme-light:text-slate-900">IVA (19%):</td>
                     <td id="sales-iva-amount" class="text-right py-2 px-3 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">$0</td>
+                    <td></td>
+                  </tr>
+                  <tr id="sales-card-fee-row" class="hidden border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                    <td colspan="4" class="text-right py-2 px-3 text-sm text-white dark:text-white theme-light:text-slate-900">Recargo tarjeta (6%):</td>
+                    <td id="sales-card-fee-amount" class="text-right py-2 px-3 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">$0</td>
                     <td></td>
                   </tr>
                   <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
@@ -971,7 +1162,7 @@
                     <div class="relative">
                       <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vehículo (opcional)</label>
                       <input id="v-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-                      <div id="v-vehicle-dropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg max-h-48 overflow-y-auto shadow-xl"></div>
+                      <div id="v-vehicle-dropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg max-h-48 overflow-y-auto overflow-x-hidden custom-scrollbar shadow-xl"></div>
                       <input type="hidden" id="v-vehicle-id" />
                       <div id="v-vehicle-selected" class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
                     </div>
@@ -986,7 +1177,7 @@
                 <div class="mt-6 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
                   <div class="flex items-center justify-between mb-2">
                     <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Asociar a Empresa</label>
-                    <button type="button" id="cv-associate-company" class="px-4 py-2 text-sm bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                    <button type="button" id="cv-associate-company" class="sales-main-btn px-4 py-2 text-sm bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
                       <span id="cv-company-status">Seleccionar empresa</span>
                     </button>
                   </div>
@@ -1004,8 +1195,8 @@
                   </p>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
-                  <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200">Cancelar</button>
-                  <button id="sales-save-cv" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+                  <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-white theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-800 font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+                  <button type="button" id="sales-save-cv" class="sales-main-btn px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
                 </div>
               </div>
             </template>
@@ -1311,27 +1502,36 @@
 
       <!-- Lector QR (Ventas) -->
       <template id="tpl-qr-scanner">
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
-          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Lector de QR</h3>
+        <div class="rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-white overflow-hidden">
+          <div class="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 theme-light:from-sky-50 theme-light:via-white theme-light:to-sky-50 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span class="text-2xl shrink-0" aria-hidden="true">📷</span><span>Lector de QR</span></h3>
+                <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-0">Escanea y agrega ítems. Puedes alternar modo simple o múltiple.</p>
+              </div>
+              <span class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 dark:bg-white/10 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-sky-700 border border-white/10 theme-light:border-sky-200">🔎</span>
+            </div>
+          </div>
+          <div class="p-6">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div class="flex items-center gap-3">
               <label class="text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cámara</label>
               <select id="qr-cam" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
             </div>
             <div class="flex flex-wrap gap-2">
-              <button id="qr-single-mode" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">📦 Agregar solo un item</button>
-              <button id="qr-multi-mode" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">➕ Agregar múltiples items</button>
-              <button id="qr-finish-multi" class="hidden px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">✓ Terminar de agregar</button>
+              <button id="qr-single-mode" class="px-3 py-2 bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 whitespace-nowrap text-sm border border-slate-600/30 theme-light:border-slate-200">📦 Modo simple</button>
+              <button id="qr-multi-mode" class="px-3 py-2 bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 whitespace-nowrap text-sm border border-slate-600/30 theme-light:border-slate-200">➕ Modo múltiple</button>
+              <button id="qr-finish-multi" class="hidden px-3 py-2 sales-main-btn bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-xl transition-all duration-200 whitespace-nowrap text-sm border border-white/10">✓ Terminar</button>
             </div>
           </div>
-          <div class="relative w-full max-w-md mx-auto bg-slate-900 rounded-lg overflow-hidden shadow-xl" style="max-height: 60vh; display: flex; align-items: center; justify-content: center;">
+          <div class="relative w-full max-w-md mx-auto bg-slate-950/70 dark:bg-slate-950/70 theme-light:bg-slate-100 rounded-2xl overflow-hidden shadow-xl border border-slate-700/40 theme-light:border-slate-200" style="max-height: 60vh; display: flex; align-items: center; justify-content: center;">
             <video id="qr-video" playsinline muted class="w-full h-full" style="object-fit: contain; max-height: 100%;"></video>
             <canvas id="qr-canvas" class="hidden"></canvas>
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div class="qr-hud border-4 border-blue-500 w-3/4 h-3/4 rounded-lg"></div>
             </div>
             <!-- Botón de captura manual para placas -->
-            <button id="qr-capture-plate" class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 z-20 hidden text-sm sm:text-base" title="Capturar placa cuando esté bien enmarcada">📸 Capturar Placa</button>
+            <button id="qr-capture-plate" class="sales-main-btn absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-2xl shadow-lg transition-all duration-200 z-20 hidden text-sm sm:text-base border border-white/10" title="Capturar placa cuando esté bien enmarcada">📸 Capturar placa</button>
           </div>
           <!-- Panel de confirmación de placa -->
           <div id="qr-plate-confirm" class="hidden mt-4 p-4 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl border-2 border-blue-500">
@@ -1344,16 +1544,17 @@
               </div>
             </div>
             <div class="flex gap-2">
-              <button id="qr-confirm-plate" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200">✓ Confirmar</button>
-              <button id="qr-cancel-plate" class="flex-1 px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">✗ Cancelar</button>
+              <button id="qr-confirm-plate" class="sales-main-btn flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 border border-white/10">✓ Confirmar</button>
+              <button id="qr-cancel-plate" class="flex-1 px-4 py-2 bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 border border-slate-600/30 theme-light:border-slate-200">✗ Cancelar</button>
             </div>
           </div>
           <div class="flex gap-2 mt-4">
             <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)" class="flex-1 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-            <button id="qr-add-manual" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200">Agregar</button>
+            <button type="button" id="qr-add-manual" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 border border-white/10">Agregar</button>
           </div>
           <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-3 text-center" id="qr-msg">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
           <ul id="qr-history" class="qr-history mt-4 space-y-2"></ul>
+          </div>
         </div>
       </template>
 
@@ -1373,7 +1574,7 @@
       <!-- Modal: Agregar manual -->
       <template id="tpl-add-manual">
         <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
-          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar manual</h3>
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2"><span class="text-2xl shrink-0" aria-hidden="true">✏️</span><span>Agregar manual</span></h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-3">
               <input id="am-type" placeholder="Tipo (SERVICIO/PRODUCTO)" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
@@ -1567,43 +1768,14 @@
         });
       }
 
-      // Manejar clases activas en navegación
-      const updateActiveTab = () => {
-        const currentPage = window.location.pathname.split('/').pop() || 'ventas.html';
-        const allTabs = document.querySelectorAll('.nav-tab, .mobile-nav-tab');
-        allTabs.forEach(tab => {
-          const href = tab.getAttribute('data-href');
-          if (href === currentPage || (currentPage === '' && href === 'ventas.html')) {
-            tab.classList.add('active');
-            if (tab.classList.contains('nav-tab')) {
-              tab.classList.add('bg-blue-600', 'text-white');
-              tab.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
-            }
-            if (tab.classList.contains('mobile-nav-tab')) {
-              tab.classList.add('bg-blue-600', 'text-white');
-              tab.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
-            }
-          } else {
-            tab.classList.remove('active');
-            if (tab.classList.contains('nav-tab')) {
-              tab.classList.remove('bg-blue-600', 'text-white');
-              tab.classList.add('text-slate-300', 'hover:bg-slate-700/50');
-            }
-            if (tab.classList.contains('mobile-nav-tab')) {
-              tab.classList.remove('bg-blue-600', 'text-white');
-              tab.classList.add('text-slate-300', 'hover:bg-slate-700/50');
-            }
-          }
-        });
-      };
+      const currentPage = document.body.getAttribute('data-page');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('data-tab') === currentPage);
+      });
 
-      updateActiveTab();
-      
-      // Actualizar cuando cambie la página
-      const navTabs = document.querySelectorAll('.nav-tab, .mobile-nav-tab');
-      navTabs.forEach(tab => {
-        tab.addEventListener('click', (e) => {
-          const href = tab.getAttribute('data-href');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const href = btn.getAttribute('data-href');
           if (href && href !== window.location.pathname.split('/').pop()) {
             window.location.href = href;
           }
@@ -1611,44 +1783,62 @@
       });
     });
 
-    // Botón del catálogo
     function setupCatalogButton() {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
+      const buttons = document.querySelectorAll('.js-open-public-catalog');
+      if (!buttons.length) return;
       const API = window.API;
-      if(!API || !API.token || !API.token.get) {
+      if (!API || !API.token || !API.token.get) {
         setTimeout(setupCatalogButton, 100);
         return;
       }
-      const token = (API?.token?.get && typeof API.token.get === 'function') ? API.token.get() : '';
-      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      const token = API.token.get() || '';
+      if (!token) {
+        buttons.forEach((btn) => {
+          btn.disabled = true;
+          btn.title = 'Inicia sesión para usar el catálogo';
+        });
+        return;
+      }
+      const apply = (fn) => buttons.forEach(fn);
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
-        .then(body => {
+        .then((body) => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
-          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
-          btn.dataset.state='ready';
-          btn.disabled = false;
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          apply((btn) => {
+            if (!companyId) {
+              btn.disabled = true;
+              btn.title = 'No se pudo obtener companyId';
+              return;
+            }
+            if (!enabled) {
+              btn.disabled = true;
+              btn.title = 'Catálogo público deshabilitado';
+              btn.dataset.state = 'disabled';
+              return;
+            }
+            btn.dataset.state = 'ready';
+            btn.disabled = false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+          });
         })
-        .catch(()=>{
+        .catch(() => {
           const storedId = API?.companyId?.get?.() || '';
-          if(storedId){
-            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
-          } else {
-            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
-          }
+          apply((btn) => {
+            if (storedId) {
+              btn.dataset.state = 'ready';
+              btn.title = '';
+              btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            } else {
+              btn.disabled = true;
+              btn.title = 'Error consultando empresa';
+              btn.dataset.state = 'error';
+            }
+          });
         });
     }
-    document.addEventListener('DOMContentLoaded', setupCatalogButton);
-    // También intentar después de que los scripts se carguen
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', setupCatalogButton);
     } else {

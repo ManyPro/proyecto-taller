@@ -205,6 +205,34 @@ function describeVehicle(vehicle){
   return parts.join(' | ') || 'N/A';
 }
 
+function formatCustomerDetailHtml(customer){
+  const c = customer || {};
+  const rows = [];
+  if (c.name) rows.push(`<div><span class="font-semibold">Nombre:</span> ${htmlEscape(c.name)}</div>`);
+  if (c.idNumber) rows.push(`<div><span class="font-semibold">ID:</span> ${htmlEscape(c.idNumber)}</div>`);
+  if (c.phone) rows.push(`<div><span class="font-semibold">Teléfono:</span> ${htmlEscape(c.phone)}</div>`);
+  if (c.email) rows.push(`<div><span class="font-semibold">Email:</span> ${htmlEscape(c.email)}</div>`);
+  if (c.address) rows.push(`<div><span class="font-semibold">Dirección:</span> ${htmlEscape(c.address)}</div>`);
+  return rows.length
+    ? `<div class="space-y-1.5 text-sm text-white dark:text-white theme-light:text-slate-900">${rows.join('')}</div>`
+    : '<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin datos del cliente</div>';
+}
+
+function formatVehicleDetailHtml(vehicle){
+  const v = vehicle || {};
+  const mileage = (v.mileage != null && v.mileage !== '') ? `${Number(v.mileage || 0).toLocaleString('es-CO')} km` : '';
+  const rows = [];
+  if (v.plate) rows.push(`<div><span class="font-semibold">Placa:</span> ${htmlEscape(String(v.plate).toUpperCase())}</div>`);
+  if (v.brand) rows.push(`<div><span class="font-semibold">Marca:</span> ${htmlEscape(v.brand)}</div>`);
+  if (v.line) rows.push(`<div><span class="font-semibold">Línea:</span> ${htmlEscape(v.line)}</div>`);
+  if (v.engine || v.displacement) rows.push(`<div><span class="font-semibold">Motor:</span> ${htmlEscape(v.engine || v.displacement)}</div>`);
+  if (v.year) rows.push(`<div><span class="font-semibold">Año:</span> ${htmlEscape(String(v.year))}</div>`);
+  if (mileage) rows.push(`<div><span class="font-semibold">Kilometraje:</span> ${htmlEscape(mileage)}</div>`);
+  return rows.length
+    ? `<div class="space-y-1.5 text-sm text-white dark:text-white theme-light:text-slate-900">${rows.join('')}</div>`
+    : '<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin datos del vehículo</div>';
+}
+
 function printSaleTicket(sale, documentType = 'remission'){
   if(!sale) return;
   function fallback(){
@@ -1253,6 +1281,7 @@ function printWorkOrder(){
 let es = null;
 let current = null;
 let ivaEnabled = false;
+let cardFeeEnabled = false;
 let openSales = [];
 let companyTechnicians = [];
 let technicianSelectInitialized = false;
@@ -1260,7 +1289,9 @@ let starting = false;
 let salesRefreshTimer = null;
 let lastQuoteLoaded = null;
 const QUOTE_LINK_KEY = 'sales:quoteBySale';
+const CARD_FEE_KEY = 'sales:cardFeeBySale';
 let saleQuoteLinks = loadSaleQuoteLinks();
+let saleCardFeeBySale = loadSaleCardFeeBySale();
 const saleQuoteCache = new Map();
 let saleQuoteRequestToken = 0;
 // Estado para servicios de mantenimiento seleccionados
@@ -1277,6 +1308,48 @@ function updateIvaButton() {
     btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
     btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
   }
+}
+
+function updateCardFeeButton() {
+  const btnCardToggle = document.getElementById('sales-card-toggle');
+  if (!btnCardToggle) return;
+  if (cardFeeEnabled) {
+    btnCardToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
+    btnCardToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+  } else {
+    btnCardToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+    btnCardToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+  }
+}
+
+function loadSaleCardFeeBySale(){
+  if (typeof localStorage === 'undefined') return {};
+  try{
+    const raw = localStorage.getItem(CARD_FEE_KEY);
+    if(!raw) return {};
+    const parsed = JSON.parse(raw);
+    if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  }catch{}
+  return {};
+}
+
+function persistSaleCardFeeBySale(){
+  if (typeof localStorage === 'undefined') return;
+  try{ localStorage.setItem(CARD_FEE_KEY, JSON.stringify(saleCardFeeBySale)); }catch{}
+}
+
+function setSaleCardFeeEnabled(saleId, enabled){
+  if(!saleId) return;
+  if(enabled){
+    saleCardFeeBySale[saleId] = true;
+  } else {
+    delete saleCardFeeBySale[saleId];
+  }
+  persistSaleCardFeeBySale();
+}
+
+function getSaleCardFeeEnabled(saleId){
+  return !!saleCardFeeBySale?.[saleId];
 }
 
 function loadSaleQuoteLinks(){
@@ -1546,7 +1619,9 @@ async function renderAll(options = {}) {
     if (current && typeof current.ivaEnabled === 'boolean') {
       ivaEnabled = !!current.ivaEnabled;
     }
+    cardFeeEnabled = current?._id ? getSaleCardFeeEnabled(current._id) : false;
     updateIvaButton();
+    updateCardFeeButton();
     renderTabs();
     renderSale();
     await renderWO();
@@ -1708,16 +1783,16 @@ async function openMaintenanceServicesModal() {
       // Construir HTML del modal
       const mileageValue = currentSelection.mileage || currentMileage || '';
       const mileageInput = `
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Kilometraje actual del vehículo</label>
+        <div class="mb-4 rounded-xl border border-slate-600/50 dark:border-slate-600/50 theme-light:border-sky-200 bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-sky-50/80 p-4 border-l-4 border-l-cyan-500 dark:border-l-cyan-400 theme-light:border-l-cyan-600">
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">🛣️</span> Kilometraje actual del vehículo</label>
           <input 
             type="number" 
             id="maintenance-mileage" 
             value="${mileageValue}" 
             placeholder="Ej: 50000"
-            class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white"
+            class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
-          <p class="text-xs text-slate-400 mt-1">Ingresa el kilometraje actual para actualizar la planilla</p>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Ingresa el kilometraje actual para actualizar la planilla</p>
         </div>
       `;
 
@@ -1842,8 +1917,8 @@ async function openMaintenanceServicesModal() {
                 <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-slate-700/50 rounded-xl p-4 transition-all duration-200 peer-checked:border-blue-500 peer-checked:bg-blue-900/20 peer-checked:shadow-lg peer-checked:shadow-blue-500/20 hover:border-slate-600 hover:shadow-md h-full">
                   <div class="flex items-start gap-3">
                     <div class="flex-shrink-0 mt-0.5">
-                      <div class="w-6 h-6 rounded-md border-2 border-slate-600 bg-slate-700/50 flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400">
-                        <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div class="w-6 h-6 rounded-md border-2 border-slate-500/60 dark:border-slate-600 bg-white/10 dark:bg-white/10 theme-light:bg-white flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400 theme-light:border-slate-300">
+                        <svg class="w-4 h-4 text-white dark:text-white theme-light:text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                         </svg>
                       </div>
@@ -1949,8 +2024,8 @@ async function openMaintenanceServicesModal() {
               <div class="flex items-start gap-3">
                 <!-- Checkbox personalizado -->
                 <div class="flex-shrink-0 mt-0.5">
-                  <div class="w-6 h-6 rounded-md border-2 border-slate-600 bg-slate-700/50 flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400">
-                    <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="w-6 h-6 rounded-md border-2 border-slate-500/60 dark:border-slate-600 bg-white/10 dark:bg-white/10 theme-light:bg-white flex items-center justify-center transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-500 group-hover:border-blue-400 theme-light:border-slate-300">
+                    <svg class="w-4 h-4 text-white dark:text-white theme-light:text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                     </svg>
                   </div>
@@ -1973,7 +2048,7 @@ async function openMaintenanceServicesModal() {
       const servicesHTML = `
         <div class="mb-4">
           <div class="flex items-center justify-between mb-3">
-            <label class="block text-sm font-semibold text-white">Servicios realizados</label>
+            <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">🔩</span> Servicios realizados</label>
           </div>
           
           <!-- Barra de búsqueda -->
@@ -1982,7 +2057,7 @@ async function openMaintenanceServicesModal() {
               type="text" 
               id="maintenance-search" 
               placeholder="Buscar servicio..." 
-              class="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
+              class="w-full px-4 py-2.5 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-10"
             />
             <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -2039,10 +2114,8 @@ async function openMaintenanceServicesModal() {
               </div>
             ` : ''}
           </div>
-          <p class="text-xs text-slate-400 mt-3 flex items-center gap-1">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-3 flex items-center gap-1">
+            <span aria-hidden="true">💡</span>
             Selecciona los servicios que se realizaron en esta venta
           </p>
         </div>
@@ -2050,23 +2123,18 @@ async function openMaintenanceServicesModal() {
 
       const modalHTML = `
         <div class="p-6 flex flex-col h-full max-h-[90vh]">
-          <div class="flex-1 overflow-y-auto modal-body-scroll">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-blue-600/20 rounded-lg">
-                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-2xl font-bold text-white">Servicios de Mantenimiento</h2>
-                  <p class="text-sm text-slate-400 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
+          <div class="flex-1 overflow-y-auto overflow-x-hidden modal-body-scroll custom-scrollbar">
+            <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="p-2 bg-blue-600/25 dark:bg-blue-600/25 theme-light:bg-sky-200 rounded-xl shrink-0 text-2xl leading-none" aria-hidden="true">🔧</div>
+                <div class="min-w-0">
+                  <h2 class="text-xl sm:text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Servicios de mantenimiento</h2>
+                  <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Actualiza la planilla de mantenimiento del vehículo</p>
                 </div>
               </div>
-              <!-- Botón para cerrar solo el modal de servicios -->
               <button 
                 id="maintenance-modal-close" 
-                class="px-3 py-2 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500 text-sm"
+                class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-800 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm shrink-0"
                 title="Cerrar modal de servicios"
               >
                 Cerrar
@@ -2077,17 +2145,17 @@ async function openMaintenanceServicesModal() {
             ${servicesHTML}
           </div>
           
-          <!-- Botones siempre visibles en la parte inferior -->
-          <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700/50 flex-shrink-0 bg-slate-800 sticky bottom-0 pb-2">
+          <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 flex-shrink-0 bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-sky-50/95 sticky bottom-0 pb-2 -mx-1 px-1">
             <button 
               id="maintenance-skip" 
-              class="flex-1 px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600 text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 hover:border-slate-500"
+              class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:bg-white theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-800 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300"
             >
               Omitir
             </button>
             <button 
+              type="button"
               id="maintenance-continue" 
-              class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+              class="sales-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Continuar
             </button>
@@ -2137,9 +2205,10 @@ async function openMaintenanceServicesModal() {
       }
       
       // Agregar estilos CSS para los checkboxes personalizados y scrollbars si no existen
-      if (!document.getElementById('maintenance-checkbox-styles')) {
+      if (!document.getElementById('maintenance-checkbox-styles-v2')) {
+        document.getElementById('maintenance-checkbox-styles')?.remove();
         const style = document.createElement('style');
-        style.id = 'maintenance-checkbox-styles';
+        style.id = 'maintenance-checkbox-styles-v2';
         style.textContent = `
           .maintenance-service-card input[type="checkbox"]:checked ~ div {
             border-color: rgb(59, 130, 246) !important;
@@ -2151,60 +2220,6 @@ async function openMaintenanceServicesModal() {
           }
           .maintenance-service-card:hover .w-6 {
             border-color: rgb(96, 165, 250) !important;
-          }
-          
-          /* Estilos personalizados para scrollbars - Mejorados */
-          /* NOTA: saleId se declara UNA SOLA VEZ en la línea 1627 dentro de loadTemplates().then() */
-          #maintenance-services-container::-webkit-scrollbar {
-            width: 10px;
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 10px;
-            border: 1px solid rgba(51, 65, 85, 0.3);
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.9) 100%);
-            border-radius: 10px;
-            border: 2px solid rgba(15, 23, 42, 0.8);
-            box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.2);
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 246, 1) 100%);
-            box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3), 0 0 4px rgba(59, 130, 246, 0.4);
-          }
-          
-          #maintenance-services-container::-webkit-scrollbar-thumb:active {
-            background: linear-gradient(180deg, rgba(37, 99, 235, 1) 0%, rgba(29, 78, 216, 1) 100%);
-          }
-          
-          /* Para Firefox */
-          #maintenance-services-container {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(59, 130, 246, 0.8) rgba(15, 23, 42, 0.8);
-          }
-          
-          /* Scrollbar para el modal completo si tiene scroll */
-          .modal-body-scroll::-webkit-scrollbar {
-            width: 10px;
-          }
-          
-          .modal-body-scroll::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 10px;
-          }
-          
-          .modal-body-scroll::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.9) 100%);
-            border-radius: 10px;
-            border: 2px solid rgba(15, 23, 42, 0.8);
-          }
-          
-          .modal-body-scroll::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, rgba(96, 165, 250, 0.9) 0%, rgba(59, 130, 246, 1) 100%);
           }
         `;
         document.head.appendChild(style);
@@ -2517,20 +2532,39 @@ function attrEscape(value) {
 }
 
 function buildCloseModalContent(){
-  const total = current?.total || 0;
+  const closeTotals = computeSaleDisplayTotals(current, {
+    forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+    forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+  });
+  const total = closeTotals.displayTotal || 0;
   const wrap = document.createElement('div');
   wrap.className = 'space-y-4';
   wrap.innerHTML = `
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cerrar venta</h3>
+    <div class="rounded-xl p-4 mb-1 border border-slate-600/40 dark:border-slate-600/40 theme-light:border-sky-200
+      bg-gradient-to-br from-blue-950/55 via-slate-900/70 to-violet-950/40
+      dark:from-blue-950/55 dark:via-slate-900/70 dark:to-violet-950/40
+      theme-light:from-sky-100 theme-light:via-white theme-light:to-indigo-50 shadow-sm">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap">
+        <span class="text-2xl shrink-0 leading-none" aria-hidden="true">💰</span>
+        <span>Cerrar venta</span>
+      </h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Total venta:
+        <strong class="text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 tabular-nums">${money(total)}</strong>
+      </p>
     </div>
-    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
-    </div>
-    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-blue-500 dark:border-l-blue-500 theme-light:border-l-blue-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">💳</span> Formas de pago</strong>
         <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
+      </div>
+      <div class="mb-4">
+        <label for="cv-income-tag" class="block text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Tipo de ingreso <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">*</span></label>
+        <select id="cv-income-tag" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Selecciona el tipo de ingreso...</option>
+          <option value="CAMBIO_ACEITE">Cambio de aceite</option>
+          <option value="OTROS_SERVICIOS">Otros servicios</option>
+        </select>
       </div>
       <table class="w-full text-xs border-collapse" id="cv-payments-table">
         <thead>
@@ -2546,14 +2580,14 @@ function buildCloseModalContent(){
       <div id="cv-payments-summary" class="mt-3 text-xs"></div>
       <div id="cv-advance-info" class="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300"></div>
     </div>
-    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-violet-500 dark:border-l-violet-500 theme-light:border-l-violet-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">🛠️</span> Desglose de mano de obra</label>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
           <p id="cv-labor-total" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Valor MO acumulado: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(current?.laborValue || 0)}</strong></p>
         </div>
-        <button id="cv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+        <button id="cv-add-commission" type="button" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
@@ -2581,13 +2615,13 @@ function buildCloseModalContent(){
         </table>
       </div>
     </div>
-    <div id="cv-investment-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-investment-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-amber-500 dark:border-l-amber-500 theme-light:border-l-amber-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Inversión</label>
+        <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">📈</span> Inversión</label>
       </div>
       <div class="flex gap-2 mb-3">
         <input id="cv-investment-amount" type="number" min="0" step="0.01" placeholder="Valor de inversión (opcional)" class="flex-1 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400" />
-        <button id="cv-add-investment-from-list" type="button" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📋 Desde lista</button>
+        <button id="cv-add-investment-from-list" type="button" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📋 Desde lista</button>
       </div>
       <div id="cv-investment-prices-menu" class="hidden mt-4 p-4 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
         <div class="flex justify-between items-center mb-3">
@@ -2622,16 +2656,16 @@ function buildCloseModalContent(){
         </div>
         <div id="cv-laborSharePreview" class="mt-3 p-2 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300 text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-700 font-medium hidden"></div>
       </div>
-      <div class="md:col-span-2">
-        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+      <div class="md:col-span-2 rounded-lg border border-slate-600/40 dark:border-slate-600/40 theme-light:border-slate-200 border-l-4 border-l-slate-500 dark:border-l-slate-400 theme-light:border-l-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white/80 p-4">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">📎</span> Comprobante (opcional)</label>
         <div class="relative">
           <input id="cv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
         </div>
         <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
       <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
-        <button id="cv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
-        <button type="button" id="cv-send-survey" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
+        <button id="cv-confirm" class="sales-main-btn w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
+        <button type="button" id="cv-send-survey" class="sales-main-btn w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
         <button type="button" id="cv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
@@ -3193,7 +3227,10 @@ function fillCloseModal(){
       }
     });
     
-    const total = Math.round(Number(current?.total||0));
+    const total = computeSaleDisplayTotals(current, {
+      forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+      forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+    }).displayTotal;
     const diff = total - sum;
     let html = `Suma: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(sum)}</strong> / Total: <span class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</span>.`;
     if(Math.abs(diff) > 0.01){
@@ -3319,12 +3356,22 @@ function fillCloseModal(){
       // Cargar método de pago único (legacy)
       addPaymentRow({ 
         method: current.paymentMethod, 
-        amount: Number(current?.total||0), 
+        amount: computeSaleDisplayTotals(current, {
+          forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+          forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+        }).displayTotal, 
         accountId: null 
       });
     } else {
       // Prefill single row with full total (nueva venta)
-    addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
+    addPaymentRow({ 
+      method:'EFECTIVO', 
+      amount: computeSaleDisplayTotals(current, {
+        forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+        forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+      }).displayTotal, 
+      accountId: accountsCache[0]?._id||'' 
+    });
     }
     recalc();
     try { renderAdvanceInfoBoxForSale(current, 'cv-advance-info'); } catch {}
@@ -3591,7 +3638,10 @@ function fillCloseModal(){
       }
     });
     
-    const total = Math.round(Number(current?.total||0));
+    const total = computeSaleDisplayTotals(current, {
+      forceIvaEnabled: (typeof current?.ivaEnabled === 'boolean') ? !!current.ivaEnabled : ivaEnabled,
+      forceCardFeeEnabled: !!(current?._id && getSaleCardFeeEnabled(current._id))
+    }).displayTotal;
     const hasZeroTotal = total === 0;
     console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length, hasZeroTotal });
     
@@ -3738,9 +3788,19 @@ function fillCloseModal(){
       
       console.log('Payload de cierre:', { 
         paymentMethods: paymentMethodsToSend, 
-        total: current?.total,
+        total,
         sum: paymentMethodsToSend.reduce((a, p) => a + p.amount, 0)
       });
+      
+      // Validar tipo de ingreso (obligatorio para el reporte de caja)
+      const incomeTagSel = document.getElementById('cv-income-tag');
+      const incomeTag = incomeTagSel ? String(incomeTagSel.value || '').trim() : '';
+      if (!incomeTag) {
+        msg.textContent = 'Debes seleccionar el tipo de ingreso (Cambio de aceite u Otros servicios).';
+        msg.className = 'md:col-span-2 mt-2 text-xs text-red-400 dark:text-red-400 theme-light:text-red-600';
+        incomeTagSel?.focus();
+        return;
+      }
       
       // Obtener valor de inversión
       const investmentInput = document.getElementById('cv-investment-amount');
@@ -3761,6 +3821,7 @@ function fillCloseModal(){
       
       const payload = {
         paymentMethods: paymentMethodsToSend,
+        incomeTag,
         technician: techSel.value||'',
         laborValue: laborValueFromSale,
         laborPercent: laborPercentValue,
@@ -3775,6 +3836,7 @@ function fillCloseModal(){
       const closeResult = await API.sales.close(current._id, payload);
       document.getElementById('modal')?.classList.add('hidden');
       const closedSale = closeResult?.sale || current;
+      setSaleCardFeeEnabled(current._id, false);
       setSaleQuoteLink(current._id, null);
       current = null;
       await refreshOpenSales();
@@ -3825,11 +3887,13 @@ function showCloseSaleSummaryPopup(closeResult, closedSale) {
   };
 
   const node = document.createElement('div');
-  node.className = 'w-[min(980px,96vw)] rounded-2xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 bg-slate-900 dark:bg-slate-900 theme-light:bg-white shadow-2xl';
+  /* Dentro de #modalBody (max-w-4xl): ancho fijo 980px desbordaba y generaba scroll horizontal */
+  node.className =
+    'close-sale-summary-root w-full max-w-full min-w-0 overflow-x-hidden rounded-2xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-300 bg-slate-900 dark:bg-slate-900 theme-light:bg-white shadow-2xl box-border';
   node.innerHTML = `
-    <div class="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 dark:from-emerald-600/20 dark:to-cyan-600/20 theme-light:from-emerald-100 theme-light:to-cyan-100">
-      <div class="flex items-center justify-between gap-3">
-        <div>
+    <div class="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 dark:from-emerald-600/20 dark:to-cyan-600/20 theme-light:from-emerald-100 theme-light:to-cyan-100 min-w-0">
+      <div class="flex items-center justify-between gap-3 min-w-0">
+        <div class="min-w-0 flex-1">
           <h3 class="text-base sm:text-lg font-extrabold text-white dark:text-white theme-light:text-slate-900">Venta cerrada con éxito</h3>
           <p class="text-[11px] sm:text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mt-1">Remisión #${saleNumber}</p>
         </div>
@@ -3840,27 +3904,27 @@ function showCloseSaleSummaryPopup(closeResult, closedSale) {
       </div>
     </div>
 
-    <div class="px-3 sm:px-5 py-3 sm:py-4 space-y-3">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+    <div class="px-3 sm:px-5 py-3 sm:py-4 space-y-3 min-w-0">
+      <div class="grid grid-cols-3 gap-1.5 sm:gap-3 min-w-0">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-2 sm:p-3 min-w-0">
           <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Inv. general</p>
           <p class="mt-1 text-base sm:text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.inventoryQty || 0)}</p>
           <p class="text-[11px] sm:text-xs text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700">${money(Number(totals.inventoryValue || 0))}</p>
         </div>
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-2 sm:p-3 min-w-0">
           <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Inv. inversor</p>
           <p class="mt-1 text-base sm:text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.investorQty || 0)}</p>
           <p class="text-[11px] sm:text-xs text-amber-300 dark:text-amber-300 theme-light:text-amber-700">${money(Number(totals.investorValue || 0))}</p>
         </div>
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-3">
-          <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total descontado</p>
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 bg-slate-800/70 dark:bg-slate-800/70 theme-light:bg-slate-50 p-2 sm:p-3 min-w-0">
+          <p class="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-400 theme-light:text-slate-600 leading-tight">Total descontado</p>
           <p class="mt-1 text-base sm:text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${Number(totals.totalQty || 0)} und</p>
           <p class="text-[11px] sm:text-xs text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(Number(totals.totalValue || 0))}</p>
         </div>
       </div>
 
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden">
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-3 min-w-0">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden min-w-0">
           <div class="px-4 py-2 bg-cyan-600/15 dark:bg-cyan-600/15 theme-light:bg-cyan-100 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200">
             <h4 class="text-sm font-bold text-cyan-200 dark:text-cyan-200 theme-light:text-cyan-800">General</h4>
           </div>
@@ -3869,7 +3933,7 @@ function showCloseSaleSummaryPopup(closeResult, closedSale) {
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden">
+        <div class="rounded-xl border border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200 overflow-hidden min-w-0">
           <div class="px-4 py-2 bg-amber-600/15 dark:bg-amber-600/15 theme-light:bg-amber-100 border-b border-slate-700/60 dark:border-slate-700/60 theme-light:border-slate-200">
             <h4 class="text-sm font-bold text-amber-200 dark:text-amber-200 theme-light:text-amber-800">Inversor</h4>
           </div>
@@ -4082,36 +4146,35 @@ function setupInvestmentSection() {
 function showOilTypeModal() {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
-    overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+    overlay.className = 'fixed inset-0 bg-black/70 dark:bg-black/70 theme-light:bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4';
     overlay.style.zIndex = '10000';
     
     const modal = document.createElement('div');
-    modal.className = 'bg-slate-800 rounded-xl shadow-2xl border border-slate-700/50 w-full max-w-md transform transition-all';
+    modal.className = 'bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 w-full max-w-md transform transition-all';
     
     modal.innerHTML = `
       <div class="p-6">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="p-2 bg-yellow-600/20 rounded-lg">
-            <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
-            </svg>
-          </div>
-          <h3 class="text-xl font-bold text-white">Tipo de Aceite</h3>
+        <div class="rounded-xl p-4 mb-4 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:border-amber-200 bg-gradient-to-br from-yellow-950/35 via-slate-900/40 to-slate-900/20 theme-light:from-amber-50 theme-light:via-white theme-light:to-sky-50">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2">
+            <span class="text-2xl" aria-hidden="true">🛢️</span>
+            <span>Tipo de aceite</span>
+          </h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Registra el aceite utilizado para guardar el mantenimiento correctamente.</p>
         </div>
         
-        <p class="text-slate-300 mb-4">
+        <p class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-4">
           Ingresa el tipo de aceite utilizado en el cambio:
         </p>
         
         <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-400 mb-2">
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-700 mb-2">
             Aceite utilizado
           </label>
           <input
             type="text"
             id="oilTypeInput"
             placeholder="Ej: 5W-30, 10W-40, etc."
-            class="w-full px-4 py-3 bg-slate-900/70 border-2 border-slate-600 rounded-lg text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all"
+            class="w-full px-4 py-3 bg-slate-900/70 dark:bg-slate-900/70 theme-light:bg-white border-2 border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all"
             autofocus
           />
         </div>
@@ -4119,13 +4182,13 @@ function showOilTypeModal() {
         <div class="flex gap-3">
           <button
             id="cancelOilBtn"
-            class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+            class="flex-1 px-4 py-3 bg-slate-700/60 dark:bg-slate-700/60 theme-light:bg-slate-200 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-colors border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300"
           >
             Cancelar
           </button>
           <button
             id="confirmOilBtn"
-            class="flex-1 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+            class="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-600 dark:to-amber-600 theme-light:from-amber-500 theme-light:to-yellow-500 hover:from-yellow-700 hover:to-amber-700 dark:hover:from-yellow-700 dark:hover:to-amber-700 theme-light:hover:from-amber-600 theme-light:hover:to-yellow-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -4217,7 +4280,8 @@ function renderCapsules(){
     node.querySelector('.sc-plate').textContent = (sale.vehicle?.plate||'—');
   const vehParts = [sale.vehicle?.brand, sale.vehicle?.line, sale.vehicle?.engine].filter(Boolean).map(v=>String(v).toUpperCase());
   node.querySelector('[data-veh]').textContent = vehParts.join(' ') || '—';
-    node.querySelector('[data-total]').textContent = money(sale.total||0);
+    const { displayTotal } = computeSaleDisplayTotals(sale);
+    node.querySelector('[data-total]').textContent = money(displayTotal);
     node.querySelector('[data-tech]').textContent = sale.technician || '—';
     if(current && sale._id===current._id) node.classList.add('active');
     node.addEventListener('click', (e)=>{
@@ -4228,6 +4292,7 @@ function renderCapsules(){
       e.stopPropagation();
       if(!confirm('Cancelar esta venta?')) return;
       try{ await API.sales.cancel(sale._id); }catch(err){ alert(err?.message||'No se pudo cancelar'); }
+      setSaleCardFeeEnabled(sale._id, false);
       setSaleQuoteLink(sale._id, null);
       if(current && current._id===sale._id) current=null;
       await refreshOpenSales();
@@ -4694,8 +4759,7 @@ async function renderSale(){
     
     const btnEditName = document.createElement('button');
     btnEditName.innerHTML = '✏️ Editar Nombre';
-    btnEditName.className = 'secondary';
-    btnEditName.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(34, 197, 94, 0.3); color: #86efac;';
+    btnEditName.className = 'sale-item-btn-edit-name';
     btnEditName.onclick = async () => {
       await openEditNameModal(it, tr);
     };
@@ -4703,7 +4767,6 @@ async function renderSale(){
     const btnEdit = document.createElement('button');
     btnEdit.textContent = 'Editar $';
     btnEdit.className = 'secondary';
-    btnEdit.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnEdit.onclick = async () => {
       await openEditPriceModal(it);
     };
@@ -4711,7 +4774,6 @@ async function renderSale(){
     const btnZero = document.createElement('button');
     btnZero.textContent = 'Precio 0';
     btnZero.className = 'secondary';
-    btnZero.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnZero.onclick = async () => {
       await updateSaleAndRender(async () => {
         current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
@@ -4720,7 +4782,6 @@ async function renderSale(){
     
     const btnDel = tr.querySelector('button.remove');
     if (btnDel) {
-      btnDel.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(239, 68, 68, 0.2); color: #fca5a5;';
       btnDel.onclick = async () => {
         if (!confirm('¿Eliminar este item?')) return;
         await updateSaleAndRender(async () => {
@@ -4738,28 +4799,33 @@ async function renderSale(){
     if (btnDel) actions.appendChild(btnDel);
   }
 
-  // Total (considera descuento + abonos) y opcionalmente IVA (solo visual)
+  // Total (considera descuento + abonos) y opcionalmente IVA/recargo tarjeta (solo visual)
   const ivaRow = document.getElementById('sales-iva-row');
   const ivaAmount = document.getElementById('sales-iva-amount');
+  const cardFeeRow = document.getElementById('sales-card-fee-row');
+  const cardFeeAmount = document.getElementById('sales-card-fee-amount');
 
-  const saleSubtotal = Math.round(Number(current?.subtotal || 0));
-  const discountAmount = computeSaleDiscountAmount(current);
-  const advanceTotal = computeSaleAdvanceTotal(current);
-  const baseAfterDiscount = Math.max(0, saleSubtotal - discountAmount);
+  const { ivaValue, cardFeeValue, displayTotal } = computeSaleDisplayTotals(current, {
+    forceIvaEnabled: ivaEnabled,
+    forceCardFeeEnabled: cardFeeEnabled
+  });
 
-  // Saldo sin IVA (lo que el backend valida al cerrar: current.total)
-  let displayTotal = Math.max(0, baseAfterDiscount - advanceTotal);
-
-  if (ivaEnabled && baseAfterDiscount > 0) {
-    const ivaValue = Math.round(baseAfterDiscount * 0.19);
-    displayTotal = Math.max(0, baseAfterDiscount + ivaValue - advanceTotal);
-
+  if (ivaValue > 0) {
     if (ivaRow) {
       ivaRow.classList.remove('hidden');
       if (ivaAmount) ivaAmount.textContent = money(ivaValue);
     }
-  } else {
-    if (ivaRow) ivaRow.classList.add('hidden');
+  } else if (ivaRow) {
+    ivaRow.classList.add('hidden');
+  }
+
+  if (cardFeeValue > 0) {
+    if (cardFeeRow) {
+      cardFeeRow.classList.remove('hidden');
+      if (cardFeeAmount) cardFeeAmount.textContent = money(cardFeeValue);
+    }
+  } else if (cardFeeRow) {
+    cardFeeRow.classList.add('hidden');
   }
 
   if (total) total.textContent = money(displayTotal);
@@ -4816,6 +4882,36 @@ function computeSaleDiscountAmount(sale){
 function computeSaleAdvanceTotal(sale){
   const list = Array.isArray(sale?.advancePayments) ? sale.advancePayments : [];
   return list.reduce((sum, p) => sum + Math.round(Number(p?.amount || 0)), 0);
+}
+
+function computeSaleDisplayTotals(sale, options = {}){
+  const {
+    forceIvaEnabled = null,
+    forceCardFeeEnabled = null
+  } = options;
+  const subtotal = Math.round(Number(sale?.subtotal || 0));
+  const discountAmount = computeSaleDiscountAmount(sale);
+  const advancesTotal = computeSaleAdvanceTotal(sale);
+  const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const resolvedIvaEnabled = typeof forceIvaEnabled === 'boolean'
+    ? forceIvaEnabled
+    : (typeof sale?.ivaEnabled === 'boolean' ? sale.ivaEnabled : false);
+  const ivaValue = resolvedIvaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
+  const cardBase = Math.max(0, baseAfterDiscount + ivaValue);
+  const resolvedCardFeeEnabled = typeof forceCardFeeEnabled === 'boolean'
+    ? forceCardFeeEnabled
+    : !!(sale?._id && getSaleCardFeeEnabled(sale._id));
+  const cardFeeValue = resolvedCardFeeEnabled && cardBase > 0 ? Math.round(cardBase * 0.06) : 0;
+  const displayTotal = Math.max(0, baseAfterDiscount + ivaValue + cardFeeValue - advancesTotal);
+  return {
+    subtotal,
+    discountAmount,
+    advancesTotal,
+    baseAfterDiscount,
+    ivaValue,
+    cardFeeValue,
+    displayTotal
+  };
 }
 
 function setupSaleFinanceActions(){
@@ -4876,13 +4972,18 @@ function renderSaleFinanceSummary(){
   }
 
   const isDraft = String(current.status || 'draft') === 'draft';
-  const subtotal = Math.round(Number(current.subtotal || 0));
-  const discountAmount = computeSaleDiscountAmount(current);
   const advances = Array.isArray(current.advancePayments) ? current.advancePayments : [];
-  const advancesTotal = computeSaleAdvanceTotal(current);
-  const baseAfterDiscount = Math.max(0, subtotal - discountAmount);
-  const ivaValue = ivaEnabled && baseAfterDiscount > 0 ? Math.round(baseAfterDiscount * 0.19) : 0;
-  const balance = Math.max(0, Math.round(baseAfterDiscount + ivaValue - advancesTotal));
+  const {
+    subtotal,
+    discountAmount,
+    advancesTotal,
+    cardFeeValue,
+    displayTotal: balance
+  } = computeSaleDisplayTotals(current, {
+    forceIvaEnabled: ivaEnabled,
+    forceCardFeeEnabled: cardFeeEnabled
+  });
+  const financeGridColsClass = cardFeeValue > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3';
 
   const discountLabel = current?.discount?.type === 'percent'
     ? `${Number(current.discount.value || 0)}%`
@@ -4893,7 +4994,7 @@ function renderSaleFinanceSummary(){
     <div class="flex items-start justify-between gap-3">
       <div class="flex-1 min-w-0">
         <div class="text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wide">Resumen</div>
-        <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+        <div class="mt-2 grid grid-cols-1 ${financeGridColsClass} gap-2 text-sm">
           <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
             <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Subtotal</div>
             <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${money(subtotal)}</div>
@@ -4906,6 +5007,12 @@ function renderSaleFinanceSummary(){
             <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Abonos</div>
             <div class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">-${money(advancesTotal)}</div>
           </div>
+          ${cardFeeValue > 0 ? `
+            <div class="p-2 rounded-lg bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-slate-50 border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Tarjeta (6%)</div>
+              <div class="font-semibold text-sky-300 dark:text-sky-300 theme-light:text-sky-700">+${money(cardFeeValue)}</div>
+            </div>
+          ` : ''}
         </div>
       </div>
       <div class="text-right">
@@ -4927,8 +5034,8 @@ function renderSaleFinanceSummary(){
         </div>
         ${isDraft ? `
           <div class="flex items-center gap-2">
-            <button data-action="edit-discount" class="px-2 py-1 text-xs rounded-md bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-200">Editar</button>
-            ${discountAmount > 0 ? `<button data-action="remove-discount" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">Quitar</button>` : ''}
+            <button data-action="edit-discount" class="px-2 py-1 text-xs rounded-md bg-gradient-to-r from-violet-600/75 to-fuchsia-700/75 dark:from-violet-600/75 dark:to-fuchsia-700/75 theme-light:from-violet-500 theme-light:to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-800 dark:hover:from-violet-700 dark:hover:to-fuchsia-800 text-white border border-violet-500/45 dark:border-violet-500/45 shadow-sm">✏️ Editar</button>
+            ${discountAmount > 0 ? `<button data-action="remove-discount" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">🗑️ Quitar</button>` : ''}
           </div>
         ` : ''}
       </div>
@@ -4949,7 +5056,7 @@ function renderSaleFinanceSummary(){
               </div>
               <div class="flex items-center gap-2">
                 <div class="text-sm font-bold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 whitespace-nowrap">${money(a.amount || 0)}</div>
-                ${isDraft ? `<button data-action="remove-advance" data-id="${a._id}" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">Quitar</button>` : ''}
+                ${isDraft ? `<button data-action="remove-advance" data-id="${a._id}" class="px-2 py-1 text-xs rounded-md bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 hover:bg-red-600/35 dark:hover:bg-red-600/35 theme-light:hover:bg-red-100 text-red-300 dark:text-red-300 theme-light:text-red-700 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-200">🗑️ Quitar</button>` : ''}
               </div>
             </div>
           `).join('')}
@@ -5027,12 +5134,14 @@ async function openAdvancePaymentModal(){
   const wrap = document.createElement('div');
   wrap.className = 'p-5 sm:p-6 space-y-4';
   wrap.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Agregar abono</h3>
-        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Se registra en flujo de caja según la cuenta seleccionada.</p>
+    <div class="rounded-xl p-4 border border-emerald-700/30 dark:border-emerald-700/30 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/50 to-slate-900/30 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">💵</span> Agregar abono</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-1">Se registra en flujo de caja según la cuenta seleccionada.</p>
+        </div>
+        <button type="button" id="adv-close" class="shrink-0 px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
       </div>
-      <button type="button" id="adv-close" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -5062,7 +5171,7 @@ async function openAdvancePaymentModal(){
     <div id="adv-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
 
     <div class="flex flex-col sm:flex-row gap-2 pt-2">
-      <button id="adv-save" class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar abono</button>
+      <button type="button" id="adv-save" class="sales-main-btn flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar abono</button>
       <button id="adv-cancel" type="button" class="px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
     </div>
   `;
@@ -5175,12 +5284,14 @@ async function openDiscountModal(){
   const wrap = document.createElement('div');
   wrap.className = 'p-5 sm:p-6 space-y-4';
   wrap.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div>
-        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Descuento</h3>
-        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">El descuento puede ser valor fijo o porcentaje.</p>
+    <div class="rounded-xl p-4 border border-violet-700/35 dark:border-violet-700/35 theme-light:border-violet-200 bg-gradient-to-br from-violet-950/45 via-slate-900/50 to-slate-900/30 theme-light:from-violet-50 theme-light:via-white theme-light:to-sky-50">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">🏷️</span> Descuento</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-1">El descuento puede ser valor fijo o porcentaje.</p>
+        </div>
+        <button type="button" id="disc-close" class="shrink-0 px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
       </div>
-      <button type="button" id="disc-close" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕</button>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -5206,7 +5317,7 @@ async function openDiscountModal(){
     <div id="disc-msg" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
 
     <div class="flex flex-col sm:flex-row gap-2 pt-2">
-      <button id="disc-save" class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar descuento</button>
+      <button type="button" id="disc-save" class="sales-main-btn flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Guardar descuento</button>
       <button id="disc-cancel" type="button" class="px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
     </div>
   `;
@@ -5280,7 +5391,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
     // Agregar botón "OMITIR" para usar nombre placeholder
     const skipBtn = document.createElement('button');
     skipBtn.id = 'qr-skip-slot';
-    skipBtn.className = 'px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-200 mt-2';
+    skipBtn.className = 'sales-main-btn px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-200 mt-2';
     skipBtn.textContent = '⏭️ OMITIR (usar nombre placeholder)';
     skipBtn.style.width = '100%';
     
@@ -6464,22 +6575,37 @@ async function openAddUnified(){
   console.log('Creando modal de agregar...');
   // Modal inicial: elegir entre QR y Manual
   const node = document.createElement('div');
-  node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
-  node.style.cssText = 'max-width:600px;margin:0 auto;';
+  node.className = 'rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/60 bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-white overflow-hidden';
+  node.style.cssText = 'max-width:720px;margin:0 auto;';
   node.innerHTML = `
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6 text-center">Agregar items</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-      <button id="add-qr-btn" class="px-6 py-8 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
-        <span class="text-5xl">📷</span>
-        <span class="text-base">Agregar QR</span>
-      </button>
-      <button id="add-manual-btn" class="px-6 py-8 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
-        <span class="text-5xl">✏️</span>
-        <span class="text-base">Agregar manual</span>
-      </button>
+    <div class="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 theme-light:from-sky-50 theme-light:via-white theme-light:to-sky-50 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0">➕ Agregar ítems</h3>
+          <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-0">Elige cómo vas a agregar productos/servicios a la venta.</p>
+        </div>
+        <span class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 dark:bg-white/10 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-sky-700 border border-white/10 theme-light:border-sky-200">🧾</span>
+      </div>
     </div>
-    <div class="text-center">
-      <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
+
+    <div class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button id="add-qr-btn" class="sales-main-btn w-full px-6 py-8 bg-gradient-to-r from-violet-600 to-indigo-700 dark:from-violet-600 dark:to-indigo-700 theme-light:from-violet-600 theme-light:to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-violet-300/50 hover:-translate-y-0.5">
+          <span class="text-5xl">📷</span>
+          <span class="text-base">Agregar con QR</span>
+          <span class="text-xs text-white/85">Escanea y agrega rápido</span>
+        </button>
+
+        <button id="add-manual-btn" class="sales-main-btn w-full px-6 py-8 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-600 dark:to-teal-700 theme-light:from-emerald-600 theme-light:to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300/50 hover:-translate-y-0.5">
+          <span class="text-5xl">✍️</span>
+          <span class="text-base">Agregar manual</span>
+          <span class="text-xs text-white/85">Lista de precios o inventario</span>
+        </button>
+      </div>
+
+      <div class="mt-5 flex items-center justify-end">
+        <button id="add-cancel-btn" class="px-5 py-2 rounded-xl font-semibold bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 border border-slate-600/40 theme-light:border-slate-200 transition-all duration-200">Cancelar</button>
+      </div>
     </div>
   `;
   
@@ -6526,7 +6652,6 @@ async function openAddUnified(){
   
   console.log('Modal de agregar abierto');
   
-  // Estilos hover para los botones
   const qrBtn = node.querySelector('#add-qr-btn');
   const manualBtn = node.querySelector('#add-manual-btn');
   const cancelBtn = node.querySelector('#add-cancel-btn');
@@ -6535,24 +6660,6 @@ async function openAddUnified(){
     console.error('Botones no encontrados en el modal:', { qrBtn: !!qrBtn, manualBtn: !!manualBtn, cancelBtn: !!cancelBtn });
     return;
   }
-  
-  qrBtn.addEventListener('mouseenter', () => {
-    qrBtn.style.transform = 'scale(1.05)';
-    qrBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-  });
-  qrBtn.addEventListener('mouseleave', () => {
-    qrBtn.style.transform = 'scale(1)';
-    qrBtn.style.boxShadow = '';
-  });
-  
-  manualBtn.addEventListener('mouseenter', () => {
-    manualBtn.style.transform = 'scale(1.05)';
-    manualBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-  });
-  manualBtn.addEventListener('mouseleave', () => {
-    manualBtn.style.transform = 'scale(1)';
-    manualBtn.style.boxShadow = '';
-  });
   
   // Si selecciona QR, abrir el modal de QR
   qrBtn.addEventListener('click', (e) => {
@@ -6587,21 +6694,27 @@ function showManualView(parentNode) {
   let currentView = currentVehicleId ? 'prices' : 'inventory'; // Por defecto, mostrar inventario si no hay vehículo
   
   function renderView() {
+    const tabBase =
+      'sales-nav-btn flex-1 min-w-0 px-3 py-3 text-sm font-semibold rounded-t-lg transition-all duration-200';
+    const tabInactive =
+      'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300';
+    const tabActive =
+      'active bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white shadow-md';
     parentNode.innerHTML = `
       <div style="margin-bottom:16px;">
         <h3 style="margin-top:0;margin-bottom:16px;">Agregar manual</h3>
-        <div style="display:flex;gap:8px;border-bottom:2px solid var(--border);padding-bottom:8px;">
-          <button id="nav-prices" class="${currentView === 'prices' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+        <div class="flex gap-2 border-b-2 border-slate-600/40 dark:border-slate-600/40 theme-light:border-slate-200 pb-2">
+          <button type="button" id="nav-prices" class="${tabBase} ${currentView === 'prices' ? tabActive : tabInactive}">
             💰 Lista de precios
           </button>
-          <button id="nav-inventory" class="${currentView === 'inventory' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+          <button type="button" id="nav-inventory" class="${tabBase} ${currentView === 'inventory' ? tabActive : tabInactive}">
             📦 Inventario
           </button>
         </div>
       </div>
-      <div id="manual-content" style="min-height:400px;max-height:70vh;overflow-y:auto;"></div>
+      <div id="manual-content" class="custom-scrollbar min-h-[400px] max-h-[70vh] overflow-y-auto overflow-x-hidden"></div>
       <div style="margin-top:16px;text-align:center;">
-        <button id="manual-back-btn" class="secondary" style="padding:8px 24px;">← Volver</button>
+        <button type="button" id="manual-back-btn" class="px-6 py-2 rounded-xl font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 bg-slate-700/40 hover:bg-slate-700/55 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-white theme-light:hover:bg-slate-100 text-white dark:text-white theme-light:text-slate-900 transition-all">← Volver</button>
       </div>
     `;
     
@@ -6657,10 +6770,12 @@ async function showPriceConfirmationModal({ price, vehicleId }) {
   const node = document.createElement('div');
   node.className = 'p-6 bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 w-full max-w-3xl';
   node.innerHTML = `
-    <div class="flex items-start justify-between gap-4 mb-4">
-      <div>
-        <h2 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Confirmar precio</h2>
-        <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${price?.name || 'Item'} (${String(price?.type || '').toUpperCase()})</p>
+    <div class="rounded-xl p-4 mb-4 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-gradient-to-br from-blue-950/45 via-slate-900/50 to-slate-900/25 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">💲</span> Confirmar precio</h2>
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">${price?.name || 'Item'} <span class="opacity-80">(${String(price?.type || '').toUpperCase()})</span></p>
+        </div>
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -6675,9 +6790,9 @@ async function showPriceConfirmationModal({ price, vehicleId }) {
       </div>
     </div>
     ${isCombo ? `
-    <div class="mb-5">
+    <div class="mb-5 rounded-lg border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 border-l-4 border-l-indigo-500 dark:border-l-indigo-500 theme-light:border-l-indigo-600 p-3 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-slate-50/80">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Productos del combo</h3>
+        <h3 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2 m-0"><span aria-hidden="true">📦</span> Productos del combo</h3>
         <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Marca los que se incluirán</span>
       </div>
       <div class="space-y-2 max-h-64 overflow-auto custom-scrollbar" id="pc-combo-list">
@@ -6812,34 +6927,34 @@ async function renderPricesView(container, vehicleId) {
       }
     
     if (prices.length === 0) {
-        pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</div>';
+        pricesList.innerHTML = '<div class="text-center py-8 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay precios que coincidan con los filtros.</div>';
         return;
       }
       
       pricesList.innerHTML = '';
       prices.forEach(pe => {
         const card = document.createElement('div');
-        card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;';
+        card.className = 'p-3 rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/25 dark:bg-slate-900/25 theme-light:bg-sky-50 flex items-center justify-between gap-3';
         
         const isGeneral = !pe.vehicleId;
         let typeBadge = '';
         if (pe.type === 'combo') {
-          typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">COMBO</span>';
+          typeBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-violet-600 text-white mr-2">COMBO</span>';
         } else if (pe.type === 'product') {
-          typeBadge = '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">PRODUCTO</span>';
+          typeBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-blue-600 text-white mr-2">PRODUCTO</span>';
         } else {
-          typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">SERVICIO</span>';
+          typeBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-600 text-white mr-2">SERVICIO</span>';
         }
         
-        const generalBadge = isGeneral ? '<span style="background:#06b6d4;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">🌐 GENERAL</span>' : '';
+        const generalBadge = isGeneral ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-cyan-600 text-white mr-2">🌐 GENERAL</span>' : '';
         
         card.innerHTML = `
-          <div style="flex:1;">
+          <div class="min-w-0 flex-1">
             ${typeBadge}${generalBadge}
-            <span style="font-weight:600;">${pe.name || 'Sin nombre'}</span>
+            <span class="font-semibold text-slate-100 dark:text-slate-100 theme-light:text-slate-900 break-words">${pe.name || 'Sin nombre'}</span>
           </div>
-          <div style="margin:0 16px;font-weight:600;color:var(--primary);">${money(pe.total || pe.price || 0)}</div>
-          <button class="add-price-btn primary" data-price-id="${pe._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Agregar</button>
+          <div class="shrink-0 font-extrabold text-blue-300 dark:text-blue-300 theme-light:text-blue-700">${money(pe.total || pe.price || 0)}</div>
+          <button class="add-price-btn primary sales-main-btn shrink-0 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold transition-all duration-200 border border-white/10" data-price-id="${pe._id}">Agregar</button>
         `;
         
         const addBtn = card.querySelector('.add-price-btn');
@@ -6935,51 +7050,45 @@ async function renderPricesView(container, vehicleId) {
     
     container.innerHTML = `
       ${vehicle ? `
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
-        <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
-        <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
+      <div class="mb-4 p-3 rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/25 dark:bg-slate-900/25 theme-light:bg-sky-50">
+        <div class="font-extrabold text-slate-100 dark:text-slate-100 theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` · Modelo: ${vehicle.modelYear}` : ''}</div>
       </div>
       ` : `
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border-left:4px solid #06b6d4;">
-        <div style="font-weight:600;margin-bottom:4px;">🌐 Precios Generales</div>
-        <div style="font-size:12px;color:var(--muted);">Precios disponibles para todos los vehículos</div>
+      <div class="mb-4 p-3 rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 border-l-4 border-l-cyan-500 theme-light:border-l-cyan-600">
+        <div class="font-extrabold text-slate-100 dark:text-slate-100 theme-light:text-slate-900">🌐 Precios Generales</div>
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Precios disponibles para todos los vehículos</div>
       </div>
       `}
-      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+
+      <div class="mb-3 flex flex-wrap gap-2">
         ${vehicleId ? `
-        <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
-          ➕ Crear servicio
-        </button>
-        <button id="create-product-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
-          ➕ Crear producto
-        </button>
-        <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
-          🎁 Crear combo
-        </button>
+        <button id="create-service-btn" class="secondary sales-main-btn flex-1 min-w-[10rem] px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold border border-white/10 transition-all">➕ Crear servicio</button>
+        <button id="create-product-btn" class="secondary sales-main-btn flex-1 min-w-[10rem] px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all">➕ Crear producto</button>
+        <button id="create-combo-btn" class="secondary sales-main-btn flex-1 min-w-[10rem] px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-700 hover:from-violet-700 hover:to-fuchsia-800 text-white font-extrabold border border-white/10 transition-all">🎁 Crear combo</button>
         ` : `
-        <p style="text-align:center;color:var(--muted);font-size:13px;padding:8px;">Los precios generales se crean desde la sección de Lista de precios</p>
+        <div class="w-full text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 py-2">Los precios generales se crean desde la sección de Lista de precios</div>
         `}
       </div>
-      <div style="margin-bottom:12px;">
-        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-          <select id="filter-type-prices" style="flex:1;min-width:120px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+
+      <div class="mb-2">
+        <div class="flex flex-wrap gap-2 mb-2">
+          <select id="filter-type-prices" class="flex-1 min-w-[10rem] px-3 py-2 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
             <option value="">Todos los tipos</option>
             <option value="service">Servicios</option>
             <option value="product">Productos</option>
             <option value="combo">Combos</option>
           </select>
-          <input type="text" id="filter-name-prices" placeholder="Buscar por nombre..." style="flex:2;min-width:150px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);" />
-          <button id="btn-apply-filters-prices" class="primary" style="padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Buscar</button>
+          <input type="text" id="filter-name-prices" placeholder="Buscar por nombre..." class="flex-[2] min-w-[12rem] px-3 py-2 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          <button id="btn-apply-filters-prices" class="primary sales-main-btn px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold border border-white/10 transition-all">Buscar</button>
         </div>
-        <h4 style="margin-bottom:8px;">Precios disponibles</h4>
-        <div id="prices-list" style="display:grid;gap:8px;"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-          <div style="font-size:12px;color:var(--muted);">
-            Mostrando <span id="page-info">0-0</span>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button id="btn-prev-prices" class="secondary" style="padding:6px 12px;border-radius:6px;border:none;cursor:pointer;" disabled>← Anterior</button>
-            <button id="btn-next-prices" class="secondary" style="padding:6px 12px;border-radius:6px;border:none;cursor:pointer;">Siguiente →</button>
+        <h4 class="mb-2 text-sm font-extrabold text-slate-100 dark:text-slate-100 theme-light:text-slate-900">Precios disponibles</h4>
+        <div id="prices-list" class="grid gap-2"></div>
+        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Mostrando <span id="page-info">0-0</span></div>
+          <div class="flex gap-2">
+            <button id="btn-prev-prices" class="secondary px-3 py-1.5 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold border border-slate-600/30 theme-light:border-slate-200 transition-all" disabled>← Anterior</button>
+            <button id="btn-next-prices" class="secondary px-3 py-1.5 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-semibold border border-slate-600/30 theme-light:border-slate-200 transition-all">Siguiente →</button>
           </div>
         </div>
       </div>
@@ -7098,7 +7207,7 @@ async function renderInventoryView(container) {
             <div style="font-weight:600;margin-bottom:4px;">${item.name || 'Sin nombre'}</div>
             <div style="font-size:13px;color:var(--text);"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku || 'N/A'}</strong> | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
           </div>
-          <button class="add-inventory-btn primary" data-item-id="${item._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;margin-left:12px;">Agregar</button>
+          <button type="button" class="add-inventory-btn sales-main-btn shrink-0 ml-3 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all duration-200" data-item-id="${item._id}">Agregar</button>
         `;
         
         card.querySelector('.add-inventory-btn').onclick = async () => {
@@ -7169,9 +7278,9 @@ async function renderInventoryView(container) {
         <input id="inventory-filter-sku" type="text" placeholder="Buscar por SKU..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
         <input id="inventory-filter-name" type="text" placeholder="Buscar por nombre..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
       </div>
-      <button id="inventory-search-btn" class="primary" style="width:100%;padding:10px;border-radius:6px;border:none;font-weight:600;cursor:pointer;">🔍 Buscar</button>
+      <button type="button" id="inventory-search-btn" class="sales-main-btn w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold border border-white/10 transition-all duration-200">🔍 Buscar</button>
     </div>
-    <div id="inventory-list" style="max-height:50vh;overflow-y:auto;"></div>
+    <div id="inventory-list" class="custom-scrollbar max-h-[50vh] overflow-y-auto overflow-x-hidden"></div>
     <div style="text-align:center;margin-top:12px;">
       <button id="load-more-inventory" class="secondary" style="padding:8px 16px;display:none;">Cargar más</button>
     </div>
@@ -7220,88 +7329,99 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
   // Importar la función de prices.js o recrearla aquí
   // Por ahora, abrir un modal simple para crear el precio
   const node = document.createElement('div');
-  node.className = 'card';
-  node.style.cssText = 'max-width:600px;margin:0 auto;';
+  node.className = 'w-full max-w-3xl mx-auto rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-white overflow-hidden';
+  node.style.cssText = 'margin:0 auto;';
   
   const isCombo = type === 'combo';
   const isProduct = type === 'product';
   const isService = type === 'service';
   
   node.innerHTML = `
-    <h3 style="margin-top:0;margin-bottom:16px;">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
-    <p class="muted" style="margin-bottom:16px;font-size:13px;">
-      Vehículo: <strong>${vehicle?.make || ''} ${vehicle?.line || ''}</strong>
-    </p>
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
-      <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-    </div>
-    ${isProduct ? `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vincular con item del inventario (opcional)</label>
-      <div class="row" style="gap:8px;margin-bottom:8px;">
-        <input id="price-item-search" placeholder="Buscar por SKU o nombre..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        <button id="price-item-qr" class="secondary" style="padding:8px 16px;">📷 QR</button>
+    <div class="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 theme-light:from-sky-50 theme-light:via-white theme-light:to-sky-50 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-xl font-extrabold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2">
+            <span class="text-2xl" aria-hidden="true">${type === 'combo' ? '🎁' : (type === 'service' ? '🛠️' : '📦')}</span>
+            <span>Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</span>
+          </h3>
+          <p class="mt-1 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-0">Vehículo: <span class="font-semibold">${vehicle?.make || ''} ${vehicle?.line || ''}</span></p>
+        </div>
+        <span class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 dark:bg-white/10 theme-light:bg-sky-100 text-white dark:text-white theme-light:text-sky-700 border border-white/10 theme-light:border-sky-200">${type === 'combo' ? '🧾' : '✍️'}</span>
       </div>
-      <div id="price-item-selected" style="margin-top:8px;padding:8px;background:var(--card-alt);border-radius:6px;font-size:12px;display:none;"></div>
-      <input type="hidden" id="price-item-id" />
     </div>
+
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Nombre</label>
+        <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+      </div>
+    ${isProduct ? `
+      <div class="rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 p-4">
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">🔗 Vincular con inventario (opcional)</label>
+        <div class="flex gap-2 flex-wrap">
+          <input id="price-item-search" placeholder="Buscar por SKU o nombre..." class="flex-1 min-w-[14rem] px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          <button id="price-item-qr" class="sales-main-btn px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all whitespace-nowrap">📷 QR</button>
+        </div>
+        <div id="price-item-selected" class="mt-3 p-3 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/25 dark:bg-slate-900/25 theme-light:bg-white text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-900 hidden"></div>
+        <input type="hidden" id="price-item-id" />
+      </div>
     ` : ''}
     ${isCombo ? `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
-      <div id="price-combo-products" style="margin-bottom:8px;"></div>
-      <button id="price-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
-    </div>
+      <div class="rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 p-4">
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">📦 Productos del combo</label>
+        <div id="price-combo-products" class="space-y-2 mb-3"></div>
+        <button id="price-add-combo-product" class="sales-main-btn w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold border border-white/10 transition-all">➕ Agregar producto</button>
+      </div>
     ` : ''}
     ${!isCombo ? `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
-      <input id="price-total" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-    </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio</label>
+        <input id="price-total" type="number" step="0.01" placeholder="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+      </div>
     ` : `
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio total del combo</label>
-      <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-      <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
-    </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio total del combo</label>
+        <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+        <p class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Se calcula desde los productos, o puedes establecerlo manualmente.</p>
+      </div>
     `}
-    <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Rango de años (opcional)</label>
-      <p class="muted" style="margin-bottom:8px;font-size:11px;">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
-      <div class="row" style="gap:8px;">
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Desde</label>
-          <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        </div>
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Hasta</label>
-          <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <div class="rounded-2xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-sky-50 p-4">
+        <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">📅 Rango de años (opcional)</label>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Aplica este precio solo si el año del vehículo está dentro del rango.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Desde</label>
+            <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Hasta</label>
+            <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          </div>
         </div>
       </div>
-    </div>
     ${isCombo || isProduct || isService ? `
-    <div style="margin-bottom:16px;padding:12px;background:rgba(59, 130, 246, 0.1);border-radius:8px;border:1px solid rgba(59, 130, 246, 0.3);">
-      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Mano de obra (opcional)</label>
-      <p class="muted" style="margin-bottom:8px;font-size:11px;">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
-      <div class="row" style="gap:8px;">
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Valor de mano de obra</label>
-          <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        </div>
-        <div style="flex:1;">
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Tipo de mano de obra</label>
-          <select id="price-labor-kind" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-            <option value="">-- Seleccione tipo --</option>
-          </select>
+      <div class="rounded-2xl border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-blue-950/25 dark:bg-blue-950/25 theme-light:bg-indigo-50 p-4">
+        <label class="block text-xs font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-900 mb-2">🧑‍🔧 Mano de obra (opcional)</label>
+        <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-3">Se usa al cerrar la venta para participación técnica.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-1">Valor</label>
+            <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-1">Tipo</label>
+            <select id="price-labor-kind" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+              <option value="">-- Seleccione tipo --</option>
+            </select>
+          </div>
         </div>
       </div>
-    </div>
     ` : ''}
-    <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
-    <div class="row" style="gap:8px;">
-      <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
-      <button id="price-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      <div id="price-msg" class="text-sm"></div>
+      <div class="flex gap-2">
+        <button id="price-cancel" class="flex-1 px-4 py-3 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-extrabold border border-slate-600/30 theme-light:border-slate-200 transition-all">Cancelar</button>
+        <button id="price-save" class="sales-main-btn flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold border border-white/10 transition-all">💾 Guardar</button>
+      </div>
     </div>
   `;
   
@@ -8132,15 +8252,15 @@ function renderQuoteMini(q){
     const type = it.type || (it.source === 'service' || String(sku || '').toUpperCase().startsWith('SRV-') ? 'SERVICIO' : 'PRODUCTO');
     const typeLabel = type === 'SERVICIO' ? 'Servicio' : 'Producto';
     const tr = document.createElement('tr');
-    tr.className = 'bg-white dark:bg-white theme-light:bg-white border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-50 theme-light:hover:bg-slate-50 transition-colors';
+    tr.className = 'bg-slate-900/10 dark:bg-slate-900/10 theme-light:bg-white border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-800/35 dark:hover:bg-slate-800/35 theme-light:hover:bg-slate-50 transition-colors';
     tr.innerHTML = `
-      <td class="py-1 px-0.5 text-xs text-slate-900 dark:text-slate-900 theme-light:text-slate-900 align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${typeLabel}</td>
-      <td class="py-1 px-0.5 text-xs text-slate-900 dark:text-slate-900 theme-light:text-slate-900 break-words align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${htmlEscape(name || 'Item')}</td>
-      <td class="py-1 px-0.5 text-center text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${qty}</td>
-      <td class="py-1 px-0.5 text-right text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${money(unit)}</td>
-      <td class="py-1 px-0.5 text-right text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${money(total)}</td>
-      <td class="py-1 px-0.5 text-center align-top border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">
-        <button class="add w-5 h-5 flex items-center justify-center text-[10px] bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-bold rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
+      <td class="py-1 px-0.5 text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${typeLabel}</td>
+      <td class="py-1 px-0.5 text-xs text-slate-200 dark:text-slate-200 theme-light:text-slate-900 break-words align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${htmlEscape(name || 'Item')}</td>
+      <td class="py-1 px-0.5 text-center text-[10px] text-slate-200 dark:text-slate-200 theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${qty}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-slate-100 dark:text-slate-100 theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${money(unit)}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-slate-100 dark:text-slate-100 theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">${money(total)}</td>
+      <td class="py-1 px-0.5 text-center align-top border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <button class="add w-7 h-7 flex items-center justify-center text-sm bg-blue-600/30 dark:bg-blue-600/30 hover:bg-blue-600/55 dark:hover:bg-blue-600/55 text-blue-100 dark:text-blue-100 hover:text-white dark:hover:text-white font-extrabold rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50 theme-light:bg-blue-50 theme-light:text-blue-700 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
       </td>
     `;
     const btn = tr.querySelector('button.add');
@@ -8166,7 +8286,7 @@ function renderQuoteMini(q){
           tr.classList.add('added');
           btn.disabled = true;
           btn.textContent = 'V';
-          btn.className = 'add px-2 py-1 text-xs bg-green-600/20 dark:bg-green-600/20 text-green-400 dark:text-green-400 font-medium rounded transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 opacity-50 cursor-not-allowed';
+          btn.className = 'add px-2 py-1 text-xs bg-green-600/30 dark:bg-green-600/30 text-green-100 dark:text-green-100 font-bold rounded-lg transition-all duration-200 border border-green-500/50 dark:border-green-500/50 theme-light:bg-green-50 theme-light:text-green-700 opacity-50 cursor-not-allowed';
         } catch (err) {
           alert(err?.message || 'No se pudo agregar el item');
         }
@@ -8177,7 +8297,7 @@ function renderQuoteMini(q){
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'V';
-        btn.className = 'add px-2 py-1 text-xs bg-green-600/20 dark:bg-green-600/20 text-green-400 dark:text-green-400 font-medium rounded transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 opacity-50 cursor-not-allowed';
+        btn.className = 'add px-2 py-1 text-xs bg-green-600/30 dark:bg-green-600/30 text-green-100 dark:text-green-100 font-bold rounded-lg transition-all duration-200 border border-green-500/50 dark:border-green-500/50 theme-light:bg-green-50 theme-light:text-green-700 opacity-50 cursor-not-allowed';
       }
     }
     body.appendChild(tr);
@@ -8216,7 +8336,7 @@ function renderQuoteMini(q){
         if (button) {
           button.disabled = true;
           button.textContent = 'V';
-          button.className = 'add px-2 py-1 text-xs bg-green-600/20 dark:bg-green-600/20 text-green-400 dark:text-green-400 font-medium rounded transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 opacity-50 cursor-not-allowed';
+          button.className = 'add px-2 py-1 text-xs bg-green-600/30 dark:bg-green-600/30 text-green-100 dark:text-green-100 font-bold rounded-lg transition-all duration-200 border border-green-500/50 dark:border-green-500/50 theme-light:bg-green-50 theme-light:text-green-700 opacity-50 cursor-not-allowed';
         }
       });
     };
@@ -8237,11 +8357,14 @@ async function openPostServiceConfigModal() {
     
     body.innerHTML = `
       <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
-        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Configurar mensaje post-servicio</h3>
+        <div class="rounded-xl p-4 border border-sky-600/30 dark:border-sky-600/30 theme-light:border-sky-200 bg-gradient-to-br from-sky-950/40 via-slate-900/45 to-indigo-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50 mb-2">
+          <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">💬</span> Mensaje post-servicio</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Personaliza el texto que recibe el cliente tras el servicio.</p>
+        </div>
         
-        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 mb-4">
-          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            <strong>Plantilla del mensaje:</strong>
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-teal-500 dark:border-l-teal-500 theme-light:border-l-teal-600 mb-4">
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2 flex items-center gap-2">
+            <span aria-hidden="true">📄</span><strong>Plantilla del mensaje</strong>
           </p>
           <pre class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-pre-wrap bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white p-3 rounded border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Hola {nombre del cliente}, ha sido un placer atenderte en nuestras instalaciones.
 
@@ -8250,9 +8373,9 @@ Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por e
 Muchas gracias!</pre>
         </div>
         
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            Link de calificación <span class="text-red-400">*</span>
+        <div class="mb-4 rounded-lg p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-200 bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white/60">
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2 flex items-center gap-2">
+            <span aria-hidden="true">🔗</span> Link de calificación <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">*</span>
           </label>
           <input 
             id="ps-rating-link" 
@@ -8356,11 +8479,14 @@ async function openSpecialNotesModal() {
     
     body.innerHTML = `
       <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
-        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">📝 Notas Especiales</h3>
+        <div class="rounded-xl p-4 border border-amber-600/35 dark:border-amber-600/35 theme-light:border-amber-200 bg-gradient-to-br from-amber-950/35 via-slate-900/45 to-slate-900/30 theme-light:from-amber-50 theme-light:via-white theme-light:to-sky-50 mb-2">
+          <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">📝</span> Notas especiales</h3>
+          <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Aparecen en la remisión debajo del total. Puedes agregar varias.</p>
+        </div>
         
-        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 mb-4">
-          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            Las notas especiales aparecerán en la remisión debajo del total. Puedes agregar múltiples notas.
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-amber-500 dark:border-l-amber-500 theme-light:border-l-amber-600 mb-4">
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-0 flex items-start gap-2">
+            <span class="shrink-0" aria-hidden="true">💡</span><span>Úsalas para condiciones, garantías o mensajes que el cliente deba ver al facturar.</span>
           </p>
         </div>
         
@@ -8374,7 +8500,8 @@ async function openSpecialNotesModal() {
             />
             <button 
               id="sn-add-note" 
-              class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap"
+              type="button"
+              class="sales-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap"
             >
               ➕ Agregar
             </button>
@@ -8383,7 +8510,7 @@ async function openSpecialNotesModal() {
         </div>
         
         <div class="flex flex-wrap gap-3 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-          <button id="sn-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+          <button type="button" id="sn-save" class="sales-main-btn flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
           <button id="sn-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
         </div>
       </div>
@@ -9198,6 +9325,7 @@ function openEditCV(){
       // Crear modal de selección
       const selectModal = document.createElement('div');
       selectModal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
+      selectModal.style.zIndex = '12050';
       selectModal.innerHTML = `
         <div class="bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-sky-50 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
           <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Seleccionar Empresa</h3>
@@ -9413,8 +9541,8 @@ async function openSaleHistoryDetail(id){
     node.querySelector('[data-number]').textContent = padSaleNumber(sale.number || sale._id || '');
     node.querySelector('[data-date]').textContent = sale.createdAt ? new Date(sale.createdAt).toLocaleString() : '';
     node.querySelector('[data-status]').textContent = sale.status || 'N/A';
-    node.querySelector('[data-customer]').textContent = describeCustomer(sale.customer);
-    node.querySelector('[data-vehicle]').textContent = describeVehicle(sale.vehicle);
+    node.querySelector('[data-customer]').innerHTML = formatCustomerDetailHtml(sale.customer);
+    node.querySelector('[data-vehicle]').innerHTML = formatVehicleDetailHtml(sale.vehicle);
     
     // Agrupar items por tipo (productos, servicios, combos)
     const itemsGrouped = node.querySelector('[data-items-grouped]');
@@ -11694,6 +11822,19 @@ export function initSales(){
     updateIvaButton();
   }
 
+  // Event listener para el botón de recargo por tarjeta (6%)
+  const btnCardToggle = document.getElementById('sales-card-toggle');
+  if (btnCardToggle) {
+    btnCardToggle.addEventListener('click', async () => {
+      const next = !cardFeeEnabled;
+      cardFeeEnabled = next;
+      if (current?._id) setSaleCardFeeEnabled(current._id, next);
+      updateCardFeeButton();
+      await renderAll({ skipQuote: true });
+    });
+    updateCardFeeButton();
+  }
+
   document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{
     if (!current) return;
     openSpecialNotesModal();
@@ -12268,13 +12409,13 @@ async function createHistorialSaleCard(sale) {
       
       <!-- Botones hamburguesa a la derecha -->
       <div class="flex-shrink-0 flex flex-col gap-2">
-        <button class="btn-historial-print px-3 py-2 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-sale-id="${sale._id}" title="Imprimir remisión">
+        <button class="btn-historial-print sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-indigo-600/85 to-indigo-700/85 dark:from-indigo-600/85 dark:to-indigo-700/85 hover:from-indigo-700 hover:to-indigo-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-indigo-500/50 dark:border-indigo-500/50 theme-light:border-indigo-300" data-sale-id="${sale._id}" title="Imprimir remisión">
           🖨️
         </button>
-        <button class="btn-historial-view px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver resumen">
+        <button class="btn-historial-view sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-blue-600/85 to-cyan-700/85 dark:from-blue-600/85 dark:to-cyan-700/85 hover:from-blue-700 hover:to-cyan-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver resumen">
           👁️
         </button>
-        <button class="btn-historial-edit px-3 py-2 text-xs bg-purple-600/50 dark:bg-purple-600/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}" title="Editar cierre">
+        <button class="btn-historial-edit sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-purple-600/85 to-fuchsia-700/85 dark:from-purple-600/85 dark:to-fuchsia-700/85 hover:from-purple-700 hover:to-fuchsia-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}" title="Editar cierre">
           ✏️
         </button>
       </div>
@@ -12408,9 +12549,10 @@ async function openEditPriceModal(item) {
     // Construir HTML del modal
     modalBody.innerHTML = `
       <div class="space-y-6">
-        <div>
-          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
-            Editar precio unitario
+        <div class="rounded-xl p-4 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-gradient-to-br from-blue-950/45 via-slate-900/50 to-slate-900/25 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2">
+            <span aria-hidden="true">💲</span>
+            <span>Editar precio unitario</span>
           </h2>
           <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
             ${htmlEscape(itemName)}
@@ -12568,7 +12710,7 @@ async function openEditNameModal(item, tr) {
     // Construir HTML del modal
     modalBody.innerHTML = `
       <div class="space-y-6">
-        <div>
+        <div class="rounded-xl p-4 border border-emerald-600/30 dark:border-emerald-600/30 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/45 to-slate-900/25 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
           <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
             ✏️ Editar descripción
           </h2>
@@ -13228,16 +13370,31 @@ function buildEditCloseModalContent(sale, total) {
   const wrap = document.createElement('div');
   wrap.className = 'space-y-4';
   wrap.innerHTML = `
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Editar cierre de venta</h3>
+    <div class="rounded-xl p-4 mb-1 border border-slate-600/40 dark:border-slate-600/40 theme-light:border-sky-200
+      bg-gradient-to-br from-indigo-950/55 via-slate-900/70 to-blue-950/40
+      dark:from-indigo-950/55 dark:via-slate-900/70 dark:to-blue-950/40
+      theme-light:from-sky-100 theme-light:via-white theme-light:to-indigo-50 shadow-sm">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap">
+        <span class="text-2xl shrink-0 leading-none" aria-hidden="true">🧾</span>
+        <span>Editar cierre de venta</span>
+      </h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Total venta:
+        <strong class="text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 tabular-nums">${money(total)}</strong>
+      </p>
     </div>
-    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
-    </div>
-    <div id="ecv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="ecv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-blue-500 dark:border-l-blue-500 theme-light:border-l-blue-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
-        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2"><span aria-hidden="true">💳</span> Formas de pago</strong>
         <button id="ecv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
+      </div>
+      <div class="mb-4">
+        <label for="ecv-income-tag" class="block text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Tipo de ingreso</label>
+        <select id="ecv-income-tag" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Mantener el tipo actual</option>
+          <option value="CAMBIO_ACEITE">Cambio de aceite</option>
+          <option value="OTROS_SERVICIOS">Otros servicios</option>
+        </select>
       </div>
       <table class="w-full text-xs border-collapse" id="ecv-payments-table">
         <thead>
@@ -13253,13 +13410,13 @@ function buildEditCloseModalContent(sale, total) {
       <div id="ecv-payments-summary" class="mt-3 text-xs"></div>
       <div id="ecv-advance-info" class="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300"></div>
     </div>
-    <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 border-l-4 border-l-violet-500 dark:border-l-violet-500 theme-light:border-l-violet-600 p-4 mb-4 shadow-sm">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1 flex items-center gap-2"><span aria-hidden="true">🛠️</span> Desglose de mano de obra</label>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Edita las líneas de participación técnica.</p>
         </div>
-        <button id="ecv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+        <button id="ecv-add-commission" type="button" class="sales-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
@@ -13288,8 +13445,8 @@ function buildEditCloseModalContent(sale, total) {
       </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="md:col-span-2">
-        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+      <div class="md:col-span-2 rounded-lg border border-slate-600/40 dark:border-slate-600/40 theme-light:border-slate-200 border-l-4 border-l-slate-500 dark:border-l-slate-400 theme-light:border-l-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white/80 p-4">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2 flex items-center gap-2"><span aria-hidden="true">📎</span> Comprobante (opcional)</label>
         <div class="relative">
           <input id="ecv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
         </div>
@@ -13298,7 +13455,7 @@ function buildEditCloseModalContent(sale, total) {
         </div>
       </div>
       <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
-        <button id="ecv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+        <button id="ecv-confirm" class="sales-main-btn w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
         <button type="button" id="ecv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="ecv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
@@ -13844,10 +14001,12 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
         return methods;
       })();
       
+      const editIncomeTag = String(document.getElementById('ecv-income-tag')?.value || '').trim();
       const payload = {
         paymentMethods: paymentMethodsToSend,
         laborCommissions: comm,
-        paymentReceiptUrl: receiptUrl
+        paymentReceiptUrl: receiptUrl,
+        ...(editIncomeTag ? { incomeTag: editIncomeTag } : {})
       };
 
       await API.sales.updateClose(saleId, payload);
@@ -13891,10 +14050,12 @@ function openReportModal() {
   
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">📊 Generar Reporte de Ventas</h3>
-    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Selecciona el rango de fechas para generar un reporte completo con estadísticas de ventas, flujo de caja, cartera, inventario y mano de obra.
-    </p>
+    <div class="rounded-xl p-4 border border-emerald-600/35 dark:border-emerald-600/35 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/40 via-slate-900/50 to-slate-900/25 theme-light:from-emerald-50 theme-light:via-white theme-light:to-sky-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">📊</span> Reporte especial</h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Elige el rango para ver solo cifras importantes de ventas y caja.
+      </p>
+    </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>
@@ -13906,7 +14067,7 @@ function openReportModal() {
       </div>
     </div>
     <div class="flex gap-2 mt-6">
-      <button id='report-generar' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📊 Generar Reporte</button>
+      <button id='report-generar' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📊 Generar Reporte Especial</button>
       <button id='report-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='report-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -13980,45 +14141,137 @@ async function generateReport(fechaDesde, fechaHasta) {
   document.body.appendChild(loadingDiv);
   
   try {
-    // Recopilar todos los datos en paralelo
-    const [salesData, cashflowData, receivablesData, inventoryData, calendarData, techniciansData, accountsBalances] = await Promise.all([
-      // Ventas
-      API.sales.list({ status: 'closed', from: fechaDesde, to: fechaHasta, limit: 10000 }),
-      // Flujo de caja
-      API.cashflow.list({ from: fechaDesde, to: fechaHasta, limit: 10000 }),
-      // Cartera
-      API.receivables.list({ from: fechaDesde, to: fechaHasta, limit: 10000 }),
-      // Inventario
-      API.inventory.itemsList({ limit: 10000 }),
-      // Calendario/Agendas
-      API.calendar.list({ from: fechaDesde, to: fechaHasta }),
-      // Técnicos
-      API.company.getTechnicians(),
-      // Valores de caja actuales (balances de todas las cuentas)
-      API.accounts.balances()
-    ]);
-    
-    const sales = Array.isArray(salesData?.items) ? salesData.items : [];
-    const cashflowEntries = Array.isArray(cashflowData?.items) ? cashflowData.items : [];
-    const receivables = Array.isArray(receivablesData) ? receivablesData : [];
-    const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
-    const appointments = Array.isArray(calendarData) ? calendarData : [];
-    const technicians = Array.isArray(techniciansData) ? techniciansData : [];
-    const currentCashBalances = Array.isArray(accountsBalances?.balances) ? accountsBalances.balances : [];
-    const currentCashTotal = accountsBalances?.total || 0;
-    
-    // Procesar datos
-    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashBalances, currentCashTotal);
-    
-    // Mostrar reporte
-    showReport(reportData, fechaDesde, fechaHasta);
-    
+    const reportData = await API.sales.specialReport({ from: fechaDesde, to: fechaHasta });
+    showSpecialReport(reportData, fechaDesde, fechaHasta);
   } catch(err) {
     console.error('Error generando reporte:', err);
     alert('Error al generar reporte: ' + (err?.message || 'Error desconocido'));
   } finally {
     loadingDiv.remove();
   }
+}
+
+function showSpecialReport(reportData, fechaDesde, fechaHasta) {
+  const viewHistorial = document.getElementById('sales-view-historial');
+  if (!viewHistorial) return;
+
+  const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const kpis = reportData?.kpis || {};
+  const salidas = reportData?.salidas || {};
+  const cuentas = Array.isArray(reportData?.cuentasDestino) ? reportData.cuentasDestino : [];
+  const cajaActual = reportData?.cajaActual || {};
+  const periodApplied = reportData?.periodApplied || {};
+  const dineroEntradoPeriodo = Number(kpis.dineroEntrado || 0);
+  const salidasPeriodo = Number(salidas.total || 0);
+  const movimientoPeriodo = dineroEntradoPeriodo + salidasPeriodo;
+  const netoPeriodo = Number(kpis.netoPeriodo || 0);
+
+  const reportContainer = document.createElement('div');
+  reportContainer.id = 'report-container';
+  reportContainer.className = 'space-y-6';
+  reportContainer.innerHTML = `
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 rounded-xl shadow-lg border border-blue-500/50 p-6 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-white mb-2">📊 Reporte Especial de Ventas</h2>
+          <p class="text-blue-100 text-sm">Período: ${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}</p>
+        </div>
+      </div>
+      <p class="text-blue-100 text-xs mt-3 mb-0">Solo cifras clave: lectura rápida, preparado para alto volumen de datos.</p>
+      <p class="text-blue-100/90 text-xs mt-2 mb-0">
+        Fechas aplicadas en servidor (UTC): ${periodApplied.from || 'sin límite'} → ${periodApplied.to || 'sin límite'}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-900/35 to-slate-900/40 theme-light:from-emerald-50 theme-light:to-white p-6 shadow-lg">
+        <div class="text-sm text-emerald-200 dark:text-emerald-200 theme-light:text-emerald-700 font-semibold mb-2">Movimiento de la empresa (período)</div>
+        <div class="text-5xl md:text-6xl font-extrabold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700 leading-none tracking-tight">${money(movimientoPeriodo)}</div>
+        <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Entradas reales + salidas totales del período</div>
+      </div>
+      <div class="rounded-xl border ${netoPeriodo >= 0 ? 'border-lime-500/40 bg-gradient-to-br from-lime-900/30 to-slate-900/40 theme-light:from-lime-50 theme-light:to-white' : 'border-rose-500/40 bg-gradient-to-br from-rose-900/30 to-slate-900/40 theme-light:from-rose-50 theme-light:to-white'} p-6 shadow-lg">
+        <div class="text-sm ${netoPeriodo >= 0 ? 'text-lime-200 dark:text-lime-200 theme-light:text-lime-700' : 'text-rose-200 dark:text-rose-200 theme-light:text-rose-700'} font-semibold mb-2">Neto del período</div>
+        <div class="text-5xl md:text-6xl font-extrabold ${netoPeriodo >= 0 ? 'text-lime-300 dark:text-lime-300 theme-light:text-lime-700' : 'text-rose-300 dark:text-rose-300 theme-light:text-rose-700'} leading-none tracking-tight">${money(netoPeriodo)}</div>
+        <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Entradas reales - salidas reales (operativas + inversión)</div>
+      </div>
+      <div class="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-cyan-900/30 to-slate-900/40 theme-light:from-cyan-50 theme-light:to-white p-6 shadow-lg">
+        <div class="text-sm text-cyan-200 dark:text-cyan-200 theme-light:text-cyan-700 font-semibold mb-2">Valor actual en caja (al momento)</div>
+        <div class="text-5xl md:text-6xl font-extrabold text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700 leading-none tracking-tight">${money(cajaActual.total || 0)}</div>
+        <div class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-3">Suma de saldos actuales de todas las cuentas</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Carros cerrados</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosCerrados || 0)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Carros ingresados (agenda)</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosIngresadosAgenda || 0)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Carros ingresados (taller)</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${Number(kpis.carrosIngresadosTaller || 0)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Dinero entrado (sin transferencias)</div>
+        <div class="text-3xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-700">${money(kpis.dineroEntrado)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Promedio por vehículo</div>
+        <div class="text-3xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-700">${money(kpis.promedioPorVehiculo)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total facturado</div>
+        <div class="text-3xl font-bold text-white dark:text-white theme-light:text-slate-900">${money(kpis.totalFacturado)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total salidas (período)</div>
+        <div class="text-3xl font-bold text-red-400 dark:text-red-400 theme-light:text-red-700">${money(salidas.total || 0)}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💸 Salidas</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total salidas</span><span class="font-semibold text-red-400 dark:text-red-400 theme-light:text-red-700">${money(salidas.total)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Operativas</span><span class="font-semibold text-orange-400 dark:text-orange-400 theme-light:text-orange-700">${money(salidas.operativas)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Inversión</span><span class="font-semibold text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-700">${money(salidas.inversion)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Transferencias</span><span class="font-semibold text-cyan-300 dark:text-cyan-300 theme-light:text-cyan-700">${money(salidas.transferencias)}</span></div>
+        </div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">🏦 Dinero entrado por cuenta</h3>
+        <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+          ${cuentas.map(c => `
+            <div class="flex justify-between p-2 rounded-lg bg-slate-700/25 dark:bg-slate-700/25 theme-light:bg-white">
+              <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtmlReport(c.accountName || 'Sin cuenta')}</span>
+              <span class="font-semibold text-green-400 dark:text-green-400 theme-light:text-green-700">${money(c.amount || 0)}</span>
+            </div>
+          `).join('')}
+          ${!cuentas.length ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay ingresos registrados para este período.</p>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Caja actual por cuenta</h3>
+      <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+        ${(Array.isArray(cajaActual.cuentas) ? cajaActual.cuentas : []).map(c => `
+          <div class="flex justify-between p-2 rounded-lg bg-slate-700/25 dark:bg-slate-700/25 theme-light:bg-white">
+            <span class="text-white dark:text-white theme-light:text-slate-900">${escapeHtmlReport(c.accountName || 'Sin cuenta')}</span>
+            <span class="font-semibold text-emerald-300 dark:text-emerald-300 theme-light:text-emerald-700">${money(c.balance || 0)}</span>
+          </div>
+        `).join('')}
+        ${(!Array.isArray(cajaActual.cuentas) || !cajaActual.cuentas.length) ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay cuentas para mostrar.</p>' : ''}
+      </div>
+    </div>
+  `;
+
+  const existing = document.getElementById('report-container');
+  if (existing) existing.remove();
+  viewHistorial.prepend(reportContainer);
 }
 
 function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashBalances = [], currentCashTotal = 0) {
@@ -14571,10 +14824,12 @@ function openTechnicianReportModal() {
   div.className = 'space-y-4';
   
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">👷 Generar Reporte de Técnicos</h3>
-    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
-      Selecciona el rango de fechas y el técnico para generar un reporte con todas las ventas en las que participó.
-    </p>
+    <div class="rounded-xl p-4 border border-purple-600/35 dark:border-purple-600/35 theme-light:border-purple-200 bg-gradient-to-br from-purple-950/45 via-slate-900/50 to-slate-900/25 theme-light:from-purple-50 theme-light:via-white theme-light:to-sky-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0 flex items-center gap-2 flex-wrap"><span class="text-2xl shrink-0 leading-none" aria-hidden="true">👷</span> Reporte de técnicos</h3>
+      <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">
+        Rango de fechas y técnico: resume ventas en las que participó.
+      </p>
+    </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>
@@ -14851,10 +15106,10 @@ async function createTechnicianReportSaleCard(sale, originalIndex, container) {
         </div>
       </div>
       <div class="flex-shrink-0 flex gap-2">
-        <button class="btn-tech-toggle-visibility px-3 py-2 text-xs bg-slate-600/50 dark:bg-slate-600/50 hover:bg-slate-600 dark:hover:bg-slate-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-500/50 dark:border-slate-500/50" data-sale-id="${sale._id}" title="Ocultar/Mostrar">
+        <button class="btn-tech-toggle-visibility sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-slate-600/80 to-slate-700/80 dark:from-slate-600/80 dark:to-slate-700/80 hover:from-slate-700 hover:to-slate-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-500/50 dark:border-slate-500/50" data-sale-id="${sale._id}" title="Ocultar/Mostrar">
           👁️
         </button>
-        <button class="btn-tech-view-detail px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
+        <button class="btn-tech-view-detail sales-main-btn px-3 py-2 text-xs bg-gradient-to-r from-blue-600/85 to-cyan-700/85 dark:from-blue-600/85 dark:to-cyan-700/85 hover:from-blue-700 hover:to-cyan-800 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
           👁️ Ver Detalle
         </button>
       </div>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Inventario Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-inventory">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+
+    <div class="topbar sticky top-0 z-[1000] boss-app-header">
+      <header class="boss-header-shell">
+        <div class="boss-topbar-inner">
+          <div class="boss-header-brand">
+            <img src="assets/lightlogo.png" alt="M&M" class="boss-brand-logo" />
+            <div class="boss-brand-copy">
+              <div class="boss-brand-kicker">Portal del jefe</div>
+              <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+              <div class="boss-muted">Ítems con stock mínimo</div>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center gap-2 boss-header-actions">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-logout class="boss-header-btn boss-header-btn-ghost">Salir</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 boss-header-actions-mobile">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-menu-toggle class="boss-header-btn boss-header-btn-icon" aria-label="Abrir menú">☰</button>
+          </div>
+        </div>
+
+        <div class="hidden md:block boss-header-nav-row">
+          <div class="boss-header-nav-wrap">
+            <nav class="boss-header-nav">
+              <a href="boss-home.html" class="boss-nav-tab">🏠 Inicio</a>
+              <a href="boss-cashflow.html" class="boss-nav-tab">💰 Caja</a>
+              <a href="boss-sales.html" class="boss-nav-tab">🚗 Ventas</a>
+              <a href="boss-inventory.html" class="boss-nav-tab active">📦 Inventario</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div class="md:hidden hidden boss-header-mobile-drawer" data-boss-mobile-menu>
+        <div class="boss-mobile-nav-list">
+          <a href="boss-home.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🏠 Inicio</a>
+          <a href="boss-cashflow.html" class="boss-mobile-nav-tab" data-boss-mobile-link>💰 Caja</a>
+          <a href="boss-sales.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🚗 Ventas</a>
+          <a href="boss-inventory.html" class="boss-mobile-nav-tab active" data-boss-mobile-link>📦 Inventario</a>
+          <button type="button" data-boss-logout class="boss-mobile-nav-tab boss-mobile-nav-tab-danger">Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="boss-main">
+      <section class="boss-page-header boss-inventory-page-header">
+        <h2 class="boss-page-title">📦 Inventario del taller</h2>
+      </section>
+
+      <section class="boss-panel">
+        <div class="boss-inventory-toolbar">
+          <input id="bossInventorySearch" class="boss-input" type="search" autocomplete="off" placeholder="Buscar por ítem, nombre interno o SKU" />
+          <button id="bossInventoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar</button>
+        </div>
+
+        <div class="boss-inventory-summary" id="bossInventorySummary">
+          <div class="boss-stock-pill ok">Ítems con mínimo: —</div>
+          <div class="boss-stock-pill low">En o bajo mínimo: —</div>
+        </div>
+
+        <div class="boss-section-head boss-section-head-tight">
+          <div>
+            <div class="boss-section-kicker">📋 Listado</div>
+            <h3 class="boss-section-title">Stock mínimo configurado</h3>
+          </div>
+        </div>
+
+        <div class="boss-table-wrap boss-table-wrap-wide">
+          <table class="boss-table boss-table--stacked-mobile">
+            <thead>
+              <tr>
+                <th>Ítem</th>
+                <th>Nombre interno</th>
+                <th class="align-right">Unidades</th>
+                <th class="align-right">Stock mín.</th>
+                <th>Estado</th>
+                <th class="boss-inv-col-images">Imágenes</th>
+              </tr>
+            </thead>
+            <tbody id="bossInventoryRows">
+              <tr><td colspan="6">Cargando inventario…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="boss-pagination">
+          <div class="boss-muted" id="bossInventoryPageInfo">Página 1</div>
+          <div class="boss-actions">
+            <button id="bossInventoryPrev" class="boss-btn boss-btn-secondary" type="button">← Anterior</button>
+            <button id="bossInventoryNext" class="boss-btn boss-btn-secondary" type="button">Siguiente →</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="bossInventoryImageModal" class="boss-inv-modal hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="bossInventoryImageModalTitle">
+    <div class="boss-inv-modal-backdrop" data-boss-inv-modal-close></div>
+    <div class="boss-inv-modal-panel">
+      <div class="boss-inv-modal-head">
+        <h3 id="bossInventoryImageModalTitle" class="boss-inv-modal-title">Imágenes</h3>
+        <button type="button" class="boss-inv-modal-x" data-boss-inv-modal-close aria-label="Cerrar">×</button>
+      </div>
+      <div class="boss-inv-modal-body" id="bossInventoryImageModalBody"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>

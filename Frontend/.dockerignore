@@ -1,0 +1,26 @@
+# Metadatos de la imagen
+Dockerfile
+.dockerignore
+
+# Nunca enviar a la imagen nginx
+node_modules
+npm-debug.log*
+yarn-error.log*
+
+# Solo hace falta ui.css compilado en producción (ver Dockerfile)
+package.json
+package-lock.json
+tailwind.config.cjs
+assets/tailwind.css
+
+# Repo / IDE
+.git
+.gitignore
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+*.md
+.env
+.env.*

@@ -109,6 +109,7 @@ function connectLive() {
 
 function bind(){
   document.getElementById('cf-refresh')?.addEventListener('click', ()=>{ loadAccounts(); });
+  document.getElementById('cf-recompute')?.addEventListener('click', recomputeBalancesAndReload);
   document.getElementById('cf-add-account')?.addEventListener('click', openAddAccountModal);
   document.getElementById('cf-bill-counter')?.addEventListener('click', openBillCounterModal);
   document.getElementById('cf-apply')?.addEventListener('click', ()=> loadMovements(true));
@@ -116,11 +117,153 @@ function bind(){
   document.getElementById('cf-next')?.addEventListener('click', ()=>{ if(cfState.page<cfState.pages){ cfState.page++; loadMovements(); } });
   document.getElementById('cf-new-entry')?.addEventListener('click', openNewEntryModal);
   document.getElementById('cf-new-expense')?.addEventListener('click', ()=> openNewEntryModal('OUT'));
+  document.getElementById('cf-new-transfer')?.addEventListener('click', openTransferModal);
   document.getElementById('cf-new-loan')?.addEventListener('click', openNewLoanModal);
   document.getElementById('cf-refresh-loans')?.addEventListener('click', ()=> loadLoans(true));
   document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
   document.getElementById('cf-loan-filter-status')?.addEventListener('change', ()=> loadLoans());
+  document.getElementById('cf-open-session')?.addEventListener('click', openCashSession);
+  document.getElementById('cf-close-session')?.addEventListener('click', closeCashSession);
+  document.getElementById('cf-session-report')?.addEventListener('click', downloadSessionReport);
   loadLoans();
+  loadCashSessionPanel();
+}
+
+// ===== Sesiones de caja (apertura/cierre y reporte) =====
+
+function fmtSessionDate(d){
+  if(!d) return '';
+  return new Date(d).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+async function loadCashSessionPanel(){
+  const statusEl = document.getElementById('cf-session-status');
+  const openBtn = document.getElementById('cf-open-session');
+  const closeBtn = document.getElementById('cf-close-session');
+  if(!statusEl) return;
+  try{
+    const { session } = await API.cashflow.sessions.current();
+    if(session){
+      statusEl.textContent = `🟢 Caja abierta desde ${fmtSessionDate(session.openedAt)}`;
+      openBtn?.classList.add('hidden');
+      closeBtn?.classList.remove('hidden');
+    } else {
+      statusEl.textContent = '🔴 Caja cerrada';
+      openBtn?.classList.remove('hidden');
+      closeBtn?.classList.add('hidden');
+    }
+  }catch(e){
+    statusEl.textContent = 'No se pudo consultar el estado de la caja';
+  }
+  await loadCashSessionList();
+}
+
+async function loadCashSessionList(){
+  const sel = document.getElementById('cf-session-select');
+  if(!sel) return;
+  try{
+    const { sessions } = await API.cashflow.sessions.list();
+    if(!sessions?.length){
+      sel.innerHTML = `<option value="">-- Sin cierres registrados --</option>`;
+      return;
+    }
+    sel.innerHTML = sessions.map(s =>
+      `<option value="${s._id}">Cierre ${fmtSessionDate(s.closedAt)} (apertura ${fmtSessionDate(s.openedAt)})</option>`
+    ).join('');
+  }catch(e){
+    sel.innerHTML = `<option value="">Error cargando cierres</option>`;
+  }
+}
+
+async function openCashSession(){
+  const msg = document.getElementById('cf-session-msg');
+  const btn = document.getElementById('cf-open-session');
+  if(btn) btn.disabled = true;
+  if(msg) msg.textContent = 'Abriendo caja...';
+  try{
+    await API.cashflow.sessions.open();
+    if(msg) msg.textContent = 'Caja abierta correctamente.';
+    await loadCashSessionPanel();
+  }catch(e){
+    if(msg) msg.textContent = e?.message || 'Error abriendo caja';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function closeCashSession(){
+  if(!confirm('¿Cerrar la caja? Se tomará el saldo actual de todas las cuentas como cierre del periodo.')) return;
+  const msg = document.getElementById('cf-session-msg');
+  const btn = document.getElementById('cf-close-session');
+  if(btn) btn.disabled = true;
+  if(msg) msg.textContent = 'Cerrando caja...';
+  try{
+    await API.cashflow.sessions.close();
+    if(msg) msg.textContent = 'Caja cerrada. Ya puedes generar el reporte del periodo.';
+    await loadCashSessionPanel();
+  }catch(e){
+    if(msg) msg.textContent = e?.message || 'Error cerrando caja';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function downloadSessionReport(){
+  const sel = document.getElementById('cf-session-select');
+  const msg = document.getElementById('cf-session-msg');
+  const btn = document.getElementById('cf-session-report');
+  const sessionId = sel?.value || '';
+  if(!sessionId){
+    if(msg) msg.textContent = 'Selecciona un periodo de caja para generar el reporte.';
+    return;
+  }
+  const originalText = btn?.textContent || '';
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Generando...'; }
+  if(msg) msg.textContent = 'Generando reporte PDF...';
+  try{
+    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+    const token = API.token.get();
+    const response = await fetch(`${apiBase}/api/v1/cashflow/cash-sessions/${sessionId}/report.pdf`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if(!response.ok){
+      let errText = `HTTP ${response.status}`;
+      try{ const body = await response.json(); errText = body?.error || errText; }catch{}
+      throw new Error(errText);
+    }
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+    setTimeout(()=> URL.revokeObjectURL(blobUrl), 60000);
+    if(msg) msg.textContent = 'Reporte generado.';
+  }catch(e){
+    if(msg) msg.textContent = e?.message || 'Error generando el reporte';
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = originalText; }
+  }
+}
+
+async function recomputeBalancesAndReload() {
+  const btn = document.getElementById('cf-recompute');
+  const prev = btn?.textContent || 'Recalcular saldos';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Recalculando...';
+  }
+  try {
+    const result = await API.cashflow.recomputeBalances();
+    showSuccess(`Saldos recalculados (${result?.recomputedAccounts || 0} cuentas)`);
+    await loadAccounts();
+    await loadMovements(true);
+  } catch (e) {
+    showError(e?.message || 'Error recalculando saldos');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  }
 }
 
 async function loadAccounts(){
@@ -151,7 +294,7 @@ async function loadAccounts(){
     const visibleTotal = balances.reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0);
     
     if(body){
-      body.innerHTML = balances.map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3 text-center"><button onclick="deleteAccount('${a.accountId || a._id || a.id}', '${escapeHtml(a.name)}')" class="px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded transition-colors" title="Eliminar cuenta y todos sus registros">🗑️</button></td></tr>`).join('');
+      body.innerHTML = balances.map((a, idx)=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-slate-800/15 dark:bg-slate-800/15 theme-light:bg-white/70' : ''}"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3 text-center"><button onclick="deleteAccount('${a.accountId || a._id || a.id}', '${escapeHtml(a.name)}')" class="cf-mini-btn cf-mini-btn-red" title="Eliminar cuenta y todos sus registros">🗑️</button></td></tr>`).join('');
       if(!balances.length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
     if(totalLbl) totalLbl.textContent = 'Total: '+money(visibleTotal);
@@ -221,13 +364,28 @@ async function loadMovements(reset=false){
           second: '2-digit' 
         });
       };
+
+      const getMovementRowClasses = (entry) => {
+        const metaType = String(entry?.meta?.type || '').toLowerCase();
+        if (metaType === 'employee_loan') {
+          return 'cf-movement-row cf-movement-loan';
+        }
+        if (entry.source === 'TRANSFER') {
+          return 'cf-movement-row cf-movement-transfer';
+        }
+        if (entry.kind === 'IN') {
+          return 'cf-movement-row cf-movement-in';
+        }
+        return 'cf-movement-row cf-movement-out';
+      };
       
-      rowsBody.innerHTML = items.map(x=>{
+      rowsBody.innerHTML = items.map((x)=>{
         const inAmt = x.kind==='IN'? money(x.amount):'';
         const outAmt = x.kind==='OUT'? money(x.amount):'';
         const date = formatDate(x.date||x.createdAt);
         const accName = escapeHtml(x.accountId?.name||x.accountName||'');
         let desc = escapeHtml(x.description||'');
+        const rowClasses = getMovementRowClasses(x);
         
         // Si la entrada es de una venta, agregar número de venta y placa a la descripción
         if (x.source === 'SALE' && x.sourceRef) {
@@ -238,7 +396,7 @@ async function loadMovements(reset=false){
             if (saleNumber) saleInfo.push(`Venta #${saleNumber}`);
             if (salePlate) saleInfo.push(`Placa: ${salePlate.toUpperCase()}`);
             if (saleInfo.length > 0) {
-              desc = `${desc} - ${saleInfo.join(' | ')}`;
+              desc = `${desc} · ${saleInfo.join(' · ')}`;
             }
           }
         }
@@ -246,14 +404,14 @@ async function loadMovements(reset=false){
         const canEdit = true;
         const rowId = escapeHtml(x._id);
         
-        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 transition-colors ${rowClasses}">
           <td data-label="Fecha" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
           <td data-label="Cuenta" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
           <td data-label="Descripción" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>
           <td data-label="Entrada" class='px-4 py-4 text-right text-xs font-semibold text-green-400 dark:text-green-400 ${x.kind==='IN'?'theme-light:text-green-800 theme-light:bg-green-50 theme-light:border-l-4 theme-light:border-green-700':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'} border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${inAmt}</td>
           <td data-label="Salida" class='px-4 py-4 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
           <td data-label="Saldo" class='px-4 py-4 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${money(x.balanceAfter||0)}</td>
-          <td class="px-4 py-4" style='white-space:nowrap;'>${canEdit?`<button class='px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 mr-1' data-act='edit' title='Editar'>Editar</button><button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
+          <td class="px-4 py-4" style='white-space:nowrap;'>${canEdit?`<button class='cf-mini-btn cf-mini-btn-blue mr-1' data-act='edit' title='Editar'>Editar</button><button class='cf-mini-btn cf-mini-btn-red' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
         </tr>`;
       }).join('');
       rowsBody.querySelectorAll('tr[data-id]').forEach(tr=>{
@@ -282,7 +440,7 @@ async function loadMovements(reset=false){
     // Actualizar controles de paginación
     const IN = data.totals?.in||0; 
     const OUT = data.totals?.out||0;
-    if(summary) summary.textContent = `Entradas: ${money(IN)} | Salidas: ${money(OUT)} | Neto: ${money(IN-OUT)}`;
+    if(summary) summary.innerHTML = `<span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-emerald-600/20 theme-light:bg-emerald-100 text-emerald-300 theme-light:text-emerald-700 font-semibold">Entradas: ${money(IN)}</span><span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-rose-600/20 theme-light:bg-rose-100 text-rose-300 theme-light:text-rose-700 font-semibold">Salidas: ${money(OUT)}</span><span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-600/20 theme-light:bg-blue-100 text-blue-300 theme-light:text-blue-700 font-semibold">Neto: ${money(IN-OUT)}</span>`;
     cfState.page = data.page||1; 
     cfState.pages = Math.max(1, Math.ceil((data.total||0)/cfState.limit));
     if(pag) pag.textContent = `Página ${cfState.page} de ${cfState.pages}`;
@@ -618,7 +776,10 @@ function openAddAccountModal(){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">➕ Nueva Cuenta</h3>
+    <div class="rounded-xl p-4 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200 bg-gradient-to-br from-blue-950/40 via-slate-900/45 to-indigo-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">➕ Nueva Cuenta</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Crea una cuenta de caja o banco para registrar movimientos.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Nombre de la cuenta</label>
       <input id='nacc-name' type='text' placeholder='Ej: Caja Principal, Banco BBVA...' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
@@ -651,7 +812,7 @@ function openAddAccountModal(){
       <textarea id='nacc-notes' placeholder='Notas adicionales sobre la cuenta...' rows="3" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"></textarea>
     </div>
     <div class="flex gap-2 mt-6">
-      <button id='nacc-save' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+      <button id='nacc-save' class="cf-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
       <button id='nacc-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='nacc-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -719,7 +880,10 @@ function openEditMovementModal(id, trRow){
   
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">✏️ Editar Movimiento</h3>
+    <div class="rounded-xl p-4 border border-cyan-600/30 dark:border-cyan-600/30 theme-light:border-cyan-200 bg-gradient-to-br from-cyan-950/35 via-slate-900/45 to-blue-950/35 theme-light:from-sky-50 theme-light:via-white theme-light:to-cyan-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">✏️ Editar Movimiento</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Actualiza el valor o la descripción del movimiento.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
       <input id='edit-mov-amount' type='number' min='1' step='0.01' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
@@ -729,7 +893,7 @@ function openEditMovementModal(id, trRow){
       <input id='edit-mov-desc' type='text' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
     </div>
     <div class="flex gap-2 mt-6">
-      <button id='edit-mov-save' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+      <button id='edit-mov-save' class="cf-main-btn flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
       <button id='edit-mov-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='edit-mov-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -796,7 +960,10 @@ function openNewEntryModal(defaultKind='IN'){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">${defaultKind==='OUT'?'Nueva salida de caja':'Nueva entrada manual'}</h3>
+    <div class="rounded-xl p-4 border border-${defaultKind==='OUT'?'red':'green'}-600/30 dark:border-${defaultKind==='OUT'?'red':'green'}-600/30 theme-light:border-${defaultKind==='OUT'?'red':'green'}-200 bg-gradient-to-br from-slate-900/45 via-slate-900/45 to-slate-800/30 theme-light:from-sky-50 theme-light:via-white theme-light:to-indigo-50">
+      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">${defaultKind==='OUT'?'➖ Nueva salida de caja':'➕ Nueva entrada manual'}</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Registra un movimiento manual asociado a una cuenta.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta</label>
       <select id='ncf-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
@@ -809,8 +976,26 @@ function openNewEntryModal(defaultKind='IN'){
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción</label>
       <input id='ncf-desc' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
     </div>
+    ${defaultKind === 'OUT' ? `
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Tipo de salida</label>
+      <select id='ncf-source' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="MANUAL">Manual</option>
+        <option value="INVESTMENT">Inversión</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Categoría <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">*</span></label>
+      <select id='ncf-tag' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60">
+        <option value="">Selecciona una categoría...</option>
+        <option value="REPUESTOS">Repuestos</option>
+        <option value="SERVICIOS_TALLER">Servicios Taller</option>
+        <option value="INSUMOS_TALLER">Insumos Taller</option>
+      </select>
+    </div>
+    ` : ''}
     <div class="flex gap-2 mt-4">
-      <button id='ncf-save' class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+      <button id='ncf-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
       <button id='ncf-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='ncf-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -818,19 +1003,114 @@ function openNewEntryModal(defaultKind='IN'){
   body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
   const sel = div.querySelector('#ncf-account');
   API.accounts.list().then(list=>{ sel.innerHTML=list.map(a=>`<option value='${a._id}'>${a.name}</option>`).join(''); });
+  // Si la salida es una inversión, la categoría queda fija en Repuestos
+  const sourceSelEl = div.querySelector('#ncf-source');
+  const tagSelEl = div.querySelector('#ncf-tag');
+  if (sourceSelEl && tagSelEl) {
+    sourceSelEl.addEventListener('change', () => {
+      if (sourceSelEl.value === 'INVESTMENT') {
+        tagSelEl.value = 'REPUESTOS';
+        tagSelEl.disabled = true;
+      } else {
+        tagSelEl.disabled = false;
+      }
+    });
+  }
   div.querySelector('#ncf-cancel').onclick=()=> modal.classList.add('hidden');
   div.querySelector('#ncf-save').onclick=async()=>{
     const msg = div.querySelector('#ncf-msg');
-    msg.textContent='Guardando...';
     try{
       const amount = Number(div.querySelector('#ncf-amount').value||0)||0;
       const accountId = sel.value;
       const description = div.querySelector('#ncf-desc').value||'';
       const kindSel = (defaultKind==='OUT') ? 'OUT' : 'IN';
-      await API.cashflow.create({ accountId, kind: kindSel, amount, description });
+      const sourceSel = div.querySelector('#ncf-source');
+      const source = kindSel === 'OUT' ? (sourceSel?.value || 'MANUAL') : 'MANUAL';
+      const tag = kindSel === 'OUT' ? (tagSelEl?.value || '') : '';
+      if (kindSel === 'OUT' && !tag) {
+        msg.textContent = 'Debes seleccionar una categoría para la salida.';
+        tagSelEl?.focus();
+        return;
+      }
+      msg.textContent='Guardando...';
+      const meta = source === 'INVESTMENT' ? { paymentMode: 'manual', category: 'INVESTMENT' } : { category: 'MANUAL' };
+      await API.cashflow.create({ accountId, kind: kindSel, amount, description, source, meta, ...(tag ? { tag } : {}) });
       msg.textContent='OK';
       setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },400);
     }catch(e){ msg.textContent=e?.message||'Error'; }
+  };
+}
+
+function openTransferModal(){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-4">
+    <div class="rounded-xl p-4 border border-sky-600/30 dark:border-sky-600/30 theme-light:border-sky-200 bg-gradient-to-br from-sky-950/30 via-slate-900/45 to-blue-950/30 theme-light:from-sky-50 theme-light:via-white theme-light:to-blue-50">
+      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">↔ Transferir entre cuentas</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Crea dos movimientos vinculados automáticamente: salida en origen y entrada en destino.</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta origen</label>
+      <select id='tr-from-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta destino</label>
+      <select id='tr-to-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
+      <input id='tr-amount' type='number' min='1' step='1' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción (opcional)</label>
+      <input id='tr-desc' placeholder='Ej: Traspaso operativo' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id='tr-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-700 dark:from-sky-600 dark:to-blue-700 theme-light:from-sky-600 theme-light:to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Transferir</button>
+      <button id='tr-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='tr-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
+  body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
+
+  const fromSel = div.querySelector('#tr-from-account');
+  const toSel = div.querySelector('#tr-to-account');
+  const msg = div.querySelector('#tr-msg');
+
+  API.accounts.list().then(list=>{
+    const opts = list.map(a=>`<option value='${a._id}'>${escapeHtml(a.name)}</option>`).join('');
+    fromSel.innerHTML = `<option value=''>-- Seleccionar --</option>${opts}`;
+    toSel.innerHTML = `<option value=''>-- Seleccionar --</option>${opts}`;
+  }).catch(()=>{ msg.textContent = 'Error cargando cuentas'; });
+
+  div.querySelector('#tr-cancel').onclick=()=> modal.classList.add('hidden');
+  div.querySelector('#tr-save').onclick=async()=>{
+    msg.textContent='Guardando transferencia...';
+    try{
+      const fromAccountId = fromSel.value;
+      const toAccountId = toSel.value;
+      const amount = Number(div.querySelector('#tr-amount').value||0)||0;
+      const description = div.querySelector('#tr-desc').value||'';
+      if(!fromAccountId || !toAccountId){
+        msg.textContent='⚠️ Selecciona cuenta origen y destino';
+        return;
+      }
+      if(fromAccountId === toAccountId){
+        msg.textContent='⚠️ Las cuentas deben ser diferentes';
+        return;
+      }
+      if(amount <= 0){
+        msg.textContent='⚠️ El monto debe ser mayor a 0';
+        return;
+      }
+      await API.cashflow.transfer({ fromAccountId, toAccountId, amount, description });
+      msg.textContent='✅ Transferencia creada';
+      setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },500);
+    }catch(e){
+      msg.textContent = '❌ ' + (e?.message || 'Error al transferir');
+    }
   };
 }
 
@@ -841,7 +1121,10 @@ function openSettleLoanModal(loanId, loan){
   const pending = loan.amount - (loan.paidAmount||0);
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💰 Liquidar Préstamo</h3>
+    <div class="rounded-xl p-4 border border-emerald-600/30 dark:border-emerald-600/30 theme-light:border-emerald-200 bg-gradient-to-br from-emerald-950/30 via-slate-900/45 to-teal-950/30 theme-light:from-emerald-50 theme-light:via-white theme-light:to-teal-50">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">💰 Liquidar Préstamo</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Registra un pago total o parcial del préstamo del empleado.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Empleado</label>
       <input type="text" value="${escapeHtml(loan.technicianName)}" disabled class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-900"/>
@@ -868,7 +1151,7 @@ function openSettleLoanModal(loanId, loan){
     </div>
     <div class="flex gap-2 justify-end">
       <button id='settle-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
-      <button id='settle-submit' class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Liquidar</button>
+      <button id='settle-submit' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-600 dark:to-emerald-700 theme-light:from-green-600 theme-light:to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Liquidar</button>
     </div>
   </div>`;
   body.innerHTML = '';
@@ -942,7 +1225,10 @@ function openNewLoanModal(){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<div class="space-y-4">
-    <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Nuevo Préstamo a Empleado</h3>
+    <div class="rounded-xl p-4 border border-violet-600/30 dark:border-violet-600/30 theme-light:border-violet-200 bg-gradient-to-br from-violet-950/30 via-slate-900/45 to-fuchsia-950/30 theme-light:from-violet-50 theme-light:via-white theme-light:to-fuchsia-50">
+      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">🤝 Nuevo Préstamo a Empleado</h3>
+      <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2 mb-0">Crea un préstamo y regístralo automáticamente en flujo de caja.</p>
+    </div>
     <div>
       <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Técnico/Empleado</label>
       <select id='nloan-tech' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -968,7 +1254,7 @@ function openNewLoanModal(){
       <textarea id='nloan-notes' placeholder='Notas adicionales' class="w-full min-h-[60px] p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
     </div>
     <div class="flex gap-2 mt-4">
-      <button id='nloan-save' class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+      <button id='nloan-save' class="cf-main-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-600 dark:to-indigo-700 theme-light:from-blue-600 theme-light:to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
       <button id='nloan-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
     </div>
     <div id='nloan-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
@@ -1068,7 +1354,7 @@ async function loadLoans(reset=false){
     const loans = data.items || [];
     
     if(body){
-      body.innerHTML = loans.map(loan=>{
+      body.innerHTML = loans.map((loan, idx)=>{
         const date = new Date(loan.loanDate||loan.createdAt).toLocaleDateString('es-CO');
         const pending = loan.amount - (loan.paidAmount||0);
         const statusLabels = {
@@ -1078,7 +1364,7 @@ async function loadLoans(reset=false){
           cancelled: '<span style="color:#6b7280;">Cancelado</span>'
         };
         const canDelete = loan.status === 'pending' && (!loan.settlementIds || loan.settlementIds.length === 0);
-        return `<tr data-id='${loan._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+        return `<tr data-id='${loan._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-slate-800/15 dark:bg-slate-800/15 theme-light:bg-white/70' : ''}">
           <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
           <td data-label="Técnico" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${loan.technicianName}</td>
           <td data-label="Monto" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(loan.amount)}</td>
@@ -1087,8 +1373,8 @@ async function loadLoans(reset=false){
           <td data-label="Estado" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${statusLabels[loan.status]||loan.status}</td>
           <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${loan.description||'-'}</td>
           <td class="px-4 py-3" style='white-space:nowrap;'>
-            ${pending > 0?`<button class='px-3 py-1.5 text-xs bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 theme-light:hover:bg-green-100 theme-light:border-green-300 mr-1' data-act='settle' title='Liquidar'>Liquidar</button>`:''}
-            ${canDelete?`<button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}
+            ${pending > 0?`<button class='cf-mini-btn cf-mini-btn-green mr-1' data-act='settle' title='Liquidar'>Liquidar</button>`:''}
+            ${canDelete?`<button class='cf-mini-btn cf-mini-btn-red' data-act='del' title='Eliminar'>Eliminar</button>`:''}
           </td>
         </tr>`;
       }).join('');
@@ -1124,7 +1410,7 @@ async function loadLoans(reset=false){
     const totalAmount = loans.reduce((sum, l) => sum + l.amount, 0);
     const totalPaid = loans.reduce((sum, l) => sum + (l.paidAmount||0), 0);
     
-    if(summary) summary.textContent = `Total préstamos: ${money(totalAmount)} | Pagado: ${money(totalPaid)} | Pendiente: ${money(totalPending)}`;
+    if(summary) summary.innerHTML = `<span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-violet-600/20 theme-light:bg-violet-100 text-violet-300 theme-light:text-violet-700 font-semibold">Total: ${money(totalAmount)}</span><span class="inline-flex items-center px-2 py-1 mr-2 rounded-md bg-blue-600/20 theme-light:bg-blue-100 text-blue-300 theme-light:text-blue-700 font-semibold">Pagado: ${money(totalPaid)}</span><span class="inline-flex items-center px-2 py-1 rounded-md bg-amber-600/20 theme-light:bg-amber-100 text-amber-300 theme-light:text-amber-700 font-semibold">Pendiente: ${money(totalPending)}</span>`;
     
     const techSel = document.getElementById('cf-loan-filter-tech');
     if(techSel && loans.length > 0){

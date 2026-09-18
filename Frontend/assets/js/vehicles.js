@@ -4,6 +4,13 @@ import { API } from './api.esm.js';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
+function escapeHtmlV(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
 const money = (n) => new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
@@ -47,30 +54,31 @@ export function initVehicles() {
     msgDiv.style.color = '';
     if (saveBtn) {
       saveBtn.textContent = '💾 Guardar';
-      saveBtn.className = 'secondary';
+      saveBtn.className = 'pr-main-btn w-full px-4 py-2 text-sm';
     }
   }
 
   // Función para renderizar vehículo como card
   function renderVehicleCard(vehicle) {
     const card = document.createElement('div');
-    card.className = 'card';
-    card.style.cssText = 'padding:12px;border:1px solid var(--border);border-radius:8px;';
-    
-    const modelYearDisplay = vehicle.modelYear 
-      ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Modelo: ${vehicle.modelYear}</div>`
-      : '<div style="font-size:11px;color:var(--muted);margin-top:4px;">Sin restricción de modelo</div>';
-    
+    card.className = 'rounded-xl border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-200 bg-slate-800/40 dark:bg-slate-800/40 theme-light:bg-white/90 p-4 shadow-md hover:shadow-lg transition-shadow min-w-0';
+    const mk = escapeHtmlV(vehicle.make);
+    const ln = escapeHtmlV(vehicle.line);
+    const disp = escapeHtmlV(vehicle.displacement);
+    const modelYearDisplay = vehicle.modelYear
+      ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Modelo: ${escapeHtmlV(vehicle.modelYear)}</div>`
+      : '<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Sin restricción de modelo</div>';
+
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:14px;color:var(--text);">${vehicle.make} ${vehicle.line}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Cilindraje: ${vehicle.displacement}</div>
+      <div class="flex justify-between items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm md:text-base text-white dark:text-white theme-light:text-slate-900">${mk} ${ln}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">Cilindraje: ${disp}</div>
           ${modelYearDisplay}
         </div>
-        <div style="display:flex;gap:6px;">
-          <button class="secondary" data-edit-id="${vehicle._id}" style="padding:6px 10px;font-size:12px;">✏️ Editar</button>
-          <button class="danger" data-delete-id="${vehicle._id}" style="padding:6px 10px;font-size:12px;">🗑️ Eliminar</button>
+        <div class="flex flex-wrap gap-1.5 shrink-0 justify-end">
+          <button type="button" class="pr-mini-btn pr-mini-btn--edit" data-edit-id="${vehicle._id}">✏️ Editar</button>
+          <button type="button" class="pr-mini-btn pr-mini-btn--danger" data-delete-id="${vehicle._id}">🗑️ Eliminar</button>
         </div>
       </div>
     `;
@@ -100,7 +108,7 @@ export function initVehicles() {
       if (listDiv) {
         if (allVehicles.length === 0) {
           listDiv.innerHTML = `
-            <div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">
+            <div class="col-span-full text-center text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 p-6 border border-dashed border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-xl">
               No hay vehículos registrados. Crea el primero usando el formulario arriba.
             </div>
           `;
@@ -112,8 +120,8 @@ export function initVehicles() {
       console.error('Error al cargar vehículos:', err);
       if (listDiv) {
         listDiv.innerHTML = `
-          <div style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px solid var(--danger,#ef4444);border-radius:8px;color:var(--danger,#ef4444);">
-            ❌ Error al cargar vehículos: ${err.message || 'Error desconocido'}
+          <div class="col-span-full text-center text-sm p-6 border border-red-500/50 rounded-xl text-red-400 dark:text-red-400 theme-light:text-red-700">
+            ❌ Error al cargar vehículos: ${escapeHtmlV(err.message || 'Error desconocido')}
           </div>
         `;
       }
@@ -155,7 +163,7 @@ export function initVehicles() {
     
     if (saveBtn) {
       saveBtn.textContent = '💾 Actualizar';
-      saveBtn.className = 'secondary';
+      saveBtn.className = 'pr-main-btn w-full px-4 py-2 text-sm';
     }
     
     msgDiv.textContent = `Editando: ${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
@@ -216,6 +224,7 @@ export function initVehicles() {
       if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.textContent = editingVehicleId ? '💾 Actualizar' : '💾 Guardar';
+        saveBtn.className = 'pr-main-btn w-full px-4 py-2 text-sm';
       }
     }
   }

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Ventas Jefe</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260406" />
+  <link rel="stylesheet" href="./assets/css/pages/boss-portal.css?v=20260410" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="boss-sales">
+  <div class="boss-shell">
+    <div class="boss-auth-bg" aria-hidden="true"></div>
+
+    <div class="topbar sticky top-0 z-[1000] boss-app-header">
+      <header class="boss-header-shell">
+        <div class="boss-topbar-inner">
+          <div class="boss-header-brand">
+            <img src="assets/lightlogo.png" alt="M&M" class="boss-brand-logo" />
+            <div class="boss-brand-copy">
+              <div class="boss-brand-kicker">Portal del jefe</div>
+              <h1 class="boss-brand-title" data-boss-company-name>Cargando…</h1>
+              <div class="boss-muted">Ventas y detalle de órdenes</div>
+            </div>
+          </div>
+
+          <div class="hidden md:flex items-center gap-2 boss-header-actions">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-logout class="boss-header-btn boss-header-btn-ghost">Salir</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 boss-header-actions-mobile">
+            <button type="button" data-boss-theme-toggle class="boss-header-btn boss-header-btn-icon" title="Cambiar tema">🌗</button>
+            <button type="button" data-boss-menu-toggle class="boss-header-btn boss-header-btn-icon" aria-label="Abrir menú">☰</button>
+          </div>
+        </div>
+
+        <div class="hidden md:block boss-header-nav-row">
+          <div class="boss-header-nav-wrap">
+            <nav class="boss-header-nav">
+              <a href="boss-home.html" class="boss-nav-tab">🏠 Inicio</a>
+              <a href="boss-cashflow.html" class="boss-nav-tab">💰 Caja</a>
+              <a href="boss-sales.html" class="boss-nav-tab active">🚗 Ventas</a>
+              <a href="boss-inventory.html" class="boss-nav-tab">📦 Inventario</a>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div class="md:hidden hidden boss-header-mobile-drawer" data-boss-mobile-menu>
+        <div class="boss-mobile-nav-list">
+          <a href="boss-home.html" class="boss-mobile-nav-tab" data-boss-mobile-link>🏠 Inicio</a>
+          <a href="boss-cashflow.html" class="boss-mobile-nav-tab" data-boss-mobile-link>💰 Caja</a>
+          <a href="boss-sales.html" class="boss-mobile-nav-tab active" data-boss-mobile-link>🚗 Ventas</a>
+          <a href="boss-inventory.html" class="boss-mobile-nav-tab" data-boss-mobile-link>📦 Inventario</a>
+          <button type="button" data-boss-logout class="boss-mobile-nav-tab boss-mobile-nav-tab-danger">Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="boss-main">
+      <section class="boss-page-header boss-sales-page-header">
+        <h2 class="boss-page-title">🚗 Ventas del taller</h2>
+      </section>
+
+      <section class="boss-panel">
+        <div class="boss-sales-subtabs">
+          <button type="button" class="boss-subtab-btn active" data-boss-sales-tab="open">🟢 Ventas abiertas</button>
+          <button type="button" class="boss-subtab-btn" data-boss-sales-tab="history">🧾 Historial</button>
+        </div>
+
+        <div class="boss-subtab-panel" data-boss-sales-panel="open">
+          <div class="boss-summary-row" id="bossSalesOpenSummary">
+            <div class="boss-summary-chip in">Abiertas: —</div>
+            <div class="boss-summary-chip net">Valor total: —</div>
+          </div>
+          <div id="bossSalesOpenList" class="boss-sales-list">
+            <div class="boss-empty-state">
+              <h3 class="boss-card-title">Ventas abiertas</h3>
+              <p class="boss-empty-copy">Cargando ventas abiertas…</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="boss-subtab-panel hidden" data-boss-sales-panel="history">
+          <div class="boss-filter-toolbar boss-history-quick-filters">
+            <button id="bossSalesHistoryToggleFilters" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button" aria-expanded="false">🔎 Mostrar filtros</button>
+            <button id="bossSalesHistoryToday" class="boss-btn boss-btn-secondary boss-filter-toggle" type="button">📅 Mostrar hoy</button>
+            <button id="bossSalesHistoryCurrentPeriod" class="boss-btn boss-btn-secondary boss-filter-toggle boss-filter-toggle-active" type="button">🗓️ Mostrar periodo actual</button>
+          </div>
+          <div id="bossSalesHistoryFiltersPanel" class="boss-filter-panel hidden">
+            <div class="boss-filter-grid">
+              <input id="bossSalesHistoryFrom" class="boss-input" type="date" />
+              <input id="bossSalesHistoryTo" class="boss-input" type="date" />
+              <input id="bossSalesHistoryPlate" class="boss-input" type="text" placeholder="Placa" />
+              <input id="bossSalesHistoryNumber" class="boss-input" type="text" placeholder="# Venta" />
+              <button id="bossSalesHistoryApply" class="boss-btn boss-btn-primary" type="button">🔎 Aplicar filtros</button>
+            </div>
+          </div>
+          <div class="boss-summary-row" id="bossSalesHistorySummary">
+            <div class="boss-summary-chip in">Con pago: —</div>
+            <div class="boss-summary-chip net">Total facturado: —</div>
+          </div>
+          <div id="bossSalesHistoryList" class="boss-sales-list">
+            <div class="boss-empty-state">
+              <h3 class="boss-card-title">Historial de ventas</h3>
+              <p class="boss-empty-copy">Cargando historial…</p>
+            </div>
+          </div>
+          <div class="boss-pagination">
+            <div class="boss-muted" id="bossSalesHistoryPageInfo">Página 1</div>
+            <div class="boss-actions">
+              <button id="bossSalesHistoryPrev" class="boss-btn boss-btn-secondary" type="button">← Anterior</button>
+              <button id="bossSalesHistoryNext" class="boss-btn boss-btn-secondary" type="button">Siguiente →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./assets/js/boss-portal.js"></script>
+</body>
+</html>

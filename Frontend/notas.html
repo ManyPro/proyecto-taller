@@ -1,38 +1,13 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Notas</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Suprimir warning de producción para Tailwind CDN (usado intencionalmente)
-    if(typeof console !== 'undefined' && console.warn) {
-      const originalWarn = console.warn;
-      console.warn = function(...args) {
-        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
-          return; // Suprimir warning de Tailwind CDN
-        }
-        originalWarn.apply(console, args);
-      };
-    }
-    tailwind.config = {
-      darkMode: ['class', '.theme-light'],
-      theme: {
-        extend: {
-          colors: {
-            'dark-bg': '#0f172a',
-            'dark-card': '#111827',
-            'dark-card-alt': '#0b1220',
-            'dark-text': '#e5e7eb',
-            'dark-muted': '#9ca3af',
-            'dark-border': '#1f2937',
-          }
-        }
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="./assets/ui.css?v=20260339" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=20260332" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
   <style>
     /* Estilos para modo claro - Celeste claro */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
@@ -341,6 +316,199 @@
       .shadow-lg { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; }
       .shadow-xl { box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important; }
     }
+
+    /* Calendario Notas — panel vidrio coherente con el shell */
+    #tab-notas .notes-calendar-panel {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.72) 0%, rgba(15, 23, 42, 0.55) 100%);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-color: rgba(148, 163, 184, 0.22);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+    }
+    body.theme-light #tab-notas .notes-calendar-panel {
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.94) 0%, rgba(224, 242, 254, 0.9) 100%);
+      border-color: rgba(125, 211, 252, 0.5);
+      box-shadow: 0 8px 28px rgba(14, 116, 144, 0.12);
+    }
+    #tab-notas .notes-calendar-panel #calendar-grid {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      padding-bottom: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+    body.theme-light #tab-notas .notes-calendar-panel #calendar-grid {
+      border-bottom-color: rgba(125, 211, 252, 0.35);
+    }
+    #tab-notas .notes-calendar-panel .notes-cal-day-cell {
+      transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
+      box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.45);
+    }
+    body.theme-light     #tab-notas .notes-calendar-panel .notes-cal-day-cell:hover:not(.notes-cal-day--other) {
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
+    }
+
+    /* Modo oscuro: botones primarios del calendario y del modal (contraste estable; evita gris claro + texto blanco) */
+    body.theme-dark #tab-notas .mm-btn-primary,
+    body.theme-dark #modal .mm-btn-primary {
+      background: linear-gradient(92deg, #2563eb, #1d4ed8) !important;
+      background-image: linear-gradient(92deg, #2563eb, #1d4ed8) !important;
+      color: #f8fafc !important;
+      border: 1px solid rgba(96, 165, 250, 0.45);
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+    }
+    body.theme-dark #tab-notas .mm-btn-primary:hover,
+    body.theme-dark #modal .mm-btn-primary:hover {
+      filter: brightness(1.07);
+      border-color: rgba(147, 197, 253, 0.55);
+    }
+    body.theme-dark #tab-notas .mm-btn-success,
+    body.theme-dark #modal .mm-btn-success {
+      background: linear-gradient(92deg, #059669, #047857) !important;
+      background-image: linear-gradient(92deg, #059669, #047857) !important;
+      color: #f8fafc !important;
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3);
+    }
+    body.theme-dark #tab-notas .mm-btn-success:hover,
+    body.theme-dark #modal .mm-btn-success:hover {
+      filter: brightness(1.07);
+    }
+    body.theme-dark #tab-notas .mm-btn-sync {
+      background: rgba(14, 165, 233, 0.14) !important;
+      background-image: none !important;
+      color: #7dd3fc !important;
+      border: 1px solid rgba(56, 189, 248, 0.4) !important;
+      box-shadow: 0 2px 12px rgba(14, 165, 233, 0.12);
+    }
+    body.theme-dark #tab-notas .mm-btn-sync:hover {
+      background: rgba(14, 165, 233, 0.22) !important;
+      color: #e0f2fe !important;
+      border-color: rgba(125, 211, 252, 0.55) !important;
+    }
+
+    /* Modo claro: sincronizar — texto oscuro sobre fondo claro (evita amarillo sobre crema) */
+    body.theme-light #tab-notas .mm-btn-sync {
+      background: #ffffff !important;
+      background-image: none !important;
+      color: #92400e !important;
+      border: 1px solid rgba(180, 83, 9, 0.45) !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+    body.theme-light #tab-notas .mm-btn-sync:hover {
+      background: rgb(254 243 199) !important;
+      color: #78350f !important;
+      border-color: rgba(146, 64, 14, 0.55) !important;
+    }
+
+    /* Modo claro: primarios siempre texto blanco sobre azul (evita "Aplicar" ilegible) */
+    body.theme-light #tab-notas .mm-btn-primary,
+    body.theme-light #modal .mm-btn-primary {
+      background: linear-gradient(92deg, #2563eb, #1d4ed8) !important;
+      background-image: linear-gradient(92deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+    }
+    body.theme-light #tab-notas .mm-btn-primary:hover,
+    body.theme-light #modal .mm-btn-primary:hover {
+      filter: brightness(1.05);
+      border-color: rgba(37, 99, 235, 0.55);
+    }
+
+    /* Notas: sans en toda la pestaña (evita serif del tema del sistema en labels/inputs) */
+    #tab-notas {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", "Source Sans 3", sans-serif;
+    }
+
+    /* Desktop: centrar y acomodar el contenido de Notas sin recortar */
+    @media (min-width: 1024px) {
+      body[data-page="notas"] #tab-notas > div {
+        width: 100%;
+        max-width: 1600px;
+        box-sizing: border-box;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+    }
+
+    /* Contención: evita que inputs/selects se salgan del flex/grid (PC y móvil) */
+    #tab-notas #notes-body {
+      min-width: 0;
+    }
+    #tab-notas #notes-new,
+    #tab-notas #notes-history,
+    #tab-notas #notes-filters {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #tab-notas #notes-filters .notes-filter-grid {
+      min-width: 0;
+    }
+    #tab-notas #notes-new input:not([type="checkbox"]):not([type="radio"]),
+    #tab-notas #notes-new select,
+    #tab-notas #notes-new textarea {
+      max-width: 100%;
+      width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    #tab-notas #notes-new input[type="file"] {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #tab-notas #notes-filters input,
+    #tab-notas #notes-filters #f-apply {
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    #tab-notas #notes-filters #f-apply {
+      width: 100%;
+    }
+    @media (min-width: 640px) {
+      #tab-notas #notes-filters #f-apply {
+        width: auto;
+      }
+    }
+    #tab-notas input[type="date"],
+    #tab-notas input[type="datetime-local"] {
+      color-scheme: dark;
+    }
+    body.theme-light #tab-notas input[type="date"],
+    body.theme-light #tab-notas input[type="datetime-local"] {
+      color-scheme: light;
+    }
+
+    /* Calendario: quitar bisel/estilo nativo de botones (flechas, Hoy, Configuración) en Windows/Edge */
+    #tab-notas button.notes-cal-btn {
+      -webkit-appearance: none;
+      appearance: none;
+      box-shadow: none !important;
+      background-image: none !important;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    body.theme-dark #tab-notas button.notes-cal-btn {
+      background-color: rgba(51, 65, 85, 0.88) !important;
+      border: 1px solid rgba(148, 163, 184, 0.32) !important;
+      color: #f8fafc !important;
+    }
+    body.theme-dark #tab-notas button.notes-cal-btn:hover {
+      background-color: rgba(71, 85, 105, 0.95) !important;
+      border-color: rgba(186, 230, 253, 0.38) !important;
+    }
+    body.theme-light #tab-notas button.notes-cal-btn {
+      background-color: rgba(255, 255, 255, 0.92) !important;
+      border: 1px solid rgba(125, 211, 252, 0.55) !important;
+      color: #0f172a !important;
+    }
+    body.theme-light #tab-notas button.notes-cal-btn:hover {
+      background-color: rgb(224 242 254) !important;
+      border-color: rgb(56 189 248) !important;
+    }
   </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -350,85 +518,81 @@
   <script src="./assets/js/config.js"></script>
 </head>
 <body data-page="notas">
-  <main>
-    <!-- ========== APP HEADER ========== -->
-    <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
-      <!-- Top Bar - Header Principal -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div class="flex items-center justify-between h-16 md:h-20">
-            <!-- Logo y Nombre de Empresa -->
-            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
-              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
-              <div class="hidden sm:flex flex-col">
-                <span class="text-xs text-slate-400 font-medium">Empresa</span>
-                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-              </div>
-              <div class="sm:hidden text-white font-semibold text-sm">
-                <span id="companyNameMobile">-</span>
-              </div>
+  <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
+    <div class="home-header-shell shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 md:h-20">
+          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
+            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+            <div class="hidden sm:flex flex-col">
+              <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+              <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
             </div>
-
-            <!-- Botones de Acción (Desktop) -->
-            <div class="hidden md:flex items-center gap-2">
-              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
-            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-          </div>
-
-          <!-- Menú Hamburguesa (Mobile) -->
-          <div class="md:hidden flex items-center gap-2">
-            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-              </button>
+            <div class="sm:hidden text-white font-semibold text-sm home-header-company">
+              <span id="companyNameMobile">-</span>
             </div>
           </div>
-        </div>
 
-        <!-- Navegación Principal (Desktop) -->
-        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
-              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
-              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
-              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
-              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
-              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
-              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
-              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
-              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
-              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
-              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
-              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
-              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-            </nav>
+          <div class="hidden md:flex items-center gap-2 home-header-actions">
+            <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+            <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+          </div>
+
+          <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+            <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Abrir catálogo público">📚</button>
+            <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" aria-label="Menú">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
-      
-      <!-- Menú Móvil (Mobile Menu) -->
-      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
-        <div class="px-4 py-3 space-y-1">
-          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
-          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Notas</button>
-          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
-          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
-          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Chats</button>
-          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
-          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
-          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
-          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
-          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
-          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+
+      <div class="hidden md:block home-header-nav-row">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+          <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+            <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Clientes</button>
+          </nav>
         </div>
       </div>
     </div>
 
+    <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
+      <div class="px-4 py-3 space-y-1">
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cotizaciones</button>
+        <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Chats</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Cartera</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">SKUs</button>
+        <button data-tab="clientes" data-feature="clientes" data-href="clientes.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200">Clientes</button>
+        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
     <section id="appSection" class="hidden">
       <!-- Modal global reutilizable -->
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
@@ -441,95 +605,95 @@
       </div>
 
       <!-- ========== NOTAS ========== -->
-      <section id="tab-notas" class="tab active">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <section id="tab-notas" class="tab active min-w-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 min-w-0">
           <!-- Calendario -->
-          <div class="mb-6 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-3 sm:p-6">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-              <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Calendario</h3>
+          <div class="notes-calendar-panel mb-4 sm:mb-5 rounded-2xl border p-3 sm:p-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-2">
+              <h3 class="font-sans text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Calendario</h3>
               <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <button id="calendar-settings" class="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200 text-xs sm:text-sm flex items-center justify-center gap-1">
+                <button type="button" id="calendar-settings" class="notes-cal-btn w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 font-semibold rounded-lg transition-all duration-200 text-xs sm:text-sm flex items-center justify-center gap-1">
                   <span>⚙️</span>
                   <span>Configuración</span>
                 </button>
-                <button id="calendar-new-event" class="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm">+ Nuevo Evento</button>
+                <button type="button" id="calendar-new-event" class="mm-btn-primary w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm">+ Nuevo Evento</button>
               </div>
             </div>
             
             <!-- Controles del calendario -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 gap-2">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-3 gap-2">
               <div class="flex items-center gap-1 sm:gap-2 justify-center sm:justify-start">
-                <button id="calendar-prev-month" class="px-2 sm:px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-all duration-200 text-sm sm:text-base font-bold">‹</button>
-                <span id="calendar-month-year" class="px-2 sm:px-4 py-1.5 text-white dark:text-white theme-light:text-slate-900 font-semibold text-xs sm:text-sm min-w-[120px] sm:min-w-auto text-center"></span>
-                <button id="calendar-next-month" class="px-2 sm:px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-all duration-200 text-sm sm:text-base font-bold">›</button>
-                <button id="calendar-today" class="px-2 sm:px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-all duration-200 text-xs sm:text-sm ml-1 sm:ml-2">Hoy</button>
+                <button type="button" id="calendar-prev-month" class="notes-cal-btn px-2 sm:px-3 py-1.5 min-w-[2.25rem] rounded-lg transition-all duration-200 text-sm sm:text-base font-bold leading-none">‹</button>
+                <span id="calendar-month-year" class="px-2 sm:px-4 py-1.5 font-sans tabular-nums text-white dark:text-white theme-light:text-slate-900 font-semibold text-xs sm:text-sm min-w-[120px] sm:min-w-auto text-center"></span>
+                <button type="button" id="calendar-next-month" class="notes-cal-btn px-2 sm:px-3 py-1.5 min-w-[2.25rem] rounded-lg transition-all duration-200 text-sm sm:text-base font-bold leading-none">›</button>
+                <button type="button" id="calendar-today" class="notes-cal-btn px-2 sm:px-3 py-1.5 rounded-lg transition-all duration-200 text-xs sm:text-sm ml-1 sm:ml-2 font-semibold">Hoy</button>
               </div>
-              <button id="calendar-sync-reminders" class="w-full sm:w-auto px-3 py-1.5 bg-yellow-600/20 dark:bg-yellow-600/20 hover:bg-yellow-600/40 dark:hover:bg-yellow-600/40 text-yellow-400 dark:text-yellow-400 hover:text-yellow-300 dark:hover:text-yellow-300 font-medium rounded-lg transition-all duration-200 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:bg-yellow-50 theme-light:text-yellow-600 theme-light:hover:bg-yellow-100 theme-light:border-yellow-300 text-xs sm:text-sm text-center">Sincronizar Recordatorios</button>
+              <button type="button" id="calendar-sync-reminders" class="mm-btn-sync w-full sm:w-auto px-3 py-1.5 font-medium rounded-lg transition-all duration-200 text-xs sm:text-sm text-center border bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 hover:text-yellow-300 border-yellow-600/30 dark:bg-yellow-600/20 dark:hover:bg-yellow-600/40 dark:text-yellow-400 dark:hover:text-yellow-300 dark:border-yellow-600/30">Sincronizar Recordatorios</button>
             </div>
 
             <!-- Grid del calendario -->
-            <div id="calendar-grid" class="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1 sm:mb-2">
+            <div id="calendar-grid" class="font-sans grid grid-cols-7 gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
               <!-- Días de la semana -->
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">D</span>
                 <span class="hidden sm:inline">Dom</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">L</span>
                 <span class="hidden sm:inline">Lun</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">M</span>
                 <span class="hidden sm:inline">Mar</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">X</span>
                 <span class="hidden sm:inline">Mié</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">J</span>
                 <span class="hidden sm:inline">Jue</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">V</span>
                 <span class="hidden sm:inline">Vie</span>
               </div>
-              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-1 sm:py-2">
+              <div class="text-center text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-800 py-0.5 sm:py-1">
                 <span class="sm:hidden">S</span>
                 <span class="hidden sm:inline">Sáb</span>
               </div>
             </div>
             
             <!-- Días del mes -->
-            <div id="calendar-days" class="grid grid-cols-7 gap-0.5 sm:gap-1"></div>
+            <div id="calendar-days" class="grid grid-cols-7 gap-0.5 sm:gap-1 content-start"></div>
           </div>
 
           <!-- Filtros -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="notes-filters">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Filtros</h3>
-            <div class="flex flex-wrap gap-4 items-end">
-              <div class="flex-1 min-w-[150px]">
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Placa</label>
-                <input id="f-plate" placeholder="ABC123" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-5 mb-4 sm:mb-5" id="notes-filters">
+            <h3 class="font-sans text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-3">Filtros</h3>
+            <div class="notes-filter-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-12 xl:items-end xl:gap-x-3 xl:gap-y-4">
+              <div class="min-w-0 sm:col-span-2 xl:col-span-4">
+                <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Placa</label>
+                <input id="f-plate" placeholder="ABC123" class="font-sans w-full min-w-0 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <div class="flex-1 min-w-[150px]">
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Desde</label>
-                <input id="f-from" type="date" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <div class="min-w-0 xl:col-span-3">
+                <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Desde</label>
+                <input id="f-from" type="date" class="font-sans w-full min-w-0 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <div class="flex-1 min-w-[150px]">
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Hasta</label>
-                <input id="f-to" type="date" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <div class="min-w-0 xl:col-span-3">
+                <label class="font-sans block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Hasta</label>
+                <input id="f-to" type="date" class="font-sans w-full min-w-0 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
-              <div>
-                <button id="f-apply" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Aplicar</button>
+              <div class="min-w-0 sm:col-span-2 xl:col-span-2 flex sm:justify-end xl:justify-start xl:items-end">
+                <button type="button" id="f-apply" class="mm-btn-primary shrink-0 px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg bg-gradient-to-r from-blue-600 to-blue-700">Aplicar</button>
               </div>
             </div>
           </div>
 
           <!-- Grid de 2 columnas -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="notes-body">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 min-w-0" id="notes-body">
             <!-- Nueva Nota -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="notes-new">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-new">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Nueva Nota</h3>
               
               <div class="mb-4">
@@ -560,7 +724,7 @@
               
               <div class="mb-4">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-800 mb-1.5">Contenido</label>
-                <textarea id="n-content" rows="4" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"></textarea>
+                <textarea id="n-content" rows="3" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y min-h-0"></textarea>
               </div>
               
               <div class="mb-4">
@@ -597,13 +761,13 @@
                 <input id="n-files" type="file" multiple class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
               </div>
               
-              <button id="n-save" class="w-full px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar Nota</button>
+              <button type="button" id="n-save" class="mm-btn-success w-full px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar Nota</button>
             </div>
 
             <!-- Historial -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="notes-history">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 min-w-0 overflow-x-hidden" id="notes-history">
               <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Historial</h3>
-              <div id="notesList" class="space-y-3 custom-scrollbar max-h-[600px] overflow-y-auto"></div>
+              <div id="notesList" class="space-y-3 custom-scrollbar max-h-[min(44vh,30rem)] overflow-y-auto overscroll-y-contain"></div>
             </div>
           </div>
         </div>
@@ -689,12 +853,9 @@
         });
       }
       
-      // Manejar navegación activa
       const currentPage = document.body.getAttribute('data-page');
       document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
-        if (tab.getAttribute('data-tab') === currentPage) {
-          tab.classList.add('active');
-        }
+        tab.classList.toggle('active', tab.getAttribute('data-tab') === currentPage);
       });
 
       // Manejar clicks en botones de navegación
@@ -710,55 +871,59 @@
 
     // Botón del catálogo (consolidado, sin duplicación)
     function setupCatalogButton() {
-      const btn = document.getElementById('openPublicCatalog');
-      if(!btn) return;
+      const buttons = document.querySelectorAll('.js-open-public-catalog');
+      if (!buttons.length) return;
       const API = window.API;
-      if(!API || !API.token || !API.token.get) {
+      if (!API || !API.token || !API.token.get) {
         setTimeout(setupCatalogButton, 100);
         return;
       }
       const token = API.token.get() || '';
-      if(!token){ 
-        btn.disabled=true; 
-        btn.title='Inicia sesión para usar el catálogo'; 
-        return; 
+      if (!token) {
+        buttons.forEach((btn) => {
+          btn.disabled = true;
+          btn.title = 'Inicia sesión para usar el catálogo';
+        });
+        return;
       }
+      const apply = (fn) => buttons.forEach(fn);
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
-        .then(body => {
+        .then((body) => {
           const company = body?.company || body || {};
           const storedId = API?.companyId?.get?.() || '';
           const companyId = company.id || company._id || storedId || '';
           const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
-          if(!companyId){ 
-            btn.disabled=true; 
-            btn.title='No se pudo obtener companyId'; 
-            return; 
-          }
-          if(!enabled){ 
-            btn.disabled=true; 
-            btn.title='Catálogo público deshabilitado'; 
-            btn.dataset.state='disabled'; 
-            return; 
-          }
-          btn.dataset.state='ready';
-          btn.disabled = false;
-          btn.onclick = () => {
-            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
-            window.open(url, '_blank');
-          };
+          apply((btn) => {
+            if (!companyId) {
+              btn.disabled = true;
+              btn.title = 'No se pudo obtener companyId';
+              return;
+            }
+            if (!enabled) {
+              btn.disabled = true;
+              btn.title = 'Catálogo público deshabilitado';
+              btn.dataset.state = 'disabled';
+              return;
+            }
+            btn.dataset.state = 'ready';
+            btn.disabled = false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(companyId), '_blank');
+          });
         })
-        .catch(()=>{
+        .catch(() => {
           const storedId = API?.companyId?.get?.() || '';
-          if(storedId){
-            btn.dataset.state='ready'; 
-            btn.title=''; 
-            btn.disabled=false;
-            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
-          } else {
-            btn.disabled=true; 
-            btn.title='Error consultando empresa'; 
-            btn.dataset.state='error';
-          }
+          apply((btn) => {
+            if (storedId) {
+              btn.dataset.state = 'ready';
+              btn.title = '';
+              btn.disabled = false;
+              btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+            } else {
+              btn.disabled = true;
+              btn.title = 'Error consultando empresa';
+              btn.dataset.state = 'error';
+            }
+          });
         });
     }
     

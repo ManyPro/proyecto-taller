@@ -127,18 +127,22 @@ const API = {
       // Normalizar: extraer nombres como strings
       return Array.isArray(techs) ? techs.map(t => {
         if (typeof t === 'string') return t.trim();
+        if (t && typeof t === 'object' && t.isAppointmentTechnician === true) return '';
         if (t && typeof t === 'object' && t.name) return String(t.name).trim();
         return '';
       }).filter(n => n && n.trim() !== '') : [];
     },
-    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') => {
       const res = await http.post('/api/v1/company/technicians', { 
         name,
         identification: identification || '',
         basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
         workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
         basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
-        contractType: contractType || ''
+        contractType: contractType || '',
+        receivesLaborCommission: receivesLaborCommission !== false,
+        isAppointmentTechnician: isAppointmentTechnician === true,
+        appointmentColor: appointmentColor || '#2563EB'
       });
       return res.technicians || [];
     },
@@ -150,14 +154,17 @@ const API = {
       const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
       return res.technicians || [];
     },
-    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType, receivesLaborCommission = true, isAppointmentTechnician = false, appointmentColor = '#2563EB') => {
       const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(currentName||''))}`, {
         name: newName,
         identification: identification || '',
         basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
         workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
         basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
-        contractType: contractType || ''
+        contractType: contractType || '',
+        receivesLaborCommission: receivesLaborCommission !== false,
+        isAppointmentTechnician: isAppointmentTechnician === true,
+        appointmentColor: appointmentColor || '#2563EB'
       });
       return res.technicians || [];
     },
@@ -180,7 +187,9 @@ const API = {
     setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {}),
     getFeatureOptions: () => http.get('/api/v1/company/feature-options').then(r => r.featureOptions || {}),
     setFeatureOptions: (patch) => http.patch('/api/v1/company/feature-options', patch).then(r => r.featureOptions || {}),
-    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {})
+    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {}),
+    getBossPortal: () => http.get('/api/v1/company/boss-portal').then(r => r.bossPortal || {}),
+    setBossPortal: (patch) => http.patch('/api/v1/company/boss-portal', patch).then(r => r.bossPortal || {})
   },
 
   // Empresa activa
@@ -233,6 +242,8 @@ const API = {
     update: (id, payload) => http.put(`/api/v1/calendar/${id}`, payload),
     delete: (id) => http.del(`/api/v1/calendar/${id}`),
     syncNoteReminders: () => http.post('/api/v1/calendar/sync-note-reminders'),
+    syncAgendaColors: (query = '') =>
+      http.post(`/api/v1/calendar/sync-agenda-colors${query ? `?${query.replace(/^\?/, '')}` : ''}`),
     searchByPlate: (plate) => http.get(`/api/v1/calendar/search-by-plate/${encodeURIComponent(plate)}`),
     getQuotesByPlate: (plate) => http.get(`/api/v1/calendar/quotes-by-plate/${encodeURIComponent(plate)}`),
     getSettings: () => http.get('/api/v1/calendar/settings'),
@@ -392,6 +403,7 @@ const API = {
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
+    specialReport: (params = {}) => http.get(`/api/v1/sales/special-report${toQuery(params)}`),
     techReport: (params = {}) => http.get(`/api/v1/sales/technicians/report${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
     // Buscar perfil por placa
@@ -454,8 +466,17 @@ const API = {
   cashflow: {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
+    transfer: (payload) => http.post('/api/v1/cashflow/transfers', payload),
+    recomputeBalances: () => http.post('/api/v1/cashflow/recompute-balances', {}),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
+    // Sesiones de caja (apertura/cierre y reporte)
+    sessions: {
+      current: () => http.get('/api/v1/cashflow/cash-sessions/current'),
+      open: () => http.post('/api/v1/cashflow/cash-sessions/open', {}),
+      close: () => http.post('/api/v1/cashflow/cash-sessions/close', {}),
+      list: (params={}) => http.get(`/api/v1/cashflow/cash-sessions${toQuery(params)}`)
+    },
     // Préstamos a empleados
     loans: {
       list: (params={}) => http.get(`/api/v1/cashflow/loans${toQuery(params)}`),

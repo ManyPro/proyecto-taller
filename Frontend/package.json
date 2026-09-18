@@ -1,0 +1,12 @@
+{
+  "name": "taller-frontend-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.cjs -i ./assets/tailwind.css -o ./assets/ui.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.cjs -i ./assets/tailwind.css -o ./assets/ui.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
