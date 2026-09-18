@@ -37,6 +37,31 @@ function makeIntakeLabel(vi) {
     .toUpperCase() || "GENERAL";
 }
 
+async function resolveLastUnitPrice(companyId, item) {
+  const itemId = item?._id || item?.id;
+  if (!companyId || !itemId) return null;
+
+  const lastMove = await StockMove.findOne({
+    companyId,
+    itemId,
+    reason: 'IN',
+    'meta.purchasePrice': { $gt: 0 }
+  }).sort({ createdAt: -1 }).select({ meta: 1 }).lean();
+  const fromMove = Number(lastMove?.meta?.purchasePrice);
+  if (Number.isFinite(fromMove) && fromMove > 0) return fromMove;
+
+  const lastEntry = await StockEntry.findOne({
+    companyId,
+    itemId,
+    entryPrice: { $gt: 0 }
+  }).sort({ updatedAt: -1, entryDate: -1 }).select({ entryPrice: 1 }).lean();
+  const fromEntry = Number(lastEntry?.entryPrice);
+  if (Number.isFinite(fromEntry) && fromEntry > 0) return fromEntry;
+
+  const fromItem = Number(item?.entryPrice);
+  if (Number.isFinite(fromItem) && fromItem > 0) return fromItem;
+  return null;
+}
 
 function sanitizeMediaList(arr) {
   const out = [];
@@ -589,6 +614,7 @@ export const getItem = async (req, res) => {
   const { id } = req.params;
   const item = await Item.findOne({ _id: id, companyId: req.companyId }).lean();
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
+  item.lastUnitPrice = await resolveLastUnitPrice(req.companyId, item);
   res.json(item);
 };
 
