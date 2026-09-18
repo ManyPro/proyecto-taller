@@ -1,6 +1,7 @@
 import { API } from './api.esm.js';
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
+import { priceTemplatePickerHtml, oneTimeSaveToggleHtml, bindPriceTemplatePicker, bindSaveToListToggle, isSaveToListEnabled, fillStandardPriceFields, applyLinkedProductUI, normalizeComboProduct } from './priceCreateExtras.js';
 
 const $  = (s, r=document)=>r.querySelector(s);
 const clone = (id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
@@ -7351,6 +7352,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
     </div>
 
     <div class="p-6 space-y-4">
+      ${priceTemplatePickerHtml({ type, prefix: 'price' })}
       <div>
         <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Nombre</label>
         <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-700/40 dark:border-slate-700/40 theme-light:border-slate-200 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-white text-slate-100 dark:text-slate-100 theme-light:text-slate-900 placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
@@ -7417,6 +7419,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         </div>
       </div>
     ` : ''}
+      ${oneTimeSaveToggleHtml()}
       <div id="price-msg" class="text-sm"></div>
       <div class="flex gap-2">
         <button id="price-cancel" class="flex-1 px-4 py-3 rounded-xl bg-slate-700/40 hover:bg-slate-700/60 dark:bg-slate-700/40 dark:hover:bg-slate-700/60 theme-light:bg-slate-100 theme-light:hover:bg-slate-200 text-white dark:text-white theme-light:text-slate-900 font-extrabold border border-slate-600/30 theme-light:border-slate-200 transition-all">Cancelar</button>
@@ -7590,12 +7593,14 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
     }
   }
   
+  let addComboProductRow = () => {};
+  let updateComboTotal = () => {};
   // Funcionalidad para combos
   if (isCombo) {
     const comboProductsContainer = node.querySelector('#price-combo-products');
     const addComboProductBtn = node.querySelector('#price-add-combo-product');
     
-    function addComboProductRow(productData = {}) {
+    addComboProductRow = function(productData = {}) {
       const isOpenSlot = Boolean(productData.isOpenSlot);
       const row = document.createElement('div');
       row.className = 'combo-product-item';
@@ -7844,7 +7849,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       comboProductsContainer.appendChild(row);
     }
     
-    function updateComboTotal() {
+    updateComboTotal = function() {
       const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
       let total = 0;
       products.forEach(prod => {
@@ -7867,6 +7872,44 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
     // Inicializar con un producto por defecto
     addComboProductRow();
   }
+
+  bindSaveToListToggle(node);
+  bindPriceTemplatePicker({
+    node,
+    type,
+    prefix: 'price',
+    onSelect: (tpl) => {
+      fillStandardPriceFields(node, tpl, {
+        nameSelector: '#price-name',
+        totalSelector: '#price-total',
+        yearFromSelector: '#price-year-from',
+        yearToSelector: '#price-year-to',
+        laborValueSelector: '#price-labor-value',
+        laborKindSelector: '#price-labor-kind'
+      });
+      if (isProduct) {
+        const linked = tpl.itemId && typeof tpl.itemId === 'object' ? tpl.itemId : null;
+        if (linked?._id) {
+          applyLinkedProductUI(node, linked, {
+            searchSelector: '#price-item-search',
+            selectedSelector: '#price-item-selected',
+            hiddenSelector: '#price-item-id',
+            onSelected: (item) => { selectedItem = item; }
+          });
+        }
+      }
+      if (isCombo) {
+        const comboProductsContainer = node.querySelector('#price-combo-products');
+        if (comboProductsContainer) {
+          comboProductsContainer.innerHTML = '';
+          const rows = Array.isArray(tpl.comboProducts) ? tpl.comboProducts : [];
+          if (rows.length) rows.forEach((cp) => addComboProductRow(normalizeComboProduct(cp)));
+          else addComboProductRow();
+          updateComboTotal();
+        }
+      }
+    }
+  });
   
   saveBtn.onclick = async () => {
     const name = nameInput.value.trim();
@@ -7913,10 +7956,8 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       const yearFrom = yearFromInput?.value?.trim() || null;
       const yearTo = yearToInput?.value?.trim() || null;
       
-      // IMPORTANTE: los precios creados desde la venta deben ser GENERALES
-      // para poder reutilizarlos en otros vehículos. Por eso:
-      // - Enviamos isGeneral: true
-      // - No asociamos vehicleId (queda null)
+      // IMPORTANTE: por defecto es de un solo uso (no ensucia la lista de precios).
+      // Solo se guarda en catálogo si el usuario activa "Guardar en lista de precios".
       const payload = {
         vehicleId: null,
         isGeneral: true,
@@ -7924,7 +7965,8 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         type: type,
         total: total,
         yearFrom: yearFrom || null,
-        yearTo: yearTo || null
+        yearTo: yearTo || null,
+        oneTime: !isSaveToListEnabled(node)
       };
       
       if (isProduct && selectedItem) {

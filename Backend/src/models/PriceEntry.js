@@ -46,7 +46,10 @@ const PriceEntrySchema = new mongoose.Schema({
   
   // Valor de mano de obra y tipo (para combos y productos)
   laborValue: { type: Number, default: 0, min: 0 }, // Valor base de mano de obra
-  laborKind: { type: String, trim: true, default: '' } // Tipo de mano de obra (MOTOR, SUSPENSION, FRENOS, etc.)
+  laborKind: { type: String, trim: true, default: '' }, // Tipo de mano de obra (MOTOR, SUSPENSION, FRENOS, etc.)
+
+  // true = creado desde venta/cotización para un solo uso; no aparece en la lista de precios
+  oneTime: { type: Boolean, default: false, index: true }
 }, { timestamps: true });
 
 // Índice único: companyId + vehicleId + name + type (nuevo modelo) - sparse para permitir datos legacy sin name

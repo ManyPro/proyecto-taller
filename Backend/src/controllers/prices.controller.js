@@ -203,6 +203,12 @@ export const listPrices = async (req, res) => {
     q.name = { $regex: cleanStr(name), $options: 'i' };
   }
 
+  // Los ítems de un solo uso no salen en la lista de precios ni en los pickers
+  const includeOneTime = req.query?.includeOneTime;
+  if (includeOneTime !== 'true' && includeOneTime !== true && includeOneTime !== '1') {
+    q.oneTime = { $ne: true };
+  }
+
   const pg = Math.max(1, parseInt(page, 10));
   const lim = Math.min(100, Math.max(1, parseInt(limit, 10)));
   const skip = (pg - 1) * lim;
@@ -448,7 +454,7 @@ export const getPrice = async (req, res) => {
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, investmentValue } = req.body || {};
+  const { name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, investmentValue, oneTime: oneTimeRaw } = req.body || {};
   
   // name es siempre requerido
   if (!name || !name.trim()) return res.status(400).json({ error: 'name requerido' });
@@ -525,6 +531,8 @@ export const createPrice = async (req, res) => {
     return res.status(400).json({ error: 'Company ID missing' });
   }
   
+  const oneTime = !isInversion && (oneTimeRaw === true || oneTimeRaw === 'true' || oneTimeRaw === 1 || oneTimeRaw === '1');
+
   const doc = {
     companyId: creationCompanyId,
     vehicleId: null, // Siempre general
@@ -535,7 +543,7 @@ export const createPrice = async (req, res) => {
     comboProducts: (isInversion || type !== 'combo') ? [] : processedComboProducts,
     yearFrom: yearFromNum,
     yearTo: yearToNum,
-    brand: '',
+    brand: oneTime ? `OT-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}` : '',
     line: '',
     engine: '',
     year: null,
@@ -543,7 +551,8 @@ export const createPrice = async (req, res) => {
     total,
     investmentValue: isInversion ? 0 : Math.max(0, num(investmentValue || 0)),
     laborValue: (isInversion || laborValue === undefined || laborValue === null || laborValue === '') ? 0 : Math.max(0, num(laborValue)),
-    laborKind: (isInversion || laborKind === undefined || laborKind === null || laborKind === '') ? '' : String(laborKind).trim()
+    laborKind: (isInversion || laborKind === undefined || laborKind === null || laborKind === '') ? '' : String(laborKind).trim(),
+    oneTime
   };
   
   try {
@@ -555,17 +564,29 @@ export const createPrice = async (req, res) => {
         .lean();
     res.json(populated);
   } catch (e) {
+    // One-time items must never overwrite a catalog price
+    if (e?.code === 11000 && doc.oneTime) {
+      doc.brand = `OT-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      const created = await PriceEntry.create(doc);
+      const populated = await PriceEntry.findById(created._id)
+        .populate('vehicleId', 'make line displacement modelYear')
+        .populate('itemId', 'sku name stock salePrice')
+        .populate('comboProducts.itemId', 'sku name stock salePrice')
+        .lean();
+      return res.json(populated);
+    }
     // Si ya existe por índice único, intenta actualizar
     if (e?.code === 11000) {
       const filter = {
         companyId: creationCompanyId,
         vehicleId: vehicle?._id || null,
         name: doc.name,
-        type: doc.type
+        type: doc.type,
+        oneTime: { $ne: true }
       };
       const up = await PriceEntry.findOneAndUpdate(
         filter, 
-        { ...doc, variables, total }, 
+        { ...doc, variables, total, oneTime: false }, 
         { new: true, upsert: true }
       );
       const populated = await PriceEntry.findById(up._id)
@@ -1168,7 +1189,7 @@ export const exportPrices = async (req, res) => {
   const { vehicleId } = req.query || {};
   if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
   
-  const q = { companyId: req.companyId, vehicleId };
+  const q = { companyId: req.companyId, vehicleId, oneTime: { $ne: true } };
   const items = await PriceEntry.find(q)
     .populate('vehicleId', 'make line displacement')
     .sort({ type: 1, name: 1 })
