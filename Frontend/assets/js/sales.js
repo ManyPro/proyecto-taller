@@ -14928,13 +14928,25 @@ function openTechnicianReportModal() {
     }
   })();
   
-  // Establecer fechas por defecto (último mes)
+  // Prefijar el período semanal actual de nómina; si no hay, último mes
   const hoy = new Date();
   const haceUnMes = new Date();
   haceUnMes.setMonth(haceUnMes.getMonth() - 1);
-  
-  fechaDesdeInput.value = haceUnMes.toISOString().split('T')[0];
-  fechaHastaInput.value = hoy.toISOString().split('T')[0];
+  const toYmd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(d));
+  fechaDesdeInput.value = toYmd(haceUnMes);
+  fechaHastaInput.value = toYmd(hoy);
+  (async () => {
+    try {
+      const current = await API.get('/api/v1/payroll/periods/current');
+      const period = current?.period;
+      if (period?.startDate && period?.endDate) {
+        fechaDesdeInput.value = toYmd(period.startDate);
+        fechaHastaInput.value = toYmd(period.endDate);
+      }
+    } catch (err) {
+      console.warn('No se pudo prefijar el período actual de nómina:', err);
+    }
+  })();
   
   cancelBtn.onclick = () => modal.classList.add('hidden');
   

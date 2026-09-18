@@ -10,6 +10,7 @@ import {
   listOpenPeriods,
   listAllPeriods,
   closePeriod,
+  getCurrentPeriod,
   previewSettlement,
   approveSettlement,
   unapproveSettlement,
@@ -41,6 +42,7 @@ router.delete('/assignments', requireCompanyManager, removeAssignment);
 
 // Periods
 router.get('/periods/open', listOpenPeriods);
+router.get('/periods/current', getCurrentPeriod);
 router.get('/periods', listAllPeriods);
 router.post('/periods', requireCompanyManager, createPeriod);
 router.patch('/periods/:id/close', requireCompanyManager, closePeriod);
