@@ -828,11 +828,10 @@ export function initQuotes({ getCompanyEmail }) {
     const rows = readRows(); 
     
     let subP = 0, subS = 0;
-    rows.forEach(({type, qty, price, comboParent}) => {
-      // CRÍTICO: NO sumar items que tienen comboParent (son ilustrativos para la factura)
-      // Solo sumar el precio del combo principal, no los items anidados
-      if (comboParent) {
-        return; // Saltar items anidados de combos
+    rows.forEach(({type, qty, price, comboParent, sku}) => {
+      // No sumar ítems internos de combo (comboParent o SKU CP-); solo el combo principal
+      if (isNestedComboQuoteItem({ comboParent, sku })) {
+        return;
       }
       
       const q = qty > 0 ? qty : 1;
@@ -962,8 +961,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     (rows || []).forEach(row => {
       if (!row) return;
-      if (!row.comboParent) return;
-      const parentId = String(row.comboParent).trim();
+      const parentId = String(row.comboParent || '').trim();
       if (!parentId) return;
       if (!childrenByParentId.has(parentId)) childrenByParentId.set(parentId, []);
       childrenByParentId.get(parentId).push(row);
@@ -975,7 +973,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     (rows || []).forEach(row => {
       if (!row) return;
-      if (row.comboParent) return; // se listan bajo su combo
+      if (isNestedComboQuoteItem(row)) return; // se listan bajo su combo
 
       const refId = row.refId ? String(row.refId).trim() : '';
       const hasChildren = !!(refId && childrenByParentId.has(refId));
@@ -1074,7 +1072,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     // ===== Resumen =====
     if (!hideTotal) {
-      const baseRows = (rows || []).filter(r => r && !r.comboParent);
+      const baseRows = (rows || []).filter(r => r && !isNestedComboQuoteItem(r));
       let subServicios = 0;
       let subProductos = 0;
       let subCombos = 0;
@@ -1093,9 +1091,19 @@ export function initQuotes({ getCompanyEmail }) {
         else subProductos += st;
       });
 
-      const subtotal = subProductos + subServicios + subCombos;
-      const descuento = Math.max(0, (Number(subtotal) || 0) - (Number(subtotalAfterDiscount) || 0));
-      const ivaVal = ivaEnabled ? Math.max(0, (Number(total) || 0) - (Number(subtotalAfterDiscount) || 0)) : 0;
+      const billableSubtotal = subProductos + subServicios + subCombos;
+      let discountValue = 0;
+      if (currentDiscount && Number(currentDiscount.value) > 0) {
+        discountValue = currentDiscount.type === 'percent'
+          ? billableSubtotal * Number(currentDiscount.value) / 100
+          : Number(currentDiscount.value);
+      } else {
+        discountValue = Math.max(0, billableSubtotal - (Number(subtotalAfterDiscount) || billableSubtotal));
+      }
+      if (discountValue > billableSubtotal) discountValue = billableSubtotal;
+      const afterDiscount = Math.max(0, billableSubtotal - discountValue);
+      const ivaVal = ivaEnabled ? afterDiscount * 0.19 : 0;
+      const computedTotal = afterDiscount + ivaVal;
 
       lines.push('');
       lines.push('--------------------');
@@ -1103,9 +1111,9 @@ export function initQuotes({ getCompanyEmail }) {
       lines.push(`Subtotal productos: ${money(subProductos)}`);
       lines.push(`Subtotal servicios: ${money(subServicios)}`);
       if (subCombos > 0) lines.push(`Subtotal combos: ${money(subCombos)}`);
-      if (descuento > 0) lines.push(`Descuento: -${money(descuento)}`);
+      if (discountValue > 0) lines.push(`Descuento: -${money(discountValue)}`);
       if (ivaEnabled) lines.push(`IVA (19%): ${money(ivaVal)}`);
-      lines.push(`*TOTAL: ${money(total)}*`);
+      lines.push(`*TOTAL: ${money(computedTotal)}*`);
     }
 
     // ===== Notas especiales =====
@@ -2197,7 +2205,7 @@ export function initQuotes({ getCompanyEmail }) {
             </div>
             <div>
               <div class="text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total</div>
-              <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(d.total||0)}</div>
+              <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(billableQuoteAmountFromItems(d.items || [], d.discount || null, !!d.ivaEnabled))}</div>
             </div>
           </div>
           <div class="flex flex-wrap gap-2 md:flex-col md:items-end">
@@ -2746,7 +2754,7 @@ export function initQuotes({ getCompanyEmail }) {
 
       rows.forEach(row => {
         if (!row) return;
-        if (row.comboParent) return;
+        if (isNestedComboQuoteItem(row)) return;
         const refId = row.refId ? String(row.refId).trim() : '';
         const hasChildren = !!(refId && childrenByParentId.has(refId));
         const isComboByType = upper(row.type) === 'COMBO';
@@ -2772,7 +2780,7 @@ export function initQuotes({ getCompanyEmail }) {
       }
 
       // --- Totales (sin sumar children) ---
-      const baseRows = rows.filter(r => r && !r.comboParent);
+      const baseRows = rows.filter(r => r && !isNestedComboQuoteItem(r));
       let subServicios = 0, subProductos = 0, subCombos = 0;
       baseRows.forEach(r => {
         const st = lineTotal(r);
@@ -2904,9 +2912,9 @@ export function initQuotes({ getCompanyEmail }) {
       const rows=readRows(); 
       console.log('[recalc modal] Rows leídos:', rows.length, rows);
       let subP=0, subS=0;
-      rows.forEach(({type,qty,price,comboParent})=>{
+      rows.forEach(({type,qty,price,comboParent,sku})=>{
         // No sumar ítems internos de combo (solo referencia en "Incluye")
-        if (comboParent) return;
+        if (isNestedComboQuoteItem({ comboParent, sku })) return;
         const q=qty>0?qty:1; const st=q*(price||0);
         if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
       });
@@ -3584,32 +3592,6 @@ export function initQuotes({ getCompanyEmail }) {
       items: d.items
     });
     
-    // Calcular subtotales y total
-    const subP=(d.items||[]).filter(i=>i.kind!=='SERVICIO' && i.kind!=='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
-    const subS=(d.items||[]).filter(i=>i.kind==='SERVICIO' || i.kind==='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
-    
-    // Calcular subtotal antes de descuento
-    const subtotal = subP + subS;
-    
-    // Aplicar descuento si existe
-    let subtotalAfterDiscount = subtotal;
-    if (d?.discount && d.discount.value > 0) {
-      if (d.discount.type === 'percent') {
-        subtotalAfterDiscount = subtotal - (subtotal * d.discount.value / 100);
-      } else {
-        subtotalAfterDiscount = subtotal - d.discount.value;
-      }
-    }
-    
-    // Calcular IVA si está habilitado
-    let ivaValue = 0;
-    if (d?.ivaEnabled) {
-      ivaValue = subtotalAfterDiscount * 0.19;
-    }
-    
-    // Total final (subtotal después de descuento + IVA)
-    const total = subtotalAfterDiscount + ivaValue;
-
     // Preparar rows con la estructura correcta para buildWhatsAppText
     const rows=(d.items||[]).map(it=>{
       // Determinar el tipo correcto - el backend usa 'Producto', 'Servicio', 'Combo' (con mayúscula inicial)
@@ -3632,6 +3614,7 @@ export function initQuotes({ getCompanyEmail }) {
         price: it.unitPrice || 0,
         source: it.source || undefined,
         refId: refId,
+        sku: it.sku || undefined,
         comboParent: comboParent
       };
     }).filter(row => row.desc || row.price > 0 || (row.qty && row.qty > 0));
@@ -3677,6 +3660,25 @@ export function initQuotes({ getCompanyEmail }) {
         });
       }
     }
+
+    let subP = 0;
+    let subS = 0;
+    rows.forEach((row) => {
+      if (isNestedComboQuoteItem(row)) return;
+      const qty = Number(row.qty);
+      const st = (Number.isFinite(qty) && qty > 0 ? qty : 1) * (Number(row.price) || 0);
+      if (String(row.type || '').toUpperCase() === 'SERVICIO') subS += st;
+      else subP += st;
+    });
+    const billableItems = rows.map((row) => ({
+      comboParent: row.comboParent,
+      sku: row.sku,
+      qty: row.qty,
+      unitPrice: row.price,
+      price: row.price
+    }));
+    const subtotalAfterDiscount = billableQuoteAmountFromItems(billableItems, d?.discount || null, false);
+    const total = billableQuoteAmountFromItems(billableItems, d?.discount || null, !!d?.ivaEnabled);
     
     // Guardar valores actuales de la UI
     const currentSpecialNotes = typeof specialNotes !== 'undefined' ? specialNotes : [];

@@ -77,6 +77,14 @@ async function repairQuoteDocsComboTotals(docs = []) {
   return ops.length;
 }
 
+function serializeQuote(doc) {
+  const o = doc.toObject ? doc.toObject({ virtuals: false }) : { ...doc };
+  o.total = correctQuoteStoredTotal(o);
+  o.id = o._id;
+  o.client = o.customer;
+  return o;
+}
+
 const quoteTotalsRepairedForCompany = new Set();
 
 async function ensureCompanyQuoteTotalsRepaired(companyId) {
@@ -501,12 +509,7 @@ export async function listQuotes(req, res) {
   const pages = Math.ceil(total / limitNum) || 1;
 
   // Mapeo de compatibilidad: id y client (alias de customer)
-  const mapped = items.map(doc => {
-    const o = doc.toObject({ virtuals: false });
-    o.id = o._id;
-    o.client = o.customer;
-    return o;
-  });
+  const mapped = items.map(serializeQuote);
 
   return res.json({
     metadata: {
@@ -527,7 +530,7 @@ export async function getQuote(req, res) {
   const doc = await Quote.findOne({ _id: req.params.id, companyId });
   if (!doc) return res.status(404).json({ error: 'No encontrada' });
   await repairQuoteDocsComboTotals([doc]);
-  res.json(doc);
+  res.json(serializeQuote(doc));
 }
 
 export async function updateQuote(req, res) {
