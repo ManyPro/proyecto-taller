@@ -1,6 +1,7 @@
 import { API } from "./api.esm.js";
 import { normalizeText, matchesSearch } from "./search-utils.js";
 import { setupNumberInputPasteHandler, setupNumberInputsPasteHandler } from "./number-utils.js";
+import { priceTemplatePickerHtml, oneTimeSaveToggleHtml, bindPriceTemplatePicker, bindSaveToListToggle, isSaveToListEnabled, fillStandardPriceFields, applyLinkedProductUI, normalizeComboProduct } from "./priceCreateExtras.js";
 
 // Función para restaurar variables Handlebars acortadas antes de enviar al backend
 function isNestedComboQuoteItem(item) {
@@ -4590,6 +4591,9 @@ export function initQuotes({ getCompanyEmail }) {
         Vehículo: <strong class="text-white dark:text-white theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</strong>
       </p>
       <div class="mb-4">
+        ${priceTemplatePickerHtml({ type, prefix: 'price' })}
+      </div>
+      <div class="mb-4">
         <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Nombre</label>
         <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
@@ -4656,6 +4660,9 @@ export function initQuotes({ getCompanyEmail }) {
         </div>
       </div>
       ` : ''}
+      <div class="mb-4">
+        ${oneTimeSaveToggleHtml()}
+      </div>
       <div id="price-msg" class="mb-4 text-sm"></div>
       <div class="flex gap-2">
         <button id="price-save" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
@@ -4923,12 +4930,14 @@ export function initQuotes({ getCompanyEmail }) {
       };
     }
     
+    let addComboProductRow = () => {};
+    let updateComboTotal = () => {};
     // Funcionalidad para combos (similar a createPriceFromSale)
     if (isCombo) {
     const comboProductsContainer = node.querySelector('#price-combo-products');
     const addComboProductBtn = node.querySelector('#price-add-combo-product');
     
-    function addComboProductRow(productData = {}) {
+    addComboProductRow = function(productData = {}) {
       const isOpenSlot = Boolean(productData.isOpenSlot);
       const row = document.createElement('div');
       row.className = `combo-product-item p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md mb-2 ${isOpenSlot ? 'border-l-4 border-yellow-500 dark:border-yellow-500 theme-light:border-yellow-400' : ''}`;
@@ -5178,7 +5187,7 @@ export function initQuotes({ getCompanyEmail }) {
       comboProductsContainer.appendChild(row);
     }
     
-    function updateComboTotal() {
+    updateComboTotal = function() {
       const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
       let total = 0;
       products.forEach(prod => {
@@ -5201,6 +5210,44 @@ export function initQuotes({ getCompanyEmail }) {
     // Inicializar con un producto por defecto
     addComboProductRow();
   }
+
+    bindSaveToListToggle(node);
+    bindPriceTemplatePicker({
+      node,
+      type,
+      prefix: 'price',
+      onSelect: (tpl) => {
+        fillStandardPriceFields(node, tpl, {
+          nameSelector: '#price-name',
+          totalSelector: '#price-total',
+          yearFromSelector: '#price-year-from',
+          yearToSelector: '#price-year-to',
+          laborValueSelector: '#price-labor-value',
+          laborKindSelector: '#price-labor-kind'
+        });
+        if (isProduct) {
+          const linked = tpl.itemId && typeof tpl.itemId === 'object' ? tpl.itemId : null;
+          if (linked?._id) {
+            applyLinkedProductUI(node, linked, {
+              searchSelector: '#price-item-search',
+              selectedSelector: '#price-item-selected',
+              hiddenSelector: '#price-item-id',
+              onSelected: (item) => { selectedItem = item; }
+            });
+          }
+        }
+        if (isCombo) {
+          const comboProductsContainer = node.querySelector('#price-combo-products');
+          if (comboProductsContainer) {
+            comboProductsContainer.innerHTML = '';
+            const rows = Array.isArray(tpl.comboProducts) ? tpl.comboProducts : [];
+            if (rows.length) rows.forEach((cp) => addComboProductRow(normalizeComboProduct(cp)));
+            else addComboProductRow();
+            updateComboTotal();
+          }
+        }
+      }
+    });
     
     saveBtn.onclick = async () => {
       const name = nameInput.value.trim();
@@ -5247,10 +5294,7 @@ export function initQuotes({ getCompanyEmail }) {
         const yearFrom = yearFromInput?.value?.trim() || null;
         const yearTo = yearToInput?.value?.trim() || null;
         
-        // IMPORTANTE: los precios creados desde la cotización deben ser GENERALES
-        // para poder reutilizarlos en otros vehículos. Por eso:
-        // - Enviamos isGeneral: true
-        // - No asociamos vehicleId (queda null)
+        // IMPORTANTE: por defecto es de un solo uso (no ensucia la lista de precios).
         const payload = {
           vehicleId: null,
           isGeneral: true,
@@ -5258,7 +5302,8 @@ export function initQuotes({ getCompanyEmail }) {
           type: type,
           total: total,
           yearFrom: yearFrom || null,
-          yearTo: yearTo || null
+          yearTo: yearTo || null,
+          oneTime: !isSaveToListEnabled(node)
         };
         
         if (isProduct && selectedItem) {

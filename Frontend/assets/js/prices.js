@@ -1,6 +1,7 @@
 import { API } from './api.esm.js';
 import { initVehicles } from './vehicles.js';
 import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
+import { priceTemplatePickerHtml, bindPriceTemplatePicker, fillStandardPriceFields, applyLinkedProductUI, normalizeComboProduct } from './priceCreateExtras.js';
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
@@ -2064,6 +2065,11 @@ export function initPrices(){
         Vehículo: <strong class="text-white dark:text-white theme-light:text-slate-900">${vehiclesForCreation[0] ? `${vehiclesForCreation[0].make} ${vehiclesForCreation[0].line}` : 'No seleccionado'}</strong>
       </p>
       `}
+      ${!isEdit && !isInversionPrice ? `
+      <div class="mb-4">
+        ${priceTemplatePickerHtml({ type, prefix: 'pe-modal' })}
+      </div>
+      ` : ''}
       <div class="mb-4">
         <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
         <input id="pe-modal-name" placeholder="${isInversionPrice ? 'Ej: Inversión en repuestos' : (type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire'))}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.name || ''}" />
@@ -2575,6 +2581,8 @@ export function initPrices(){
     
     // Funcionalidad para combos
     let comboProductsContainer = null;
+    let addComboProductRow = () => {};
+    let updateComboTotal = () => {};
     if (isCombo) {
       comboProductsContainer = node.querySelector('#pe-modal-combo-products');
       if (!comboProductsContainer) {
@@ -2583,7 +2591,7 @@ export function initPrices(){
       }
       const addComboProductBtn = node.querySelector('#pe-modal-add-combo-product');
       
-      function addComboProductRow(productData = {}) {
+      addComboProductRow = function(productData = {}) {
         const isOpenSlot = Boolean(productData.isOpenSlot);
         const row = document.createElement('div');
         row.className = `combo-product-item relative p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border ${isOpenSlot ? 'border-l-4 border-l-orange-500 dark:border-l-orange-500 theme-light:border-l-orange-400 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300' : 'border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300'} transition-all duration-200`;
@@ -3046,7 +3054,7 @@ export function initPrices(){
         }
       }
       
-      function updateComboTotal() {
+      updateComboTotal = function() {
         if (!comboProductsContainer) return;
         const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
         let total = 0;
@@ -3123,6 +3131,43 @@ export function initPrices(){
     }
     
     nameInput.focus();
+
+    if (!isEdit && !isInversionPrice) {
+      bindPriceTemplatePicker({
+        node,
+        type,
+        prefix: 'pe-modal',
+        onSelect: (tpl) => {
+          fillStandardPriceFields(node, tpl, {
+            nameSelector: '#pe-modal-name',
+            totalSelector: '#pe-modal-price',
+            yearFromSelector: '#pe-modal-year-from',
+            yearToSelector: '#pe-modal-year-to',
+            laborValueSelector: '#pe-modal-labor-value',
+            laborKindSelector: '#pe-modal-labor-kind',
+            investmentSelector: '#pe-modal-investment-value'
+          });
+          if (isProduct) {
+            const linked = tpl.itemId && typeof tpl.itemId === 'object' ? tpl.itemId : null;
+            if (linked?._id) {
+              applyLinkedProductUI(node, linked, {
+                searchSelector: '#pe-modal-item-search',
+                selectedSelector: '#pe-modal-item-selected',
+                hiddenSelector: '#pe-modal-item-id',
+                onSelected: (item) => { selectedItem = item; }
+              });
+            }
+          }
+          if (isCombo && comboProductsContainer) {
+            comboProductsContainer.innerHTML = '';
+            const rows = Array.isArray(tpl.comboProducts) ? tpl.comboProducts : [];
+            if (rows.length) rows.forEach((cp) => addComboProductRow(normalizeComboProduct(cp)));
+            else addComboProductRow();
+            updateComboTotal();
+          }
+        }
+      });
+    }
     
     saveBtn.onclick = async () => {
       const name = nameInput.value.trim();
@@ -3177,7 +3222,8 @@ export function initPrices(){
           type: type,
           total: price,
           yearFrom: yearFrom,
-          yearTo: yearTo
+          yearTo: yearTo,
+          oneTime: false
         };
 
         // Valor inversión (opcional) - para autocompletar al cierre de venta
