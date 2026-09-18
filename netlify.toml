@@ -11,47 +11,44 @@
   publish = "Frontend"
   command = "echo 'Frontend listo'"
 
-# Redirecciones para el API
-# PRODUCCIÓN (main): puerto 4000
-# DESARROLLO (develop): puerto 4001
-# Nota: Las redirecciones también están en Frontend/_redirects para compatibilidad
+# API redirects for THIS branch.
+# develop Netlify site (proyecto-taller-dev.netlify.app) uses develop as its
+# production branch, so these must hit :4001. Keep :4000 on main only.
+# Do not merge these develop redirects into main.
 
-# Configuración para PRODUCCIÓN (context: production)
 [context.production]
   [[context.production.redirects]]
     from = "/api/*"
-    to = "http://143.110.131.35:4000/api/:splat"
+    to = "http://143.110.131.35:4001/api/:splat"
     status = 200
     force = true
   [[context.production.redirects]]
     from = "/uploads/*"
-    to = "http://143.110.131.35:4000/uploads/:splat"
+    to = "http://143.110.131.35:4001/uploads/:splat"
     status = 200
     force = true
 
-# Configuración para DESARROLLO (context: dev, branch-deploy, deploy-preview)
 [context.dev]
   [[context.dev.redirects]]
     from = "/api/*"
-    to = "http://143.110.131.35:4000/api/:splat"
+    to = "http://143.110.131.35:4001/api/:splat"
     status = 200
     force = true
   [[context.dev.redirects]]
     from = "/uploads/*"
-    to = "http://143.110.131.35:4000/uploads/:splat"
+    to = "http://143.110.131.35:4001/uploads/:splat"
     status = 200
     force = true
 
-# Configuración por defecto (para branch-deploy y deploy-preview)
 [[redirects]]
   from = "/api/*"
-  to = "http://143.110.131.35:4000/api/:splat"
+  to = "http://143.110.131.35:4001/api/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/uploads/*"
-  to = "http://143.110.131.35:4000/uploads/:splat"
+  to = "http://143.110.131.35:4001/uploads/:splat"
   status = 200
   force = true
 

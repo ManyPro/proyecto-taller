@@ -29,7 +29,8 @@ services:
       - "4001:3000"  # Puerto diferente para desarrollo
     volumes:
       - uploads_data_dev:/app/uploads
-      - ./Backend:/app  # Hot reload para desarrollo
+      # Do not bind-mount ./Backend over /app: that hides image node_modules
+      # and crash-loops the container (Restarting (1)).
 
   frontend:
     build:
