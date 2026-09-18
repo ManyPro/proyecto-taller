@@ -5,6 +5,8 @@ import CashSession from '../models/CashSession.js';
 import Company from '../models/Company.js';
 import { computeBalance } from './cashflow.controller.js';
 import { htmlToPdfBuffer } from '../lib/htmlToPdf.js';
+import { bogotaDayRange, isWithinBusinessHours, scheduleStatus } from '../lib/cashSchedule.js';
+import { logger } from '../lib/logger.js';
 
 const TAG_LABELS = {
   CAMBIO_ACEITE: 'Cambio de aceite',
@@ -18,6 +20,70 @@ const TAG_LABELS = {
 const IN_DETAIL_TAGS = ['CAMBIO_ACEITE', 'OTROS_SERVICIOS'];
 const OUT_DETAIL_TAGS = ['REPUESTOS', 'SERVICIOS_TALLER', 'INSUMOS_TALLER'];
 
+async function openCashSessionForCompany(companyId, source = 'MANUAL') {
+  const existing = await CashSession.findOne({ companyId, status: 'OPEN' });
+  if (existing) return existing;
+  const openingBalances = await snapshotBalances(companyId);
+  return CashSession.create({
+    companyId,
+    status: 'OPEN',
+    openedAt: new Date(),
+    openedBy: source === 'AUTO' ? 'AUTO' : 'MANUAL',
+    openingBalances
+  });
+}
+
+async function closeCashSessionForCompany(companyId, source = 'MANUAL') {
+  const session = await CashSession.findOne({ companyId, status: 'OPEN' });
+  if (!session) return null;
+  session.closingBalances = await snapshotBalances(companyId);
+  session.closedAt = new Date();
+  session.status = 'CLOSED';
+  session.closedBy = source === 'AUTO' ? 'AUTO' : 'MANUAL';
+  await session.save();
+  return session;
+}
+
+export async function ensureCompanyCashSchedule(companyId) {
+  const now = new Date();
+  const { start, end } = bogotaDayRange(now);
+  const withinHours = isWithinBusinessHours(now);
+  const open = await CashSession.findOne({ companyId, status: 'OPEN' });
+
+  if (withinHours) {
+    if (open) return open;
+    const manualCloseToday = await CashSession.exists({
+      companyId,
+      status: 'CLOSED',
+      closedBy: 'MANUAL',
+      closedAt: { $gte: start, $lte: end }
+    });
+    if (manualCloseToday) return null;
+    const openedToday = await CashSession.exists({
+      companyId,
+      openedAt: { $gte: start, $lte: end }
+    });
+    if (openedToday) return null;
+    return openCashSessionForCompany(companyId, 'AUTO');
+  }
+
+  if (open) {
+    return closeCashSessionForCompany(companyId, 'AUTO');
+  }
+  return null;
+}
+
+export async function runCashScheduleJob() {
+  const companies = await Company.find({ active: { $ne: false } }).select('_id').lean();
+  for (const company of companies) {
+    try {
+      await ensureCompanyCashSchedule(company._id);
+    } catch (err) {
+      logger.error('cash.schedule.company.error', { companyId: String(company._id), err: err.message });
+    }
+  }
+}
+
 async function snapshotBalances(companyId) {
   const accounts = await Account.find({ companyId }).sort({ createdAt: 1 });
   const snapshot = [];
@@ -30,32 +96,21 @@ async function snapshotBalances(companyId) {
 
 // GET /cashflow/cash-sessions/current
 export async function getCurrentSession(req, res) {
+  await ensureCompanyCashSchedule(req.companyId);
   const session = await CashSession.findOne({ companyId: req.companyId, status: 'OPEN' }).lean();
-  res.json({ session: session || null });
+  res.json({ session: session || null, schedule: scheduleStatus() });
 }
 
 // POST /cashflow/cash-sessions/open
 export async function openSession(req, res) {
-  const existing = await CashSession.findOne({ companyId: req.companyId, status: 'OPEN' });
-  if (existing) return res.status(400).json({ error: 'Ya hay una caja abierta. Debes cerrarla antes de abrir otra.' });
-  const openingBalances = await snapshotBalances(req.companyId);
-  const session = await CashSession.create({
-    companyId: req.companyId,
-    status: 'OPEN',
-    openedAt: new Date(),
-    openingBalances
-  });
+  const session = await openCashSessionForCompany(req.companyId, 'MANUAL');
   res.json({ ok: true, session });
 }
 
 // POST /cashflow/cash-sessions/close
 export async function closeSession(req, res) {
-  const session = await CashSession.findOne({ companyId: req.companyId, status: 'OPEN' });
+  const session = await closeCashSessionForCompany(req.companyId, 'MANUAL');
   if (!session) return res.status(400).json({ error: 'No hay una caja abierta para cerrar.' });
-  session.closingBalances = await snapshotBalances(req.companyId);
-  session.closedAt = new Date();
-  session.status = 'CLOSED';
-  await session.save();
   res.json({ ok: true, session });
 }
 

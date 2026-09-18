@@ -46,6 +46,7 @@ import bossCashflowRouter from './routes/boss.cashflow.routes.js';
 import bossSalesRouter from './routes/boss.sales.routes.js';
 import bossInventoryRouter from './routes/boss.inventory.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
+import { runCashScheduleJob } from './controllers/cashSessions.controller.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -370,8 +371,15 @@ mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
           checkCalendarNotifications().catch(err => {
             logger.error('calendar.notifications.job.error', { err: err.message });
           });
+          runCashScheduleJob().catch(err => {
+            logger.error('cash.schedule.job.error', { err: err.message });
+          });
         }, 60 * 1000); // Cada 60 segundos
         logger.info('calendar.notifications.job.started');
+        runCashScheduleJob().catch(err => {
+          logger.error('cash.schedule.job.error', { err: err.message });
+        });
+        logger.info('cash.schedule.job.started');
       } catch (err) {
         logger.error('calendar.notifications.job.init.error', { err: err.message });
         // No fallar el servidor si el job no se puede iniciar

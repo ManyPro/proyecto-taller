@@ -11,6 +11,8 @@ const CashSessionSchema = new mongoose.Schema({
   status: { type: String, enum: ['OPEN', 'CLOSED'], default: 'OPEN', index: true },
   openedAt: { type: Date, required: true },
   closedAt: { type: Date, default: null },
+  openedBy: { type: String, enum: ['AUTO', 'MANUAL'], default: 'MANUAL' },
+  closedBy: { type: String, default: null },
   openingBalances: { type: [BalanceSnapshotSchema], default: [] },
   closingBalances: { type: [BalanceSnapshotSchema], default: [] }
 }, { timestamps: true });

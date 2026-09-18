@@ -138,24 +138,56 @@ function fmtSessionDate(d){
 
 async function loadCashSessionPanel(){
   const statusEl = document.getElementById('cf-session-status');
+  const subEl = document.getElementById('cf-session-sub');
+  const bannerEl = document.getElementById('cf-session-banner');
   const openBtn = document.getElementById('cf-open-session');
   const closeBtn = document.getElementById('cf-close-session');
   if(!statusEl) return;
   try{
-    const { session } = await API.cashflow.sessions.current();
+    const { session, schedule } = await API.cashflow.sessions.current();
+    const scheduleLabel = schedule?.label || 'L-V 7:00 a.m. – 6:00 p.m. · Sábado 7:00 a.m. – 3:00 p.m.';
     if(session){
-      statusEl.textContent = `🟢 Caja abierta desde ${fmtSessionDate(session.openedAt)}`;
+      const auto = session.openedBy === 'AUTO';
+      statusEl.textContent = 'CAJA ABIERTA';
+      if (subEl) subEl.textContent = `${auto ? 'Apertura automática' : 'Apertura manual'} desde ${fmtSessionDate(session.openedAt)} · ${scheduleLabel}`;
+      bannerEl?.classList.add('cf-caja-open');
+      bannerEl?.classList.remove('cf-caja-closed');
       openBtn?.classList.add('hidden');
       closeBtn?.classList.remove('hidden');
     } else {
-      statusEl.textContent = '🔴 Caja cerrada';
+      statusEl.textContent = 'CAJA CERRADA';
+      if (subEl) subEl.textContent = `No hay caja abierta. Horario automático: ${scheduleLabel}`;
+      bannerEl?.classList.add('cf-caja-closed');
+      bannerEl?.classList.remove('cf-caja-open');
       openBtn?.classList.remove('hidden');
       closeBtn?.classList.add('hidden');
     }
   }catch(e){
     statusEl.textContent = 'No se pudo consultar el estado de la caja';
+    bannerEl?.classList.remove('cf-caja-open', 'cf-caja-closed');
   }
   await loadCashSessionList();
+}
+
+async function ensureCashOpenOrContinue(){
+  try{
+    const { session } = await API.cashflow.sessions.current();
+    if(session) return true;
+  }catch(e){
+    return window.confirm('No se pudo verificar el estado de la caja. ¿Deseas continuar igual?');
+  }
+  const openNow = window.confirm('La caja está CERRADA.\n\n¿Deseas ABRIR la caja ahora y continuar?');
+  if(openNow){
+    try{
+      await API.cashflow.sessions.open();
+      await loadCashSessionPanel();
+      return true;
+    }catch(e){
+      alert(e?.message || 'No se pudo abrir la caja');
+      return false;
+    }
+  }
+  return window.confirm('La caja seguirá CERRADA.\n\n¿Deseas registrar el movimiento de todas formas?');
 }
 
 async function loadCashSessionList(){
@@ -739,6 +771,15 @@ function openBillCounterModal(){
       actionSaveBtn.disabled = true;
       
       try {
+        const canContinue = await ensureCashOpenOrContinue();
+        if(!canContinue){
+          actionSaveBtn.disabled = false;
+          if(msgEl){
+            msgEl.textContent = 'Movimiento cancelado: la caja está cerrada';
+            msgEl.style.color = 'var(--danger, #ef4444)';
+          }
+          return;
+        }
         await API.cashflow.create({ 
           accountId, 
           kind: currentActionKind, 
@@ -1033,6 +1074,11 @@ function openNewEntryModal(defaultKind='IN'){
         return;
       }
       msg.textContent='Guardando...';
+      const canContinue = await ensureCashOpenOrContinue();
+      if(!canContinue){
+        msg.textContent = 'Movimiento cancelado: la caja está cerrada';
+        return;
+      }
       const meta = source === 'INVESTMENT' ? { paymentMode: 'manual', category: 'INVESTMENT' } : { category: 'MANUAL' };
       await API.cashflow.create({ accountId, kind: kindSel, amount, description, source, meta, ...(tag ? { tag } : {}) });
       msg.textContent='OK';
@@ -1103,6 +1149,11 @@ function openTransferModal(){
       }
       if(amount <= 0){
         msg.textContent='⚠️ El monto debe ser mayor a 0';
+        return;
+      }
+      const canContinue = await ensureCashOpenOrContinue();
+      if(!canContinue){
+        msg.textContent = 'Transferencia cancelada: la caja está cerrada';
         return;
       }
       await API.cashflow.transfer({ fromAccountId, toAccountId, amount, description });
@@ -1208,6 +1259,11 @@ function openSettleLoanModal(loanId, loan){
     }
     
     try{
+      const canContinue = await ensureCashOpenOrContinue();
+      if(!canContinue){
+        alert('Operación cancelada: la caja está cerrada');
+        return;
+      }
       await API.cashflow.loans.settle(loanId, { accountId, amount, description, date });
       modal.classList.add('hidden');
       loadAccounts();
@@ -1318,6 +1374,11 @@ function openNewLoanModal(){
         loanDate = new Date().toISOString();
       }
       const notes = div.querySelector('#nloan-notes').value||'';
+      const canContinue = await ensureCashOpenOrContinue();
+      if(!canContinue){
+        msg.textContent = 'Préstamo cancelado: la caja está cerrada';
+        return;
+      }
       
       await API.cashflow.loans.create({ 
         technicianName, 
