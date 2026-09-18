@@ -12,7 +12,7 @@
  *   node scripts/import_legacy_unified.js \
  *     --mongo "mongodb://..." \
  *     --companyMap "1:<mongoId1>,3:<mongoId3>" \
- *     [--dry] [--limit 1000]
+ *     [--dry] [--limit 1000] [--from 2025-01-01] [--to 2025-11-27]
  * 
  * Mapeo de empresas por defecto:
  *   - Empresa 1: (configurar con --companyMap)
@@ -84,6 +84,9 @@ const limit = args.limit ? parseInt(args.limit, 10) : null;
 const dryRun = !!args.dry;
 const progressEvery = args.progressInterval ? parseInt(args.progressInterval, 10) : 50;
 const progressTimeInterval = 10000; // 10 segundos
+const fromDateYmd = args.from ? String(args.from).slice(0, 10) : null;
+const toDateYmd = args.to ? String(args.to).slice(0, 10) : null;
+const notesLookup = !!args.notesLookup;
 
 // Mapeo de empresas: Casa Renault importa empresas 1 y 3
 let companyMap = {};
@@ -135,6 +138,21 @@ function parseDate(value) {
   if (!Number.isNaN(first.getTime())) return first;
   const fallback = new Date(raw);
   return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function orderDateYmd(order) {
+  const raw = String(order?.['or_fecha'] || '').replace(/"/g, '').trim();
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+function orderInDateRange(order) {
+  if (!fromDateYmd && !toDateYmd) return true;
+  const ymd = orderDateYmd(order);
+  if (!ymd) return false;
+  if (fromDateYmd && ymd < fromDateYmd) return false;
+  if (toDateYmd && ymd > toDateYmd) return false;
+  return true;
 }
 
 function normalizePlate(p) {
@@ -432,39 +450,27 @@ async function importClients(orders, clients, vehicles, brands, series, companyM
   }
   
   // Recolectar clientes con sus vehículos asociados por empresa desde órdenes
-  // Las órdenes tienen or_fk_cliente y or_fk_automovil que nos dan las relaciones correctas
   const perCompany = new Map();
-  
-  // Primero, crear un mapa de vehículos por cliente desde órdenes
-  const vehiclesByClient = new Map();
-  for (const order of orders) {
-    const legacyCompany = String(order['or_fk_empresa'] || '').trim();
-    if (!companyMap[legacyCompany]) continue;
-    
-    const clientId = String(order['or_fk_cliente'] || '').trim();
-    const autoId = String(order['or_fk_automovil'] || '').trim();
-    
-    if (clientId && clientId !== '0' && autoId && autoId !== '0') {
-      if (!vehiclesByClient.has(clientId)) {
-        vehiclesByClient.set(clientId, new Set());
-      }
-      vehiclesByClient.get(clientId).add(autoId);
-    }
-  }
-  
-  // Obtener empresas desde órdenes
   for (const legacyCompany of Object.keys(companyMap)) {
     perCompany.set(legacyCompany, new Map());
-    
-    // Para cada cliente que tiene vehículos en órdenes, agregarlo
-    for (const [clientId, vehicleIds] of vehiclesByClient.entries()) {
-      const client = clientIdx.get(clientId);
-      if (client) {
-        perCompany.get(legacyCompany).set(clientId, {
-          client: client,
-          vehicles: vehicleIds
-        });
-      }
+  }
+
+  for (const order of orders) {
+    const legacyCompany = String(order['or_fk_empresa'] || '').trim();
+    if (!companyMap[legacyCompany] || !perCompany.has(legacyCompany)) continue;
+
+    const clientId = String(order['or_fk_cliente'] || '').trim();
+    const autoId = String(order['or_fk_automovil'] || '').trim();
+    if (!clientId || clientId === '0') continue;
+
+    const client = clientIdx.get(clientId);
+    if (!client) continue;
+
+    if (!perCompany.get(legacyCompany).has(clientId)) {
+      perCompany.get(legacyCompany).set(clientId, { client, vehicles: new Set() });
+    }
+    if (autoId && autoId !== '0') {
+      perCompany.get(legacyCompany).get(clientId).vehicles.add(autoId);
     }
   }
   
@@ -1307,9 +1313,8 @@ async function importOrders(orders, clients, vehicles, remisions, orderProducts,
           companyId: companyId,
           legacyOrId: String(legacyOrId).trim()
         }).lean();
-        
-        // Buscar en notes como fallback solo si no se encontró (evitar regex si es posible)
-        if (!existing) {
+
+        if (!existing && notesLookup) {
           const rx = new RegExp(`\\bor_id=${String(legacyOrId).trim()}\\b`);
           existing = await Sale.findOne({
             companyId: companyId,
@@ -1441,6 +1446,9 @@ async function main() {
   console.log(`   - Series: ${seriesPath}`);
   console.log(`\n🏢 Mapeo de empresas: ${JSON.stringify(companyMap)}`);
   console.log(`💾 Modo: ${dryRun ? 'DRY RUN (simulación)' : 'REAL (guardando en BD)'}`);
+  if (fromDateYmd || toDateYmd) {
+    console.log(`📅 Rango de órdenes: ${fromDateYmd || '...'} → ${toDateYmd || 'último dato del Excel'}`);
+  }
   if (limit) console.log(`🔢 Límite: ${limit} registros`);
   console.log('='.repeat(60));
   
@@ -1484,6 +1492,15 @@ async function main() {
   
   const series = await parseCSV(seriesPath, { delimiter, encoding });
   console.log(`✅ Series: ${series.length}`);
+
+  const ordersInRange = orders.filter(orderInDateRange);
+  if (fromDateYmd || toDateYmd) {
+    const ymds = ordersInRange.map(orderDateYmd).filter(Boolean).sort();
+    const first = ymds[0] || 'n/a';
+    const last = ymds[ymds.length - 1] || 'n/a';
+    console.log(`\n📅 Órdenes en rango ${fromDateYmd || '...'} → ${toDateYmd || '…'}: ${ordersInRange.length} (de ${orders.length})`);
+    console.log(`   Primera: ${first}  Última: ${last}`);
+  }
   
   // Conectar a MongoDB
   if (!dryRun) {
@@ -1499,10 +1516,10 @@ async function main() {
   }
   
   // Importar clientes (usando órdenes para obtener relaciones correctas)
-  await importClients(orders, clients, vehicles, brands, series, companyMap);
+  await importClients(ordersInRange, clients, vehicles, brands, series, companyMap);
   
   // Importar órdenes (usando órdenes directamente)
-  await importOrders(orders, clients, vehicles, remisions, orderProducts, orderServices, products, services, brands, series, companyMap);
+  await importOrders(ordersInRange, clients, vehicles, remisions, orderProducts, orderServices, products, services, brands, series, companyMap);
   
   // Resumen final
   console.log('\n' + '='.repeat(60));
