@@ -869,6 +869,21 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
         hasProducts: products.length > 0,
         hasServices: services.length > 0
       };
+
+      let billableQuoteTotal = 0;
+      for (const item of (quoteObj.items || [])) {
+        const sku = String(item.sku || '').toUpperCase();
+        if (item.comboParent || sku.startsWith('CP-')) continue;
+        billableQuoteTotal += Number(item.subtotal) || ((Number(item.qty) > 0 ? Number(item.qty) : 1) * (Number(item.unitPrice) || 0));
+      }
+      if (quoteObj.discount && Number(quoteObj.discount.value) > 0) {
+        if (quoteObj.discount.type === 'percent') {
+          billableQuoteTotal -= billableQuoteTotal * Number(quoteObj.discount.value) / 100;
+        } else {
+          billableQuoteTotal -= Number(quoteObj.discount.value);
+        }
+      }
+      quoteObj.total = Math.max(0, billableQuoteTotal);
       
       // Mantener items originales para compatibilidad
       quoteObj.items = quoteObj.items.map(item => ({
@@ -2102,7 +2117,7 @@ export async function previewTemplate(req, res) {
             const nestedSubtotal = (nestedItem.subtotal !== null && nestedItem.subtotal !== undefined) 
               ? Number(nestedItem.subtotal) 
               : (nestedQtyForCalc * nestedUnitPrice);
-            calculatedSubtotal += nestedSubtotal; // Incluir en el subtotal total
+            // Los precios internos del combo son de referencia y NO suman al total
             
             return {
               sku: nestedItem.sku || '',
@@ -2144,29 +2159,30 @@ export async function previewTemplate(req, res) {
       
       const ivaEnabled = quoteData.ivaEnabled || false;
       const frontendTotal = Number(quoteData.totals?.total || 0);
-      
-      // CRÍTICO: Calcular descuento implícito desde la diferencia entre el subtotal calculado
-      // y el total del frontend (que ya incluye descuento e IVA si aplica)
-      // El frontend aplica: subtotal -> descuento -> subtotalAfterDiscount -> IVA (si aplica) -> total
+      const explicitDiscount = quoteData.discount;
+
       let discountValue = 0;
       let subtotalAfterDiscount = calculatedSubtotal;
-      
-      if (ivaEnabled && frontendTotal > 0) {
+
+      if (explicitDiscount && Number(explicitDiscount.value) > 0) {
+        if (explicitDiscount.type === 'percent') {
+          discountValue = calculatedSubtotal * Number(explicitDiscount.value) / 100;
+        } else {
+          discountValue = Number(explicitDiscount.amount || explicitDiscount.value || 0);
+        }
+        discountValue = Math.max(0, discountValue);
+        if (discountValue > calculatedSubtotal) discountValue = calculatedSubtotal;
+        subtotalAfterDiscount = calculatedSubtotal - discountValue;
+      } else if (ivaEnabled && frontendTotal > 0) {
         // Si IVA está activado: frontendTotal = (subtotal - discount) * 1.19
-        // Entonces: subtotalAfterDiscount = frontendTotal / 1.19
-        // Y: discount = calculatedSubtotal - subtotalAfterDiscount
         subtotalAfterDiscount = Math.round(frontendTotal / 1.19);
         discountValue = Math.max(0, Math.round(calculatedSubtotal - subtotalAfterDiscount));
-        // Recalcular subtotalAfterDiscount para evitar errores de redondeo
         subtotalAfterDiscount = calculatedSubtotal - discountValue;
       } else if (ivaEnabled && frontendTotal <= 0) {
-        // Si IVA está activado pero el total es 0 o negativo (100% descuento)
-        // El descuento es igual al subtotal calculado
         discountValue = Math.max(0, calculatedSubtotal);
         subtotalAfterDiscount = 0;
       } else {
         // Si IVA no está activado: frontendTotal = subtotal - discount
-        // Entonces: discount = calculatedSubtotal - frontendTotal
         discountValue = Math.max(0, Math.round(calculatedSubtotal - frontendTotal));
         subtotalAfterDiscount = calculatedSubtotal - discountValue;
       }

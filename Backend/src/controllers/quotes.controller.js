@@ -16,6 +16,83 @@ const normKind = (k) => {
   return 'Producto';
 };
 
+function isNestedComboItem(it) {
+  if (!it) return false;
+  if (it.comboParent || it.combo_parent) return true;
+  const sku = String(it.sku || '').toUpperCase();
+  return sku.startsWith('CP-');
+}
+
+function lineSubtotal(it) {
+  const qtyRaw = it?.qty;
+  const qty = qtyRaw === null || qtyRaw === '' || qtyRaw === undefined ? null : Number(qtyRaw);
+  const unitPrice = Number(it?.unitPrice || 0);
+  const multiplier = qty && qty > 0 ? qty : 1;
+  return multiplier * unitPrice;
+}
+
+function billableQuoteSubtotal(items = []) {
+  return (items || []).reduce((sum, it) => {
+    if (!it || isNestedComboItem(it)) return sum;
+    return sum + lineSubtotal(it);
+  }, 0);
+}
+
+function applyDiscountToSubtotal(subtotal, discount) {
+  let totalAfterDiscount = Number(subtotal || 0);
+  if (discount && Number(discount.value) > 0) {
+    if (discount.type === 'percent') {
+      totalAfterDiscount = totalAfterDiscount - (totalAfterDiscount * Number(discount.value) / 100);
+    } else {
+      totalAfterDiscount = totalAfterDiscount - Number(discount.value);
+    }
+  }
+  return Math.max(0, totalAfterDiscount);
+}
+
+function correctQuoteStoredTotal(doc) {
+  return applyDiscountToSubtotal(billableQuoteSubtotal(doc?.items || []), doc?.discount);
+}
+
+async function repairQuoteDocsComboTotals(docs = []) {
+  const ops = [];
+  for (const doc of docs) {
+    if (!doc) continue;
+    const correct = correctQuoteStoredTotal(doc);
+    const current = Number(doc.total || 0);
+    if (Math.abs(correct - current) <= 0.01) continue;
+    doc.total = correct;
+    if (doc._id) {
+      ops.push({
+        updateOne: {
+          filter: { _id: doc._id },
+          update: { $set: { total: correct } }
+        }
+      });
+    }
+  }
+  if (ops.length) {
+    await Quote.bulkWrite(ops);
+  }
+  return ops.length;
+}
+
+const quoteTotalsRepairedForCompany = new Set();
+
+async function ensureCompanyQuoteTotalsRepaired(companyId) {
+  const key = String(companyId || '');
+  if (!key || quoteTotalsRepairedForCompany.has(key)) return;
+  const quotes = await Quote.find({
+    companyId,
+    $or: [
+      { 'items.comboParent': { $exists: true, $ne: null } },
+      { 'items.sku': { $regex: /^CP-/i } }
+    ]
+  }).select({ items: 1, discount: 1, total: 1 });
+  await repairQuoteDocsComboTotals(quotes);
+  quoteTotalsRepairedForCompany.add(key);
+}
+
 // Calcula subtotales/total y aplica normalización de items
 async function computeItems(itemsInput = [], companyId = null) {
   const items = [];
@@ -200,7 +277,7 @@ async function computeItems(itemsInput = [], companyId = null) {
               // Establecer comboParent como el refId del combo principal
               comboParent: refId
             });
-            total += comboItemSubtotal;
+            // Los precios internos del combo son de referencia: NO suman al total
           });
           
           // Continuar con el siguiente item (ya procesamos este combo)
@@ -221,7 +298,10 @@ async function computeItems(itemsInput = [], companyId = null) {
       // Guardar comboParent si existe para identificar items anidados de combos
       comboParent: it.comboParent || it.combo_parent || undefined
     });
-    total += subtotal;
+    // Items internos de combo (comboParent / SKU CP-) no forman parte del total cobrado
+    if (!isNestedComboItem(it)) {
+      total += subtotal;
+    }
   }
   return { items, total };
 }
@@ -411,6 +491,8 @@ export async function listQuotes(req, res) {
     if (Object.keys(tmp).length) sortObj = tmp;
   }
 
+  await ensureCompanyQuoteTotalsRepaired(companyId);
+
   const [items, total] = await Promise.all([
     Quote.find(q).sort(sortObj).skip(skipNum).limit(limitNum),
     Quote.countDocuments(q)
@@ -444,6 +526,7 @@ export async function getQuote(req, res) {
   const companyId = req.companyId || req.company?.id;
   const doc = await Quote.findOne({ _id: req.params.id, companyId });
   if (!doc) return res.status(404).json({ error: 'No encontrada' });
+  await repairQuoteDocsComboTotals([doc]);
   res.json(doc);
 }
 

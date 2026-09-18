@@ -3,6 +3,32 @@ import { normalizeText, matchesSearch } from "./search-utils.js";
 import { setupNumberInputPasteHandler, setupNumberInputsPasteHandler } from "./number-utils.js";
 
 // Función para restaurar variables Handlebars acortadas antes de enviar al backend
+function isNestedComboQuoteItem(item) {
+  if (!item) return false;
+  if (item.comboParent) return true;
+  return String(item.sku || '').toUpperCase().startsWith('CP-');
+}
+
+function billableQuoteAmountFromItems(items = [], discount = null, ivaEnabled = false) {
+  let subtotal = 0;
+  (items || []).forEach((item) => {
+    if (isNestedComboQuoteItem(item)) return;
+    const qty = Number(item.qty);
+    const multiplier = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    const unitPrice = Number(item.unitPrice || item.price || 0) || 0;
+    subtotal += multiplier * unitPrice;
+  });
+  let afterDiscount = subtotal;
+  if (discount && Number(discount.value) > 0) {
+    afterDiscount = discount.type === 'percent'
+      ? subtotal - (subtotal * Number(discount.value) / 100)
+      : subtotal - Number(discount.value);
+  }
+  afterDiscount = Math.max(0, afterDiscount);
+  if (ivaEnabled) afterDiscount = afterDiscount * 1.19;
+  return afterDiscount;
+}
+
 function restoreHandlebarsVarsForPreview(html) {
   if (!html) return html;
   
@@ -3502,7 +3528,7 @@ export function initQuotes({ getCompanyEmail }) {
           comboParent: item.comboParent || undefined
         })),
         totals: {
-          total: d?.total || 0
+          total: billableQuoteAmountFromItems(d?.items || [], d?.discount || null, false)
         },
         ivaEnabled: d?.ivaEnabled || false,
         discount: d?.discount || null
