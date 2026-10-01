@@ -32,12 +32,14 @@ import CustomerProfile from '../src/models/CustomerProfile.js';
 import Vehicle from '../src/models/Vehicle.js';
 import UnassignedVehicle from '../src/models/UnassignedVehicle.js';
 import Sale from '../src/models/Sale.js';
+import Counter from '../src/models/Counter.js';
 import { upsertProfileFromSource } from '../src/controllers/profile.helper.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env.dev') });
+dotenv.config();
 
 // ==================== CONFIGURACIÓN ====================
 
@@ -87,6 +89,31 @@ const progressTimeInterval = 10000; // 10 segundos
 const fromDateYmd = args.from ? String(args.from).slice(0, 10) : null;
 const toDateYmd = args.to ? String(args.to).slice(0, 10) : null;
 const notesLookup = !!args.notesLookup;
+const plateFilter = args.plates
+  ? new Set(String(args.plates).split(',').map((p) => String(p).trim().toUpperCase()).filter(Boolean))
+  : null;
+const orderIdFilter = args.orderIds
+  ? new Set(String(args.orderIds).split(',').map((p) => String(p).trim()).filter(Boolean))
+  : null;
+
+const LEGACY_PAYMENT = {
+  '1': 'EFECTIVO',
+  '2': 'TARJETA',
+  '3': 'CHEQUE',
+  '4': 'CREDITO',
+  '5': 'TRANSFERENCIA',
+  '6': 'MIXTO',
+  '7': 'COTIZACION'
+};
+
+async function getNextSaleNumber(companyId) {
+  const c = await Counter.findOneAndUpdate(
+    { companyId },
+    { $inc: { saleSeq: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  return c.saleSeq;
+}
 
 // Mapeo de empresas: Casa Renault importa empresas 1 y 3
 let companyMap = {};
@@ -152,6 +179,20 @@ function orderInDateRange(order) {
   if (!ymd) return false;
   if (fromDateYmd && ymd < fromDateYmd) return false;
   if (toDateYmd && ymd > toDateYmd) return false;
+  return true;
+}
+
+function orderMatchesSelectiveFilters(order, plateByAutoId) {
+  if (!orderInDateRange(order)) return false;
+  if (orderIdFilter) {
+    const id = String(order['or_id'] ?? order['id'] ?? '').trim();
+    if (!orderIdFilter.has(id)) return false;
+  }
+  if (plateFilter) {
+    const autoId = String(order['or_fk_automovil'] || '').trim();
+    const plate = plateByAutoId.get(autoId) || '';
+    if (!plateFilter.has(plate)) return false;
+  }
   return true;
 }
 
@@ -1298,6 +1339,11 @@ async function importOrders(orders, clients, vehicles, remisions, orderProducts,
     if (otros) notesParts.push(`Otros: ${otros}`);
     const notes = notesParts.join('\n');
     const saleName = plate ? `Venta - ${plate}` : `Venta Legacy ${legacyOrId}`;
+    const paymentType = String(remisionRow?.['rm_tipo_pago'] ?? '').trim();
+    const paymentMethod = LEGACY_PAYMENT[paymentType] || '';
+    const paymentMethods = paymentMethod
+      ? [{ method: paymentMethod, amount: total }]
+      : [];
     
     if (dryRun) {
       counters.ordersImported++;
@@ -1350,6 +1396,20 @@ async function importOrders(orders, clients, vehicles, remisions, orderProducts,
         hasChanges = true;
       }
       
+      if (!existing.number) {
+        try {
+          update.$set.number = await getNextSaleNumber(companyId);
+          hasChanges = true;
+        } catch (err) {
+          // seguir sin número si el contador falla
+        }
+      }
+      if (paymentMethod && existing.paymentMethod !== paymentMethod) {
+        update.$set.paymentMethod = paymentMethod;
+        update.$set.paymentMethods = paymentMethods;
+        hasChanges = true;
+      }
+
       if (hasChanges && Object.keys(update.$set).length > 0) {
         try {
           await Sale.updateOne({ _id: existing._id }, update);
@@ -1363,11 +1423,13 @@ async function importOrders(orders, clients, vehicles, remisions, orderProducts,
     } else {
       // Crear nueva orden
       try {
+        const saleNumber = await getNextSaleNumber(companyId);
         const saleDoc = await Sale.create({
           companyId: companyId,
           status: 'closed',
           origin: 'internal',
           technician: '',
+          number: saleNumber,
           legacyOrId: String(legacyOrId).trim(),
           name: saleName,
           items,
@@ -1378,6 +1440,8 @@ async function importOrders(orders, clients, vehicles, remisions, orderProducts,
           tax,
           total,
           laborValue,
+          paymentMethod,
+          paymentMethods,
           closedAt
         });
         
@@ -1449,6 +1513,8 @@ async function main() {
   if (fromDateYmd || toDateYmd) {
     console.log(`📅 Rango de órdenes: ${fromDateYmd || '...'} → ${toDateYmd || 'último dato del Excel'}`);
   }
+  if (plateFilter) console.log(`🚗 Placas: ${[...plateFilter].join(', ')}`);
+  if (orderIdFilter) console.log(`🆔 Órdenes: ${[...orderIdFilter].join(', ')}`);
   if (limit) console.log(`🔢 Límite: ${limit} registros`);
   console.log('='.repeat(60));
   
@@ -1493,13 +1559,20 @@ async function main() {
   const series = await parseCSV(seriesPath, { delimiter, encoding });
   console.log(`✅ Series: ${series.length}`);
 
-  const ordersInRange = orders.filter(orderInDateRange);
-  if (fromDateYmd || toDateYmd) {
+  const plateByAutoId = new Map();
+  for (const veh of vehicles) {
+    const autoId = String(veh['au_id'] ?? veh['id'] ?? '').trim();
+    if (!autoId) continue;
+    plateByAutoId.set(autoId, normalizePlate(veh['au_placa'] || ''));
+  }
+
+  const ordersInRange = orders.filter((order) => orderMatchesSelectiveFilters(order, plateByAutoId));
+  if (fromDateYmd || toDateYmd || plateFilter || orderIdFilter) {
     const ymds = ordersInRange.map(orderDateYmd).filter(Boolean).sort();
     const first = ymds[0] || 'n/a';
     const last = ymds[ymds.length - 1] || 'n/a';
-    console.log(`\n📅 Órdenes en rango ${fromDateYmd || '...'} → ${toDateYmd || '…'}: ${ordersInRange.length} (de ${orders.length})`);
-    console.log(`   Primera: ${first}  Última: ${last}`);
+    console.log(`\n📅 Órdenes filtradas: ${ordersInRange.length} (de ${orders.length})`);
+    if (ymds.length) console.log(`   Primera: ${first}  Última: ${last}`);
   }
   
   // Conectar a MongoDB
