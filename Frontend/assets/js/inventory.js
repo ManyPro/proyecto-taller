@@ -5292,6 +5292,192 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+const INVESTOR_ITEMS_PAGE_SIZE = 30;
+
+const investorItemsPager = {
+  investorId: '',
+  sold: [],
+  paid: [],
+  soldPage: 1,
+  paidPage: 1,
+  itemsMap: new Map(),
+  selectedSoldIds: new Set()
+};
+
+function formatInvestorMoney(n) {
+  return '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function getInvestorPageSlice(items, page) {
+  const total = Array.isArray(items) ? items.length : 0;
+  const totalPages = Math.max(1, Math.ceil(total / INVESTOR_ITEMS_PAGE_SIZE) || 1);
+  const current = Math.min(Math.max(1, page), totalPages);
+  const start = (current - 1) * INVESTOR_ITEMS_PAGE_SIZE;
+  const slice = total ? items.slice(start, start + INVESTOR_ITEMS_PAGE_SIZE) : [];
+  return { slice, current, totalPages, total, start, end: start + slice.length };
+}
+
+function investorPagerControlsHtml(kind, info) {
+  if (!info.total) return '';
+  const rangeLabel = info.total > INVESTOR_ITEMS_PAGE_SIZE
+    ? `Mostrando ${info.start + 1}–${info.end} de ${info.total}`
+    : `${info.total} item(s)`;
+  if (info.total <= INVESTOR_ITEMS_PAGE_SIZE) {
+    return `<p class="text-xs text-slate-400 theme-light:text-slate-600 mt-3">${rangeLabel}</p>`;
+  }
+  const disablePrev = info.current <= 1 ? 'disabled' : '';
+  const disableNext = info.current >= info.totalPages ? 'disabled' : '';
+  return `
+    <div class="flex items-center justify-between gap-3 mt-4 flex-wrap">
+      <p class="text-xs text-slate-400 theme-light:text-slate-600">${rangeLabel}</p>
+      <div class="flex items-center gap-2">
+        <button type="button" ${disablePrev} onclick="changeInvestorItemsPage('${kind}',-1)" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300">Anterior</button>
+        <span class="text-xs text-slate-400 theme-light:text-slate-600">Pág. ${info.current} / ${info.totalPages}</span>
+        <button type="button" ${disableNext} onclick="changeInvestorItemsPage('${kind}',1)" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300">Siguiente</button>
+      </div>
+    </div>
+  `;
+}
+
+function resolveInvestorLineItem(item, itemsMap) {
+  const catalogId = item.itemId?._id || item.itemId?.id || null;
+  const fullItem = catalogId && itemsMap ? itemsMap.get(String(catalogId)) : null;
+  return {
+    itemName: fullItem?.name || item.itemId?.name || item.itemId?.sku || 'N/A',
+    itemSku: fullItem?.sku || item.itemId?.sku || 'N/A',
+    total: (item.purchasePrice || 0) * (item.qty || 0),
+    saleNumber: item.saleId?.number || 'N/A',
+    itemIdStr: String(item._id || item.id || ''),
+    qty: item.qty || 0,
+    purchasePrice: item.purchasePrice || 0,
+    paidAt: item.paidAt ? new Date(item.paidAt).toLocaleDateString() : 'N/A'
+  };
+}
+
+function syncSelectAllSoldCheckbox() {
+  const selectAll = document.getElementById('select-all-sold');
+  const boxes = [...document.querySelectorAll('#investor-sold-tbody .sold-item-checkbox')];
+  if (!selectAll || !boxes.length) return;
+  selectAll.checked = boxes.every((cb) => cb.checked);
+  selectAll.indeterminate = !selectAll.checked && boxes.some((cb) => cb.checked);
+}
+
+function bindInvestorSoldCheckboxes() {
+  document.querySelectorAll('#investor-sold-tbody .sold-item-checkbox').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const id = cb.dataset.investmentItemId;
+      if (!id) return;
+      if (cb.checked) investorItemsPager.selectedSoldIds.add(id);
+      else investorItemsPager.selectedSoldIds.delete(id);
+      syncSelectAllSoldCheckbox();
+    });
+  });
+  syncSelectAllSoldCheckbox();
+}
+
+function renderInvestorSoldRows() {
+  const tbody = document.getElementById('investor-sold-tbody');
+  const pager = document.getElementById('investor-sold-pager');
+  if (!tbody) return;
+  const money = formatInvestorMoney;
+  const all = investorItemsPager.sold;
+  if (!all.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
+    if (pager) pager.innerHTML = '';
+    return;
+  }
+  const info = getInvestorPageSlice(all, investorItemsPager.soldPage);
+  investorItemsPager.soldPage = info.current;
+  tbody.innerHTML = info.slice.map((item) => {
+    const row = resolveInvestorLineItem(item, investorItemsPager.itemsMap);
+    const checked = investorItemsPager.selectedSoldIds.has(row.itemIdStr) ? 'checked' : '';
+    return `
+      <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
+        <td class="px-4 py-3 text-center">
+          <input type="checkbox" class="sold-item-checkbox cursor-pointer" data-investment-item-id="${row.itemIdStr}" data-total="${row.total}" ${checked} />
+        </td>
+        <td class="px-4 py-3">${escapeHtml(row.itemName)}</td>
+        <td class="px-4 py-3 text-xs text-slate-400 theme-light:text-slate-600">${escapeHtml(row.itemSku)}</td>
+        <td class="px-4 py-3 text-right">${row.qty}</td>
+        <td class="px-4 py-3 text-right">${money(row.purchasePrice)}</td>
+        <td class="px-4 py-3 text-right font-semibold">${money(row.total)}</td>
+        <td class="px-4 py-3">${escapeHtml(String(row.saleNumber))}</td>
+      </tr>
+    `;
+  }).join('');
+  if (pager) pager.innerHTML = investorPagerControlsHtml('sold', info);
+  bindInvestorSoldCheckboxes();
+}
+
+function renderInvestorPaidRows() {
+  const tbody = document.getElementById('investor-paid-tbody');
+  const pager = document.getElementById('investor-paid-pager');
+  if (!tbody) return;
+  const money = formatInvestorMoney;
+  const all = investorItemsPager.paid;
+  if (!all.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items pagados</td></tr>';
+    if (pager) pager.innerHTML = '';
+    return;
+  }
+  const info = getInvestorPageSlice(all, investorItemsPager.paidPage);
+  investorItemsPager.paidPage = info.current;
+  tbody.innerHTML = info.slice.map((item) => {
+    const row = resolveInvestorLineItem(item, investorItemsPager.itemsMap);
+    return `
+      <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
+        <td class="px-4 py-3">${escapeHtml(row.itemName)}</td>
+        <td class="px-4 py-3 text-xs text-slate-400 theme-light:text-slate-600">${escapeHtml(row.itemSku)}</td>
+        <td class="px-4 py-3 text-right">${row.qty}</td>
+        <td class="px-4 py-3 text-right">${money(row.purchasePrice)}</td>
+        <td class="px-4 py-3 text-right">${money(row.total)}</td>
+        <td class="px-4 py-3">${escapeHtml(String(row.saleNumber))}</td>
+        <td class="px-4 py-3">${row.paidAt}</td>
+      </tr>
+    `;
+  }).join('');
+  if (pager) pager.innerHTML = investorPagerControlsHtml('paid', info);
+}
+
+function changeInvestorItemsPage(kind, dir) {
+  const step = Number(dir) || 0;
+  if (kind === 'sold') {
+    investorItemsPager.soldPage += step;
+    renderInvestorSoldRows();
+  } else if (kind === 'paid') {
+    investorItemsPager.paidPage += step;
+    renderInvestorPaidRows();
+  }
+}
+
+function resetInvestorItemsPager({ investorId, sold, paid, itemsMap }) {
+  investorItemsPager.investorId = investorId || '';
+  investorItemsPager.sold = sold || [];
+  investorItemsPager.paid = paid || [];
+  investorItemsPager.soldPage = 1;
+  investorItemsPager.paidPage = 1;
+  investorItemsPager.itemsMap = itemsMap instanceof Map ? itemsMap : new Map();
+  investorItemsPager.selectedSoldIds = new Set();
+}
+
+function bindInvestorSoldSelectAll() {
+  const selectAllCheckbox = document.getElementById('select-all-sold');
+  if (!selectAllCheckbox) return;
+  selectAllCheckbox.onchange = (e) => {
+    const checked = !!e.target.checked;
+    document.querySelectorAll('#investor-sold-tbody .sold-item-checkbox').forEach((cb) => {
+      cb.checked = checked;
+      const id = cb.dataset.investmentItemId;
+      if (!id) return;
+      if (checked) investorItemsPager.selectedSoldIds.add(id);
+      else investorItemsPager.selectedSoldIds.delete(id);
+    });
+    selectAllCheckbox.indeterminate = false;
+  };
+}
+
+window.changeInvestorItemsPage = changeInvestorItemsPage;
+
 // Abrir vista completa del inversor (reemplaza contenido de la página)
 async function openInvestorDetailView(investorId) {
   try {
@@ -5399,54 +5585,12 @@ async function openInvestorDetailView(investorId) {
       `;
     }).join('') || '<div class="text-center py-12 text-slate-400 theme-light:text-slate-600"><p class="text-lg">No hay items disponibles</p></div>';
     
-    // Renderizar items vendidos
-    const soldItems = (items.sold || []).map(item => {
-      const itemId = item.itemId?._id || item.itemId?.id || null;
-      const fullItem = itemId ? itemsMap.get(String(itemId)) : null;
-      const itemName = fullItem?.name || item.itemId?.name || item.itemId?.sku || 'N/A';
-      const itemSku = fullItem?.sku || item.itemId?.sku || 'N/A';
-      const total = (item.purchasePrice || 0) * (item.qty || 0);
-      const saleNumber = item.saleId?.number || 'N/A';
-      const itemIdStr = item._id || item.id;
-      
-      return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
-          <td class="px-4 py-3 text-center">
-            <input type="checkbox" class="sold-item-checkbox cursor-pointer" data-investment-item-id="${itemIdStr}" data-total="${total}" />
-          </td>
-          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
-          <td class="px-4 py-3 text-xs text-slate-400 theme-light:text-slate-600">${escapeHtml(itemSku)}</td>
-          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
-          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
-          <td class="px-4 py-3 text-right font-semibold">${money(total)}</td>
-          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
-        </tr>
-      `;
-    }).join('') || '<tr><td colspan="7" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
-    
-    // Renderizar items pagados
-    const paidItems = (items.paid || []).map(item => {
-      const itemId = item.itemId?._id || item.itemId?.id || null;
-      const fullItem = itemId ? itemsMap.get(String(itemId)) : null;
-      const itemName = fullItem?.name || item.itemId?.name || item.itemId?.sku || 'N/A';
-      const itemSku = fullItem?.sku || item.itemId?.sku || 'N/A';
-      const total = (item.purchasePrice || 0) * (item.qty || 0);
-      const saleNumber = item.saleId?.number || 'N/A';
-      const paidAt = item.paidAt ? new Date(item.paidAt).toLocaleDateString() : 'N/A';
-      
-      return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100">
-          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
-          <td class="px-4 py-3 text-xs text-slate-400 theme-light:text-slate-600">${escapeHtml(itemSku)}</td>
-          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
-          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
-          <td class="px-4 py-3 text-right">${money(total)}</td>
-          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
-          <td class="px-4 py-3">${paidAt}</td>
-        </tr>
-      `;
-    }).join('') || '<tr><td colspan="7" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items pagados</td></tr>';
-    
+    resetInvestorItemsPager({
+      investorId,
+      sold: items.sold || [],
+      paid: items.paid || [],
+      itemsMap
+    }); 
     // Renderizar compras con detalles de items
     const purchasesRows = purchases.map(purchase => {
       const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
@@ -5588,12 +5732,12 @@ async function openInvestorDetailView(investorId) {
               </button>
             ` : ''}
           </div>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto max-h-[420px] overflow-y-auto custom-scrollbar">
             <table class="w-full text-sm border-collapse">
               <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
                 <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
                   <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                    <input type="checkbox" id="select-all-sold" class="cursor-pointer" />
+                    <input type="checkbox" id="select-all-sold" class="cursor-pointer" title="Seleccionar esta página" />
                   </th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">SKU</th>
@@ -5603,9 +5747,10 @@ async function openInvestorDetailView(investorId) {
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Venta</th>
                 </tr>
               </thead>
-              <tbody class="text-white dark:text-white theme-light:text-slate-900">${soldItems}</tbody>
+              <tbody id="investor-sold-tbody" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
             </table>
           </div>
+          <div id="investor-sold-pager"></div>
         </div>
         
         <!-- Items Pagados -->
@@ -5619,7 +5764,7 @@ async function openInvestorDetailView(investorId) {
               <p class="text-sm text-slate-400 theme-light:text-slate-600">${(items.paid || []).length} item(s) pagado(s)</p>
             </div>
           </div>
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto max-h-[420px] overflow-y-auto custom-scrollbar">
             <table class="w-full text-sm border-collapse">
               <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
                 <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
@@ -5632,9 +5777,10 @@ async function openInvestorDetailView(investorId) {
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha Pago</th>
                 </tr>
               </thead>
-              <tbody class="text-white dark:text-white theme-light:text-slate-900">${paidItems}</tbody>
+              <tbody id="investor-paid-tbody" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
             </table>
           </div>
+          <div id="investor-paid-pager"></div>
         </div>
         
         <!-- Compras Registradas -->
@@ -5656,20 +5802,12 @@ async function openInvestorDetailView(investorId) {
     `;
     
     container.innerHTML = viewContent;
+    renderInvestorSoldRows();
+    renderInvestorPaidRows();
     
     // Configurar funcionalidad de cobro si hay items vendidos
     if (items.sold && items.sold.length > 0) {
-      // Checkbox "Seleccionar todos"
-      const selectAllCheckbox = document.getElementById('select-all-sold');
-      const soldCheckboxes = document.querySelectorAll('.sold-item-checkbox');
-      
-      if (selectAllCheckbox && soldCheckboxes.length > 0) {
-        selectAllCheckbox.addEventListener('change', (e) => {
-          soldCheckboxes.forEach(cb => {
-            cb.checked = e.target.checked;
-          });
-        });
-      }
+      bindInvestorSoldSelectAll();
       
       // Botón "Cobrar Items"
       const btnCobrar = document.getElementById('btn-cobrar-items');
@@ -6219,44 +6357,12 @@ async function openInvestorDetailModal(investorId) {
       `;
     }).join('') || '<tr><td colspan="4" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items disponibles</td></tr>';
     
-    // Renderizar items vendidos con checkboxes para selección
-    const soldItems = (items.sold || []).map(item => {
-      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
-      const total = (item.purchasePrice || 0) * (item.qty || 0);
-      const saleNumber = item.saleId?.number || 'N/A';
-      const itemId = item._id || item.id;
-      return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-          <td class="px-4 py-3 text-center">
-            <input type="checkbox" class="sold-item-checkbox cursor-pointer" data-investment-item-id="${itemId}" data-total="${total}" />
-          </td>
-          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
-          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
-          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
-          <td class="px-4 py-3 text-right font-semibold">${money(total)}</td>
-          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
-        </tr>
-      `;
-    }).join('') || '<tr><td colspan="6" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items vendidos</td></tr>';
-    
-    // Renderizar items pagados
-    const paidItems = (items.paid || []).map(item => {
-      const itemName = item.itemId?.name || item.itemId?.sku || 'N/A';
-      const total = (item.purchasePrice || 0) * (item.qty || 0);
-      const saleNumber = item.saleId?.number || 'N/A';
-      const paidAt = item.paidAt ? new Date(item.paidAt).toLocaleDateString() : 'N/A';
-      return `
-        <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-          <td class="px-4 py-3">${escapeHtml(itemName)}</td>
-          <td class="px-4 py-3 text-right">${item.qty || 0}</td>
-          <td class="px-4 py-3 text-right">${money(item.purchasePrice || 0)}</td>
-          <td class="px-4 py-3 text-right">${money(total)}</td>
-          <td class="px-4 py-3">${escapeHtml(saleNumber)}</td>
-          <td class="px-4 py-3">${paidAt}</td>
-        </tr>
-      `;
-    }).join('') || '<tr><td colspan="6" class="text-center text-slate-400 theme-light:text-slate-600 py-4">No hay items pagados</td></tr>';
-    
+    resetInvestorItemsPager({
+      investorId,
+      sold: items.sold || [],
+      paid: items.paid || [],
+      itemsMap: new Map()
+    }); 
     // Renderizar compras
     const purchasesRows = purchases.map(purchase => {
       const purchaseDate = purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : 'N/A';
@@ -6344,33 +6450,36 @@ async function openInvestorDetailModal(investorId) {
               </button>
             ` : ''}
           </div>
-          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+          <div class="max-h-[280px] overflow-auto custom-scrollbar">
             <table class="w-full text-sm border-collapse">
               <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
                 <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
                   <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                    <input type="checkbox" id="select-all-sold" class="cursor-pointer" />
+                    <input type="checkbox" id="select-all-sold" class="cursor-pointer" title="Seleccionar esta página" />
                   </th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">SKU</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Venta</th>
                 </tr>
               </thead>
-              <tbody class="text-white dark:text-white theme-light:text-slate-900">${soldItems}</tbody>
+              <tbody id="investor-sold-tbody" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
             </table>
           </div>
+          <div id="investor-sold-pager"></div>
         </div>
         
         <!-- Items Pagados -->
         <div class="mb-6">
           <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">Items Pagados</h4>
-          <div class="max-h-[200px] overflow-auto custom-scrollbar">
+          <div class="max-h-[280px] overflow-auto custom-scrollbar">
             <table class="w-full text-sm border-collapse">
               <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
                 <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Item</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">SKU</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cantidad</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Precio Compra</th>
                   <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Valor Total</th>
@@ -6378,9 +6487,10 @@ async function openInvestorDetailModal(investorId) {
                   <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha Pago</th>
                 </tr>
               </thead>
-              <tbody class="text-white dark:text-white theme-light:text-slate-900">${paidItems}</tbody>
+              <tbody id="investor-paid-tbody" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
             </table>
           </div>
+          <div id="investor-paid-pager"></div>
         </div>
         
         <!-- Compras Registradas -->
@@ -6406,6 +6516,17 @@ async function openInvestorDetailModal(investorId) {
     `;
     
     invOpenModal(modalContent);
+    renderInvestorSoldRows();
+    renderInvestorPaidRows();
+    
+    // Configurar funcionalidad de cobro si hay items vendidos
+    if (items.sold && items.sold.length > 0) {
+      bindInvestorSoldSelectAll();
+      const btnCobrar = document.getElementById('btn-cobrar-items');
+      if (btnCobrar) {
+        btnCobrar.onclick = () => openPayInvestorItemsModal(investorId, items.sold || []);
+      }
+    }
     
     // Función global para editar compra
     // Nota: `investorIdCtx` es el inversor del contexto (desde el modal del inversor), NO el select del formulario.
@@ -6898,27 +7019,6 @@ async function openInvestorDetailModal(investorId) {
         alert('Error: ' + (err.message || 'Error desconocido'));
       }
     };
-    
-    // Configurar funcionalidad de cobro si hay items vendidos
-    if (items.sold && items.sold.length > 0) {
-      // Checkbox "Seleccionar todos"
-      const selectAllCheckbox = document.getElementById('select-all-sold');
-      const soldCheckboxes = document.querySelectorAll('.sold-item-checkbox');
-      
-      if (selectAllCheckbox && soldCheckboxes.length > 0) {
-        selectAllCheckbox.addEventListener('change', (e) => {
-          soldCheckboxes.forEach(cb => {
-            cb.checked = e.target.checked;
-          });
-        });
-      }
-      
-      // Botón "Cobrar Items"
-      const btnCobrar = document.getElementById('btn-cobrar-items');
-      if (btnCobrar) {
-        btnCobrar.onclick = () => openPayInvestorItemsModal(investorId, items.sold || []);
-      }
-    }
   } catch (err) {
     console.error('Error cargando detalle de inversor:', err);
     alert('Error: ' + (err.message || 'Error desconocido'));
@@ -7285,15 +7385,20 @@ async function openPayInvestorItemsModal(investorId, soldItems) {
     const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     
     // Obtener items seleccionados
-    const checked = Array.from(document.querySelectorAll('.sold-item-checkbox:checked'));
-    if (checked.length === 0) {
+    const checkedFromDom = Array.from(document.querySelectorAll('#investor-sold-tbody .sold-item-checkbox:checked'));
+    const selectedIds = investorItemsPager.selectedSoldIds.size
+      ? [...investorItemsPager.selectedSoldIds]
+      : checkedFromDom.map((cb) => cb.dataset.investmentItemId).filter(Boolean);
+    if (selectedIds.length === 0) {
       alert('Selecciona al menos un item para cobrar');
       return;
     }
     
-    const selectedItems = checked.map(cb => {
-      const itemId = cb.dataset.investmentItemId;
-      const total = parseFloat(cb.dataset.total || 0);
+    const selectedItems = selectedIds.map((itemId) => {
+      const soldItem = soldItems.find((si) => String(si._id || si.id) === String(itemId));
+      const total = soldItem
+        ? (soldItem.purchasePrice || 0) * (soldItem.qty || 0)
+        : parseFloat((checkedFromDom.find((cb) => cb.dataset.investmentItemId === itemId)?.dataset.total) || 0);
       return { investmentItemId: itemId, total };
     });
     

@@ -613,15 +613,27 @@ async function cleanupCorruptTechnicians() {
 
 async function loadOpenPeriods(){
   try {
-    const list = await api.get('/api/v1/payroll/periods/open');
+    const [list, currentRes] = await Promise.all([
+      api.get('/api/v1/payroll/periods/open'),
+      api.get('/api/v1/payroll/periods/current').catch(() => null)
+    ]);
     const sel = document.getElementById('pl-periodSel');
+    const currentId = String(currentRes?.period?._id || '');
     if (sel) {
-      sel.innerHTML = '<option value="">Seleccione período…</option>' + list.map(p => {
+      sel.innerHTML = '<option value="">Seleccione período…</option>' + (list || []).map(p => {
         const start = new Date(p.startDate).toLocaleDateString('es-CO');
         const end = new Date(p.endDate).toLocaleDateString('es-CO');
-        return `<option value="${p._id}">${start} → ${end}</option>`;
+        const currentMark = String(p._id) === currentId ? ' · periodo actual' : '';
+        const autoMark = p.source === 'AUTO' ? ' 🗓️' : '';
+        return `<option value="${p._id}">${start} → ${end}${autoMark}${currentMark}</option>`;
       }).join('');
+      if (currentId && (list || []).some(p => String(p._id) === currentId)) {
+        sel.value = currentId;
+      } else if (list?.[0]?._id) {
+        sel.value = list[0]._id;
+      }
     }
+    await loadSettlements();
   } catch (err) {
     console.error('Error loading open periods:', err);
   }
@@ -656,11 +668,15 @@ async function loadAllPeriods(){
       const statusBadge = p.status === 'open' 
         ? '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);">Abierto</span>'
         : '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(107,114,128,0.1);color:#6b7280;border:1px solid rgba(107,114,128,0.3);">Cerrado</span>';
+      const sourceBadge = p.source === 'AUTO'
+        ? '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);">Semanal auto</span>'
+        : '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(148,163,184,0.12);color:#94a3b8;border:1px solid rgba(148,163,184,0.3);">Manual</span>';
       
       return `<div class="period-row py-card-row p-3 rounded-lg mb-2 transition-all duration-200">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             ${statusBadge}
+            ${sourceBadge}
             <div class="flex-1">
               <div class="font-semibold py-text mb-0.5">
                 ${typeInfo.icon} ${htmlEscape(typeInfo.label)} · ${days} días

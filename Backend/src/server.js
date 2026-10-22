@@ -47,6 +47,7 @@ import bossSalesRouter from './routes/boss.sales.routes.js';
 import bossInventoryRouter from './routes/boss.inventory.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 import { runCashScheduleJob } from './controllers/cashSessions.controller.js';
+import { runPayrollPeriodScheduleJob } from './controllers/payroll.controller.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -374,12 +375,19 @@ mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
           runCashScheduleJob().catch(err => {
             logger.error('cash.schedule.job.error', { err: err.message });
           });
+          runPayrollPeriodScheduleJob().catch(err => {
+            logger.error('payroll.period.schedule.job.error', { err: err.message });
+          });
         }, 60 * 1000); // Cada 60 segundos
         logger.info('calendar.notifications.job.started');
         runCashScheduleJob().catch(err => {
           logger.error('cash.schedule.job.error', { err: err.message });
         });
         logger.info('cash.schedule.job.started');
+        runPayrollPeriodScheduleJob().catch(err => {
+          logger.error('payroll.period.schedule.job.error', { err: err.message });
+        });
+        logger.info('payroll.period.schedule.job.started');
       } catch (err) {
         logger.error('calendar.notifications.job.init.error', { err: err.message });
         // No fallar el servidor si el job no se puede iniciar

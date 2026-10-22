@@ -15,6 +15,14 @@ import { computeBalance, recomputeAccountBalances } from './cashflow.controller.
 import mongoose from 'mongoose';
 import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC, now as utcNow } from '../lib/dateTime.js';
 import { publish } from '../lib/live.js';
+import { logger } from '../lib/logger.js';
+import {
+  bogotaPeriodRange,
+  getWeeklyPeriodYmdRange,
+  isWeeklyPeriodActiveWindow,
+  shouldCloseCurrentWeeklyPeriod,
+  weeklyScheduleStatus
+} from '../lib/payrollPeriodSchedule.js';
 
 export const listConcepts = async (req, res) => {
   try {
@@ -276,7 +284,8 @@ export const createPeriod = async (req, res) => {
       companyId: req.companyId, 
       periodType: type, 
       startDate: start, 
-      endDate: end 
+      endDate: end,
+      source: 'MANUAL'
     });
     
     res.status(201).json(doc);
@@ -317,8 +326,93 @@ export const createPeriod = async (req, res) => {
   }
 };
 
+export async function ensureCompanyPayrollPeriod(companyId) {
+  const now = new Date();
+  const { startYmd, endYmd } = getWeeklyPeriodYmdRange(now);
+  const { start, end } = bogotaPeriodRange(startYmd, endYmd);
+
+  await PayrollPeriod.updateMany({
+    companyId,
+    periodType: 'weekly',
+    source: 'AUTO',
+    status: 'open',
+    endDate: { $lt: start }
+  }, { $set: { status: 'closed' } });
+
+  if (shouldCloseCurrentWeeklyPeriod(now)) {
+    await PayrollPeriod.updateMany({
+      companyId,
+      periodType: 'weekly',
+      source: 'AUTO',
+      status: 'open',
+      endDate: end
+    }, { $set: { status: 'closed' } });
+    return null;
+  }
+
+  if (!isWeeklyPeriodActiveWindow(now)) return null;
+
+  const existing = await PayrollPeriod.findOne({
+    companyId,
+    periodType: 'weekly',
+    source: 'AUTO',
+    startDate: start,
+    endDate: end
+  });
+  if (existing) return existing;
+
+  return PayrollPeriod.create({
+    companyId,
+    periodType: 'weekly',
+    source: 'AUTO',
+    startDate: start,
+    endDate: end,
+    status: 'open'
+  });
+}
+
+export async function findCurrentPayrollPeriod(companyId) {
+  await ensureCompanyPayrollPeriod(companyId);
+  const now = new Date();
+  if (isWeeklyPeriodActiveWindow(now)) {
+    const { startYmd, endYmd } = getWeeklyPeriodYmdRange(now);
+    const { start, end } = bogotaPeriodRange(startYmd, endYmd);
+    const weekly = await PayrollPeriod.findOne({
+      companyId,
+      status: 'open',
+      periodType: 'weekly',
+      source: 'AUTO',
+      startDate: start,
+      endDate: end
+    });
+    if (weekly) return weekly;
+  }
+  return PayrollPeriod.findOne({ companyId, status: 'open' }).sort({ startDate: -1, createdAt: -1 });
+}
+
+export async function runPayrollPeriodScheduleJob() {
+  const companies = await Company.find({ active: { $ne: false } }).select('_id').lean();
+  for (const company of companies) {
+    try {
+      await ensureCompanyPayrollPeriod(company._id);
+    } catch (err) {
+      logger.error('payroll.period.schedule.company.error', { companyId: String(company._id), err: err.message });
+    }
+  }
+}
+
+export const getCurrentPeriod = async (req, res) => {
+  try {
+    const period = await findCurrentPayrollPeriod(req.companyId);
+    res.json({ period: period || null, schedule: weeklyScheduleStatus() });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener período actual', message: err.message });
+  }
+};
+
 export const listOpenPeriods = async (req, res) => {
   try {
+    await ensureCompanyPayrollPeriod(req.companyId);
     const items = await PayrollPeriod.find({ companyId: req.companyId, status: 'open' }).sort({ startDate: -1 });
     res.json(items);
   } catch (err) {
@@ -328,6 +422,7 @@ export const listOpenPeriods = async (req, res) => {
 
 export const listAllPeriods = async (req, res) => {
   try {
+    await ensureCompanyPayrollPeriod(req.companyId);
     const { status } = req.query;
     const filter = { companyId: req.companyId };
     if (status === 'open' || status === 'closed') {

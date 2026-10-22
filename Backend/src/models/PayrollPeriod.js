@@ -5,7 +5,8 @@ const PayrollPeriodSchema = new mongoose.Schema({
   periodType: { type: String, enum: ['monthly','biweekly','weekly'], default: 'monthly' },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
-  status: { type: String, enum: ['open','closed'], default: 'open', index: true }
+  status: { type: String, enum: ['open','closed'], default: 'open', index: true },
+  source: { type: String, enum: ['AUTO', 'MANUAL'], default: 'MANUAL', index: true }
 }, { timestamps: true });
 
 // Índice compuesto para búsquedas eficientes (sin unique para permitir períodos cerrados duplicados)
