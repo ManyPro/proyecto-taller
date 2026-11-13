@@ -118,6 +118,11 @@ const API = {
   patch: (path, payload) => http.patch(path, payload),
   del: (path) => http.del(path),
   
+  gmail: {
+    status: () => http.get('/api/v1/gmail/status'),
+    connect: () => http.post('/api/v1/gmail/connect', {}),
+    disconnect: () => http.post('/api/v1/gmail/disconnect', {})
+  },
   company: {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),

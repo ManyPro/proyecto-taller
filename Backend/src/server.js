@@ -29,6 +29,7 @@ import companyRouter from './routes/company.routes.js';
 import cashflowRouter from './routes/cashflow.routes.js';
 import templatesRouter from './routes/templates.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import gmailRouter from './routes/gmail.routes.js';
 import payrollRouter from './routes/payroll.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
 import customerPublicRouter from './routes/customer.public.routes.js';
@@ -47,6 +48,7 @@ import bossCashflowRouter from './routes/boss.cashflow.routes.js';
 import bossSalesRouter from './routes/boss.sales.routes.js';
 import bossInventoryRouter from './routes/boss.inventory.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
+import { handleGmailCallback, pollGmailInboxes } from './controllers/gmail.controller.js';
 import { runCashScheduleJob } from './controllers/cashSessions.controller.js';
 import { runPayrollPeriodScheduleJob } from './controllers/payroll.controller.js';
 
@@ -225,6 +227,7 @@ app.get('/', (_req, res) => {
 });
 
 // Public routes
+app.get('/api/gmail/callback', handleGmailCallback);
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/sales', salesStreamRouter);
@@ -337,6 +340,7 @@ app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
 app.use('/api/v1/receivables', authCompany, withCompanyDefaults, receivablesRouter);
 app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
+app.use('/api/v1/gmail', authCompany, withCompanyDefaults, gmailRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
 app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
 app.use('/api/v1/maintenance', authCompany, withCompanyDefaults, maintenanceRouter);
@@ -390,6 +394,16 @@ mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
           logger.error('payroll.period.schedule.job.error', { err: err.message });
         });
         logger.info('payroll.period.schedule.job.started');
+
+        pollGmailInboxes().catch(err => {
+          logger.error('gmail.poll.init.error', { err: err.message });
+        });
+        setInterval(() => {
+          pollGmailInboxes().catch(err => {
+            logger.error('gmail.poll.job.error', { err: err.message });
+          });
+        }, 20 * 1000);
+        logger.info('gmail.poll.job.started');
       } catch (err) {
         logger.error('calendar.notifications.job.init.error', { err: err.message });
         // No fallar el servidor si el job no se puede iniciar
