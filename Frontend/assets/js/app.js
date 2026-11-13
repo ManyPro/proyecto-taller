@@ -294,7 +294,8 @@ const FEATURE_CATALOG = [
   { key: 'cashflow', label: 'Flujo de Caja' },
   { key: 'payroll', label: 'Nómina' },
   { key: 'templates', label: 'Formatos / Plantillas' },
-  { key: 'skus', label: 'SKUs' }
+  { key: 'skus', label: 'SKUs' },
+  { key: 'diagnosticoRenault', label: 'Diagnóstico Renault IA' }
 ];
 let lastFeaturesSyncTs = 0;
 const getCurrentPage = () => document.body?.dataset?.page || 'home';
@@ -883,10 +884,11 @@ if(typeof window !== 'undefined' && window.addEventListener) {
     panel = document.createElement('div');
     panel.id='notifPanel';
     panel.className = 'notif-panel fixed top-[60px] right-[14px] w-80 max-h-[70vh] overflow-auto rounded-xl p-3 hidden z-[2000] bg-slate-900/95 border border-slate-600/40 shadow-2xl shadow-black/40';
-    panel.innerHTML='<div class="notif-panel__head flex justify-between items-center mb-2 gap-2"><strong class="notif-panel__title text-sm font-semibold">Notificaciones</strong><div class="flex shrink-0 gap-1.5"><button type="button" id="notifMarkAll" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Marcar todo</button><button type="button" id="notifClose" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Cerrar</button></div></div><div id="notifList" class="notif-panel__list flex flex-col gap-2 text-xs"></div>';
+    panel.innerHTML='<div class="notif-panel__head flex justify-between items-center mb-2 gap-2"><strong class="notif-panel__title text-sm font-semibold">Notificaciones</strong><div class="flex shrink-0 gap-1.5"><button type="button" id="notifGmail" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Avisos banco</button><button type="button" id="notifMarkAll" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Marcar todo</button><button type="button" id="notifClose" class="notif-panel__btn px-2 py-1 text-xs font-semibold rounded-md transition-colors border">Cerrar</button></div></div><div id="notifGmailStatus" class="hidden text-[11px] text-slate-400 mb-2"></div><div id="notifList" class="notif-panel__list flex flex-col gap-2 text-xs"></div>';
     document.body.appendChild(panel);
     panel.querySelector('#notifClose').onclick = togglePanel;
     panel.querySelector('#notifMarkAll').onclick = markAll;
+    panel.querySelector('#notifGmail').onclick = connectGmailInbox;
     return panel;
   }
   function fmtAgo(ts){
@@ -940,6 +942,19 @@ if(typeof window !== 'undefined' && window.addEventListener) {
           const baseText = `${d?.sku ? d.sku + ': ' : ''}${d?.name || 'Producto'} - quedan ${d?.stock ?? '?'} (minimo ${d?.minStock ?? '?'})`;
           const action = d?.purchaseLabel ? ` - Pedir mas en (${d.purchaseLabel})` : ' - Pedir mas';
           return { icon:'🚨', title:'STOCK MUY BAJO', body: baseText + action, meta: ago, urgent: true };
+        }
+        case /^payment\.received$/.test(t):{
+          const amount = d?.amountLabel || (d?.amount ? `$${d.amount}` : '');
+          const channel = d?.channel ? ` por ${d.channel}` : '';
+          const sender = d?.sender ? ` de ${d.sender}` : '';
+          const fallback = d?.snippet || d?.subject || 'Revisa el aviso de Bancolombia';
+          return {
+            icon:'💰',
+            title: amount ? `Dinero recibido ${amount}` : 'Dinero recibido',
+            body: amount ? `${amount}${channel}${sender}` : fallback,
+            meta: ago,
+            urgent: false
+          };
         }
         case /^calendar\.event$/.test(t):{
           const eventTitle = d?.title || 'Evento del calendario';
@@ -1042,7 +1057,62 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       fetchNotifications();
     }catch(e){/* ignore */ }
   }
-  function togglePanel(){ ensurePanel(); panel.style.display = panel.style.display==='none'? 'block':'none'; if(panel.style.display==='block'){ fetchNotifications(); } }
+  async function refreshGmailStatus(){
+    try{
+      const st = await API.gmail.status();
+      const el = document.getElementById('notifGmailStatus');
+      const btn = document.getElementById('notifGmail');
+      if(el){
+        el.classList.remove('hidden');
+        if(!st?.configured){
+          el.textContent = 'Falta pegar Client ID y Secret en el .env';
+        } else if(st.connected){
+          el.textContent = `Avisos conectados: ${st.email || 'Gmail'}`;
+        } else {
+          el.textContent = 'Gmail de avisos aún no conectado';
+        }
+      }
+      if(btn) btn.textContent = st?.connected ? 'Reconectar' : 'Avisos banco';
+    }catch{
+      const el = document.getElementById('notifGmailStatus');
+      if(el){
+        el.classList.remove('hidden');
+        el.textContent = 'No se pudo leer el estado de Gmail';
+      }
+    }
+  }
+  async function connectGmailInbox(){
+    try{
+      const st = await API.gmail.status();
+      if(!st?.configured){
+        alert('Pega GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en el .env del backend y reinicia.');
+        return;
+      }
+      const { url } = await API.gmail.connect();
+      if(!url) throw new Error('No se obtuvo la URL de Google');
+      window.location.href = url;
+    }catch(e){
+      alert(e?.message || 'No se pudo iniciar la conexión de Gmail');
+    }
+  }
+  function consumeGmailQuery(){
+    try{
+      const params = new URLSearchParams(window.location.search);
+      const gmail = params.get('gmail');
+      if(!gmail) return;
+      if(gmail === 'connected'){
+        alert('Gmail de avisos conectado. Los pagos de Bancolombia aparecerán en esta campana.');
+      } else if(gmail === 'error'){
+        alert('No se pudo conectar Gmail: ' + (params.get('gmailMsg') || 'error desconocido'));
+      }
+      params.delete('gmail');
+      params.delete('gmailMsg');
+      const next = params.toString();
+      const url = window.location.pathname + (next ? `?${next}` : '') + window.location.hash;
+      window.history.replaceState({}, '', url);
+    }catch{}
+  }
+  function togglePanel(){ ensurePanel(); panel.style.display = panel.style.display==='none'? 'block':'none'; if(panel.style.display==='block'){ fetchNotifications(); refreshGmailStatus(); } }
   function startPolling(){ if(polling) return; polling = setInterval(fetchNotifications, 30000); fetchNotifications(); }
   
   // Conectar SSE para recibir notificaciones en tiempo real
@@ -1132,6 +1202,7 @@ if(typeof window !== 'undefined' && window.addEventListener) {
     startPolling();
     connectNotificationSSE();
     initAudioOnUserInteraction();
+    consumeGmailQuery();
   });
 })();
 

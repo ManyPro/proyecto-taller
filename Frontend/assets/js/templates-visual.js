@@ -5915,12 +5915,12 @@
     
     // CORREGIR: Si las tablas tienen contenido pero NO tienen {{#each, agregarlas
     // Esto corrige templates que se guardaron sin las variables correctas
-    if (content.includes('remission-table') || content.includes('items-table')) {
+    if ((content.includes('remission-table') || content.includes('items-table')) && !content.includes('quote-table')) {
       const tbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
       if (tbodyMatches) {
         tbodyMatches.forEach((match) => {
-          // Si tiene {{name}} pero NO tiene {{#each sale.items}}
-          if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+          // Si tiene {{name}} pero todavía no tiene un ciclo de ítems
+          if (match.includes('{{name}}') && !match.includes('{{#each') && !match.includes('quote.items')) {
             const tbodyContent = match.replace(/<\/?tbody>/gi, '').trim();
             // Extraer solo las filas <tr> que tienen las variables
             const rowsMatch = tbodyContent.match(/<tr>[\s\S]*?<\/tr>/gi);
