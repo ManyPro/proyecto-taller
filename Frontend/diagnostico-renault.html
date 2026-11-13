@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Diagnóstico Renault IA</title>
+  <link rel="stylesheet" href="./assets/ui.css?v=202610221800" />
+  <link rel="stylesheet" href="./assets/css/pages/home.css?v=202610221800" />
+  <link rel="stylesheet" href="./assets/css/pages/diagnosis.css?v=202610221800" />
+  <script src="./assets/js/theme-engine.js"></script>
+  <script src="./assets/js/modal-system.js"></script>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <script src="./assets/js/cache-buster.js"></script>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="./assets/js/config.js"></script>
+</head>
+<body data-page="diagnostico-renault">
+  <main>
+    <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
+      <div class="home-header-shell shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0 home-header-brand">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium home-header-eyebrow">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white home-header-company">-</span>
+              </div>
+              <div class="sm:hidden text-white font-semibold text-sm home-header-company">
+                <span id="companyNameMobile">-</span>
+              </div>
+            </div>
+            <div class="hidden md:flex items-center gap-2 home-header-actions">
+              <button id="logoutBtn" class="hidden home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200">Salir</button>
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--ghost px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200" title="Cambiar tema">🌗</button>
+            </div>
+            <div class="md:hidden flex items-center gap-2 home-header-actions-mobile">
+              <button type="button" class="js-open-public-catalog home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200">📚</button>
+              <button id="themeToggleMobile" class="home-header-btn home-header-btn--icon p-2 rounded-xl transition-all duration-200">🌗</button>
+              <button id="mobileMenuToggle" class="home-header-btn home-header-btn--icon p-2 rounded-xl" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="hidden md:block home-header-nav-row">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+            <nav class="flex items-center gap-1.5 scrollbar-hide pb-1" style="scrollbar-width: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">SKUs</button>
+              <button data-tab="diagnostico-renault" data-feature="diagnosticoRenault" data-href="diagnostico-renault.html" class="nav-tab active px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap">Diagnóstico Renault IA</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <div id="mobileMenu" class="md:hidden hidden home-header-mobile-drawer shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium rounded-xl">SKUs</button>
+          <button data-tab="diagnostico-renault" data-feature="diagnosticoRenault" data-href="diagnostico-renault.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium rounded-xl">Diagnóstico Renault IA</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="appSection" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+        <div>
+          <h1 class="text-2xl font-bold dx-text">Diagnóstico Renault IA</h1>
+          <p class="text-sm dx-muted mt-1">CASA RENAULT H&H · Bogotá. Orientación progresiva con AUTEL MaxiSys MS906BT. El técnico confirma la reparación y el cierre.</p>
+        </div>
+        <div id="dx-status-pill" class="text-xs dx-muted"></div>
+      </div>
+
+      <div class="dx-tabs flex flex-wrap gap-2 mb-4">
+        <button type="button" data-dx-view="list" class="active">Casos</button>
+        <button type="button" data-dx-view="form">Nuevo caso</button>
+        <button type="button" data-dx-view="docs">Base técnica</button>
+        <button type="button" data-dx-view="usage">Consumo</button>
+      </div>
+      <div id="dx-flash" class="mb-3 hidden"></div>
+
+      <div id="view-list">
+        <div class="dx-panel mb-4">
+          <div class="flex flex-wrap gap-2 items-end">
+            <div class="flex-1 min-w-[180px]">
+              <label class="dx-label block mb-1">Buscar</label>
+              <input id="dx-search" class="dx-input" placeholder="Modelo, placa, síntoma, número" />
+            </div>
+            <div>
+              <label class="dx-label block mb-1">Estado</label>
+              <select id="dx-status-filter" class="dx-select">
+                <option value="">Todos</option>
+                <option value="abierto">Abierto</option>
+                <option value="esperando_medicion">Esperando medición</option>
+                <option value="pausado">Pausado</option>
+                <option value="pendiente_verificacion">Pendiente de verificación</option>
+                <option value="cerrado">Cerrado</option>
+              </select>
+            </div>
+            <button type="button" id="dx-search-btn" class="dx-btn dx-btn-primary">Buscar</button>
+            <button type="button" id="dx-new-btn" class="dx-btn dx-btn-green">Nuevo caso</button>
+          </div>
+        </div>
+        <div id="dx-case-list" class="space-y-2"></div>
+      </div>
+
+      <div id="view-form" class="hidden">
+        <form id="dx-new-form" class="space-y-4">
+          <div class="dx-panel">
+            <h2 class="font-semibold dx-text mb-3">Vehículo</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div><label class="dx-label block mb-1">Modelo *</label><input name="model" required class="dx-input" placeholder="Duster, Sandero, Kwid…" /></div>
+              <div><label class="dx-label block mb-1">Año *</label><input name="year" type="number" min="1995" max="2030" required class="dx-input" /></div>
+              <div>
+                <label class="dx-label block mb-1">Código de motor</label>
+                <select name="engineCode" id="dx-engine" class="dx-select"></select>
+              </div>
+              <div><label class="dx-label block mb-1">Motorización / notas</label><input name="engineNotes" class="dx-input" placeholder="1.3 turbo, 16V…" /></div>
+              <div><label class="dx-label block mb-1">Kilometraje (opcional)</label><input name="mileageKm" type="number" min="0" class="dx-input" /></div>
+              <div><label class="dx-label block mb-1">Placa (vehículo, opcional)</label><input name="plate" class="dx-input" maxlength="10" /></div>
+              <div>
+                <label class="dx-label block mb-1">Transmisión</label>
+                <select name="transmission" class="dx-select">
+                  <option value="manual">Manual</option>
+                  <option value="automatica">Automática</option>
+                  <option value="cvt">CVT</option>
+                  <option value="no_se">No lo sé</option>
+                </select>
+              </div>
+              <div>
+                <label class="dx-label block mb-1">Combustible</label>
+                <select name="fuel" class="dx-select">
+                  <option value="gasolina">Gasolina</option>
+                  <option value="diesel">Diésel</option>
+                  <option value="hibrido">Híbrido</option>
+                  <option value="no_se">No lo sé</option>
+                </select>
+              </div>
+              <label class="flex items-center gap-2 text-sm dx-text mt-6"><input type="checkbox" name="cngConversion" /> Conversión a gas</label>
+            </div>
+            <p class="text-xs dx-muted mt-2">Estas selecciones no sustituyen la identificación del vehículo. Si no conoces el motor, elige «No lo sé».</p>
+          </div>
+
+          <div class="dx-panel">
+            <h2 class="font-semibold dx-text mb-3">Falla</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="md:col-span-2"><label class="dx-label block mb-1">Síntoma principal *</label><input name="mainSymptom" required class="dx-input" placeholder="Ralentí inestable, no arranca, pérdida de potencia…" /></div>
+              <div class="md:col-span-2"><label class="dx-label block mb-1">Descripción libre</label><textarea name="description" rows="3" class="dx-area" placeholder="Qué sientes, desde cuándo, en qué condiciones"></textarea></div>
+            </div>
+            <p class="dx-label mt-3 mb-1">Cuándo sucede</p>
+            <div id="dx-when" class="flex flex-wrap gap-2 text-sm dx-text"></div>
+            <div class="mt-3">
+              <label class="dx-label block mb-1">Códigos de falla</label>
+              <select name="dtcStatus" id="dx-dtc-status" class="dx-select max-w-xs">
+                <option value="no_leidos">Todavía no los he leído</option>
+                <option value="sin_codigos">Sin códigos</option>
+                <option value="con_codigos">Tengo códigos exactos del AUTEL</option>
+              </select>
+            </div>
+            <div id="dx-dtc-wrap" class="hidden mt-3">
+              <table class="dx-table">
+                <thead><tr><th>Código</th><th>Descripción AUTEL</th><th>Estado</th></tr></thead>
+                <tbody id="dx-dtc-body"></tbody>
+              </table>
+              <button type="button" id="dx-add-dtc" class="dx-btn dx-btn-secondary mt-2">+ Código</button>
+            </div>
+          </div>
+
+          <div class="dx-panel">
+            <h2 class="font-semibold dx-text mb-3">Condiciones actuales</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="dx-label block mb-1">Motor</label>
+                <select name="engineRunning" class="dx-select">
+                  <option value="no_se">No indica</option>
+                  <option value="encendido">Encendido</option>
+                  <option value="apagado">Apagado</option>
+                </select>
+              </div>
+              <div><label class="dx-label block mb-1">Temperatura</label><input name="coolantTemp" class="dx-input" placeholder="°C o frío/caliente" /></div>
+              <div><label class="dx-label block mb-1">RPM</label><input name="rpm" class="dx-input" /></div>
+              <div>
+                <label class="dx-label block mb-1">A/C</label>
+                <select name="ac" class="dx-select">
+                  <option value="no_se">No indica</option>
+                  <option value="off">Off</option>
+                  <option value="on">On</option>
+                </select>
+              </div>
+              <div><label class="dx-label block mb-1">Ciudad</label><input name="city" id="dx-city" class="dx-input" value="Bogotá" /></div>
+            </div>
+          </div>
+
+          <div class="dx-panel">
+            <h2 class="font-semibold dx-text mb-3">Historial y datos opcionales</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><label class="dx-label block mb-1">Reparaciones recientes</label><textarea name="recentRepairs" rows="2" class="dx-area"></textarea></div>
+              <div><label class="dx-label block mb-1">Pruebas ya realizadas</label><textarea name="testsDone" rows="2" class="dx-area"></textarea></div>
+              <div><label class="dx-label block mb-1">Identificación ECU</label><input name="ecuIdentification" class="dx-input" /></div>
+              <div><label class="dx-label block mb-1">Software ECU</label><input name="ecuSoftware" class="dx-input" /></div>
+              <div class="md:col-span-2"><label class="dx-label block mb-1">Datos congelados</label><textarea name="freezeFrame" rows="2" class="dx-area"></textarea></div>
+            </div>
+            <p class="dx-label mt-3 mb-1">Parámetros disponibles (opcional)</p>
+            <table class="dx-table">
+              <thead><tr><th>Nombre original</th><th>Valor</th><th>Unidad</th><th>Condición</th></tr></thead>
+              <tbody id="dx-param-body"></tbody>
+            </table>
+            <button type="button" id="dx-add-param" class="dx-btn dx-btn-secondary mt-2">+ Parámetro</button>
+            <label class="flex items-center gap-2 text-sm dx-text mt-3"><input type="checkbox" name="includeReviewedCases" /> Incluir casos resueltos revisados del taller como antecedentes (no son especificación oficial)</label>
+          </div>
+
+          <div class="flex gap-2">
+            <button type="submit" class="dx-btn dx-btn-primary" id="dx-create">Crear caso y pedir primera comprobación</button>
+            <button type="button" class="dx-btn dx-btn-secondary" data-dx-view="list">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="view-case" class="hidden">
+        <div class="flex flex-wrap gap-2 mb-3">
+          <button type="button" class="dx-btn dx-btn-secondary" data-dx-view="list">← Casos</button>
+          <button type="button" id="dx-pause" class="dx-btn dx-btn-warn">Pausar</button>
+          <button type="button" id="dx-reopen" class="dx-btn dx-btn-secondary">Reabrir</button>
+          <button type="button" id="dx-print" class="dx-btn dx-btn-secondary">Imprimir resumen</button>
+        </div>
+        <div id="dx-case-head" class="dx-panel mb-3"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div class="lg:col-span-2 space-y-3">
+            <div id="dx-now" class="dx-panel dx-now"></div>
+            <div id="dx-reply" class="dx-panel"></div>
+            <div id="dx-thread" class="dx-panel space-y-2 max-h-[480px] overflow-auto"></div>
+          </div>
+          <div class="space-y-3">
+            <div id="dx-hyps" class="dx-panel"></div>
+            <div id="dx-meas" class="dx-panel"></div>
+            <div id="dx-closebox" class="dx-panel"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-docs" class="hidden">
+        <div class="dx-panel mb-3">
+          <h2 class="font-semibold dx-text">Base técnica</h2>
+          <p class="text-sm dx-muted mt-1">Carga fichas autorizadas con fuente, versión o fecha, aplicación y sección. Sin documentos revisados el asistente etiqueta la orientación como general y no inventa tolerancias. Las instrucciones de un documento no pueden cambiar las reglas del sistema.</p>
+          <p id="dx-docs-label" class="text-sm mt-2 dx-text"></p>
+        </div>
+        <form id="dx-doc-form" class="dx-panel mb-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label class="dx-label block mb-1">Título *</label><input name="title" required class="dx-input" /></div>
+          <div><label class="dx-label block mb-1">Fuente *</label><input name="source" required class="dx-input" placeholder="Renault, TSB, manual…" /></div>
+          <div><label class="dx-label block mb-1">Versión o fecha</label><input name="versionOrDate" class="dx-input" /></div>
+          <div><label class="dx-label block mb-1">Aplicación</label><input name="application" class="dx-input" placeholder="Duster 2018-2022 H5Ht" /></div>
+          <div><label class="dx-label block mb-1">Página / sección</label><input name="section" class="dx-input" /></div>
+          <div><label class="dx-label block mb-1">Motor</label><input name="engineCode" class="dx-input" placeholder="H5Ht" /></div>
+          <div><label class="dx-label block mb-1">Modelo</label><input name="model" class="dx-input" /></div>
+          <div><label class="dx-label block mb-1">ECU</label><input name="ecu" class="dx-input" /></div>
+          <div><label class="dx-label block mb-1">Año desde</label><input name="yearFrom" type="number" class="dx-input" /></div>
+          <div><label class="dx-label block mb-1">Año hasta</label><input name="yearTo" type="number" class="dx-input" /></div>
+          <div class="md:col-span-2"><label class="dx-label block mb-1">Contenido autorizado</label><textarea name="body" rows="5" class="dx-area"></textarea></div>
+          <div><button type="submit" class="dx-btn dx-btn-primary">Guardar ficha</button></div>
+        </form>
+        <div id="dx-docs-list" class="space-y-2"></div>
+      </div>
+
+      <div id="view-usage" class="hidden">
+        <div id="dx-usage" class="dx-panel"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="print-root" class="hidden"></div>
+  <div id="modal" class="modal fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60">
+    <div class="modal-content relative bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+      <div id="modalBody" class="p-4"></div>
+    </div>
+  </div>
+
+  <script src="./assets/js/api.js"></script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script src="./assets/js/admin-context.js"></script>
+  <script type="module" src="./assets/js/diagnosis.js"></script>
+  <script src="./assets/js/input-fix.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => { companyNameMobile.textContent = companyName.textContent; });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => logoutBtn.click());
+      }
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+        mobileMenu.querySelectorAll('.mobile-nav-tab').forEach((link) => {
+          link.addEventListener('click', () => mobileMenu.classList.add('hidden'));
+        });
+      }
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const href = btn.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) window.location.href = href;
+        });
+      });
+    });
+  </script>
+</body>
+</html>

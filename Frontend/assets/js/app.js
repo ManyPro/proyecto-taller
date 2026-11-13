@@ -294,7 +294,8 @@ const FEATURE_CATALOG = [
   { key: 'cashflow', label: 'Flujo de Caja' },
   { key: 'payroll', label: 'Nómina' },
   { key: 'templates', label: 'Formatos / Plantillas' },
-  { key: 'skus', label: 'SKUs' }
+  { key: 'skus', label: 'SKUs' },
+  { key: 'diagnosticoRenault', label: 'Diagnóstico Renault IA' }
 ];
 let lastFeaturesSyncTs = 0;
 const getCurrentPage = () => document.body?.dataset?.page || 'home';

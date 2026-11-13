@@ -558,6 +558,26 @@ const API = {
     markAsApplied: (id) => http.patch(`/api/v1/skus/${id}/apply`),
     updateNotes: (id, notes) => http.patch(`/api/v1/skus/${id}/notes`, { notes }),
     backfillFromItems: () => http.post('/api/v1/skus/backfill/items')
+  },
+
+  diagnosis: {
+    meta: () => http.get('/api/v1/diagnosis/meta'),
+    usage: () => http.get('/api/v1/diagnosis/usage'),
+    list: (params = {}) => http.get(`/api/v1/diagnosis/cases${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/diagnosis/cases/${id}`),
+    create: (payload) => http.post('/api/v1/diagnosis/cases', payload),
+    turn: (id, payload) => http.post(`/api/v1/diagnosis/cases/${id}/turns`, payload),
+    pause: (id) => http.post(`/api/v1/diagnosis/cases/${id}/pause`, {}),
+    reopen: (id) => http.post(`/api/v1/diagnosis/cases/${id}/reopen`, {}),
+    repair: (id, payload) => http.post(`/api/v1/diagnosis/cases/${id}/repair`, payload),
+    verify: (id, payload) => http.post(`/api/v1/diagnosis/cases/${id}/verify`, payload),
+    close: (id, payload = {}) => http.post(`/api/v1/diagnosis/cases/${id}/close`, payload),
+    documents: {
+      list: () => http.get('/api/v1/diagnosis/documents'),
+      create: (payload) => http.post('/api/v1/diagnosis/documents', payload),
+      update: (id, payload) => http.patch(`/api/v1/diagnosis/documents/${id}`, payload),
+      delete: (id) => http.del(`/api/v1/diagnosis/documents/${id}`)
+    }
   }
 };
 

@@ -42,6 +42,7 @@ import maintenanceRouter from './routes/maintenance.routes.js';
 import customerRouter from './routes/customer.routes.js';
 import purchasesRouter from './routes/purchases.routes.js';
 import investmentsRouter from './routes/investments.routes.js';
+import diagnosisRouter from './routes/diagnosis.routes.js';
 import bossCashflowRouter from './routes/boss.cashflow.routes.js';
 import bossSalesRouter from './routes/boss.sales.routes.js';
 import bossInventoryRouter from './routes/boss.inventory.routes.js';
@@ -341,6 +342,7 @@ app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
 app.use('/api/v1/maintenance', authCompany, withCompanyDefaults, maintenanceRouter);
 app.use('/api/v1/customers', authCompany, withCompanyDefaults, customerRouter);
 app.use('/api/v1/vehicles', authCompany, vehiclesRouter); // Global, sin companyId
+app.use('/api/v1/diagnosis', authCompany, withCompanyDefaults, diagnosisRouter);
 
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);

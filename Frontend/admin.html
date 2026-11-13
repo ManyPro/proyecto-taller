@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -877,6 +877,7 @@
                 <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
                 <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
                 <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+              <button data-tab="diagnostico-renault" data-feature="diagnosticoRenault" data-href="diagnostico-renault.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Diagnóstico Renault IA</button>
                 <button data-tab="admin" class="nav-tab px-4 py-3 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-t-lg transition-all duration-200 whitespace-nowrap border-2 border-purple-400 shadow-lg">⚙️ ADMIN</button>
               </nav>
             </div>
@@ -896,6 +897,7 @@
             <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
             <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
             <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+              <button data-tab="diagnostico-renault" data-feature="diagnosticoRenault" data-href="diagnostico-renault.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Diagnóstico Renault IA</button>
             <button data-tab="admin" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-all duration-200 border-2 border-purple-400">⚙️ ADMIN</button>
             <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
           </div>
@@ -1123,7 +1125,8 @@
       { id: 'pendientes', name: 'Pendientes', feature: null },
       { id: 'nomina', name: 'Nómina', feature: 'payroll' },
       { id: 'formatos', name: 'Formatos', feature: 'templates' },
-      { id: 'skus', name: 'SKUs', feature: 'skus' }
+      { id: 'skus', name: 'SKUs', feature: 'skus' },
+      { id: 'diagnostico-renault', name: 'Diagnóstico Renault IA', feature: 'diagnosticoRenault' }
     ];
     
     const hiddenTabs = company.restrictions?.hiddenTabs || [];

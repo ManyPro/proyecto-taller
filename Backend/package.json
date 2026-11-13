@@ -26,7 +26,9 @@
     "purge:prices": "node scripts/purge_prices.js",
     "generate:prices:template": "node scripts/generate_prices_import_template.js",
     "backfill:price-history": "node scripts/backfill_price_history.js",
-    "export:prices": "node scripts/export_all_prices.js"
+    "export:prices": "node scripts/export_all_prices.js",
+    "test": "node --test src/lib/**/*.test.js src/lib/diagnosis/**/*.test.js",
+    "test:diagnosis:openai": "node scripts/test_openai_diagnosis.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -43,6 +45,7 @@
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "openai": "^4.104.0",
     "multer-storage-cloudinary": "4.0.0",
     "pdfkit": "^0.13.0",
     "puppeteer-core": "^24.36.0",

@@ -1,0 +1,143 @@
+body[data-page="diagnostico-renault"] {
+  background-color: #020617;
+  min-height: 100vh;
+}
+body.theme-light[data-page="diagnostico-renault"] {
+  background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 100%);
+}
+body[data-page="diagnostico-renault"] #appSection,
+body[data-page="diagnostico-renault"] #appSection * {
+  box-sizing: border-box;
+}
+.dx-text { color: #f1f5f9; }
+body.theme-light[data-page="diagnostico-renault"] .dx-text { color: #0f172a; }
+.dx-muted { color: #94a3b8; }
+body.theme-light[data-page="diagnostico-renault"] .dx-muted { color: #64748b; }
+.dx-label { color: #94a3b8; font-size: 0.75rem; font-weight: 600; }
+body.theme-light[data-page="diagnostico-renault"] .dx-label { color: #475569; }
+.dx-input, .dx-select, .dx-area {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.55);
+  color: #f1f5f9;
+  border: 1px solid rgba(71, 85, 105, 0.55);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+body.theme-light[data-page="diagnostico-renault"] .dx-input,
+body.theme-light[data-page="diagnostico-renault"] .dx-select,
+body.theme-light[data-page="diagnostico-renault"] .dx-area {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+.dx-panel {
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 0.9rem;
+  padding: 1rem;
+}
+body.theme-light[data-page="diagnostico-renault"] .dx-panel {
+  background: #f0f9ff;
+  border-color: #e2e8f0;
+}
+.dx-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 0.75rem;
+}
+body.theme-light[data-page="diagnostico-renault"] .dx-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+.dx-btn {
+  border-radius: 0.65rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.dx-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.dx-btn-primary {
+  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+.dx-btn-green {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff;
+}
+.dx-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+body.theme-light[data-page="diagnostico-renault"] .dx-btn-secondary {
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-color: #93c5fd;
+}
+.dx-btn-warn {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde047;
+  border-color: rgba(234, 179, 8, 0.4);
+}
+.dx-btn-danger {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.35);
+}
+.dx-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.dx-badge-open { background: rgba(37, 99, 235, 0.2); color: #93c5fd; }
+.dx-badge-wait { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+.dx-badge-pause { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+.dx-badge-verify { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+.dx-badge-closed { background: rgba(22, 163, 74, 0.2); color: #86efac; }
+.dx-now {
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: linear-gradient(180deg, rgba(234, 179, 8, 0.18), rgba(15, 23, 42, 0.4));
+}
+body.theme-light[data-page="diagnostico-renault"] .dx-now {
+  background: #fefce8;
+  border-color: #facc15;
+}
+.dx-msg-user { background: rgba(37, 99, 235, 0.15); }
+.dx-msg-assistant { background: rgba(15, 23, 42, 0.45); }
+body.theme-light[data-page="diagnostico-renault"] .dx-msg-user { background: #dbeafe; }
+body.theme-light[data-page="diagnostico-renault"] .dx-msg-assistant { background: #f8fafc; }
+.dx-tabs button {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(51, 65, 85, 0.45);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.dx-tabs button.active {
+  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+.dx-alert {
+  border-radius: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+}
+.dx-alert-error { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border: 1px solid rgba(220, 38, 38, 0.35); }
+.dx-alert-ok { background: rgba(22, 163, 74, 0.15); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.35); }
+.dx-alert-warn { background: rgba(234, 179, 8, 0.12); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.35); }
+.dx-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.dx-table th, .dx-table td { padding: 0.4rem; border-bottom: 1px solid rgba(51, 65, 85, 0.45); text-align: left; vertical-align: top; }
+@media print {
+  body * { visibility: hidden; }
+  #print-root, #print-root * { visibility: visible; }
+  #print-root.hidden { display: block !important; }
+  #print-root { position: absolute; left: 0; top: 0; width: 100%; background: #fff; color: #111; padding: 24px; }
+}
