@@ -216,6 +216,21 @@ export function isBankNotice(from, subject, body) {
   return /bancolombia|grupoaval|bre-?b|nequi|davivienda|transferencia|recibiste|pago qr|c[oó]digo qr|transacci[oó]n/.test(blob);
 }
 
+function noticeBlob(from, subject, body) {
+  return `${from} ${subject} ${body}`.toLowerCase();
+}
+
+export function isIncomingPayment(from, subject, body) {
+  const blob = noticeBlob(from, subject, body);
+  return /recibiste(\s+un)?(\s+pago|\s+abono|\s+dinero|\s+transferencia)?|te lleg[oó](\s+un)?(\s+pago|\s+abono|\s+dinero)?|ingres[oó] un (pago|abono)|abono a tu cuenta/.test(blob);
+}
+
+export function isOutgoingPayment(from, subject, body) {
+  if (isIncomingPayment(from, subject, body)) return false;
+  const blob = noticeBlob(from, subject, body);
+  return /enviaste|transferiste|pagaste a\b|hiciste una transferencia|se debit[oó]|d[eé]bito por|pago enviado|transferencia enviada|realizaste un (pago|env[ií]o|transferencia)/.test(blob);
+}
+
 export async function listRecentMessageIds(accessToken, { newerThan = '2d', maxResults = 20 } = {}) {
   const data = await gmailGet(accessToken, '/messages', {
     q: `newer_than:${newerThan}`,
