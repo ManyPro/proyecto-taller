@@ -16,6 +16,7 @@ import {
   getMessage,
   extractMessageContent,
   isBankNotice,
+  isOutgoingPayment,
   parseCopAmount,
   parsePaymentChannel,
   parseSenderName,
@@ -162,6 +163,10 @@ async function processMessage(companyId, accessToken, messageId, connectedAt) {
 
   const blob = `${content.subject}\n${content.body}`;
   if (!isBankNotice(content.from, content.subject, content.body)) {
+    await markProcessed(companyId, messageId);
+    return;
+  }
+  if (isOutgoingPayment(content.from, content.subject, content.body)) {
     await markProcessed(companyId, messageId);
     return;
   }
