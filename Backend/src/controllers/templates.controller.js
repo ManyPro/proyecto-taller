@@ -938,6 +938,8 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
         const subtotal = Number(quoteObj.total) || 0;
         const iva = subtotal * 0.19;
         const totalWithIva = subtotal + iva;
+        quoteObj.subtotal = subtotal;
+        quoteObj.iva = iva;
         
         // Crear objeto Q con valores calculados para cotizaciones con IVA
         ctx.Q = {
@@ -951,9 +953,14 @@ async function buildContext({ companyId, type, sampleType, sampleId, originalCom
           C: quoteObj.itemsGrouped?.hasCombos || false
         };
       } else {
-        // Para cotizaciones sin IVA, Q.total es igual al total de la cotización
+        // Para cotizaciones sin IVA, subtotal y total coinciden
+        const subtotal = Number(quoteObj.total) || 0;
+        quoteObj.subtotal = subtotal;
+        quoteObj.iva = 0;
         ctx.Q = {
-          total: Number(quoteObj.total) || 0,
+          subtotal,
+          iva: 0,
+          total: subtotal,
           'nº': quoteObj.number || '',
           fecha: quoteObj.date || quoteObj.createdAt || new Date(),
           P: quoteObj.itemsGrouped?.hasProducts || false,
@@ -1303,9 +1310,73 @@ function normalizeSaleRemissionTableTfoot(html) {
   });
 }
 
-function normalizeTemplateHtml(html='') {
+function removeHandlebarsIfBlock(html, openTag) {
+  const closeTag = '{{/if}}';
+  const openPrefix = '{{#if';
+  let out = '';
+  let i = 0;
+  while (i < html.length) {
+    const start = html.indexOf(openTag, i);
+    if (start === -1) {
+      out += html.slice(i);
+      break;
+    }
+    out += html.slice(i, start);
+    let depth = 0;
+    let j = start;
+    let closed = false;
+    while (j < html.length) {
+      const nextOpen = html.indexOf(openPrefix, j);
+      const nextClose = html.indexOf(closeTag, j);
+      if (nextClose === -1) {
+        out += html.slice(start);
+        return out;
+      }
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth += 1;
+        j = nextOpen + openPrefix.length;
+      } else {
+        depth -= 1;
+        j = nextClose + closeTag.length;
+        if (depth === 0) {
+          closed = true;
+          break;
+        }
+      }
+    }
+    if (!closed) {
+      out += html.slice(start);
+      break;
+    }
+    i = j;
+  }
+  return out;
+}
+
+// Las cotizaciones comparten la clase items-table con remisiones. Si se reescriben
+// con sale.items, el PDF sale con encabezado y total pero sin filas.
+function repairQuoteTableInner(inner) {
+  let fixed = inner;
+  if (fixed.includes('quote.vehicle') && fixed.includes('{{#if sale.vehicle}}')) {
+    fixed = removeHandlebarsIfBlock(fixed, '{{#if sale.vehicle}}');
+  }
+  fixed = fixed.replace(/sale\.items/g, 'quote.items');
+  fixed = fixed.replace(/sale\.vehicle/g, 'quote.vehicle');
+  return fixed;
+}
+
+function repairQuoteTables(html) {
+  if (!html || !html.includes('quote-table')) return html;
+  return html.replace(/<table([^>]*class="[^"]*quote-table[^"]*"[^>]*)>([\s\S]*?)<\/table>/gi, (full, attrs, inner) => {
+    const fixed = repairQuoteTableInner(inner);
+    if (fixed === inner) return full;
+    return `<table${attrs}>${fixed}</table>`;
+  });
+}
+
+export function normalizeTemplateHtml(html='') {
   if (!html) return '';
-  let output = String(html);
+  let output = repairQuoteTables(String(html));
 
   const comboMainRowStyle = 'background: #fff7cc; font-weight: 700;';
   const applyInlineStyleToTrTag = (trTag, styleToApply) => {
@@ -1334,12 +1405,15 @@ function normalizeTemplateHtml(html='') {
   output = output.replace(/&amp;#125;&amp;#125;/g, '}}');
   
   // CORREGIR: Convertir templates antiguos que usan {{#each sale.items}} a la nueva estructura con sale.itemsGrouped
-  // Para remisiones/invoices y workOrder
-  if (output.includes('remission-table') || output.includes('items-table') || output.includes('workorder-table')) {
+  // Para remisiones/invoices y workOrder.
+  // quote-table también trae la clase items-table; no debe pasar por esta rama.
+  const isQuoteDocument = output.includes('quote-table');
+  if (!isQuoteDocument && (output.includes('remission-table') || output.includes('items-table') || output.includes('workorder-table'))) {
     // Primero, agregar fila de vehículo al thead si existe y no la tiene
     const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
     if (theadMatches) {
       theadMatches.forEach((match) => {
+        if (match.includes('quote.vehicle') || match.includes('quote.items')) return;
         // Si el thead no tiene la fila del vehículo, agregarla antes de la fila de encabezados
         if (!match.includes('sale.vehicle.brand') && !match.includes('sale.vehicle.line')) {
           // Para workOrder, la tabla solo tiene 2 columnas (Detalle, Cantidad)
@@ -1383,6 +1457,7 @@ function normalizeTemplateHtml(html='') {
     const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
     if (tbodyMatches) {
       tbodyMatches.forEach((match) => {
+        if (match.includes('quote.items') || match.includes('quote.vehicle')) return;
         // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
         if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           // Remover la fila del vehículo del tbody si existe (ya estará en el thead)
@@ -2216,6 +2291,11 @@ export async function previewTemplate(req, res) {
             ...itemObj,
             items: comboItems
           });
+        } else if (String(item.kind || '').trim().toUpperCase() === 'COMBO') {
+          combos.push({
+            ...itemObj,
+            items: []
+          });
         } else if (!comboProductItemIds.has(itemRefId) && !comboProductItemIds.has(`idx_${idx}`)) {
           // No es parte de un combo, clasificar por kind
           const kind = String(item.kind || 'SERVICIO').trim().toUpperCase();
@@ -2311,6 +2391,8 @@ export async function previewTemplate(req, res) {
           };
         }),
         itemsGrouped: itemsGrouped,
+        subtotal,
+        iva: 0,
         total: subtotal,
         ivaEnabled: ivaEnabled,
         discount: discountValue > 0 ? { value: discountValue, type: 'fixed' } : null
@@ -2325,6 +2407,7 @@ export async function previewTemplate(req, res) {
         // Esto asegura que subtotal + iva = total exactamente
         const iva = Math.round(totalWithIva - subtotal);
         
+        ctx.quote.iva = iva;
         ctx.Q = {
           subtotal: subtotal,
           iva: iva,
@@ -2337,6 +2420,8 @@ export async function previewTemplate(req, res) {
         };
       } else {
         ctx.Q = {
+          subtotal: subtotal,
+          iva: 0,
           total: subtotal,
           'nº': quoteData.number || '',
           fecha: quoteData.date || new Date(),
