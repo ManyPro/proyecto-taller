@@ -13,14 +13,24 @@ Bancolombia: enviaste un pago a JUAN PEREZ por $50.000. Hiciste una transferenci
 desde tu cuenta *5698.
 `;
 
-test('el aviso de dinero recibido se notifica', () => {
+const paidBody = `
+Bancolombia: pagaste $80.000 en el comercio TIENDA XYZ con tu cuenta *5698.
+`;
+
+const boughtBody = `
+Bancolombia: compraste por $25.000 en SUPERMERCADO con tu tarjeta *1234.
+`;
+
+test('solo se notifica una transferencia recibida', () => {
   assert.equal(isBankNotice('alertas@bancolombia.com', 'Alertas y Notificaciones', incomingBody), true);
   assert.equal(isIncomingPayment('', 'recibiste un pago', incomingBody), true);
-  assert.equal(isOutgoingPayment('', 'Alertas y Notificaciones', incomingBody), false);
 });
 
-test('el aviso de dinero enviado no se notifica', () => {
-  assert.equal(isBankNotice('alertas@bancolombia.com', 'Enviaste un pago', outgoingBody), true);
-  assert.equal(isOutgoingPayment('', 'Enviaste un pago', outgoingBody), true);
+test('enviaste, pagaste y compraste no se notifican', () => {
   assert.equal(isIncomingPayment('', 'Enviaste un pago', outgoingBody), false);
+  assert.equal(isOutgoingPayment('', 'Enviaste un pago', outgoingBody), true);
+  assert.equal(isIncomingPayment('', 'Pagaste', paidBody), false);
+  assert.equal(isOutgoingPayment('', 'Pagaste', paidBody), true);
+  assert.equal(isIncomingPayment('', 'Compraste', boughtBody), false);
+  assert.equal(isOutgoingPayment('', 'Compraste', boughtBody), true);
 });

@@ -16,7 +16,7 @@ import {
   getMessage,
   extractMessageContent,
   isBankNotice,
-  isOutgoingPayment,
+  isIncomingPayment,
   parseCopAmount,
   parsePaymentChannel,
   parseSenderName,
@@ -166,7 +166,7 @@ async function processMessage(companyId, accessToken, messageId, connectedAt) {
     await markProcessed(companyId, messageId);
     return;
   }
-  if (isOutgoingPayment(content.from, content.subject, content.body)) {
+  if (!isIncomingPayment(content.from, content.subject, content.body)) {
     await markProcessed(companyId, messageId);
     return;
   }
