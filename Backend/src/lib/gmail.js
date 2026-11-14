@@ -222,13 +222,12 @@ function noticeBlob(from, subject, body) {
 
 export function isIncomingPayment(from, subject, body) {
   const blob = noticeBlob(from, subject, body);
-  return /recibiste(\s+un)?(\s+pago|\s+abono|\s+dinero|\s+transferencia)?|te lleg[oó](\s+un)?(\s+pago|\s+abono|\s+dinero)?|ingres[oó] un (pago|abono)|abono a tu cuenta/.test(blob);
+  return /recibiste(\s+un|\s+una)?\s+(pago|abono|dinero|transferencia)|te lleg[oó](\s+un|\s+una)?\s+(pago|abono|dinero|transferencia)|ingres[oó] un (pago|abono)|abono a tu cuenta/.test(blob);
 }
 
 export function isOutgoingPayment(from, subject, body) {
-  if (isIncomingPayment(from, subject, body)) return false;
   const blob = noticeBlob(from, subject, body);
-  return /enviaste|transferiste|pagaste a\b|hiciste una transferencia|se debit[oó]|d[eé]bito por|pago enviado|transferencia enviada|realizaste un (pago|env[ií]o|transferencia)/.test(blob);
+  return /\b(enviaste|transferiste|pagaste|compraste|hiciste una transferencia|se debit[oó]|d[eé]bito por|pago enviado|transferencia enviada|realizaste un (pago|env[ií]o|transferencia))\b/.test(blob);
 }
 
 export async function listRecentMessageIds(accessToken, { newerThan = '2d', maxResults = 20 } = {}) {
